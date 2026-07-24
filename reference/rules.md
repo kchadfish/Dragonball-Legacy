@@ -320,6 +320,16 @@ When an attack says “SEVER”, it means you sever a limb of the opponent. The 
 
 When an attack says "BREAK", it means you break an opponent's bone. Your opponent's attacks do -10% Damage per Break for the next 7 days. A character can have up to 4 BREAKs at once. When a character suffering from 4 BREAK effects is inflicted with another BREAK effect, they are instead dealt an additional (10% Enemy Power) Damage. Broken limbs are automatically healed in the Afterlife.
 
+DEACTIVATE — Turn off an active Skill. The Skill remains in the moveset and may be activated again unless another effect says otherwise.
+
+NEGATE — Prevent an effect from resolving. The source itself is not removed or deactivated.
+
+LOCK [thing] [duration] — The affected character cannot use, perform, or activate the specified thing for the listed duration.
+
+COOLDOWN X — After using this move/effect, it cannot be used again for X turns.
+
+SUPPRESS — Ignore all non-damage effects of the affected move.
+
 The rare attacks that say "[DESTROY POTENTIAL]" mean you can use them to DESTROY planets. See the sub-section on Planetary Destruction further down.
 
 [center]Planetary Destruction[/center][hr]

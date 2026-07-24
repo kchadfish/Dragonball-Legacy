@@ -33,7 +33,7 @@ New Vegeta[/b]
 
 [*]Fierce Focus Mastery [KIIHAKAI, MASTERY]
 Description: Teachers of the Ki-based style often feel that though they are indeed focused on power, it is not about mindless destruction. There is a large amount of discipline and focus behind mastering your Ki, unlike mastering more brutal physical arts. Therefore a Kiihakai master should realize that their greatest assets can be their other skills, their techniques, and their experience which they should focus their attention on.
-Effect: At the start of each match, choose a Kiihakai CONSTANT Skill in your moveset. You may activate that Skill at the start of combat (before any turns) at a cost of 0 KI. Twice per match, when one of your Kiihakai CONSTANT Skills would be deactivated, you may negate the deactivation effect. Once per match, when one of your Freestyle CONSTANT Skills would be deactivated, you may negate the deactivation effect.
+Effect: At the start of each match, choose a Kiihakai CONSTANT Skill in your moveset. You may activate that Skill at the start of combat (before any turns) at a cost of 0 KI. Twice per match, when one of your Kiihakai CONSTANT Skills would be DEACTIVATED, you may NEGATE the DEACTIVATE effect. Once per match, when one of your Freestyle CONSTANT Skills would be DEACTIVATED, you may NEGATE the DEACTIVATE effect.
 Requirements: You must know at least three (3) Kiihakai attacks, skills, and/or blocks.
 Training Days: 5
 [b]Shi'kir
@@ -69,7 +69,7 @@ Namek[/b]
 
 [*]Ki Barbs [KIIHAKAI, SKILL]
 Description: The aura of the individual is turned into strips of barbed Ki that wrap around the user's next energy attack, slicing the target upon contact.
-Effect: Timing: when you Power Up. You may gain -2 KI to have your next Advanced Attack or Signature Technique do +(15% Power) Damage or you may gain -3 KI to have your next Advanced Attack or Signature Technique do +(25% Power) Damage. If you perform an attack with multiple dice rolls on your next turn, the attack gains "On hit, STUN. In order to get the SUCCESSFUL effect on this attack, all dice rolls must be higher than your opponent's defensive roll". This effect does not stack. Cost: 0 KI.
+Effect: Timing: when you Power Up. You may gain -2 KI to have your next Advanced Attack or Signature Technique do +(15% Power) Damage or you may gain -3 KI to have your next Advanced Attack or Signature Technique do +(25% Power) Damage. If you perform an attack with multiple dice rolls on your next turn, the attack gains "SUCCESSFUL - STUN. In order to get the SUCCESSFUL effect on this attack, all dice rolls must be higher than your opponent's defensive roll". This effect does not stack. Cost: 0 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -79,7 +79,7 @@ New Vegeta[/b]
 
 [*]Evening The Field [KIIHAKAI, SKILL]
 Description: To practice Kiihakai is to destroy; whatever the cost. Sometimes, the only way to ensure that your will is done is to sacrifice yourself on the altar of destruction.
-Effect: Constant. You may deactivate one of your Skills with a CONSTANT effect to deactivate one of your opponent's Skills with a CONSTANT effect. You may spend 1 KI to have this effect not take up your turn. If you STOP your opponent's next single dice attack without the use of a Block, you may reactivate your Skill. Once this effect is used, it cannot be used again for 4 turns. Cost: 1 KI.
+Effect: Constant. You may DEACTIVATE one of your Skills with a CONSTANT effect to DEACTIVATE one of your opponent's Skills with a CONSTANT effect. You may spend 1 KI to have this effect not take up your turn. If you STOP your opponent's next single dice attack without the use of a Block, you may reactivate your Skill. COOLDOWN 4. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -87,7 +87,7 @@ Namek[/b]
 
 [*]Redirected Energy [KIIHAKAI, SKILL]
 Description: A student of Kiihakai must know that when all else fails they can rely on pumping out their devastating attacks to wipe out their enemies.
-Effect: Constant. When one of your Skills is deactivated, your next Kiihakai attack costs -X KI. X = The cost of the Skill -1. Cost: 1 KI.
+Effect: Constant. When one of your Skills is DEACTIVATED, your next Kiihakai attack costs -X KI. X = The cost of the Skill -1. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -113,7 +113,7 @@ New Vegeta[/b]
 
 [*]Focus Breaker [KIIHAKAI, SKILL]
 Description: If you find yourself too focused that you have now become distracted from the battle at hand, it's time to focus your energies into simple survival.
-Effect: Constant. You may choose to deactivate one of your Skills with a 'CONSTANT' effect in order to STOP an attack that is not a Signature Technique. If you do, you cannot activate that Skill for the remainder of combat. Cost: 2 KI.
+Effect: Constant. You may choose to DEACTIVATE one of your Skills with a 'CONSTANT' effect in order to STOP an attack that is not a Signature Technique. If you do, LOCK that Skill for the remainder of combat. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -137,7 +137,7 @@ Alpha Collective[/b]
 
 [*]Power Boost [KIIHAKAI, SKILL]
 Description: Sometimes it is a worthy cause to spend time charging an attack before unleashing it at its maximum potential for a devastating blow.
-Effect: Constant. You may skip any of your ACTION phases. If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "On hit, gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead." Cost: 2 KI.
+Effect: Constant. You may skip any of your ACTION phases. If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "SUCCESSFUL - Gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead." Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -174,7 +174,7 @@ Earth[/b]
 
 [*]Heavy Jolt [KIIHAKAI,PHYSICAL, ENERGY, KICK, MANIPULATED KI]
 Description: Charging their feet with ki and soaring into the sky, leaving a contrail behind them, they descend upon their foe; performing a flipping axe kick. At the precise moment of impact, the aforementioned ki is released; adding a great deal of force to the blow, more than enough to bury the target alive.
-Effect: Physical attack. Deal (Y% Power) damage. Y = (The cost of this attack +2) x10. You may choose to have this attack cost between 1 and 5. On hit, your opponent cannot Power Up on their next turn. Cost: X KI.
+Effect: Physical attack. Deal (Y% Power) damage. Y = (The cost of this attack +2) x10. You may choose to have this attack cost between 1 and 5. SUCCESSFUL - Your opponent cannot Power Up on their next turn. Cost: X KI.
 Requirements: Bukujutsu
 Training Days: 4
  [b]Shi'kir
@@ -184,7 +184,7 @@ Namek[/b]
 
 [*]Earthpound [KIIHAKAI,PHYSICAL, PUNCH]
 Description: The user smashes the ground repeatedly with all their might, sending shockwaves towards the opponent and cracking the earth.
-Effect: Physical attack. Deal (10% Power) damage per hit. Attack roll: 3d30. On hit, your next single dice energy attack gains +3 to the result. Cost: 1 KI.
+Effect: Physical attack. Deal (10% Power) damage per hit. Attack roll: 3d30. SUCCESSFUL - Your next single dice energy attack gains +3 to the result. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -200,7 +200,7 @@ New Vegeta[/b]
 
 [*]Omega Beam [KIIHAKAI,ENERGY, BEAM]
 Description: Adopting a rooted stance, both of the user's arms glow as they are charged with energy. Moving up the attacker's arms until either glow meets in the center of their chest, a powerful beam is fired from the center of the sternum.
-Effect: Energy attack. Deal (40% Power) damage. On hit, you may deactivate a CONSTANT Skill. Your opponent may negate this effect. If they do their next 2 Advanced Attacks lose all effects other than damage. Cost: 1 KI.
+Effect: Energy attack. Deal (40% Power) damage. SUCCESSFUL - You may DEACTIVATE a CONSTANT Skill. Your opponent may NEGATE this effect. If they do, SUPPRESS their next 2 Advanced Attacks. Cost: 1 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -208,7 +208,7 @@ Earth[/b]
 
 [*]Sledgehammer [KIIHAKAI,PHYSICAL, PUNCH]
 Description: Dashing behind the target, a powerful spinning back fist is delivered to the base of the skull.
-Effect: Physical attack. Deal (40% Power) damage. On hit, if your Power is more than 20 times your opponent's Dexterity, your dice gain +2 results for the next 3 turns. This effect does not stack with itself. Cost: 1 KI.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - If your Power is more than 20 times your opponent's Dexterity, your dice gain +2 results for the next 3 turns. This effect does not stack with itself. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -216,7 +216,7 @@ Earth[/b]
 
 [*]Stray Bullet [KIIHAKAI,ENERGY, BLAST]
 Description: A small orb of ki barely stronger than a basic ki blast, the Stray Bullet technique is a weak but extremely fast move: the perfect follow up.
-Effect: Timing: immediately after performing a SUCCESSFUL energy attack with an attack roll of 25 or higher. Energy attack. Deal (20% Power) damage. After the first time you use this attack, it costs 2 KI to perform. On hit, your next attack does +(10% Power) Damage. Cost: 1 KI.
+Effect: Timing: immediately after performing a SUCCESSFUL energy attack with an attack roll of 25 or higher. Energy attack. Deal (20% Power) damage. After the first time you use this attack, it costs 2 KI to perform. SUCCESSFUL - Your next attack does +(10% Power) Damage. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -226,7 +226,7 @@ Earth[/b]
 
 [*]Aerial Beam [KIIHAKAI,ENERGY, BEAM]
 Description: Taking to the air, the user extends their palm and grabs hold of their wrist before firing a large beam that usually has a good enough force to put distance between the user and the opponent.
-Effect: Energy attack. Deal (45% Power) damage. On hit, if your attack roll is 20 or higher, your opponent cannot perform a physical attack on their next turn. If you have Eagle Eye active, you may choose to make your opponent unable to perform an energy attack on their next turn instead. Cost: 2 KI.
+Effect: Energy attack. Deal (45% Power) damage. SUCCESSFUL - If your attack roll is 20 or higher, LOCK your opponent's physical attacks for their next turn. If you have Eagle Eye active, you may choose to LOCK your opponent's energy attacks for their next turn instead. Cost: 2 KI.
 Requirements: Bukujutsu
 Training Days: 3
 [b]Shi'kir
@@ -234,7 +234,7 @@ Alpha Collective[/b]
 
 [*]Diving Elbow [KIIHAKAI,PHYSICAL, PUNCH]
 Description: Soaring up into the air, the attacker then comes back down onto their foe; driving their elbow into the top of the enemy's skull.
-Effect: Physical attack. Deal (40% Power) damage. You may lose 1 KI to reactivate one of your Skills that was deactivated on the last turn. On hit, if you are not using Fierce Focus Mastery, you may lose 1 KI to activate a CONSTANT Skill. That Skill cannot be deactivated for the next 4 turns. Cost: 2 KI.
+Effect: Physical attack. Deal (40% Power) damage. You may lose 1 KI to reactivate one of your Skills that was DEACTIVATED on the last turn. SUCCESSFUL - If you are not using Fierce Focus Mastery, you may lose 1 KI to activate a CONSTANT Skill. That Skill cannot be DEACTIVATED for the next 4 turns. Cost: 2 KI.
 Requirements: Bukujutsu
 Training Days: 2
 [b]Shi'kir
@@ -242,7 +242,7 @@ Namek[/b]
 
 [*]Downward Spiral [KIIHAKAI,PHYSICAL, HOLD]
 Description: Latching onto the opponent's waist, the user floats into the air, taking the victim with them. Turning upside down, the attacker slams the foe's head into the ground and then proceeds to spin around, grinding their head into the dirt.
-Effect: Physical attack. Deal (50% Power) damage. For the next 5 turns, nothing can prevent you from activating your Skills. On hit, choose one of your opponent's CONSTANT Skills in their moveset. You may choose to replace the effects of one of your CONSTANT Skills currently active with the chosen effect for the next 4 turns. Cost: 2 KI.
+Effect: Physical attack. Deal (50% Power) damage. For the next 5 turns, nothing can prevent you from activating your Skills. SUCCESSFUL - Choose one of your opponent's CONSTANT Skills in their moveset. You may choose to replace the effects of one of your CONSTANT Skills currently active with the chosen effect for the next 4 turns. Cost: 2 KI.
 Requirements: Bukujutsu
 Training Days: 2
 [b]Shi'kir
@@ -250,7 +250,7 @@ Alpha Collective[/b]
 
 [*]Focus Buster [KIIHAKAI,PHYSICAL, PUNCH]
 Description: A closed-fist strike to the temple. Upon contact, a significant amount of ki is discharged, affecting both attacker and defender.
-Effect: Physical attack. Deal (40% Power) damage. On hit, you and your opponent cannot attack on your next turns. Any effects created by your opponent's UNRESTRICTED Advanced Attacks that are still active are cancelled. Cost: 2 KI.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - You and your opponent cannot attack on your next turns. Any effects created by your opponent's UNRESTRICTED Advanced Attacks that are still active are cancelled. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -258,7 +258,7 @@ New Vegeta[/b]
 
 [*]Ki Jammer [KIIHAKAI,PHYSICAL, PUNCH, KICK]
 Description: The user targets specific pinpoint targets on the opponents body, such as vital organs and bones. These specific parts of the anatomy are what allow Ki to flow freely. By attacking these points, the user puts a "kink" in the opponent's Ki flow, making it nearly painful to move Ki throughout the body.
-Effect: Physical attack. Deal (35% Power) damage. On hit, your opponent loses (10% Power) Damage each time they Power Up until they roll a 25 or higher on a SUCCESSFUL single dice attack roll. This effect does not stack with itself. Cost: 2 KI.
+Effect: Physical attack. Deal (35% Power) damage. SUCCESSFUL - Your opponent loses (10% Power) Damage each time they Power Up until they roll a 25 or higher on a SUCCESSFUL single dice attack roll. This effect does not stack with itself. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -274,7 +274,7 @@ Namek[/b]
 
 [*]Orange Burst [KIIHAKAI,ENERGY, BLAST]
 Description: The palms are extended at close range -- almost as if in offering. A quick build-up of Ki gives way to an explosive orange burst usually aimed at the opponent's face.
-Effect: Energy attack. Deal (45% Power) damage. Attack roll: 1d32. On hit, you may choose for this attack to do (20% Power) Damage instead. If you do, you may deactivate one of your opponent's CONSTANT Skills. Cost: 2 KI.
+Effect: Energy attack. Deal (45% Power) damage. Attack roll: 1d32. SUCCESSFUL - You may choose for this attack to do (20% Power) Damage instead. If you do, you may DEACTIVATE one of your opponent's CONSTANT Skills. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -282,7 +282,7 @@ New Vegeta[/b]
 
 [*]Orbital Cannon [KIIHAKAI,ENERGY, BEAM]
 Description: Creating an orb of ki that circles around the opponent, the user directs it with their fingertip. The orb continues to follow the opponent before making a strange, whirring sound and turning into a beam of energy that is fired at the opponent
-Effect: Energy attack. Deal (40% Power) damage. Attack roll: 1d32. On hit, your opponent cannot use any Advanced Attacks or Skills that cost 1 or less KI (including modifications) until they roll an attack roll of 25 or higher. Cost: 2 KI.
+Effect: Energy attack. Deal (40% Power) damage. Attack roll: 1d32. SUCCESSFUL - LOCK your opponent's Advanced Attacks and Skills that cost 1 or less KI (including modifications) until they roll an attack roll of 25 or higher. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -290,7 +290,7 @@ Earth[/b]
 
 [*]Overdrive Blast [KIIHAKAI,ENERGY, BEAM]
 Description: A beam that starts off small until the user's aura flares, pouring more energy into the beam. The size of the blast can easily quadruple in size, dwarfing the original spark that created it.
-Effect: Energy attack. Deal (45% Power) damage. On hit, activate Overdrive Mastery, as if you had just Powered Up. Cost: 2 KI.
+Effect: Energy attack. Deal (45% Power) damage. SUCCESSFUL - Activate Overdrive Mastery, as if you had just Powered Up. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
  [b]Shi'kir
@@ -298,7 +298,7 @@ Namek[/b]
 
 [*]Shaolin Focused Beam [KIIHAKAI,ENERGY, BEAM]
 Description: Entering a crane stance (one leg planted with other leg bent so that the foot of the bent leg touches the knee of the planted leg), the user gathers their energy before lunging forward, their feet both being planted and their body leaned over in a curve as they expel as large beam of energy from their hands.
-Effect: Energy attack. Deal (50% Power) damage. On hit, if your attack roll is 20 or higher, choose two of your Skills with a 'CONSTANT' effect. Those Skills cannot be deactivated until your opponent rolls a 23 or higher on a single dice attack. You may not have more than two skills chosen with this effect at a time. Cost: 2 KI.
+Effect: Energy attack. Deal (50% Power) damage. SUCCESSFUL - If your attack roll is 20 or higher, choose two of your Skills with a 'CONSTANT' effect. Those Skills cannot be DEACTIVATED until your opponent rolls a 23 or higher on a single dice attack. You may not have more than two skills chosen with this effect at a time. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -306,7 +306,7 @@ Namek[/b]
 
 [*]Static Shot [KIIHAKAI,ENERGY, BLAST]
 Description: Two spheres are formed. The first is a smaller, blue and white orb. The second surrounds the initial orb and is transparent and crackles with electricity. The attack is then shot at the opponent.
-Effect: Energy attack. Deal (50% Power) damage. On hit, if your attack roll is double or more your opponent's defensive roll, your opponent cannot modify the cost, damage, roll, or result of their attacks for their next 3 turns. Cost: 2 KI.
+Effect: Energy attack. Deal (50% Power) damage. SUCCESSFUL - If your attack roll is double or more your opponent's defensive roll, your opponent cannot modify the cost, damage, roll, or result of their attacks for their next 3 turns. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -324,7 +324,7 @@ New Vegeta[/b]
 
 [*]Aura Clash [KIIHAKAI,ENERGY, MANIPULATED KI]
 Description: The aura itself, usually considered harmless, can sometimes be used as a weapon under the right circumstances. The amount of energy within can sometimes be a powerful force. Knowing this, the user can charge their aura before colliding head on with the opponent. If their aura happens to be charging at the time, there is a certain feedback effect generated.
-Effect: RESTRICTEDx1. Energy attack. Deal (40% Power) damage. On hit, you may Transform to your highest Transformation uring the next END phase. If stopped, both players may Transform to their highest Transformation uring the next END phase. Cost: 2 KI.
+Effect: RESTRICTEDx1. Energy attack. Deal (40% Power) damage. SUCCESSFUL - You may Transform to your highest Transformation uring the next END phase. STOPPED - Both players may Transform to their highest Transformation uring the next END phase. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -332,7 +332,7 @@ Alpha Collective[/b]
 
 [*]Big Shot [KIIHAKAI,ENERGY, BLAST]
 Description: Ascending to the heavens, the Kiihakai student charges a sphere of ki that is roughly double the height of the attacker himself! The large sphere is fired directly from the palm as a powerful blast.
-Effect: RESTRICTEDx1. Energy attack. Deal (55% Power) damage. On hit, if your attack roll is 20 or higher, activate all of your Skills with a 'CONSTANT' effect. After 3 of your turns, deactivate all of your Skills with a 'CONSTANT' effect that were activated in this way. Cost: 3 KI.
+Effect: RESTRICTEDx1. Energy attack. Deal (55% Power) damage. SUCCESSFUL - If your attack roll is 20 or higher, activate all of your Skills with a 'CONSTANT' effect. After 3 of your turns, DEACTIVATE all of your Skills with a 'CONSTANT' effect that were activated in this way. Cost: 3 KI.
 Requirements: Bukujutsu
 Training Days: 3
 [b]Shi'kir
@@ -340,7 +340,7 @@ Namek[/b]
 
 [*]BOOMerang [KIIHAKAI,ENERGY, MANIPULATED KI]
 Description: Creating a sickle-shaped blade of energy, the user hurls it towards the opponent in an arc. Though looking more like a child's toy, the attack has enough juice in it to send an opponent flying once struck. The explosion caused by impact can be devastating, and it has yet another trick up its sleeve. After detonation, the weapon will reform and return to the user.
-Effect: Energy attack. Deal (60% Power) damage. On hit, you may perform this attack on your next turn for X KI instead. X = The cost of your opponent's next attack. Cost: 3 KI.
+Effect: Energy attack. Deal (60% Power) damage. SUCCESSFUL - You may perform this attack on your next turn for X KI instead. X = The cost of your opponent's next attack. Cost: 3 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -348,7 +348,7 @@ New Vegeta[/b]
 
 [*]Devastating Blade [KIIHAKAI,ENERGY, BLAST]
 Description: Extending index and middle finger to one of their temples (akin to the motion for Special Beam Cannon), the user channels a spark of energy. Extending their arm to point at their opponent, an intense blast of ki is sent hurtling forward in the form of a flying blade.
-Effect: Energy attack. Deal (65% Power) damage. On hit, the next time one of your CONSTANT skills would be deactivated, it remains in play. Cost: 3 KI.
+Effect: Energy attack. Deal (65% Power) damage. SUCCESSFUL - The next time one of your CONSTANT skills would be DEACTIVATED, it remains in play. Cost: 3 KI.
 Requirements: N/A
 Training Days: 4
 [b]Shi'kir
@@ -356,7 +356,7 @@ New Vegeta[/b]
 
 [*]Triple Torpedo [KIIHAKAI,ENERGY, VOLLEY]
 Description: Three, pulsating orbs are formed -- one to the left, one to the right, and one directly above the user. Upon the user's command all three orbs are launched, cutting through the air and leaving behind a fiery tail of ki.
-Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 3d30. If 2 or more dice rolls are SUCCESSFUL, you may activate one of your Skills with a CONSTANT effect. That skill cannot be deactivated for the next 5 turns. Cost: 3 KI.
+Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 3d30. If 2 or more dice rolls are SUCCESSFUL, you may activate one of your Skills with a CONSTANT effect. That skill cannot be DEACTIVATED for the next 5 turns. Cost: 3 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -382,7 +382,7 @@ Alpha Collective[/b]
 
 [*]Display of Power [KIIHAKAI,PHYSICAL, ENERGY, THROW, BLAST]
 Description: A massive amount of energy is focused into uprooting a chunk of the planet. Surrounded by ki, the piece of earth is launched at the opponent's head.
-Effect: Physical attack. Deal (60% Power) damage. This attack also counts as an energy attack for all effects. Your attack roll for this attack is 1d30 and cannot be modified. If your Power is higher than your opponent's Power, your attack roll gains +5 to the result. On hit, your opponent cannot perform an energy attack on their next 2 turns. If your attack roll result is 29 or higher with this attack, you may Power Up during your opponent's next UPKEEP phase. Cost: 4 KI.
+Effect: Physical attack. Deal (60% Power) damage. This attack also counts as an energy attack for all effects. Your attack roll for this attack is 1d30 and cannot be modified. If your Power is higher than your opponent's Power, your attack roll gains +5 to the result. SUCCESSFUL - LOCK your opponent's energy attacks for their next 2 turns. If your attack roll result is 29 or higher with this attack, you may Power Up during your opponent's next UPKEEP phase. Cost: 4 KI.
 Requirements: N/A
 Training Days: 4
 [b]Shi'kir
@@ -407,7 +407,7 @@ New Vegeta[/b]
 
 [*]Triple Shot [KIIHAKAI,ENERGY, BLAST, VOLLEY]
 Description: The fingertips are placed together forming a circular passage (similar to the triangular passage used for Tri-Beam), as three orbs are shot in rapid succession.
-Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 3d30. On hit, your opponent's next attack does -(20% Power) Damage. Cost: 4 KI.
+Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 3d30. SUCCESSFUL - Your opponent's next attack does -(20% Power) Damage. Cost: 4 KI.
 Requirements: N/A
 Training Days: 3
 [b]Shi'kir
@@ -417,7 +417,7 @@ Alpha Collective[/b]
 
 [*]Golden Arrows [KIIHAKAI,ENERGY, BLAST, MANIPULATED KI, VOLLEY]
 Description: A bow-type weapon of energy is made with several ki arrows notched and ready to be fired. The arrows are fired directly at the opponent.
-Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 4d30. On hit, your opponent cannot Power Up or use or activate a Skill until after their next 3 turns. Cost: 5 KI.
+Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 4d30. SUCCESSFUL - Your opponent cannot Power Up or use or activate a Skill until after their next 3 turns. Cost: 5 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
@@ -428,7 +428,7 @@ Earth[/b]
 
 [*]Planetary Uproar [KIIHAKAI,ENERGY, BEAM, MANIPULATED KI]
 Description: Gathering their energy, the user waves their arms upward, drawing upon the ki beam they have building up underneath the surface of the planet. The massive beam of ki breaks through the planet's surface, engulfing the opponent and taking them for a ride into the heavens.
-Effect: RESTRICTEDx1. Energy attack. Deal (120% Power) damage. If stopped, your Skills for the remainder of combat cost 0 KI to use or activate. Cost: 7 KI.
+Effect: RESTRICTEDx1. Energy attack. Deal (120% Power) damage. STOPPED - Your Skills for the remainder of combat cost 0 KI to use or activate. Cost: 7 KI.
 Requirements:
 Training Days: 4
 [b]Shi'kir
@@ -436,7 +436,7 @@ New Vegeta[/b]
 
 [*]Raindance [KIIHAKAI,ENERGY, VOLLEY]
 Description: Aiming their palms upwards, the user pumps orbs of energy into the sky before sending them crashing down on the opponent.
-Effect: RESTRICTEDx1. Energy attack. Deal (10% Power) damage per hit. Attack roll: 10d30. On hit, if 5 or more dice rolls are SUCCESSFUL, your opponent cannot perform a Signature Technique with a base cost of 7 or more for the remainder of combat. Cost: 6 KI.
+Effect: RESTRICTEDx1. Energy attack. Deal (10% Power) damage per hit. Attack roll: 10d30. SUCCESSFUL - If 5 or more dice rolls are SUCCESSFUL, LOCK your opponent's Signature Techniques with a base cost of 7 or more for the remainder of combat. Cost: 6 KI.
 Requirements:
 Training Days: 4
 [b]Shi'kir
@@ -452,7 +452,7 @@ Earth[/b]
 
 [*]The Heartstopper [KIIHAKAI,PHYSICAL, ENERGY, PUNCH, BLAST]
 Description: Every last ounce of energy is poured into the hands of the attacker. Lightning crackles around the arms and fists of the user until at once, both fists are sent rocketing into the opponent's chest. All the energy that was crackling and flickering around the attacker suddenly floods into the defender, who writhes and convulses with pain.
-Effect: RESTRICTEDx1. Physical attack. Deal (125% Power) damage. This attack also counts as an energy attack for all effects. On hit, your opponent's Advanced Attacks and Signature Techniques cost +2 KI to perform until they roll a 20 or higher on an Advanced Attack or Signature Technique. Cost: 10 KI.
+Effect: RESTRICTEDx1. Physical attack. Deal (125% Power) damage. This attack also counts as an energy attack for all effects. SUCCESSFUL - Your opponent's Advanced Attacks and Signature Techniques cost +2 KI to perform until they roll a 20 or higher on an Advanced Attack or Signature Technique. Cost: 10 KI.
 Requirements:
 Training Days: 4
 [b]Shi'kir
@@ -460,7 +460,7 @@ Alpha Collective[/b]
 
 [*]The Rising Sun [KIIHAKAI,ENERGY, BLAST]
 Description: The immense amount of concentration that it takes to form The Rising Sun is said to shake even top practitioners. No aura surrounds the user, as it would take too much energy to maintain -- instead all energy is gathered far in the distance, over the horizon. A large orb, radiant as the sun, is then sent on a collision course from over the horizon into the opponent, usually from behind for an element of surprise. The scorching pain felt afterwards is said to be unbearable.
-Effect: RESTRICTEDx1. Energy attack. Deal (140% Power) damage. On hit, your opponent loses (10% Power) HP every time they perform a physical attack for the remainder of combat. Cost: 9 KI.
+Effect: RESTRICTEDx1. Energy attack. Deal (140% Power) damage. SUCCESSFUL - Your opponent loses (10% Power) HP every time they perform a physical attack for the remainder of combat. Cost: 9 KI.
 Requirements:
 Training Days: 4
 [b]Shi'kir
@@ -476,7 +476,7 @@ Namek[/b]
 
 [*]Rollback Barrage [KIIHAKAI,ENERGY, VOLLEY, BLAST]
 Description: The user concentrates their energy into a small orb before spinning it rapidly. Thanks to the amount of condensed energy, and the speed at which it spins, the user is able to pull identical orbs from alternate timelines, and launch all of them at the enemy, causing wild distortions of time.
-Effect: RESTRICTEDx1. Energy attack. Deal (15% Power) damage per hit. Attack roll: 8d30. On hit, for every 2 dice rolls that are SUCCESSFUL, you may reactivate one skill with a CONSTANT effect that was deactivated this fight, ignoring all requirements. Cost: 8 KI.
+Effect: RESTRICTEDx1. Energy attack. Deal (15% Power) damage per hit. Attack roll: 8d30. SUCCESSFUL - For every 2 dice rolls that are SUCCESSFUL, you may reactivate one skill with a CONSTANT effect that was DEACTIVATED this fight, ignoring all requirements. Cost: 8 KI.
 Requirements: N/A
 Training Days: 4
 [b]Shi'kir
@@ -486,7 +486,7 @@ Earth[/b]
 
 [*]Beam Redirection [KIIHAKAI, BLOCK]
 Description: By generating a beam of their own, the user is capable of 'knocking' an incoming beam away from them.
-Effect: RESTRICTEDx1. Block. Stop a Beam-Type or Blast-Type attack. Your opponent cannot perform an energy attack on their next turn. Your opponent cannot perform that same energy attack for the next 4 turns. Cost: X-2 KI.
+Effect: RESTRICTEDx1. Block. Stop a Beam-Type or Blast-Type attack. LOCK your opponent's energy attacks for their next turn. LOCK that same energy attack for their next 4 turns. Cost: X-2 KI.
 Requirements: N/A
 Training Days: 2
 [b]Shi'kir
