@@ -26,8 +26,7 @@ NOTE: Despite developing an RPG based around Dragon Ball, we'd like to think of 
 
 This is our rating from The RPG Rating. 
 
-We also ask that you do not destroy any established locations in your RPs. We have to keep these locations around for other people to role-play in. There is a balanced, game mechanic that will break this rule however . . .
- 
+We also ask that you do not destroy any established locations in your RPs. We have to keep these locations around for other people to role-play in. There is a balanced, game mechanic that will break this rule however . . . 
 [/color]
 
 [center][color=#fff]III. Weekly Actions[/color][/center][color=#fff][hr]
@@ -63,7 +62,7 @@ NOTE: If you are not counting a post as a day, please put an OOC note at the bot
 NOTE 2: In ALL cases, you are required to award yourself EXP / Zenni / Moves based on the Experience Chart provided on the website. An OOC note at the end of each post is sufficient so Administrators can make sure that everyone is doing so correctly.
 
 [center]JOINT QUESTS[/center][hr]
-Any quest can be completed with additional players so long as it does not say "Solo Only". Quest battles must be completed individually. Joint Quests require half the listed WPD, unless they are “Joint Mandatory”. In the case of a quest with a UNIQUE or LEGENDARY reward, the participants will roll 1d100 in front of an administrator to see who gets the reward. The player with the lower score will receive an alternate reward, instead.If a Quest is Joint Mandatory, it must be completed with another player, and each participant must complete the quest's WPD and RP days as shown. 
+Any quest can be completed with additional players so long as it does not say "Solo Only". Quest battles must be completed individually. Joint Quests require half the listed WPD, unless they are “Joint Mandatory”. In the case of a quest with a UNIQUE or LEGENDARY reward, the participants will roll 1d100 in front of an administrator to see who gets the reward. The player with the lower score will receive an alternate reward, instead. If a Quest is Joint Mandatory, it must be completed with another player, and each participant must complete the quest's WPD and RP days as shown. 
 
 Adding extra players beyond the original 2 does not give further discounts. The third (or fourth, or fifth, etc) player must also post the same amount of words and spend the same amount of days as the original 2 players.
 
@@ -86,13 +85,12 @@ Skills - 4 Slots
 Advanced Attacks - 5 Slots
 Signature Techniques - 2 Slots
 Blocks - 2 Slots
- 
 [/color]
 
 [color=#fff][center]V. Inventory // Items[/center][hr]
 
 [center]Inventory Slots[/center][hr]
-Each character has 4 Inventory Slots to start with. You can increase your Inventory Slots buy purchasing or finding various other items.
+Each character has 4 Inventory Slots to start with. You can increase your Inventory Slots by purchasing or finding various other items.
 
 Items of the same type stack, so they only take up that number of slots once.
 
@@ -120,13 +118,11 @@ All Items in the Marketplace index can be purchased on certain planets. If an it
     You must have enough Zenni to purchase an item. When you sell an item back to the marketplace, you sell it back for 25% the original value.
     You can't re-purchase unique/custom/quest items from the Marketplace. Once they are sold, they are sold.
     Ship add-ons are permanent and do not add to the value of a ship.
-    You cannot purchase items if you do not have in the inventory or storage room space to hold them.
+    You cannot purchase items if you do not have space in your inventory or storage room.
     Each item can only be traded once per week. This limit does not include item theft, but if you are caught openly trading Dragon Balls through escape rolls there will be Administrator intervention.
     Any Item with an effect that can only be used once in a designated time period (Week, Month, Saga, etc.) cannot be used for a week after it has been traded.
  
 [/color]
-
-
 [color=#fff][center]VI. Terrestrial Combat System[/center][hr]
 
 [center]Dice System[/center][hr]
@@ -147,11 +143,9 @@ Every time you achieve a new level by gaining enough EXP to push your PL into th
 
 In this way, PL matters little except to show what level you are in and so is an indication of how much SP you have spent on your stats. For example, a character at 1000 PL is in the same level as a character at 2,499 PL (level F) and so have the exact same amount of stat points spent. No stat may have less than 20% of a character's SP invested in it.
 
+[center]Sparring vs. Battling[/center][hr]
 
-[color=#fff]
-[center]Sparring V. Battling[/center][hr]
-
-A Spar or Battle is when you engage in combat with another member of the RPG. A Spar is seen as a friendly fight where no effects last after the SPAR. This includes Death, BREAK, and SEVER. All Spar's begin with both participants at (100% Total) HP. HP is set back to its pre-spar level after the spar. A Battle, however, has all this in play. In order for a Spar to be official, you must post a log of the Spar in the proper topic in the "Spar Log" forums. Both members must agree that the match is a Spar before combat begins. 
+A Spar or Battle is when you engage in combat with another member of the RPG. A Spar is seen as a friendly fight where no effects last after the SPAR. This includes Death, BREAK, and SEVER. All Spars begin with both participants at (100% Total) HP. HP is set back to its pre-spar level after the spar. A Battle, however, has all this in play. In order for a Spar to be official, you must post a log of the Spar in the proper topic in the "Spar Log" forums. Both members must agree that the match is a Spar before combat begins. 
 
 In a Battle, when someone’s Hit Points (HP) reaches 0, they are killed and sent to the afterlife. The victor of a Battle may choose not to kill his opponent, but both players must then spend an extra day that week writing a 1 Day 500 WPD story post each. This is to discourage purposeful battles that would exploit class/race EXP bonuses. Damage from a battle does not go away immediately. Characters RECOVER 20% of their max HP per roleplay day. If you would die from untransforming at the end of a battle go to 1 HP instead. If untransforming during battle would drop you to 0, then you are dropped to 0.
 
@@ -179,11 +173,11 @@ The exceptions are: (1) If someone is carrying a Dragon Ball, and someone else h
 
 [UPKEEP PHASE]
 
-Every combat turn begins with this phase. Actions that state they can be activated during UPKEEP, or effects that trigger during UPKEEP, are used at this time. If multiple effects would activate, the oldest effect activates first. Actions are activated after all effects resolve, and before the ITEM phase.
+Every combat turn begins with this phase. Actions that state they can be activated during UPKEEP, or effects that trigger during UPKEEP, are used at this time. If multiple effects would activate, the oldest effect activates first. Actions are activated after all effects resolve.
 
 [ACTION PHASE]
 
-All players have five actions they may choose during this phase. ATTACK, using a Basic Attack, Advanced Attack, or Signature Move. POWER UP, not attacking for the turn to gather their energy and regenerate ki. PASS, not attacking for the turn, and taking no action. Using an Item, if it takes up the turn such as a senzu bean. Activating a skill, such as a constant or non-constant. If the turn player has any actions that state they must be used during the ACTION phase, they may do so instead of one of the three main actions. Any effects that state they activate during the ACTION phase resolve after the turn player has used their action. If multiple effects would activate, the oldest effect activates first.
+All players have five actions they may choose during this phase [Attack, Power Up, Pass, Item, Skill]. ATTACK, using a Basic Attack, Advanced Attack, or Signature Move. POWER UP, not attacking for the turn to gather their energy and regenerate ki. PASS, not attacking for the turn, and taking no action. Use an Item, if it takes up the turn such as a senzu bean. Activate a Skill, such as a constant or non-constant. If the turn player has any actions that state they must be used during the ACTION phase, they may do so instead of one of the five main actions. Any effects that state they activate during the ACTION phase resolve after the turn player has used their action. If multiple effects would activate, the oldest effect activates first.
 
 [COUNTER PHASE]
 
@@ -191,7 +185,7 @@ If a defense roll is high enough to COUNTER, resolve all effects from the COUNTE
 
 [END PHASE]
 
-After taking an action during the ACTION phase (or using certain items during the ITEM phase), the turn progresses to the END phase. During this phase, effects that state the END phase will activate, and any actions that state the END phase may be used. If multiple effects would activate, the oldest effect activates first. Actions are activated after all effects resolve, and before the next player's UPKEEP phase.
+After taking an action during the ACTION phase, the turn progresses to the END phase. During this phase, effects that state the END phase will activate, and any actions that state the END phase may be used. Effects that happen at the end of a user's turn take place during this phase. If multiple effects would activate, the oldest effect activates first. Actions are activated after all effects resolve, and before the next player's UPKEEP phase.
 
 [center]Move Types[/center][hr]
 
@@ -223,7 +217,7 @@ Every character’s Hit Points will vary, depending on stats.
 
 10 KI Points is the max any character can reach in combat. If you are at 8 KI Points and choose to Power Up, you will max out at 10 KI Points.
 
-At the start of a spar or battle, both player’s KI Points are set to 5.
+At the start of a spar or battle, both players' KI Points are set to 5.
 
 [center]Starting a Spar/Battle & Set-Up[/center][hr]
 
@@ -251,7 +245,7 @@ The defender can also choose to Block an attack instead of rolling his defensive
 
 If the defender has a Block in his moveset, he can choose to Block the attack instead of rolling his defensive dice. If he does, the move is blocked regardless of the attacker’s dice.
 
-Blocks cannot stop RESTRICTED attacks. You cannot Block more than once per turn. You may attempt to Block unstoppable, unblockable, or RESTRICTED attacks. IF you do, the attack goes through but you may still gain any effects of the block.
+Blocks cannot stop RESTRICTED attacks. You cannot Block more than once per turn. You may attempt to Block unstoppable, unblockable, or RESTRICTED attacks. If you do, the attack goes through but you may still gain any effects of the block.
 In the event of Blocking a multi-dice attack, ½ of the attacks are blocked (round up). The first half of the attacks are blocked, and you must roll defensively for the second half.
 
 The cost of a Block is written as “X+” a number or “X-“ a number. X = The base cost (cost without modifications) of the opponent’s attack. This is done to a minimum of 1.
@@ -367,13 +361,13 @@ When you have a Critical Hit, your attack deals double the base damage it would 
 
 If your attack has multiple dice you cannot have a Critical Hit.
 
-A critical hit occurs when you roll the highest result natural roll possible on an attack roll. This means that on 1d30, your roll must come out to 20 before any modifiers were added to the effect. IF your dexterity is higher than your opponents, you CRITICAL at one lower than normal.
+A critical hit occurs when you roll the highest result natural roll possible on an attack roll. This means that on 1d30, your roll must come out to 30 before any modifiers were added to the effect. If your dexterity is higher than your opponent's, you CRITICAL at one lower than normal.
 
-Example: You roll 1D30. The result is 19. Your Dexterity is higher than your opponent’s. You have a Critical Hit.
+Example: You roll 1D30. The result is 29. Your Dexterity is higher than your opponent’s. You have a Critical Hit.
 
 [center]Counters[/center][hr]
 
-A Counter occurs when you roll naturally roll the highest possible result on a defense roll. Also like a Critical Hit, characters with the highest Dexterity in a fight can score a Counter when their defense roll is one lower than the maximum result. You do not COUNTER if you do not STOP the attack.
+A Counter occurs when you naturally roll the highest possible result on a defense roll. Also like a Critical Hit, characters with the highest Dexterity in a fight can score a Counter when their defense roll is one lower than the maximum result. You do not COUNTER if you do not STOP the attack.
 
 When you Counter an attack, you automatically get to perform an attack during that turn. You still have to pay the cost of your attack and you must target that opponent.
 
@@ -399,7 +393,7 @@ You may attempt to escape from a battle once you reach turn 10 or higher. Escape
 [center]Interference[/center][hr]
 [list]
 [*]You must be on the same planet as the Battle you are trying to disrupt.
-[*]You must roll 1d100 in that fight and have a result of 70 or higher. If your result is below 70, you fail to interfere in the [*]Battle. For role-play purposes, your character does not reach the battlefield in time or is otherwise interrupted.
+[*]You must roll 1d100 in that fight and have a result of 70 or higher. If your result is below 70, you fail to interfere in the Battle. For role-play purposes, your character does not reach the battlefield in time or is otherwise interrupted.
 [*]You may only interfere in one Battle per week.
 [*]You may only attempt to interfere in each battle once.
 [*]You do not have to count a Day or make a post to interfere in a Battle.
@@ -419,7 +413,7 @@ When you successfully interfere in a fight you receive certain restrictions and 
 [*]You may have SUCCESSFUL effects from your attacks last longer than your duration in combat.
 [*]You have 5 Ki Points to use during these turns, despite racials like the Makaio-shin or Namekian. You may Power Up if need be.
 [*]You begin the interference Transformed at your highest level. Unrestricted TF effects that activate when Transforming are instead activated when entering the battlefield.
-[*]The same ruling applies to Racial effects that activate at the "start of combat. They begin when you first interfere.
+[*]The same ruling applies to Racial effects that activate at the start of combat. They begin when you first interfere.
 [*]Floating effects from your Skills or attacks treat your ally as yourself after you leave the Battle.
 [*]If your ally dies in combat, you may remain for your full 2 turns.
 [/list]
@@ -451,16 +445,17 @@ Each character can only use the CGT once per month. The Cross-Galactic Transit S
 
 [center]Space Battles[/center][hr]
 
-Space Battles are conducted the same way as terrestial battles with a few additional points. You may challenge anyone in space, regardless of starting point or destination. You must count it as one of your days. each ship has a certain number of Weapon and Defense slots for those parts to be equipped to your ship. Each fighter can only use the Weapons/ Defenses of a single ship. These Weapons or Defenses will provide certain advantages for battle.
+Space Battles are conducted the same way as terrestrial battles with a few additional points. You may challenge anyone in space, regardless of starting point or destination. You must count it as one of your days. Each ship has a certain number of Weapon and Defense slots for those parts to be equipped to your ship. Each fighter can only use the Weapons/Defenses of a single ship. These Weapons or Defenses will provide certain advantages for battle.
 
 
 
+[/color]
 [color=#fff][center]VIII. Dragon Balls[/center][hr]
 
 [center]Dragon Ball Search[/center][hr]
 It takes 6 days to find one Dragonball. Therefore, six separate RPs searching before one can be found. You must have at least one slot in your inventory to search for a Dragon Ball if you do not already have one. The Dragon Balls stack, taking up 1 slot in total.
 
-You must Role-Play searching for the Dragonball. Think of it as each Dragonball is its own quest created by you. Every 1 Day RP spent searching for the Dragonball must be 500+ words, counting a Dragonball Hunt as a repeatable quest that is 6 Days and 750 WPD. You may only find two Dragonballs per real life day and a max of 2 dragonballs in a 7 “day” period. 
+You must Role-Play searching for the Dragonball. Think of it as each Dragonball is its own quest created by you. Every 1 Day RP spent searching for the Dragonball must be 500+ words, counting a Dragonball Hunt as a repeatable quest that is 6 Days and 500 WPD. You may only find two Dragonballs per real life day and a max of 2 dragonballs in a 7 “day” period. 
 
 
 
@@ -481,7 +476,7 @@ Once a set of Dragon Balls is used for a wish, that set is inert for the remaind
 [list]
 [*] Recreate a destroyed planet, resurrecting everyone that was killed in the destruction, including those slain in the DESTROY POTENTIAL fights.
 [*] Create a new Planet.
-[*]Increase your Power Level to [Current Highest Player Power Level] -1 Day.
+[*]Increase your Power Level to [Current Highest Player Power Level] - the equivalent of 1 Day of roleplay.
 [*]Gain a bonus racial trait from a different race
 [*]Gain an extra class from your race
 [*]Create a Custom Transformation (Admin Approval required)
@@ -489,7 +484,7 @@ Once a set of Dragon Balls is used for a wish, that set is inert for the remaind
 [*]5,000 Zenni
 [*]10 Free Training Days
 [*]Learn one non-Mastery Technique from another Style, counted as being your style for all effects.
-[*]200 WPD reduction on quests[/list]
+[*]200 WPD reduction on quests, to a minimum of 100 WPD[/list]
  
 
 [center]Dragon Balls As Items[/center][hr]
@@ -522,11 +517,9 @@ Effect: The person who controls this Dragon Ball may choose to change Martial Ar
 
 7 Star Dragon Ball
 Description: A palm-sized golden sphere with a slight orange tint and a mysterious set of stars affixed to the surface. This sphere has seven stars upon it.
-Description: A small orange sphere, with seven stone stars suspended within it.
 Effect: The person who controls this Dragon Ball can revive someone from the Afterlife once every 14 days. If the owner of the Dragon Ball alters, you must wait 7 days before you can use the Dragon Ball.[/color]
 [/spoiler]
-[list]
-[/list][spoiler=Namekian Dragon Balls are Inactive]
+[spoiler=Namekian Dragon Balls are Inactive]
 
 [s][color=#fff]1 Star Dragon Ball
 Inventory Slots: 1
@@ -535,7 +528,7 @@ Effect: While you control this dragonball, your other dragonballs are protected 
 
 2 Star Dragon Ball
 Description: A large golden sphere with a slight orange tint and a mysterious set of stars affixed to the surface. This sphere has two stars upon it.
-Effect: The person who controls this Dragon Ball gains + 1 KI when they power up.
+Effect: The person who controls this Dragon Ball gains +1 KI when they power up.
 
 3 Star Dragon Ball
 Description: A large golden sphere with a slight orange tint and a mysterious set of stars affixed to the surface. This sphere has three stars upon it.
@@ -543,7 +536,7 @@ Effect: The person who controls this Dragon Ball has their RECOVER increased by 
 
 4 Star Dragon Ball
 Description: A large golden sphere with a slight orange tint and a mysterious set of stars affixed to the surface. This sphere has four stars upon it.
-Effect: Anyone who challenges the person who controls this dragon ball starts combat with 4ki.
+Effect: Anyone who challenges the person who controls this dragon ball starts combat with 4 KI.
 
 5 Star Dragon Ball
 Description: A large golden sphere with a slight orange tint and a mysterious set of stars affixed to the surface. This sphere has five stars upon it.
@@ -554,8 +547,7 @@ Description: A large golden sphere with a slight orange tint and a mysterious se
 Effect: The person who controls this Dragon Ball gains 25% extra experience from martial arts training.
 
 7 Star Dragon Ball
-Description: A large golden sphere with a slight orange tint and a mysterious set of stars affixed to the surface. This sphere has seven stars upon it.
-Description: A small orange sphere, with seven stone stars suspended within it.
+Description: A large orange sphere, with seven stone stars suspended within it.
 Effect: No one may transform while the person controlling this dragonball is in combat.[/color][/s]
 [/spoiler]
 
@@ -601,7 +593,7 @@ If you unlock a higher level of Transformation, but have not Mastered your previ
 
 Example: If you are an Intermediate Level Oozaru and you unlock Super Saiyan, instead of gaining +10 sides with Super Saiyan's Transformation Roll you only gain +8 sides until Oozaru is Mastered.
 
-If you unlock Super Saiyan 2, but have are Intermediate with Oozaru and Super Saiyan, you only gain +6 dice sides with your Super Saiyan 2's Transformation Roll each time you use it, and so on.
+If you unlock Super Saiyan 2, but you are Intermediate with Oozaru and Super Saiyan, you only gain +6 dice sides with your Super Saiyan 2's Transformation Roll each time you use it, and so on.
 [/color]
 
 [center][color=#fff]X. Character Creation[/color][/center][color=#fff][hr]
@@ -617,17 +609,17 @@ Naming[hr]
 Your character’s name must be unique. This simply means you cannot be Trunks Briefs, Cloud Strife, or any pun. Your character’s name cannot be something ridiculous like “Big N Sexy”. You get where this is going. Your forum name should match your character name. We can change this for you so it matches, in case you change your mind after creating your account but before having your character approved.
 
 Character Portrait[hr]
-Your character portrait cannot be anybody from Dragonball/Z/GT. Your character portrait cannot be a real person (i.e. Nicholas Cage). They must be from an anime, video game, comic book, or otherwise art-related media. If it is from a small-time artist, such as one from Deviant Art, please cite them so they get credit. Additionally, you’ll want to have 2 pictures: one character portrait and one icon to use as your profile picture that will show on all posts.
+Your character portrait cannot be anybody from Dragonball/Z/GT/Super/Daima. Your character portrait cannot be a real person (i.e. Nicholas Cage). They must be from an anime, video game, comic book, or otherwise art-related media. If it is from a small-time artist, such as one from Deviant Art, please cite them so they get credit. Additionally, you’ll want to have 2 pictures: one character portrait and one icon to use as your profile picture that will show on all posts.
 
 Races[hr]
-We have a list of acceptable Races you can choose from. There is another option though if you do not see anything you are interested in. You may choose the 'Alien' option. T
+We have a list of acceptable Races you can choose from. There is another option though if you do not see anything you are interested in. You may choose the 'Alien' option. 
 
 The 'Alien' option allows you to make a custom race that is based on one of the races from the Dragon Ball or Dragon Ball Z series. i.e., Captain Ginyu's unnamed race. You will be allowed to create the name and history of the race (if none has been established), as well as make suggestions for the racial abilities, stats, and what the transformations should be like.
 
 However, you may only make suggestions. In the end, what you are requesting is a difficult process of balancing and maintaining a new race that is mostly for one member's purpose. If we are to do that, you must understand that we will have our hands in nearly every aspect of its creation. We will take your suggestions to heart, but ultimately we will do what is best to balance it and make it a viable, yet unbroken race. Once we present to you our finished model, you may accept or decline. If you decline, you are allowed to state why -- and for one last final time, we will take what you say to heart. However, if we find that your requests are just unreasonable and no agreement can be reached at that point, we will humbly request you choose one of the pre-made races.
 
 Classes[hr]
-Each race comes with a selection of classes (normally 5) that you can choose from. These classes augment your abilities and help compliment your build/story.
+Each race comes with a selection of classes (normally 5) that you can choose from. These classes augment your abilities and help complement your build/story.
 
 Origins[hr]
 For a character’s origin, search the “Locations” section of the homepage. Choose one planet for your character’s origin.
@@ -646,7 +638,7 @@ Choose carefully. Once you choose a Martial Arts Style, you will only be able to
 
 The exceptions to that rule are “Freestyle Senseis”. Regardless of what Style you declare, anybody can learn from these senseis. These senseis will have “Freestyle” at the top of the page for the Sensei.
 
-Despite how it looks, you will not be completely stuck with a Martial Arts Style if you find out you do not like it. There is something you can obtain that will allow you to change Martial Arts Styles without drawbacks. You'll find that out soon though. Otherwise, if you choose to change Martial Arts Styles , you will lose all moves you learned from your previous Style.
+Despite how it looks, you will not be completely stuck with a Martial Arts Style if you find out you do not like it. There is something you can obtain that will allow you to change Martial Arts Styles without drawbacks. You'll find that out soon though. Otherwise, if you choose to change Martial Arts Styles, you will lose all moves you learned from your previous Style.
 
 Custom Move[hr]
 A custom move is something that’s unique to your character. You are allowed to create one custom move upon joining which may be a non-latent Skill or Block. You are allowed to come up with the name, the description, and the effect but it will all be balanced by an Administrator in charge of doing so.
@@ -659,10 +651,10 @@ Starting Zenni[hr]
 Every person has 200z as a starting amount.
 
 Editing[hr]
-Please note that all races and classes have been revised multiple times by different administrations, and there are over 150 combinations between races and classes. This being said, please bare with us patiently. If something seems “overpowered” or “underpowered”, please speak to us and we will look it over. Aside from extreme cases, revisions will be made at the end of each Saga and those affected will be given an offer to change their build.
+Please note that all races and classes have been revised multiple times by different administrations, and there are over 150 combinations between races and classes. This being said, please bear with us patiently. If something seems “overpowered” or “underpowered”, please speak to us and we will look it over. Aside from extreme cases, revisions will be made at the end of each Saga and those affected will be given an offer to change their build.
 [/color]
 
-[color=#fff][center]XII. Sagas[/center][hr]
+[color=#fff][center]XI. Sagas[/center][hr]
 
 Ah . . . yes, the cornerstone of every Dragon Ball based RPG: Sagas.
 
@@ -673,7 +665,7 @@ In the event of a Saga Hero and a character with a Good alignment, the same will
 At the end of each saga, the PL of all characters will be raised to a new baseline. The baseline will be roughly the average PL of the SL. 
 [/color]
 
-[center][color=#fff]XIII. Fusion Dance![/color][/center][color=#fff][hr]
+[center][color=#fff]XII. Fusion Dance![/color][/center][color=#fff][hr]
 [list]
 [*]Fusion Dance is a Skill that must be in both players’ movesets.
 [*]Both fusing characters can only be up to 2 Levels apart.
@@ -687,7 +679,7 @@ At the end of each saga, the PL of all characters will be raised to a new baseli
 [*]For all effects and purposes, the Fused form is considered both martial arts styles of the participants involved.
 [*]Any effect of the fused character that refers to "Style" counts as referring to both of the fused character's Styles.
 [*]Anything that would affect one of the fusers affects the Fused Form.
-[*]Regardless of Form, you can still use any Transformation (and Transformation Dice/Level) of either participant. If you are in a [*]Failed Fused Form, the dice roll gains -25 sides to a minimum of 20.
+[*]Regardless of Form, you can still use any Transformation (and Transformation Dice/Level) of either participant. If you are in a Failed Fused Form, the dice roll gains -25 sides to a minimum of 20.
 [*]Both characters still only gain EXP based off of their individual Brackets for that Spar or Battle. Characters entering the fight do not need to count the Battle as a day unless the characters are the Challenger party.
 [*]If two Fusing characters fuse in a Quest battle, they only have to do the Battle once (together) so long as the entire fight is spent Fused (fuse first turn, do not leave Fusion).
 [*]The Fusion is permanent for thirty of the Fused Form's turns (or until the end of Battle, whichever happens first). After thirty of the Fused Form's turns, a natural perfect roll (even on a multiple dice roll) will end the Fusion. When Fusion ends, all damage dealt so far is split between both combatants. Their KI is set to the number their Fused Form's KI was at the time the Fusion ended. Any of the opponent's effects that would still be affecting the Fused Form affects both players. 
