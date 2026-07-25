@@ -16,8 +16,8 @@ Dexterity: 40%
 [+] Move Set
 ## Control Mastery [KUROKONWAKU, MASTERY]
 Description: In the end, Kurokonwaku practitioners can take pride in knowing their style is the most unpredictable and 'creative' style when it comes to the manipulation of energy. This can go as far as controlling the strain an opponent's moves have on them, a theory applied to many moves in the Kurokonwaku arsenal, but when mastered has some truly crippling effects.
-Effect: At the start of each match, select one opponent. You may choose one of their Skills, Advanced Attacks, or Signature Techniques. For the remainder of combat, that move costs +2 KI Points for them to use or perform. If that attack cannot have its cost modified, add +5 to your Defense rolls against it. Your opponents cannot perform the same attack on their consecutive turns against you.
-Requirements: You must know at least three (3) Kurokonwaku attacks,skills, and/or blocks.
+Effect: At the start of each match, select one opponent. You may choose one of their Skills, Advanced Attacks, or Signature Techniques. For the remainder of combat, that move costs +2 KI for them to use or perform. If that attack cannot have its cost modified, add +5 to your Defense rolls against it. The same attack has COOLDOWN 1 against you.
+Requirements: You must know at least three (3) Kurokonwaku attacks, skills, and/or blocks.
 Training Days: 5
 ## Puppetmaster [KUROKONWAKU, CONSTANT SKILL]
 Description: Releasing a large aura of energy that engulfs the battlefield, the energy seeps into the opponent's body; carrying with a resonating force of malevolent intentions.
@@ -26,31 +26,46 @@ Requirements: N/A
 Training Days: 3
 ## Flashback [KUROKONWAKU, SKILL]
 Description: Once more . . . this time with feeling! With the last movements still fresh in mind, the student puts effort into perfecting the attack this time around.
-Effect: RESTRICTEDx2. You must perform the last UNRESTRICTED attack you performed this match. The attack does +(10% Power). You must pay the cost of that attack to active this skill and perform the attack. This skill does not take up your turn.
+Effect: RESTRICTEDx2.Perform the last UNRESTRICTED attack you performed this match, paying the ki cost. That attack does +(10% Power) damage. Cost: 0 KI.
 Requirements: N/A
+Training Days: 2
 ## Firebreath [KUROKONWAKU, ENERGY, BEAM]
 Description: Imitating the motions of a fire-breathing dragons, the user rears their head back before unleashing a fire-y wave of ki from their mouth.
-Effect: Energy attack doing (30% Power) Damage. SUCCESSFUL - DRAIN 1 KI Point. If your attack roll was 25 or higher, DRAIN 2 ki instead. Costs 1 KI Point.
+Effect: Energy attack. Deal (30% Power) damage. SUCCESSFUL - DRAIN 1 KI. If your attack roll was 25 or higher, DRAIN 2 KI instead. Cost: 1 KI.
+Requirements: N/A
+Training Days: 2
 ## Setting Up The Punchline [KUROKONWAKU, PHYSICAL, PUNCH]
 Description: After confusing the opponent with an array of dirty tricks, the user dashes forward and delivers an unexpected straight punch to the enemy's stomach causing them to double-over and expose their head.
-Effect: (While this attack is in your moveset, Concussion Shot, Breaking the Cycle, and Neuron Disruptor gain +5 to their results.) Physical attack doing (40% Power) Damage. SUCCESSFUL - If you perform Concussion Shot, Breaking the Cycle, or Neuron Disruptor on your next turn, it gains +5 to the result. Costs 1 KI Point.
+Effect: (While this attack is in your moveset, Concussion Shot, Breaking the Cycle, and Neuron Disruptor gain +5 to their results.) Physical attack. Deal (40% Power) damage. SUCCESSFUL - If you perform Concussion Shot, Breaking the Cycle, or Neuron Disruptor on your next turn, it gains +5 to the result. Cost: 1 KI.
+Requirements: N/A
+Training Days: 2
 ## Vampiric Lust [KUROKONWAKU, PHYSICAL, HOLD]
 Description: Latching onto the enemy, the users head is placed very close to the enemy's neck as they begin to siphon an the foe's life force right out of their body.
-Effect: Physical attack doing (40% Power) Damage. SUCCESSFUL - Whenever your opponent gains KI Points, DRAIN 1 Ki and you gain 1 Ki. This effect ends when one of your attacks is STOPPED or until you Power Up. If your opponent is losing KI Points due to a floating effect when you use this move, they do not DRAIN 1 KI Point when they Power Up from this move’s effect. Costs 2 KI Points.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - Whenever your opponent gains KI, DRAIN 1 KI and you gain 1 KI. This effect ends when one of your attacks is STOPPED or until you Power Up. If your opponent is losing KI due to a floating effect when you use this move, they do not DRAIN 1 KI when they Power Up from this move's effect. Cost: 2 KI.
+Requirements: N/A
+Training Days: 3
 ## Empty Beam [KUROKONWAKU, ENERGY, BEAM]
 Description: An invisible beam of energy that is fired through the palm. The blast can still be sensed, though not seen.
-Effect: Energy attack doing (35% Power) Damage. SUCCESSFUL - If your opponent's KI Points are at 0, your opponent cannot Power Up for their next 2 turns. STOPPED - Your opponent's next attack roll gains -1 to the result. Costs 2 KI Points.
+Effect: Energy attack. Deal (35% Power) damage. SUCCESSFUL - If your opponent's KI are at 0, your opponent cannot Power Up for their next 2 turns. STOPPED - Your opponent's next attack roll gains -1 to the result. Cost: 2 KI.
 Requirements: N/A
+Training Days: 2
 ## Concussion Shot [KUROKONWAKU, ENERGY, BEAM]
 Description: Firing a thin beam from the fingertip, the user purposefully targets the back of the opponent's skull in hopes of temporarily causing them to forget some of their martial arts training.
-Effect: RESTRICTEDx1. Energy attack doing (55% Power) Damage. SUCCESSFUL - Choose one of your opponent's UNRESTRICTED Advanced Attacks. They cannot use that Advanced Attack for the remainder of the match. Concussion Shot cannot make an opponent lose more than one move per match. Costs 4 KI Points.
+Effect: RESTRICTEDx1. Energy attack. Deal (55% Power) damage. SUCCESSFUL - Choose one of your opponent's UNRESTRICTED Advanced Attacks. LOCK that Advanced Attack for the remainder of the match. Concussion Shot cannot make an opponent lose more than one move per match. Cost: 4 KI.
+Requirements: N/A
+Training Days: 4
 ## Aerial Maneuvers [KUROKONWAKU, BLOCK]
 Description: The user leaps and twists their body as they avoid an attack.
+Effect: RESTRICTEDx1. Block. Stop a physical or energy attack. Your next attack costs -1 KI. If this Block STOPPED a physical attack, your next attack costs -2 KI instead. Cost: X-1 KI.
+Requirements: N/A
+Training Days: 2
 RESTRICTEDx1. Block. Stop a physical or energy attack. Your next attack costs -1 KI Point. If this Block STOPPED a physical attack, your next attack costs -2 KI Points instead. Costs X-1 KI Points.
 Requirements: N/A
 ## Dance With The Devil [KUROKONWAKU, PHYSICAL, ENERGY, PUNCH, KICK, MANIPULATED KI]
 Description: A demonic cackled is followed by a dark aura overcoming the user; a fear tactic. A set of eyes appears behind the user, evil and malicious. The image of a demon merges with the user before they take off at the opponent and deliver a high-speed, explosive (literally) combo of physical attacks.
-Effect: RESTRICTEDx1. Physical attack doing (100% Power) Damage. This attack also counts as an energy attack for all effects. SUCCESSFUL - Deactivate all of your opponent's CONSTANT Skills. They cannot be reactivated for 4 turns. Costs 8 KI Points.
+Effect: RESTRICTEDx1. Physical attack. Deal (100% Power) damage. This attack also counts as an energy attack for all effects. SUCCESSFUL - DEACTIVATE all of your opponent's CONSTANT Skills. They cannot be reactivated for 4 turns. Cost: 8 KI.
+Requirements: Training Days: 4
+Training Days: 4
 Energy and Endurance Based
 [li]Shin-Jin [Haokiru]
 Level: Yours
@@ -149,7 +164,7 @@ Description: The Penultimate challenge is upon you and it's not getting any easi
 Requirements: Going Down Under!
 Reward(s): Ginyu Force Battle Armor
 Time: 3 Days (2 RP, 1 Battle) // 500 WPD
-Battle Notes: Marga is so fast that her opponent's seem to move slower in comparison. Everyone fighting Marga has a -1 penalty to their Dexterity Bonus.She is wearing Ginyu Force Pants, Ginyu Force Battle Armor, Ginyu Force Boots, Ginyu Force Gloves, and Ginyu Force Scouter.
+Battle Notes: Marga is so fast that her opponents seem to move more slowly by comparison. Everyone fighting Marga has a -1 penalty to their Dexterity Bonus. She is wearing Ginyu Force Pants, Ginyu Force Battle Armor, Ginyu Force Boots, Ginyu Force Gloves, and a Ginyu Force Scouter.
 Marga [Akaikaru]
 Level: F (28)
 Race: Taifuu [Typhoon Form 1d80]

@@ -440,7 +440,7 @@ Training Days: 4
 New Vegeta[/b]
 
 [*]Falling Star Charge [MIDORIKATAI, ENERGY, BLAST]
-Description: The use flies miles into the sky, glowing with the faint yellow charge of pure energy. The user eventually ascends so high, they become a tiny spec in the sky, often mistaken for a star. The 'twinkling star' effect comes from the massive cocoon of energy they wrap themselves in. Crashing down to earth at back-braking speeds, they eventually collide with the opponent and cause a thunderous explosion upon impact.
+Description: The user flies miles into the sky, glowing with the faint yellow charge of pure energy. The user eventually ascends so high that they become a tiny speck in the sky, often mistaken for a star. The 'twinkling star' effect comes from the massive cocoon of energy they wrap themselves in. Crashing down to earth at breakneck speeds, they eventually collide with the opponent and cause a thunderous explosion upon impact.
 Effect: RESTRICTEDx1. Energy attack. Deal (110% Power) damage. If your attack roll result is 20 or higher, BREAK!x3. SUCCESSFUL - Your next 3 physical Advanced Attacks cost 0 KI to perform. Cost: 10 KI.
 Requirements: Bukujutsu,
 Training Days: 4

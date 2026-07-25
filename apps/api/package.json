@@ -1,0 +1,11 @@
+{
+  "name": "@dragonball-resurgence/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "dev": "tsx watch src/index.ts"
+  }
+}

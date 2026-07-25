@@ -50,7 +50,7 @@ Special Trait(s):
 
 [color=lightgoldenrodyellow]Level 4: Ascended Super Saiyan 2[/color]
 
-Appearance: The perfected form of Super Saiyan 2 which is a half-step between the 2nd Super Saiyan form and the 3rd. It is the highest level a Halfing can achieve, but it is less strenuous then the Saiyan final form. The gold Super Saiyan hair takes on a paler appearance, as does the aura. The lightning crackling around becomes more chaotic, much like Super Saiyan 3. There is no personality change as this is a mastered form.
+Appearance: The perfected form of Super Saiyan 2 is a half-step between the second Super Saiyan form and the third. It is the highest level a Halfing can achieve, but it is less strenuous than the Saiyan final form. The gold Super Saiyan hair takes on a paler appearance, as does the aura. The lightning crackling around it becomes more chaotic, much like Super Saiyan 3. There is no personality change, as this is a mastered form.
 Stats: +90% Power. +60% HP. +50% Dexterity.
 
 Special Trait(s)

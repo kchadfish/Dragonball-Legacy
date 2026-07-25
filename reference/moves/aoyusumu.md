@@ -33,7 +33,7 @@ New Vegeta[/b]
 
 [*]Leverage Mastery [AOYUSUMU, MASTERY]
 Description: By gaining the defensive leverage, you are capable of putting yourself in a more favorable position when it comes time to go on the offensive. In combat, it is important to remember -- if you can attack without being attacked, you will gain the upperhand.
-Effect: Your defensive roll results gain +1 for every attack you've STOPPED prior to that roll. This effect resets when one of your opponent's attacks are SUCCESSFUL against you. After stopping an attack, your attack on your next turn does +(5% Power) Damage and gains +3 to the result(s).
+Effect: Your defensive roll results gain +1 for every attack you've STOPPED prior to that roll. This effect resets when one of your opponent's attacks is SUCCESSFUL against you. After stopping an attack, your attack on your next turn does +(5% Power) Damage and gains +3 to the result(s).
 Requirements: Must know at least three (3) Aoyusumu attacks, skills, and/or blocks.
 Training Days: 5
 [b]Basbas

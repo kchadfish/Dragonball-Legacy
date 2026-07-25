@@ -272,12 +272,12 @@ Requirements: N/A
 Training Days: 2
 ## Speed Demon [AKAIKARU, SKILL]
 Description: A sudden Ki surge is utilized to boost the user's speed.
-Effect: Activate during the ITEM PHASE. Your Dexterity Bonus is considered to be 1 higher, to a maximum of 5. Reset your opponent's defensive dice to 1d30. Your opponent's defensive roll cannot be modified by their effects or Dexterity. This effect ends when your opponent performs a SUCCESSFUL single dice attack with a result of 23 or higher.Costs 2 KI Points.
+Effect: Timing: UPKEEP phase. Your Dexterity Bonus is considered to be 1 higher, to a maximum of 5. Reset your opponent's defensive dice to 1d30. Your opponent's defensive roll cannot be modified by their effects or Dexterity. This effect ends when your opponent performs a SUCCESSFUL single dice attack with a result of 20 or higher. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 ## Nullifying Sphere [FREESTYLE, SKILL]
 Description: The user studies their opponent to hone in on one of their techniques, memorize it, and eliminate it's usage.
-Effect: RESTRICTEDx1. Use when your opponent uses a non-Constant Skill. Negate the effect. You may remove a move from your moveset to remove that Skill from your opponent's moveset for the remainder of the match. Costs 2 KI Points.
+Effect: RESTRICTEDx1. Use when your opponent uses a non-CONSTANT Skill. NEGATE the effect. You may remove a move from your moveset to remove that Skill from your opponent's moveset for the remainder of the match. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 Basic Attacks
@@ -287,38 +287,38 @@ Basic Ki Blast - (10% Power) Damage. Costs 0 KI Points.
 Advanced Attacks [5 Slots]
 ## Chained Strikes [AKAIKARU, PHYSICAL, KICK]
 Description: A side kick vicious enough to knock the breath from the target, followed immediately by a jumping spin kick to the face.
-Effect: Physical attack doing (25% Power) Damage. Your base roll for this attack is 1d35. SUCCESSFUL - You may use this attack again in the ACTION PHASE this turn. You cannot use this effect more than once per turn. Costs 1 KI Point.
+Effect: Physical attack. Deal (20% Power) damage.Attack roll: 1d35. SUCCESSFUL - You may use this attack again in the ACTION phase this turn. You cannot use this effect more than once per turn. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Shock Fist [AKAIKARU, PHYSICAL, ENERGY, PUNCH, MANIPULATED KI]
-Description: Focusing so much ki into their hand it becomes visible and audible – it resembles a high-pitched scream – the attacker rushes forward, driving their hand into their foe with the intent of thrusting it straight through them.
-Effect: Physical attack doing (40% Power) Damage. This attack is also considered an energy attack for all effects. Your attack roll is 1d35 for this attack. SUCCESSFUL - Your opponent’s defensive dice rolls gain -3 to the result until they perform a SUCCESSFUL single-dice attack, minimum 2 defense rolls. This effect stacks up to -6. Costs 2 KI Points.
+Description: Focusing so much ki into their hand it becomes visible and audible - it resembles a high-pitched scream - the attacker rushes forward, driving their hand into their foe with the intent of thrusting it straight through them.
+Effect: Physical attack. Deal (40% Power) damage. This attack is also considered an energy attack for all effects. Attack roll: 1d35. SUCCESSFUL - Your opponent's defensive dice rolls gain -3 to the result until they perform a SUCCESSFUL single-dice attack, minimum 2 defense rolls. This effect stacks up to -6. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 ## Back Brain Kick [AKAIKARU, PHYSICAL, KICK]
 Description: Jumping and pivoting their body, the user brings their foot around to connect with the back of the opponent's head.
-Effect: Physical attack doing (40% Power) Damage. SUCCESSFUL - Deactivate a Skill with a 'CONSTANT' effect. Costs 2 KI Points.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - DEACTIVATE a Skill with a 'CONSTANT' effect. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 ## Torpedo Kick [AKAIKARU, PHYSICAL, KICK]
 Description: Flying toward the adversary, feet first, you drive your feet right through them; pile driving your way past.
-Effect: Physical attack doing (30% Power) Damage. Your attack roll is 1d35 for this attack. This attack cannot be BLOCKED. SUCCESSFUL - Choose a Block. That Block cannot be used by anybody until you roll an attack roll result of 5 or less. This effect may not effect more than one Block at a time. Costs 1 KI Point.
+Effect: Physical attack. Deal (30% Power) damage.Attack roll: 1d32. This attack cannot be BLOCKED. SUCCESSFUL - Choose a Block. LOCK that Block for all participants until you roll an attack roll result of 5 or less. This effect may not affect more than one Block at a time. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Anger Management [AKAIKARU, PHYSICAL, PUNCH, KICK]
-Description: Driving forward, the aggressor rakes the opponent’s eyes furiously before knocking them to the floor. Once on the ground, the assailant tramples over their adversary’s remains.
-Effect: Physical attack doing (40% Power) Damage. SUCCESSFUL- Your next single dice attack without stun in the effect gains “SUCCESSFUL- If your attack roll is 23 or higher, STUN.” If that attack is BLOCKED, this added SUCCESSFUL clause carries over to your next single-dice attack. Costs 2 KI Points.
+Description: Driving forward, the aggressor rakes the opponent's eyes furiously before knocking them to the floor. Once on the ground, the assailant tramples over their adversary's remains.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - Your next single dice attack without stun in the effect gains "SUCCESSFUL - If your attack roll is 23 or higher, STUN." If that attack is BLOCKED, this added SUCCESSFUL clause carries over to your next single-dice attack. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 Blocks [2 Slots]
 ## Backflip [AKAIKARU, BLOCK]
-Description: A simple back-flip done over the attack.
-Effect: RESTRICTEDx1. Block. Stop a physical or energy attack. The result of your opponent’s next defensive roll is -5. If your next attack is STOPPED, STUN. Costs X KI Points.
+Description: A simple backflip done over the attack.
+Effect: RESTRICTEDx1. Block. Stop a physical or energy attack. Your opponent's next defensive roll has -5 to the results. If your next attack is STOPPED, STUN. Cost: X KI.
 Requirements: N/A
 Training Days: 2
 ## Gone In A Sixtieth of A Second [AKAIKARU, BLOCK]
 Description: A mad dash done at the last minute, confusing the opponent into thinking they have landed their swarm of attacks only to find disappointment.
-Effect: RESTRICTEDx1. STOP a physical or energy attack. This can STOP all dice from energy multi-dice attacks. Your next base cost 1 attack gains “SUCCESSFUL - If your dice roll result is 20 or higher, STUN. This STUN cannot be prevented by any means.“. Costs X KI Points.
+Effect: RESTRICTEDx1. Block. Stop a physical or energy attack. This can STOP all dice from energy multi-dice attacks. Your next base cost 1 attack gains "SUCCESSFUL - If your dice roll result is 20 or higher, STUN. This STUN cannot be prevented by any means.". Cost: X KI.
 Requirements: N/A
 Training Days: 2
 Signature Techniques [2 Slots]

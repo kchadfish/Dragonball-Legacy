@@ -367,7 +367,7 @@ Alpha Collective[/b]
 
 [*]Energy Lob [KUROKONWAKU, ENERGY, BLAST]
 Description: Globs of energy are hurled at the opponent. The blobs of ki stick to the opponent and eventually explodes.
-Effect: Energy attack. Deal (55% Power) damage. Your results gains +X. X = 5 - your opponent's current KI. SUCCESSFUL - Your next CONSTANT Skill may be activated during your UPKEEP phase. Cost: 3 KI.
+Effect: Energy attack. Deal (55% Power) damage. Your results gain +X. X = 5 - your opponent's current KI. SUCCESSFUL - Your next CONSTANT Skill may be activated during your UPKEEP phase. Cost: 3 KI.
 Requirements: N/A
 Training Days: 2
 [b]Outer Space

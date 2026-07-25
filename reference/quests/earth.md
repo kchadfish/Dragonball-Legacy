@@ -8,7 +8,7 @@ Requirement(s): N/A
 Reward(s): During your next Battle, your Power is considered to be 10% higher.
 Time: 1 Day // 700 WPD (350 WPD with Bukujutsu)
 ## Battle for the Tower
-Description: A set on unusual runes cover a small area of rubble, and inside you find a rather pissed off Korin! After completing a complex puzzle to deactivate the rune-trap that’s holding the legend down, you are attacked by the same person who put him there: a rogue wizard, Adaedrion! Korin can counter some of the wizards tricks, but it’s up to you to put him in his place. . . . OR . . . You find the master of the tower, Korin, trapped in a complex set of runes.
+Description: A set of unusual runes covers a small area of rubble, and inside you find a rather pissed-off Korin! After completing a complex puzzle to deactivate the rune-trap that’s holding the legend down, you are attacked by the same person who put him there: a rogue wizard, Adaedrion! Korin can counter some of the wizard’s tricks, but it’s up to you to put him in his place. . . . OR . . . You find the master of the tower, Korin, trapped in a complex set of runes.
 A man in dark robes approaches you and offers you a chance to plunder the tower’s hidden treasures with him. He’s managed to neutralize Korin, but he requires your aid in stopping one of Earth’s champions that Korin has called.
 Requirement(s): Korin’s Tower
 Reward(s): ⅓ Senzu Bean // 0.5x Base EXP Gain
@@ -29,39 +29,39 @@ Power: 220 + 17% = 257
 Dexterity: 9 + 16%= 10 (41.67%, +2)
 Mastery
 ## Overdrive Mastery [KIIHAKAI, MASTERY]
-Description: You cannot place limitations on yourself -- as a practioner of Kiihakai, you must convince yourself you have no limits. When you feel power rising and your energy flowing, your aura becoming sporadic and chaotic know that you are in overdrive and you will survive. In this state you will be a destructive and terrifying force to be reckoned with.
-Effect: Your Advanced Attacks gain their SUCCESSFUL effects as long as your attack roll result is 22 or higher. Activate when you Power Up. If you perform a Kiihakai Advanced Attack on your next turn, the attack does +(15% Power) Damage. Once per combat you may perform an UNRESTRICTED Kiihakai Advanced Attack that you do not know.
+Description: You cannot place limitations on yourself -- as a practitioner of Kiihakai, you must convince yourself you have no limits. When you feel power rising and your energy flowing, your aura becoming sporadic and chaotic know that you are in overdrive and you will survive. In this state you will be a destructive and terrifying force to be reckoned with.
+Effect: Your Advanced Attacks gain their SUCCESSFUL effects as long as your attack roll result is 22 or higher. Activate when you Power Up. If you perform a Kiihakai Advanced Attack on your next turn, the attack does +(15% Power) Damage. Once per combat, you may perform an UNRESTRICTED Kiihakai Advanced Attack that you do not know.
 Requirements: You must know at least three (3) Kiihakai attacks, skills, and/or blocks.
 Training Days: 5
 Skills
 ## Aura Burst [KIIHAKAI, SKILL]
 Description: A Kiihakai user should rarely if ever be desperate for energy, and one of the first techniques taught to any student is the ability to store power to unleash as a burst of energy when it is most needed.
-Effect: RESTRICTEDx1. Gain 2 KI Points. You may use this skill at the END PHASE of a turn when your ki points dropped to 0.
+Effect: RESTRICTEDx1. Gain 2 KI. You may use this skill at the END phase of a turn when your KI dropped to 0.
 Requirements: N/A
 Training Days: 2
 ## Protective Aura [KIIHAKAI, SKILL]
 Description: A constant source of energy flows around the user which at first seems like a normal flowing aura, but when contact is made it proves to be dense, like a protective shell.
-Effect: CONSTANT - Your defensive dice side gains +1 for every CONSTANT Skill you have active to a maximum of +3. While this Skill is active, your opponent’s attacks do -10% Damage against you. Costs 3 KI Points
+Effect: Constant. Your defensive dice side gains +1 for every CONSTANT Skill you have active to a maximum of +3. While this Skill is active, your opponent's attacks do -10% Damage against you. Cost: 3 KI.
 Requirements: N/A
 ## Power Deflection [KIIHAKAI, SKILL]
-Description: Sometimes it is not just enough to stop an opponent’s attack. Sometimes a taste of their own medicine is in order. Swat the energy attack right back at them and make them regret setting their sights on you.
-Effect: CONSTANT – Whenever you STOP an energy attack with a defensive roll of 20 or higher, your opponent loses (15% Power) HP. Costs 2 KI Points.
+Description: Sometimes it is not just enough to stop an opponent's attack. Sometimes a taste of their own medicine is in order. Swat the energy attack right back at them and make them regret setting their sights on you.
+Effect: Constant. Whenever you STOP an energy attack with a defensive roll of 20 or higher, your opponent loses (15% Power) HP. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 Advanced Attacks
 ## Focused Chi Barrage [ENERGY, BLAST, VOLLEY]
 Description: Taking deep breaths and entering a calm, martial arts stance, the user summons forth two equal sized orbs of energy. The spheres of energy are then launched at high speeds toward the opponent.
-Effect: Energy attack doing (20% Power) Damage per hit. Your attack roll is 2d30 for this attack. This attack cannot be BLOCKED and cannot be stopped by a defensive roll of 5 or less. If both dice rolls are SUCCESSFUL, activate one of your Skills with a 'CONSTANT' effect. Costs 1 KI Point.
+Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 2d30. This attack cannot be BLOCKED and cannot be stopped by a defensive roll of 5 or less. If both dice rolls are SUCCESSFUL, activate one of your Skills with a 'CONSTANT' effect. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Aerial Beam [ENERGY, BEAM]
 Description: Taking to the air, the user extends their palm and grabs hold of their wrist before firing a large beam that usually has a good enough force to put distance between the user and the opponent.
-Effect: Energy attack doing (45% Power) Damage. SUCCESSFUL - If your attack roll is 20 or higher, your opponent cannot perform a physical attack on their next turn. If you have Eagle Eye active, you may choose to make your opponent unable to perform an energy attack on their next turn instead. Costs 2 KI Points.
-Requirements: Bukujutsu Level 1
+Effect: Energy attack. Deal (45% Power) damage. SUCCESSFUL - If your attack roll is 20 or higher, LOCK your opponent's physical attacks for their next turn. If you have Eagle Eye active, you may choose to LOCK your opponent's energy attacks for their next turn instead. Cost: 2 KI.
+Requirements: Bukujutsu
 Training Days: 3
 ## Triple Shot [ENERGY, BLAST, VOLLEY]
 Description: The fingertips are placed together forming a circular passage (similar to the triangular passage used for Tri-Beam), as three orbs are shot in rapid succession.
-Effect: Energy attack doing (20% Power) Damage per hit. Your attack roll is 3d30 for this attack. SUCCESSFUL – Your opponent’s next attack does -(20% Power) Damage. Costs 4 KI Points.
+Effect: Energy attack. Deal (20% Power) damage per hit. Attack roll: 3d30. SUCCESSFUL - Your opponent's next attack does -(20% Power) Damage. Cost: 4 KI.
 Requirements: N/A
 Training Days: 3
 ## Lights Out Strike [AOYUSUMU, PHYSICAL, KICK]
@@ -72,7 +72,7 @@ Training Days: 2
 Blocks
 ## Energy Slasher [KIIHAKAI, BLOCK]
 Description: The user focuses their energies, wrapping their arm in Ki which they use to "slash" through the opponent's blast, effectively neutralizing it.
-Effect: RESTRICTED x1. Block. Stop an energy attack. If your opponent's last attack was a physical attack and it was STOPPED, you may gain +2 KI Points if you Power Up on your next turn. Costs X+1 KI Points.
+Effect: RESTRICTEDx1. Block. Stop an energy attack. If your opponent's last attack was a physical attack and it was STOPPED, you may gain +2 KI if you Power Up on your next turn. Cost: X+1 KI.
 Requirements: N/A
 Training Days: 2
 Bran [Aoyusumu]
@@ -237,7 +237,7 @@ Dexterity:10 + 14%= 11 (39%)
 Moveset: Power Surge Mastery,Aura Burst, Eagle Eye, Aerial Beam, Static Shot, Orange Burst, Too Hot To Touch
 Items: Ensorcelled Mystic Pants, Majin Belt, Demon Realm Cape
 ## The old Red Ribbon Relay Station
-Description: There is an old relay station in the mountains that was abandoned suddenly by red ribbon forces. It was used to summon Red ribbon androids for unknown reasons. Working much like a silent alarm it draws androids in. They say this was the original facility of Dr.Gero, himself. Who knows what you may find within...
+Description: There is an old relay station in the mountains that was suddenly abandoned by Red Ribbon forces. It was used to summon Red Ribbon androids for unknown reasons. Working much like a silent alarm, it draws androids in. They say this was Dr. Gero's original facility. Who knows what you may find within...
 Reward: Wayfinder
 Time: 1 Day// 1000WPD
 ## This Is Getting Way Too Meta.
@@ -247,6 +247,6 @@ Reward(s): Epic Lvl character sheet
 Time: 3 Days // 900 WPD
 Epic Level Character Sheet [1,000z]
 Inventory Slots: 1
-Description:You are now the strongest there is. The Final Boss no longer is a threat to you, and other groups are even asking you to DM for them now!
+Description: You are now the strongest there is. The Final Boss is no longer a threat to you, and other groups are even asking you to DM for them!
 Effect: USEX1. Use when you kill an opponent in battle, you gain 1x Bonus Base Exp from that battle. You may only have one Character Sheet at a time.
 Back to contents

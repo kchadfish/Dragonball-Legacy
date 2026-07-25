@@ -199,7 +199,7 @@ Birds of A Feather -  Your Bukujutsu is considered one higher for all effects an
 
 Wild Animal - Your single dice attacks do +(10% Power) Damage for every SUCCESSFUL single dice attack you have performed prior to that attack to a maximum of +(30% Power) Damage. This damage resets when one of your single dice attacks is STOPPED.
 
-Natural Camouflage - Whenever you defensive roll result is +10 or more your opponents attack roll your next attack can use result modifications to CRITICAL. You may have your opponent reroll their defensive roll against that attack but must accept the second roll.
+Natural Camouflage - Whenever your defensive roll result is 10 or more higher than your opponent's attack roll result, your next attack can use result modifications to CRITICAL. You may have your opponent reroll their defensive roll against that attack, but must accept the second roll.
 
 Transformation[hr]
 
@@ -506,7 +506,7 @@ Eye Color: Any coloy, Usually dark tones, black, or grey; depends on original sp
 Appearance: Any appearance; their appearance switches between '2' forms. A true spiritual body with no legs that seems like a floating mass of energy, with a wispy tail and another form that is more tangible that looks like they were in life, though usually pale or slightly transparent. They often are monochromatic or black and white in appearance. They are also much less imposing than they were in life because they don't have a physical presence.
 Planet of Origin: Any
 Biography:
-The stories of ghosts are long and sorted, with them being worshipped as powerful ancestors or feared as ominous and evil beings. Neither view is particularly 'correct' as the personality of a ghost is just as varied as the personalities of living beings. In fact, most ghosts act how they would have acted in life and there is a reason for this. In order to become a ghost, you need to have a very powerful personality or sense of self. Otherwise you would never be able to escape the cycle of life and death and hold yourself together in the material realm. Ghosts are the souls of individuals who have some lingering attachment to the realm of living and secure their place with sheer willpower. They defy the afterlife and become strange beings of undeath, with insubstantial bodies formed with energy.
+The stories of ghosts are long and storied, with them being worshipped as powerful ancestors or feared as ominous and evil beings. Neither view is particularly 'correct,' as the personality of a ghost is just as varied as the personalities of living beings. In fact, most ghosts act as they would have acted in life, and there is a reason for this. In order to become a ghost, you need to have a very powerful personality or sense of self. Otherwise, you would never be able to escape the cycle of life and death and hold yourself together in the material realm. Ghosts are the souls of individuals who have some lingering attachment to the realm of the living and secure their place with sheer willpower. They defy the afterlife and become strange beings of undeath, with insubstantial bodies formed of energy.
 
 STARTING ITEM[hr]
 [list][*]General Vest
@@ -686,7 +686,7 @@ Special Trait(s):
 
 [color=lightgoldenrodyellow]Level 4: Ascended Super Saiyan 2[/color]
 
-Appearance: The perfected form of Super Saiyan 2 which is a half-step between the 2nd Super Saiyan form and the 3rd. It is the highest level a Halfing can achieve, but it is less strenuous then the Saiyan final form. The gold Super Saiyan hair takes on a paler appearance, as does the aura. The lightning crackling around becomes more chaotic, much like Super Saiyan 3. There is no personality change as this is a mastered form.
+Appearance: The perfected form of Super Saiyan 2 is a half-step between the second Super Saiyan form and the third. It is the highest level a Halfing can achieve, but it is less strenuous than the Saiyan final form. The gold Super Saiyan hair takes on a paler appearance, as does the aura. The lightning crackling around it becomes more chaotic, much like Super Saiyan 3. There is no personality change, as this is a mastered form.
 Stats: +90% Power. +60% HP. +50% Dexterity.
 
 Special Trait(s)
@@ -793,7 +793,7 @@ CLASSES[/color]
 =======
 [color=#9300C4]Paladin[/color] - Your first single dice attack of the match is UNBLOCKABLE and gains "SUCCESSFUL - You may activate one of your Constant Skills". You first defense roll of the match gains +3 to the result.
 
-[color=#9300C4]Honor bound Duelist [/color]- Whenever you kill an opponent in battle you may choose mercy. This spares their life and ends combat. If used on a player, they are set to (10% Total) HP. You recieve all normal rewards and +50% exp for the battle and the opponent given mercy may not challenge you or interfere against you for two weeks. You may call an opponent you've given mercy to into battle as an interference without a roll, but doing so removes the mercy effect. If used on an npc they have access to their moveset but use your stats.
+[color=#9300C4]Honor-Bound Duelist [/color] - Whenever you kill an opponent in battle, you may choose mercy. This spares their life and ends combat. If used on a player, they are set to (10% Total) HP. You receive all normal rewards and +50% EXP for the battle, and the opponent shown mercy may not challenge or interfere against you for two weeks. You may call an opponent to whom you have shown mercy into battle as an interference without a roll, but doing so removes the mercy effect. If used on an NPC, they have access to their moveset but use your stats.
 
 [color=#9300C4]Mixed Martial Artist[/color] - You start the game with +2 Training Days. Once per Saga, you may choose to remove your Styled moves from your moveset. If you do, total up the Training Days and you may add moves to your moveset of equal or lesser Training Days from another Martial Arts Style. The moves you add must be from planets you have already visited, and your official Style changes to match the new moveset. You may recreate any and all customs.
 
@@ -1106,7 +1106,7 @@ Stats:  +70% Power. +90% HP. +40% Dexterity.
 Special Trait(s):
 [NOVICE] Limitless Strength- You may choose three more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within three of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -5 until they are successful on a single-dice attack. This does not stack with itself.
 [INTERMEDIATE]Limitless Endurance -You may choose three more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within four of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -5 until they are successful on a single-dice attack.
-[MASTERED] Immortal Makyan - You may choose four more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within four of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -4 until they are successful on a single-dice attack.
+[MASTERED] Immortal Makyan - You may choose four more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within four of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -5 until they are successful on a single-dice attack.
 
 Namek
 [center][img]https://images-ext-2.discordapp.net/external/IKiJ9ED1m7EPQaM-nrehxflEjQU_QxGaP9DLsyj665E/http/oi64.tinypic.com/1si3pj.jpg?width=344&height=516[/img][/center]
@@ -1372,7 +1372,7 @@ Vengeful Spirit - Whenever you defeat a Saiyan, Hybrid-Saiyan, or Bio-Android wi
 
 Small Survivor - When using a consumable item in combat you may not be attacked on your opponents next turn. When making escape rolls you roll 3 dice and ignore the lowest result. When reduced to 0HP you may make an escape roll and if successful set your hp to (5% TOTAL) HP and end combat. 
 
-Unbreakable Spirit - Your attack roll results gain +1 for each attack that you've missed in a row. This effect resets when you are SUCCESSFUL on an attack. You defensive roll results gain +1 for each attack that hits your in a row. This resets when you STOP an attack.
+Unbreakable Spirit - Your attack roll results gain +1 for each attack that you have missed in a row. This effect resets when you are SUCCESSFUL on an attack. Your defensive roll results gain +1 for each attack that hits you in a row. This resets when you STOP an attack.
 
 *You still die, you can just retry the quest after coming back from the afterlife.
 
@@ -1498,7 +1498,7 @@ Starting Items:[list]
 =======
 [color=powderblue]Paladin[/color] - You only need to roll a 3 or higher with 'Godlike Potential' to gain its effect and your first single dice attack during combat is UNBLOCKABLE and gains "SUCCESSFUL - You may activate one of your Constant Skills".
 
-[color=powderblue]Guardian Angel[/color] - At the start of each week, you may choose another Player in the game on the same planet as you. That player gains + (10% Total) HP RECOVER rate. Your joint quests costs -100 WPD. Your gain +100Z from joint quests.
+[color=powderblue]Guardian Angel[/color] - At the start of each week, you may choose another Player in the game on the same planet as you. That player gains +(10% Total) HP RECOVER rate. Your joint quests cost -100 WPD. You gain +100Z from joint quests.
 
 [color=powderblue]Nature of the Supreme Kai[/color] -  Whenever you unlock a transformation you start with it mastered at 1d80. Once per Month, when you get an non-Unique item from a Quest, you get +1 extra of one of those Items.
 
@@ -1584,9 +1584,9 @@ Appearance: A blue-and-white wave effect surges upwards from the bottom of the T
 Stats: +15% Power. +10% HP. +25% Dexterity.
 
 Special Trait(s):
-[NOVICE] Wave Rider - Your multi-dice attacks can critical if the first roll qualifies for a critical. Any effects that adjust critical paremeters and refer “1d” apply to your multi-dice attack first dice rolls. Your multi-dice attacks gain +1 dice side.
-[INTERMEDIATE] Wave Runner - Your multi-dice attacks can critical if the first roll qualifies for a critical. Any effects that adjust critical paremeters and refer “1d” apply to your multi-dice attack first dice rolls. Your multi-dice attacks gain +2 dice sides.
-[MASTER] Wave Breaker - Your multi-dice attacks can critical if the first roll qualifies for a critical. Any effects that adjust critical paremeters and refer “1d” apply to your multi-dice attack first dice rolls. Your multi-dice attacks gain +3 dice sides.
+[NOVICE] Wave Rider - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +1 dice side.
+[INTERMEDIATE] Wave Runner - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +2 dice sides.
+[MASTER] Wave Breaker - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +3 dice sides.
 
 Level 2: Storm Form
 
@@ -1594,9 +1594,9 @@ Appearance: This image appears similar to the Typhoon Form except that the Taifu
 Stats: +30% Power. +20% HP. +50% Dexterity.
 
 Special Trait(s):
-[NOVICE] Storm Rider - Your multi-dice attacks can critical if the first roll qualifies for a critical. Any effects that adjust critical paremeters and refer “1d” apply to your multi-dice attack first dice rolls. Your multi-dice attacks gain +1 to each attack roll result.
-[INTERMEDIATE] Storm Runnder - Your multi-dice attacks can critical if the first roll qualifies for a critical. Any effects that adjust critical paremeters and refer “1d” apply to your multi-dice attack first dice rolls. Your multi-dice attacks gain +2 to each attack roll result.
-[MASTER] Storm Breaker - Your multi-dice attacks can critical if the first roll qualifies for a critical. Any effects that adjust critical paremeters and refer “1d” apply to your multi-dice attack first dice rolls. Your multi-dice attacks gain +2 to each attack roll result. You may spend 2 KI when using a single dice Advanced Attack before your attack roll. If you do, that attack cannot be COUNTERED or BLOCKED.
+[NOVICE] Storm Rider - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +1 to each attack roll result.
+[INTERMEDIATE] Storm Runner - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +2 to each attack roll result.
+[MASTER] Storm Breaker - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +2 to each attack roll result. You may spend 2 KI when using a single-dice Advanced Attack before your attack roll. If you do, that attack cannot be COUNTERED or BLOCKED.
 
 Tuffles
 [center][img]https://images-ext-2.discordapp.net/external/Wb0jrnCahWH7Xn6JNhLSS9v5Zf3REFwy5hywFPeYk0c/http/oi65.tinypic.com/2e6a5g4.jpg?width=344&height=516[/img][/center]
@@ -1629,7 +1629,7 @@ STARTING ITEMS[hr]
 
 [color=slategrey]Tuffle Avenger[/color] - Whenever you kill a Half-Saiyan or Saiyan in Battle, you gain +200% EXP. Saiyans and Half-Saiyans cannot roll escape rolls against you. Whenever you kill an opponent who has defeated you in a previous Battle, you gain +50% EXP. RESTRICTEDx1. You may choose your opponent's next attack. They may not use any other moves or effects on that turn.
 
-[color=slategrey]Guerrilla Tactics [/color]- Whenever you initiate a Battle with an opponent, they start the match with -2 KI Points. At the start of combat, if your opponent's Level is higher than yours, you may have the first turn regardless of any other effects. If your opponent'sLevel is lower than yours, and your defensive roll result is 6 or lower, it is considered to be 10 instead.
+[color=slategrey]Guerrilla Tactics [/color] - Whenever you initiate a Battle with an opponent, they start the match with -2 KI Points. At the start of combat, if your opponent's Level is higher than yours, you may have the first turn regardless of any other effects. If your opponent's Level is lower than yours and your defensive roll result is 6 or lower, it is considered to be 10 instead.
 
 [color=slategrey]Level 1: Zeta Injection[/color]
 [hr]
@@ -1649,7 +1649,7 @@ Stats: +40% Power. +30% HP. +30% Dexterity.
 Special Trait(s):
 [NOVICE] Blinded With Science - Once per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -1 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn. 
 [INTERMEDIATE] Bonding With Science - Once per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -1 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
-[MASTERED] E=MC Squared - AOnce per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -2 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
+[MASTERED] E=MC Squared - Once per match, you may activate a CONSTANT skill with a Base Cost of 3 or less. You do not have to pay the cost, and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -2 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
 
 [color=slategrey]Level 3: Andromeda Strain[/color]
 [hr]
@@ -1703,7 +1703,7 @@ Starting Item(s):[list]
 
 [color=darkorange]Majin Minion Summoning[/color] - Your Majin Seal can be put on players willingly. They are healed by 50% immediately and gain (+10%) to all stats. You may Instant Transmission your Majin Minions to you if they are on a different planet or in space once per week, this does not count against your IT use or theirs. Your Majin Seals last two weeks. You may only have two minions at a time. They do not have to make interference rolls for your battles.
 
-[color=darkorange]Summoner [/color]- You gain a pool of minions (max three). During combat you may pay 1 KI to STOP an attack performed by an opponent (this is treated as a block) by sacrificing one minion. Once per week you may gain one minion. Whenever you defeat an NPC you may gain one minion. Your attack roll results gains +1 for each minion you currently possess.
+[color=darkorange]Summoner [/color] - You gain a pool of minions (maximum three). During combat, you may pay 1 KI to STOP an attack performed by an opponent (this is treated as a block) by sacrificing one minion. Once per week, you may gain one minion. Whenever you defeat an NPC, you may gain one minion. Your attack roll results gain +1 for each minion you currently possess.
 
 [color=darkorange] Apparation Master [/color] - You may use Instant Transmission on consecutive weeks. Once per month, you may have a quest take -1 RP day to a minimum of 1. Once per saga, you may substitute a 500 word RP for a non-saga quest boss that does not have a LEGENDARY reward and is one level higher than you or lower.
 

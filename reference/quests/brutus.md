@@ -109,7 +109,7 @@ Description: The serum developed by the Tuffle scientists from Brutii DNA. They 
 Effect: USEx1. When you update your stats, state that you wish to use this item. +20% Power for the remainder of the week. You may not use Stat-Boosting items two weeks in a row.
 Note: You may only use one Stat-Boosting item per week.
 ## The Apple
-Description: Legends across the galaxy have long foretold of a Golden Apple capable of causing discord between even the closest of friends. Lately, rumors have been floating around about it's appearance on Brutus.Friends and family members are fighting. Follow the trail and maybe you can find the prize.
+Description: Legends across the galaxy have long foretold of a Golden Apple capable of causing discord between even the closest of friends. Lately, rumors have been floating around about its appearance on Brutus. Friends and family members are fighting. Follow the trail, and maybe you can find the prize.
 Requirements: N/A
 Time: 4 Days // 750 WPD
 The Apple of Discord [1,000z]
@@ -117,7 +117,7 @@ Inventory Slots: 1
 Description: A golden apple found on Brutus. Legends have been passed on for ages about the wars caused by this apple. Toss it into a crowd and watch the action.
 Effect: USEx1. Choose a player on the same planet as you. They must challenge another player on the same planet as you this week.
 ## Witch's Brew
-Description:The Giant Woods are said to be home to many witches and it is for this reason that few Bruti are brave enough to walk through the forest. However, for those brave enough, there is said to be a magical cauldron abandoned in an old cottage that grants restorative powers to anyone who's name is whispered into it. Let's hope the rumors aren't true about the witches at least...
+Description: The Giant Woods are said to be home to many witches, and it is for this reason that few Bruti are brave enough to walk through the forest. However, for those brave enough, there is said to be a magical cauldron abandoned in an old cottage that grants restorative powers to anyone whose name is whispered into it. Let's hope the rumors about the witches are not true, at least...
 Requirements: N/A
 Reward: Choose one Player. That player heals all SEVER effects and restores up to (100% Total) HP.
 Time: 1 Day // 1,200 WPD

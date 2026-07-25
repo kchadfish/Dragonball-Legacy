@@ -23,58 +23,59 @@ Your opponent’s advanced attacks do – 5% damage.
 Mastery:
 ## Focused Mastery [HAOKIRU, MASTERY]
 Description: The Art of Preservation is all one needs, and while other techniques may be tempting for the power they offer, focusing completely on your art form will yield your true reward. With all the time and energy poured into mastering your art, you will heal from wounds faster and better than other students.
-Effect: You cannot use non-custom Freestyle Advanced Attacks or Signature Techniques in combat. All of your Haokiru attacks gain "SUCCESSFUL - Gain (10% Current HP) HP and 1 KI Point".
-Requirements: Must know at least three (3) Haokiru attacks,skills, and/or blocks.
-Training Days: 4
+Effect: LOCK your non-custom Freestyle Advanced Attacks and Signature Techniques in combat. LOCK moves that become styled through other effects. All of your Haokiru attacks gain "SUCCESSFUL - HEAL (10% Current HP) HP and gain 1 KI".
+Requirements: Must know at least three (3) Haokiru attacks, skills, and/or blocks.
+Training Days: 5
 Skills
 ## Dragon's Pride [HAOKIRU, SKILL]
 Description: Refusing to back down even in the face of superiority, competition does a Haokiru practitioner good, pushing them to new found limits.
-Effect: Use at the start of the match. If your level is equal to or lower than your opponent’s level, you begin the match with +(10% Total HP). Costs 1 KI Point.
+Effect: Timing: start of match. If you have equal or less SP than your opponent, you begin the match with +(10% Total HP). Cost: 1 KI.
 Requirements: N/A
 Training Days: 3
 ## Reserves [HAOKIRU, SKILL]
 Description: Energy must be used wisely on the field of battle and it is always a good idea to keep a reserve. By tapping into this reserve when most needed, a user can channel the energy into a healing force.
-Effect: Use when you Power Up. Gain (5% Total HP) HP. You may only use this Skill once per turn. Costs 1 KI Point.
+Effect: Timing: when you Power Up. Gain (5% Total HP) HP. You may only use this Skill once per turn. Cost: 1 KI.
 Requirements: N/A
-Training Days: 2
 ## Martyrdom [HAOKIRU, SKILL]
 Description: Stubborn to the end, some students of Haokiru are so devoted to taking an opponent down that they actually willingly accept an attack just so they can properly mimic it and send it right back where it came from.
-Effect: RESTRICTEDx1. Activate at any point when your HP is below (50% Total HP). On your opponent's turn, after your opponent performs a SUCCESSFUL Advanced Attack or Signature Technique, you may have your opponent lose X HP. X = The base damage of the Advanced Attack. If that attack was a Signature Technique, X = ½ of the base damage for that attack. This skill may not be in the same move set as Eternal Mastery or Survival Instinct. You may activate this Skill when your HP reaches 0.
+Effect: RESTRICTEDx1. Activate at any point when your HP is below (50% Total HP). On your opponent's turn, after your opponent performs a SUCCESSFUL Advanced Attack or Signature Technique, you may have your opponent lose X HP. X = The base damage of the Advanced Attack. If that attack was a Signature Technique, X = 1/2 of the base damage for that attack. This skill may not be in the same moveset as Eternal Mastery or Survival Instinct. You may activate this Skill when your HP reaches 0. Cost: 2 KI.
+Requirements: N/A
+Training Days: 2
 Costs 2 KI Points.
 Requirements: N/A
 Training Days: 2
 Advanced Attacks
 ## Dragon Fire [HAOKIRU, ENERGY, BEAM]
 Description: Opening their mouth, the user emits a gigantic torrent of crimson energy, akin to a dragon breathing fire.
-Effect: RESTRICTEDx2. Energy attack doing (5% Power) Damage per hit. Your dice roll for this attack is 10d30. Your dice sides cannot exceed 1d30 with this attack. This RESTRICTED attack can be BLOCKED. SUCCESSFUL - Gain (5% Total HP) HP for every SUCCESSFUL dice roll result above 20 to a maximum of (50% Total HP) HP. Costs 5 KI Points.
+Effect: RESTRICTEDx2. Energy attack. Deal (5% Power) damage per hit. Attack roll: 10d30. Your dice sides cannot exceed d30 with this attack. This RESTRICTED attack can be BLOCKED. SUCCESSFUL - Gain (5% Total HP) HP for every SUCCESSFUL dice roll result above 20 to a maximum of (50% Total HP) HP. Cost: 5 KI.
 Requirements: N/A
 Training Days: 4
 ## Dragon Swipes [HAOKIRU, PHYSICAL, PUNCH]
-Description:Bowing the head, the attacker extends their arms and points their fingertips straight out. In one swift motion they charge the opponent, swiping violently at them before finishing off with a palm strike to the bridge of the nose.
-Effect: Physical attack doing (10% Power) Damage per hit. Your attack roll is 5d30 for this attack. The cost of this attack cannot be modified by non-Haokiru effects. SUCCESSFUL - Prevent X% damage from your opponent's next attack. X = The number of SUCCESSFUL hits x10. This effect does not stack with itself. Costs 3 KI Points.
+Description: Bowing the head, the attacker extends their arms and points their fingertips straight out. In one swift motion they charge the opponent, swiping violently at them before finishing off with a palm strike to the bridge of the nose.
+Effect: Physical attack. Deal (10% Power) damage per hit. Attack roll: 5d30. The cost of this attack cannot be modified by non-Haokiru effects. SUCCESSFUL - Prevent X% damage from your opponent's next attack. X = The number of SUCCESSFUL hits x5. This effect does not stack with itself. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 ## Rising Dragon Wave [HAOKIRU, ENERGY, BEAM]
 Description: The user fires a white serpentine beam of energy that wraps around the target, carrying them into the air before the beam constricts around their body and explodes.
-Effect: Energy attack doing (35% Power) Damage. If your KI Points were at 9 or higher before performing this attack, de-activate a Skill with a CONSTANT effect. Costs 2 KI Points.
+Effect: Energy attack. Deal (35% Power) damage. If your KI were at 9 or higher before performing this attack, DEACTIVATE a Skill with a CONSTANT effect. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 Signature Technique
 ## Miracle Wave [HAOKIRU, ENERGY, MANIPULATED KI]
-Description: A torrent of blue ki surrounds and explodes outwards from the user’s body, forming multiple free-flowing and unpredictable energy waves. If performed correctly, a fraction of the energy used to perform this attack can be reintegrated into the being as a healing force.
-Effect: RESTRICTEDx1. Energy attack doing (85% Power) Damage. SUCCESSFUL - If your attack roll result is 20 or higher, gain (20% Total HP) HP and choose 2 of your Skills. You may use and/or activate them immediately. Costs 7 KI Points.
-Requirements: N/A
+Description: A torrent of blue ki surrounds and explodes outwards from the user's body, forming multiple free-flowing and unpredictable energy waves. If performed correctly, a fraction of the energy used to perform this attack can be reintegrated into the being as a healing force.
+Effect: RESTRICTEDx1. Energy attack. Deal (85% Power) damage. SUCCESSFUL - If your attack roll result is 20 or higher, HEAL (20% Total HP) and choose 2 of your Skills. You may use and/or activate them immediately. Cost: 7 KI.
+Requirements: Training Days: 4
 Training Days: 4
 Blocks
 ## Halting Stance [HAOKIRU, BLOCK]
 Description: Planting their feet into the ground and throwing their palms out quickly, the user intercepts an opponent's attack.
-Effect: RESTRICTEDx1. Block. Stop a physical attack. The first time you use this Block, if you have lost KI Points due to your opponent's effects within the last 10 turns, this Block gains RESTRICTED+1. Costs X-2 KI Points.
+Effect: RESTRICTEDx1. Block. Stop a physical attack. The first time you use this Block, if you have lost KI due to your opponent's effects within the last 10 turns, this Block gains RESTRICTED+1. Cost: X-2 KI.
 Requirements: N/A
 Training Days: 2
 Efreeti Chain [900z]
 Inventory Slots:1
-Description: A long iron chain that dangles around your neck. You can feel a slight warmth coming off of it.[ACCESSORY]
-Effect: +5% HP. +5% Dexterity. RESTRICTED x1. You may switch between Transformations. This does not take up your turn.
+Description: Planting their feet into the ground and throwing their palms out quickly, the user intercepts an opponent's attack.
+Effect: RESTRICTEDx1. Block. Stop a physical attack. The first time you use this Block, if you have lost KI due to your opponent's effects within the last 10 turns, this Block gains RESTRICTED+1. Cost: X-2 KI.
 ## Going Down Under!
 Description:Two down, three to go. Rjome has sent you over to Maguma to meet Provo. Maguma is known for its hot temperatures and Provo wants to see if you can take the heat. He has challenged you to a fight. No problem? Well, what about if it's on a volcano. Oh yeah, and flying isn't allowed.
 Requirements: The Brutish One!
@@ -131,7 +132,7 @@ Reward(s): Heal to 100% Total HP. After your next Battle, heal to 100% Total HP 
 Time: 2 Days // 600 WPD
 Note: This Quest can only be taken once per saga.
 ## Barrel of Monkeys
-Description: There is a legendary Saiyan pirate who has recently been spotted flying around on Magumar with and his trusted first mate at his side. His crew is a merry bunch but they do love to plunder. Befriend them or steal from them, either way, you are sure have some adventures if you can meet up with them.
+Description: There is a legendary Saiyan pirate who has recently been spotted flying around Magumar with his trusted first mate at his side. His crew is a merry bunch, but they do love to plunder. Befriend them or steal from them; either way, you are sure to have some adventures if you can meet up with them.
 Requirement(s): N/A
 Reward(s): 500z
 Time: 3 Days // 700 WPD
@@ -184,7 +185,7 @@ Inventory Slots: 1
 Description: Dark Red robes worn by the priests of Te Ka. Whether you joined their order or stole them doesn't matter, the protection they afford is greatly welcomed. You do notice a slight heat whenever you wear it. [FULL BODY]
 Effect:+15% Power, +15% Dexterity. Once per Saga, you may challenge someone who has already accepted a challenge this week. They must accept that challenge.
 ## To the Depths of Hell
-Description:There is a legendary pool of lava on Magumar. The legends say those who jump in it are transported directly to Hell. Of course, those who jump in never come back so the rumors can't be confirmed. If you are gonna jump, good luck!
+Description: There is a legendary pool of lava on Magumar. The legends say those who jump in it are transported directly to Hell. Of course, those who jump in never come back, so the rumors cannot be confirmed. If you are going to jump, good luck!
 Requirement(s): 500 PL
 Reward(s): You are automatically transported to Hell. You may spend the remainder of the week there and are revived on Magumar at the end of the week, without a Halo.
 Time: 3 Days // 700 WPD

@@ -13,7 +13,7 @@ Location: Earth
 
 Space Pod [1,000z]
 Inventory Slots: 2
-Description: A small, round pod capable of inter-galactic travel. The pod, though only 5' in diameter, houses enough room for one occupant that is kept in suspended animation to reduce necessary resources to keep them alive. The computer systems handle navigation automatically though in the event of an emergency it will jolt the occupant awake and allow manual override for evasive manuevers.
+Description: A small, round pod capable of intergalactic travel. The pod, though only 5' in diameter, houses enough room for one occupant, who is kept in suspended animation to reduce the resources necessary to keep them alive. The computer systems handle navigation automatically; in the event of an emergency, they jolt the occupant awake and allow manual override for evasive maneuvers.
 Effect: Allows inter-galactic travel.
 Max Capacity: 1 Person(s)
 Weapon Slots:0

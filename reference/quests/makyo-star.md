@@ -90,12 +90,14 @@ Effect: Physical attack doing (40% Power) Damage. Once per combat, you may perfo
 Signature Attacks
 ## Creeping Death [AOYUSUMU, ENERGY, MANIPULATED KI]
 Description: The user stands still with arms across the chest, appearing to do nothing. They focus their ki into an invisible force which levitates and chokes the opponent. The user is then free to manipulate the opponent as they wish.
-Effect: RESTRICTEDx1. Energy attack doing (100% Power) Damage. Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack. Costs 6 KI Points.
+Effect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack. Cost: 6 KI.
+Requirements: Training Days: 4
+Training Days: 4
 Blocks
 Defiant Stance [AOYUSUMU, BLOCK]
-Effect: RESTRICTEDx2. Block. Stop a physical or energy attack. Costs X-1 KI Points.
+Effect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack. Cost: 6 KI.
 Impenetrable Defense [AOYUSUMU, BLOCK]
-Effect: RESTRICTEDx1. Block. Stop a physical attack. For the remainder of the match, you may lose 3 KI Points to STOP a physical attack with a base cost of 2 or less. You cannot use this effect on your opponent’s consecutive turns. Costs X+1 KI Points.
+Effect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack. Cost: 6 KI.
 ## Second Star to the Right
 Description: A strange little glowing fairy has been flying around sprinkling dust on people. The worst (or best) part is that people begin to float away once it gets on them! Find the fairy and figure out the magic behind that dust!
 Requirement(s): Must not have Bukujutsu Level 1 or higher

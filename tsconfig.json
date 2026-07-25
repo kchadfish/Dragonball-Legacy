@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./apps/api" },
+    { "path": "./apps/discord-bot" },
+    { "path": "./apps/forum-scanner" },
+    { "path": "./packages/combat-engine" },
+    { "path": "./packages/game-config" },
+    { "path": "./packages/game-data" },
+    { "path": "./packages/npc-ai" },
+    { "path": "./packages/persistence" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/transformation-evaluator" }
+  ]
+}

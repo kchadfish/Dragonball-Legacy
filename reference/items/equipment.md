@@ -120,7 +120,7 @@ Effect: USE X1. No one may interfere in this fight. If used by a Makyan, gain 3 
 Yema Fruit [N/A]
 Inventory Slots: 0
 Description: A red piece of strange fruit taken from the depths of Hell. Eating this fruit is said to grant the user increased power. Once a sacred item, it is now harvested by Dabura, King of Demons, and given to those who enter Hell on their first time. Those who eat the Yemma Fruit experience a power boost, but no appearance change. It is said that the Yema Fruit regenerates when its user commits evil acts, allowing a single fruit to be used over and over.
-Effect: (Having this item in your inventory takes up 1 Skill slot.) RESTRICTEDx1. Your next three attacks do +(10% Power) Damage. Your Dexterity bonus gains +3 for the next 6 turns. Your Dexterity is considered higher than your opponent’s for the next 6 turns. You must pay the cost if this Item in order to use it. The cost of this Item cannot be modified. This does not take up your turn. You cannot have Yema Fruit in the same moveset as Kaio-Ken. Costs 2 KI Points.
+Effect: (Having this item in your inventory takes up 1 Skill slot.) RESTRICTEDx1. Your next three attacks do +(10% Power) Damage. Your Dexterity bonus gains +3 for the next 6 turns. Your Dexterity is considered higher than your opponent’s for the next 6 turns. You must pay the cost of this Item in order to use it. The cost of this Item cannot be modified. This does not take up your turn. You cannot have Yema Fruit in the same moveset as Kaio-Ken. Costs 2 KI Points.
 Note: This does not count as a dice side/result modifying item for the purpose of limited item use.
 Notes: Untradeable
 Location: N/A

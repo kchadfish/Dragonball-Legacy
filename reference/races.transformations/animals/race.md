@@ -24,4 +24,4 @@ Birds of A Feather -  Your Bukujutsu is considered one higher for all effects an
 
 Wild Animal - Your single dice attacks do +(10% Power) Damage for every SUCCESSFUL single dice attack you have performed prior to that attack to a maximum of +(30% Power) Damage. This damage resets when one of your single dice attacks is STOPPED.
 
-Natural Camouflage - Whenever you defensive roll result is +10 or more your opponents attack roll your next attack can use result modifications to CRITICAL. You may have your opponent reroll their defensive roll against that attack but must accept the second roll.
+Natural Camouflage - Whenever your defensive roll result is 10 or more higher than your opponent's attack roll result, your next attack can use result modifications to CRITICAL. You may have your opponent reroll their defensive roll against that attack, but must accept the second roll.

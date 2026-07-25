@@ -75,7 +75,7 @@ New Vegeta[/b]
 
 [*]Mind Reading [HAOKIRU, SKILL]
 Description: The user utilizes an amount of psychic energy combined with keen observational skills to discover how an attack is performed.
-Effect: RESTRICTEDx1.Activate during your ACTION phase. Perform the same attack your opponent performed in their last turn, including costs and dice roll. This copies all of modifiers added to that attack by your opponent's effects. You cannot use this Skill if you do not meet the requirement(s) to perform that attack.
+Effect: RESTRICTEDx1. Activate during your ACTION phase. Perform the same attack your opponent performed on their last turn, including costs and dice rolls. This copies all modifiers added to that attack by your opponent's effects. You cannot use this Skill if you do not meet the requirement(s) to perform that attack.
 Requirements: N/A
 Training Days: 2
 [b]Magumar

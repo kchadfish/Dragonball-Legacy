@@ -101,7 +101,9 @@ Sense Power Level [FREESTYLE, LATENT SKILL]
 Effect: At the start of a match, if your opponent's Power Level is higher than yours, your first defensive roll result gains +8 and your escape rolls gain +1 to the combined result. This does not take up one of your Skill slots.
 ## Hidden Power Level [FREESTYLE, LATENT SKILL]
 Description: The user is able to conceal their true ki signature from their opponent, only to reveal it at their weakest moment.
-Effect: Once per match, when you are at 7 KI Points or more, you may spend 2 KI Points. If you do, the next time your KI Points reach 0, you may gain 3 KI Points. Using this Skill does not take up your turn. This does not take up one of your Skill slots.
+Effect: Timing: UPKEEP phase. Once per match, when you are at 7 KI or more, you may spend 2 KI. If you do, the next time your KI reach 0, you may gain 3 KI.
+Requirements: N/A
+Training Days: 1
 ## Inner Rage [FREESTYLE, CUSTOM, CONSTANT SKILL]
 Description: The battlefield is nothing but chaos and destruction, those who focus on finding their inner peace are the first up for a slaughter. Embrace the chaos. When you get hit, get angry! When you feel pain, get even! Let their attacks be the fuel on your fire.
 Effect: CONSTANT - Whenever your opponent performs a SUCCESSFUL attack against you, gain 1 KI Point. If that attack is a multi-dice attack, only the first dice roll counts for this effect. Costs 2 KI Points.
@@ -117,7 +119,9 @@ Effect: RESTRICTEDx1. Your next three attacks do +(10% Power) Damage. Your Dexte
 Advanced Attacks
 ## Chained Strikes [AKAIKARU, PHYSICAL, KICK]
 Description: A side kick vicious enough to knock the breath from the target, followed immediately by a jumping spin kick to the face.
-Effect: Physical attack doing (25% Power) Damage. Your base roll for this attack is 1d34. SUCCESSFUL - You may use this attack again in the same turn. You cannot use this effect more than once per turn. Costs 1 KI Point.
+Effect: Physical attack. Deal (20% Power) damage.Attack roll: 1d35. SUCCESSFUL - You may use this attack again in the ACTION phase this turn. You cannot use this effect more than once per turn. Cost: 1 KI.
+Requirements: N/A
+Training Days: 2
 ## Ki Blade Rush [AKAIKARU, ENERGY, MANIPULATED KI]
 Description: Dashing at the opponent with their ki sword flaring, the attacker sprints at the final stretch of the attack; moving in a blur past the opponent before rematerializing behind the enemy with their sword outstretched. Though during the blur a slash is driven through the enemy, it is the user's speed that pushes this attack past "good" into "extraordinary".
 Effect: Energy attack doing (25% Power) Damage. Your attack roll cannot exceed 1d34 with this attack. SUCCESSFUL - If your attack roll is 30 or higher, SEVER. Costs 1 KI Point.
@@ -126,7 +130,9 @@ Description: Intercepting an opponent's kick or punch, the user draws them close
 Effect: Use only immediately after STOPPING a Punch-Type or Kick-Type attack. This does not take up your turn. Physical attack doing (35% Power) Damage. SUCCESSFUL - Choose one: Your opponent cannot STUN you for the next 6 turns OR your opponent cannot CRITICAL against you for the next 6 turns. Costs 1 KI Point.
 ## Buzzsaw Kick [AKAIKARU, PHYSICAL, ENERGY, KICK, MANIPULATED KI]
 Description: A flipping, overhead kick with a ki-manifested sawblade surrounding the leg as it crashes down on the opponent.
-Effect: Physical attack doing (40% Power) Damage. SUCCESSFUL - Your next Akaikaru Advanced Attack roll without a STUN effect gains +6 to the result and cannot SEVER. Costs 2 KI Points.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - Your next Akaikaru Advanced Attack roll without a STUN effect gains +4 to the results. Cost: 2 KI.
+Requirements: N/A
+Training Days: 3
 ## Evil Impulse [AOYUSUMU, ENERGY, BLAST]
 Description: Creating a gigantic black sphere of energy with a purple outline, the attacker slams the massive attack; sending it flying at the opponent. Upon contact, the orb grinds against the enemy's body -- discharging a multitude of purple energy sparks.
 Effect: Energy attack doing (45% Power) Damage. SUCCESSFUL - If your attack roll is 10 or higher, your opponent cannot use an attack with a base cost of 1 on their next turn. If your attack roll is 20 or higher, your opponent may not Power Up on their next turn. If your attack roll is 25 or higher, deactivate one of your opponent's CONSTANT skills and that Skill cannot be activated for the next 4 turns. Costs 2 KI Points.
@@ -140,7 +146,9 @@ Effect: RESTRICTEDx1. Energy attack doing (110% Power) Damage. SUCCESSFUL - For 
 Blocks
 ## Defiant Stance [AOYUSUMU, BLOCK]
 Description: Standing with feet shoulder-width apart, the user thrusts their arms out, ensnaring an incoming physical attack or physically halting an energy attack with their bare palms.
-Effect: RESTRICTEDx2. Block. Stop a physical or energy attack. Costs X-1 KI Points.
+Effect: RESTRICTEDx2. Block. Stop a physical or energy attack. Cost: X-1 KI.
+Requirements: N/A
+Training Days: 3
 ## Chiaoutzu's Psychic Halt [FREESTYLE, BLOCK]
 Description: The tiny mime-man taught you a technique he uses to intercept incoming attacks not through advanced martial arts maneuvers or split second dodging, but rather by standing his ground and manipulating his ki to psychically halt a foe in their place. The time they are stopped is short, but long enough to allow you the chance to deliver your own attack.
 Effect: RESTRICTEDx1. Block. Stop a physical or energy attack. If your opponent's attack roll was 25 or higher, STUN. Costs X-1 KI Points.
@@ -159,9 +167,9 @@ Effect: +25% All Stats.
 Mastery:
 ## Flawless Execution Mastery [MIDORIKATAI, MASTERY]
 Description: Ultimate strength is not the sole key to victory. Prowess in your most devastating attacks ensures that you are more than just a brute worthlessly swinging your fists. Proper form saves energy, enables you to find more concentration to ready yourself, and gives you the much needed accuracy to crush the life out of your foe's.
-Effect: You gain +1 Signature Technique slot in your moveset. Your Signature Techniques cost -2 KI Points to perform to a minimum of 3. You can perform Signature Techniques from turn 8 and onward instead. Your Signature Techniques gain +3 to the results. Your Signature Techniques can exceed the dice side and dice result cap.
-Requirements: You must know at least three (3) Midorikatai attacks and/or skills.
-Training Days: 4
+Effect: Choose one of your Signature Techniques. It gains RESTRICTED+1. Your Signature Techniques cost -2 KI to perform to a minimum of 3. You can perform Signature Techniques from turn 8 and onward instead. Your Signature Techniques gain +3 to the results. Your Signature Techniques can exceed the dice side and dice result cap.
+Requirements: You must know at least three (3) Midorikatai attacks, skills, and/or blocks..
+Training Days: 5
 Skills:
 ## Instant Transmission
 Description: The user dematerializes and moves as a mass of light, disappearing from view at an incredible speed. From that point, they can lock onto a Ki signature and materialize near it.
@@ -177,32 +185,32 @@ Training Days: 2
 Description: Gifted with the wisdom infusion by Namek’s Guru, your thoughts are cleared even in the most stressful battle. Your mind and spirit are connected, acting as one.
 Effect: This Skill does not take up a Skill slot. You begin all Spars and Battles with +1 KI Point
 ## Energy Gorged [MIDORIKATAI, CONSTANT SKILL]
-Description: The average being tends to function well when not under intense amounts of pressure. Almost like being well rested, the user can do more damage when their energy isn’t drained.
-Effect: (You may activate this Skill at the start of the match.) CONSTANT - Your attacks do +(10% Power) damage. If deactivated, this Skill cannot be reactivated. Costs 1 KI Point.
+Description: The average being tends to function well when not under intense amounts of pressure. Almost like being well rested, the user can do more damage when their energy isn't drained.
+Effect: (You may activate this Skill at the start of the match.) Constant. Your attacks do +(10% Power) damage. If DEACTIVATED, this Skill cannot be reactivated. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Advanced Behavior [HAOKIRU, CONSTANT SKILL]
 Description: The Haokiru pupil is constantly vigilant, above the trifles of emotion and petty argument. During battle the pupil knows to focus only on the opponent.
-Effect: CONSTANT - If your opponent's attack roll result is +10 or more your defensive roll result, their attack does -20% Damage. Costs 2 KI Points.
+Effect: Constant. If your opponent's attack roll result is +5 or more your defensive roll result, their attack does -10% Damage. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 Yema Fruit
-Effect: (Having this item in your inventory takes up 1 Skill slot.) RESTRICTEDx1. Your next three attacks do +(10% Power) Damage. Your Dexterity bonus gains +3 for the next 6 turns. Your Dexterty is considered higher than your opponent’s for the next 6 turns. You must pay the cost if this Item in order to use it. The cost of this Item cannot be modified. This does not take up your turn. You cannot have Yema Fruit in the same move set as Kaio-Ken. Costs 2 KI Points.
+Effect: Constant. If your opponent's attack roll result is +5 or more your defensive roll result, their attack does -10% Damage. Cost: 2 KI.
 Location: N/A
 ## Nullifying Sphere [FREESTYLE, SKILL]
 Description: The user studies their opponent to hone in on one of their techniques, memorize it, and eliminate it's usage.
-Effect: RESTRICTEDx1. Use when your opponent uses a non-Constant Skill. Negate the effect. You may remove a move from your moveset to remove that Skill from your opponent's moveset for the remainder of the match. Costs 2 KI Points.
+Effect: RESTRICTEDx1. Use when your opponent uses a non-CONSTANT Skill. NEGATE the effect. You may remove a move from your moveset to remove that Skill from your opponent's moveset for the remainder of the match. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 Advanced Attacks:
 ## Prolific Blast [HAOKIRU, ENERGY, BLAST]
-Description: A sphere of energy is expelled through the user’s mouth, exploding upon contact with the enemy. Remnants of the blast re-energize the user.
-Effect: Energy attack doing (30% Power) Damage. SUCCESSFUL - Gain (10% Current HP) HP. Cost 1 KI Point.
+Description: A sphere of energy is expelled through the user's mouth, exploding upon contact with the enemy. Remnants of the blast re-energize the user.
+Effect: Energy attack. Deal (30% Power) damage. SUCCESSFUL - HEAL (10% Current HP). Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Trapping Headbutts [MIDORIKATAI, PHYSICAL, HOLD]
 Description: By underhooking the opponent's arms, the user keeps them trapped in place before raining down brutal headbutts on the opponent.
-Effect: Physical attack doing (20% Power) Damage per hit. Your attack roll is 3d30 for this attack. SUCCESSFUL - If two or more attack rolls are SUCCESSFUL, deactivate one of your opponent's CONSTANT Skills. Costs 2 KI Points.
+Effect: Physical attack. Deal (20% Power) damage per hit. Attack roll: 3d30. If two or more dice are SUCCESSFUL, DEACTIVATE one of your opponent's CONSTANT Skills. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 ## Multi-Form [PHYSICAL, PUNCH, KICK]
@@ -212,28 +220,29 @@ Requirements: N/A
 Training Days: 2
 ## Palm Crusher [MIDORIKATAI, PHYSICAL, HOLD]
 Description: Luring the opponents into putting up their fists by feigning an attack, the user then grabs hold of the fists, crushing them with all their might before kicking the opponent away.
-Effect: Physical attack doing (50% Power) Damage. This attack cannot be BLOCKED by blocks that can block both physical and energy attacks. SUCCESSFUL - Your opponent cannot perform a multi-dice attack until their KI Points are at 8 or higher. Costs 2 KI Points.
+Effect: Physical attack. Deal (50% Power) damage. This attack cannot be BLOCKED by blocks that can block both physical and energy attacks. SUCCESSFUL - LOCK your opponent's multi-dice attacks until their KI are at 8 or higher. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 ## Dragon Dust [HAOKIRU, ENERGY, BLAST]
-Description: An exhale of energy unleashed a fine, shimmering mist of energy that surrounds and detonates upon contact with a foe.
-Effect: Energy attack doing (35% Power) Damage. SUCCESSFUL - Your opponent loses (10% Power) HP every time you use an effect to gain HP until they roll an attack roll result of 25 or higher. This effect cannot stack with itself. This effect can only be used once per turn. Costs 2 KI Points.
-Training Days:2
+Description: An exhale of energy unleashes a fine, shimmering mist of energy that surrounds and detonates upon contact with a foe.
+Effect: Energy attack. Deal (30% Power) damage. SUCCESSFUL - Your opponent loses (10% Power) HP every time you use an effect to gain HP until they roll an attack roll result of 23 or higher. This effect cannot stack with itself. This effect can only be used once per turn. Cost: 2 KI.
+Requirements: N/A
+Training Days: 3
 Signature Attacks:
 ## Rapture [HAOKIRU, ENERGY, BEAM]
 Description: As the sky becomes dark and stormy, a large ray of harmless light engulfs your foe. Now trapped, they ascend above the clouds and out of sight. The distinct boom of thunder is repeatedly heard, accompanying an impressive light display before your opponent, momentarily knocked out, falls back to the ground -- smoking.
-Effect: RESTRICTEDx1. Energy attack doing (100% Power) Damage. SUCCESSFUL - Gain (25% Damage) HP. Your opponent cannot Power Up or perform a Signature Technique on their next two turns. Costs 8 KI Points.
-Requirements: N/A
+Effect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. SUCCESSFUL - HEAL (25% Damage) HP. Your opponent cannot Power Up or perform a Signature Technique on their next 2 turns. Cost: 8 KI.
+Requirements: Training Days: 4
 Training Days: 4
 ## Monster Mash [MIDORIKATAI, PHYSICAL, PUNCH]
-Description: Bodyslamming the enemy into the ground, the user wrestles the opponent into submission before rising. Standing over the felled opponent, the user leaps into the air before driving their elbow down into the enemy's gut.
-Effect: RESTRICTEDx1. Physical attack doing (120% Power) Damage. SUCCESSFUL - Your opponent’s physical attacks cost +1 KI Point for the remainder of the match. Your opponent’s energy attacks do -20% Damage against you for the remainder of combat. Costs 8 KI Points.
-Requirements: N/A
+Description: Body Slamming the enemy into the ground, the user wrestles the opponent into submission before rising. Standing over the felled opponent, the user leaps into the air before driving their elbow down into the enemy's gut.
+Effect: RESTRICTEDx1. Physical attack. Deal (120% Power) damage. SUCCESSFUL - Your opponent's physical attacks cost +1 KI for the remainder of the match. Your opponent's energy attacks do -20% Damage against you for the remainder of combat. Cost: 8 KI.
+Requirements: Training Days: 4
 Training Days: 4
 ## Dim Mak [MIDORIKATAI, PHYSICAL, PUNCH]
 Description: An attack centered upon disrupting the chi or energy flow of an opponent through pressure points. The attack is performed when the user delivers a quick, single strike to a pressure point (usually one nearest the heart), which disables the opponent temporarily.
-Effect: RESTRICTEDx1. Physical attack doing (90% Power) Damage. SUCCESSFUL - Your opponent cannot attack on their next turn. Choose one of your opponent’s Signature Techniques. That attack cannot be used for the remainder of the match. Costs 6 KI Points.
-Requirements: N/A
+Effect: RESTRICTEDx1. Physical attack. Deal (90% Power) damage. SUCCESSFUL - LOCK your opponent's attacks for their next turn. Choose one of your opponent's Signature Techniques. LOCK that attack for the remainder of the match. Cost: 6 KI.
+Requirements: Training Days: 4
 Training Days: 4
 Blocks:
 ## Chiaoutzu's Psychic Halt

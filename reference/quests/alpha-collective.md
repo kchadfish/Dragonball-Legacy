@@ -150,12 +150,12 @@ Inventory Slots: 1
 Description: This is it. You are finally a competent and deadly character. Now others come to you for advice, not the other way around.
 Effect: USEx1.Use when you win a battle. You gain a bonus .75 X Base Exp from that Battle.
 ## Rumors Abound
-Description: Rumors tell of equipment of old that can make someone infinitely more powerful than they actually are. While most people are skeptical, you've somehow come upon a clue that seems relatively reasonable. A merchant on the Alpha collective claims to be in possession of the hat worn by gohan when he was a kid. Now, he admits openly that it doesn't have a real dragonball on top but claims the golden orb now resting there is made out of a strange and expensive gem...
+Description: Rumors tell of equipment of old that can make someone infinitely more powerful than they actually are. While most people are skeptical, you've somehow come upon a clue that seems relatively reasonable. A merchant on the Alpha Collective claims to be in possession of the hat worn by Gohan when he was a kid. Now, he openly admits that it does not have a real Dragon Ball on top, but claims the golden orb now resting there is made of a strange and expensive gem...
 Requirements: N/A
 Reward(s): Four Star Hat
 Time: 5 Days // 500 WPD
 Four Star Hat [1,500z][LEGENDARY]
 Inventory Slots: 1
-Description: A simple red hat with gold lining it. On the top there is a spot for a dragonball but it is currently occupied by a fairly expensive jewel that looks identical to the four star dragonball. It is said that this hat was once worn by Gohan.[ACCESSORY]
+Description: A simple red hat lined with gold. On top, there is a spot for a Dragon Ball, but it is currently occupied by a fairly expensive jewel that looks identical to the four-star Dragon Ball. It is said that this hat was once worn by Gohan. [ACCESSORY]
 Effect: +5% Power, + 5% Dexterity. You may gain one Advanced Attack Slot, Skill Slot, or Block Slot. This is chosen when you receive this item.
 Back to contents

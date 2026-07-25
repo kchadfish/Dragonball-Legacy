@@ -67,7 +67,7 @@ Requirements: Kaio-ken, Bukujutsu
 Techniques
 Warp Kamehameha [ENERGY, BEAM]
 Description: The user charges up a Kamehameha and uses Instant Transmission before the opponent can mount an attack. The user then reappears behind the opponent, releasing the Kamehameha on them.
-Effect: RESTRICTEDx1. You skip your turn when you activate this attack. Warp Kamehameha is performed on your next turn. Energy attack. Deal (100% Power) damage. Your opponent must attack on their next turn or pass. Defense roll: 1d50 for that turn. Attack roll: 1d40. If their attack against you is SUCCESSFUL, Instant Transmission failed and LOCK Warp Kamehameha for the remainder of combat. Cost: 5 KI.
+Effect: RESTRICTEDx1. You skip your turn when you activate this attack. Warp Kamehameha is performed on your next turn. Energy attack. Deal (100% Power) damage. Your opponent must attack on their next turn or pass. Defense roll: 1d50 for that turn. Attack roll: 1d40. If their attack against you is SUCCESSFUL, Instant Transmission fails; LOCK Warp Kamehameha for the remainder of combat. Cost: 5 KI.
 Requirements: Kamehameha, Instant Transmission
 
 
@@ -346,7 +346,7 @@ Requirements: N/A
 Techniques
 Warp Kamehameha [ENERGY, BEAM]
 Description: The user charges up a Kamehameha and uses Instant Transmission before the opponent can mount an attack. The user then reappear behind the opponent, releasing the Kamehameha on them.
-Effect: RESTRICTEDx1. You skip your turn when you activate this attack. Warp Kamehameha is performed on your next turn. Energy attack. Deal (100% Power) damage. Your opponent must attack on their next turn or pass. Defense roll: 1d50 for that turn. Attack roll: 1d40. If their attack against you is SUCCESSFUL, Instant Transmission failed and LOCK Warp Kamehameha for the remainder of combat. Cost: 5 KI.
+Effect: RESTRICTEDx1. You skip your turn when you activate this attack. Warp Kamehameha is performed on your next turn. Energy attack. Deal (100% Power) damage. Your opponent must attack on their next turn or pass. Defense roll: 1d50 for that turn. Attack roll: 1d40. If their attack against you is SUCCESSFUL, Instant Transmission fails; LOCK Warp Kamehameha for the remainder of combat. Cost: 5 KI.
 Requirements: Kamehameha, Instant Transmission
 
 

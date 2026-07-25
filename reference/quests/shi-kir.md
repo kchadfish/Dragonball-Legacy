@@ -85,7 +85,7 @@ Endurance Level 3
 Your opponent’s advanced attacks do – 10% damage. Once per combat you may have a non-restricted attack do –(50% Damage).
 Bukujutsu Level 1- You are beginning to learn how to fly. It may not be the most elegant flying ever but you stay afloat.
 Effect: Your dice gain + 1 side and your escape rolls gain +2 to the combined results.
-## The Cure [FREESTYLE, SKIL]
+## The Cure [FREESTYLE, SKILL]
 Description: Designed to remove any traces of the mutated virus, The Cure stays in the user’s system and aids against future afflictions.
 Effect: RESTRICTEDx2. Gain 3 Ki Points and Heal (5% Total HP) HP. The cost of this Skill cannot be modified. Costs 0 Ki Points.
 Requirements: N/A

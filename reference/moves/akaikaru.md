@@ -7,7 +7,7 @@ Continuity is strength, and hesitation is weakness. Momentum is the source of po
 [b][color=#ee4a2d][big][center]Masteries[/center][/big][/color][/b][hr]
 [list]
 [*]Adrenaline Rush Mastery [AKAIKARU, MASTERY]
-Description: The rush of battle can be overwhelming. The power ones feels when landing blow after blow is exhilarating and a special high for an Akaikaru master. There is no shame in restricting yourself as your opponent's will inevitably do. They will hesitate, they will try to draw the battle on longer, but you will and must make them pay for those mistakes dearly.
+Description: The rush of battle can be overwhelming. The power one feels when landing blow after blow is exhilarating and a special high for an Akaikaru master. There is no shame in restricting yourself, as your opponents will inevitably do. They will hesitate and try to draw the battle out longer, but you will and must make them pay dearly for those mistakes.
 Effect: Your Akaikaru base cost 1 or less attacks do +(10% Power) Damage and gain +2 to the results. After turn 10, your Akaikaru base cost 1 or less attacks do +(15% Power) Damage and gain +3 to the results instead. After turn 20, your Akaikaru base cost 2 or less attacks do +(15% Power) Damage and gain +3 to the results instead. If you CRITICAL against your opponent, your next 2 attacks cost -1, to a minimum of 1.
 Requirements: You must know at least three (3) Akaikaru attacks, skills, and/or blocks.
 Training Days: 5
@@ -129,7 +129,7 @@ New Vegeta[/b]
 
 [*]Blown Fuse [AKAIKARU, ENERGY, BLAST]
 Description: Releasing a massive scream, a gigantic blast of ki is shot from the user's open mouth toward the enemy.
-Effect: Energy attack. Deal (30% Power) damage. SUCCESSFUL - Your next 2 Skills costs -1 KI. Cost: 1 KI.
+Effect: Energy attack. Deal (30% Power) damage. SUCCESSFUL - Your next 2 Skills cost -1 KI. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 [b]Taifuu
@@ -334,7 +334,7 @@ Namek[/b]
 
 [*]Lord of the Flies [AKAIKARU, ENERGY, BLAST, VOLLEY]
 Description: The user slowly extends their arms outward, fists closed before slowly unclenching them. As they do so, a flurry of small, slow, but powerful ki blasts move toward the opponent, exploding and disorienting them on impact. The ki blasts are often mistaken for small, glowing flies due to their size.
-Effect: Energy attack. Deal (5% Power) damage. Attack roll: 10d28. The cost of this attack cannot be reduced below 2 KI. If 5 or less attacks are SUCCESSFUL, this attack adds the full bonus damage applied to it. If 5 or more dice rolls are SUCCESSFUL, STUN. Cost: 3 KI.
+Effect: Energy attack. Deal (5% Power) damage. Attack roll: 10d28. The cost of this attack cannot be reduced below 2 KI. If 5 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it. If 5 or more dice rolls are SUCCESSFUL, STUN. Cost: 3 KI.
 Requirements: N/A
 Training Days: 2
 [b]Taifuu

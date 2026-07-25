@@ -40,7 +40,7 @@ Masteries: After-Image Mastery; Control Mastery
 Skills: Shadow Stalker; Killer Gaze
 Advanced Attacks: Poison Mist; Vampiric Lust; Sweet Dreams; Firebreath; Kick Them When They're Down; Bloodletter; Cannonball; Empty Beam; Shockwave; Dismissive Kick; Dark Energy Spiral
 Signature Techniques: Black Hole Slam; Fade To Black
-Blocks: Aerial Manuevers; Smokescreen
+Blocks: Aerial Maneuvers; Smokescreen
 Akaikaru — Aysse
 Masteries: Rage Mastery; Blazing Speed Mastery
 Skills: Vehemence

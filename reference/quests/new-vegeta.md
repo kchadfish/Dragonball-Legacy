@@ -98,7 +98,7 @@ Vegeta Medal of Honor [600z]
 Inventory Slots: 1
 Description: A medal awarded to you for honorable actions on Planet Vegeta by the royal family. [ACCESSORY]
 Effect: +5% HP. While on New Vegeta, your attack and defense rolls gain +1 dice sides.
-## The Great Gray Sea[/quote
+## The Great Gray Sea
 Description: The sea of New Vegeta is a largely untouched immense resource. Though there isn't likely to be much buried treasure, there are certainly plenty of precious metal veins and gems lining the bottom of the ocean. These riches go untouched for two reasons: giant sea serpents and Saiyan pirates.
 However, an energetic pirate crew excavation team is looking to cash in on the resources below and they're willing to split a share of the profits with you! No really, they're actually willing. Old Pete got eaten in the last scuffle, and they're short on allies.
 Requirement(s): N/A
@@ -187,7 +187,7 @@ Bukujutsu + Strength Based
 Royal Battle Armor [3,000z][UNIQUE]
 Inventory Slots: 1
 Description: Wrolen’s battle armor is specially made with ki-infused light-weight fibers. This allows it increased speed but prevents it from stretching the same way as regular Saiyan Battle Armor.[FULL BODY]
-Effect: +10% HP. + 15% Power, + 10% Dexterity. Your styled attacks can critical at one lower result than normal. This stacks with other bonuses. This counts as Saiyan Battle Armor for Set purposes.
+Effect: +10% HP. +15% Power, +10% Dexterity. Your styled attacks can CRITICAL at one lower result than normal. This stacks with other bonuses. This counts as Saiyan Battle Armor for Set purposes.
 Warrior Belt [1,000z]
 Inventory Slots: 1
 Description: A martial arts belt worn around the waist, signifying master-status of a chosen fighting form. The confidence of a true warrior allows for harder hits and swifter reflexes. [ACCESSORY]
@@ -200,7 +200,7 @@ Effect: +10% Power.
 ## Critical Mass Mastery [MIDORIKATAI, MASTERY]
 Description: There is no greater terror than a practitioner of Midorikatai. Even the strongest blows from other fighters pale in comparison to those of Midorikatai; in fact, they often serve to enrage their stronger adversary, making their life considerably shorter.
 Effect: All of your Midorikatai or non-Custom Freestyle attacks with a base roll of 1d32 or lower can CRITICAL with an attack roll result of 29 or higher. Your opponent's CRITICAL attacks against you only do 1.5x damage instead. After receiving or dealing damage from a CRITICAL attack, your next attack cannot be STOPPED by dice rolls of 15 or less.
-Requirements: You must know at least three (3) Midorikatai attacks,skills, and/or blocks.
+Requirements: You must know at least three (3) Midorikatai attacks, skills, and/or blocks.
 Training Days: 5
 Skills//
 ## Legendary Power [CUSTOM,LATENT SKILL]
@@ -209,71 +209,71 @@ Effect: You start combat Transformed and with + 1 ki.
 Requirements: N/A
 Training Days: 2
 ## Energy Gorged [MIDORIKATAI, CONSTANT SKILL]
-Description: The average being tends to function well when not under intense amounts of pressure. Almost like being well rested, the user can do more damage when their energy isn’t drained.
-Effect: (You may activate this Skill at the start of the match.) CONSTANT - Your attacks do +(10% Power) damage. If deactivated, this Skill cannot be reactivated. Costs 1 KI Point.
+Description: The average being tends to function well when not under intense amounts of pressure. Almost like being well rested, the user can do more damage when their energy isn't drained.
+Effect: (You may activate this Skill at the start of the match.) Constant. Your attacks do +(10% Power) damage. If DEACTIVATED, this Skill cannot be reactivated. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Not Over Till It's Over! [MIDORIKATAI, SKILL]
-Description: Failure is not in your vocabulary. Just because you have botched one attempt does not mean the end is near; that is what separates you from the other fighters. Persistence and the love of carnage guarantee's that even on your worst day you are far better than anyone else on their best.
-Effect: RESTRICTEDx1. Activate during the UPKEEP PHASE. You may remove an Advanced Attack from your moveset for the remainder of the match to double the attack roll result(s) of your next unrestricted Advanced Attack. If used on a multi-dice attack roll, only half of the attack rolls (rounded up) are affected. You cannot SEVER with that attack. Costs 1 KI Point.
+Description: Failure is not in your vocabulary. Just because you have botched one attempt does not mean the end is near; that is what separates you from the other fighters. Persistence and the love of carnage guarantees that even on your worst day you are far better than anyone else on their best.
+Effect: RESTRICTEDx1. Activate during your UPKEEP phase. You may remove an Advanced Attack from your moveset for the remainder of the match to double the attack roll result(s) of your next unrestricted Advanced Attack. If used on a multi-dice attack roll, only half of the attack rolls (rounded up) are affected. You cannot SEVER with that attack. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Fall 7 Times, Get Up 8 [MIDORIKATAI, SKILL]
 Description: Failure is not an option for a follower of Midorikatai. After failing to land your attacks, let the anger overcome you and channel it into becoming an unstoppable force.
-Effect: Activate during your UPKEEP PHASE after two of your attacks are stopped in a row. Your next attack with a base cost of 2 or less cannot be BLOCKED. Your opponent's defensive roll result has to be 2x or more your attack roll result to STOP it. Costs 1 KI Point.
+Effect: Activate during your UPKEEP phase after two of your attacks are stopped in a row. Your next attack with a base cost of 2 or less cannot be BLOCKED or STOPPED by an effect. Your opponent's defensive roll result has to be 2x or more your attack roll result to STOP this attack. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Protecting Your Vitality [FREESTYLE, CONSTANT SKILL]
-Description: As someone once famously said 'protect ya neck'. If you cannot protect your body, how do you expect to fight back, tough guy?
-Effect: CONSTANT - You cannot lose HP due to your opponent's non-damage effects. You cannot be SEVERED. You cannot receive a BREAK. Once deactivated, you cannot activate this Skill for the remainder of the match. Costs 2 KI Points.
+Description: As someone once famously said 'protect ya neck'. If you cannot protect your body, how do you expect to fight back, tough guy
+Effect: Constant. You cannot lose HP due to your opponent's non-damage effects. You cannot be SEVERED. You cannot receive a BREAK. Once DEACTIVATED, LOCK this Skill for the remainder of the match. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 AA//
 ## Rioter [MIDORIKATAI, PHYSICAL, PUNCH]
 Description: An intense barrage of fists delivered in an overhead clobbering motion with enough forward to break the ground beneath the opponent's feet.
-Effect: RESTRICTEDx2. Physical attack doing (55% Power) Damage. This attack receives +1 to the result for every 10% that your Power is currently being increased by,excluding transformation effects. SUCCESSFUL - If you have Strength Level 1 or higher, your opponent loses 1 KI Point for every energy attack in their moveset, to a maximum of 4 Ki Points. Costs 3 KI Points.
+Effect: RESTRICTEDx2. Physical attack. Deal (55% Power) damage. This attack receives +1 to the result for every 10% that your Power is currently being increased by,excluding transformation effects. SUCCESSFUL - Your opponent loses 1 KI for every energy attack in their moveset, to a maximum of 4 KI. Cost: 3 KI.
 Requirements: N/A
 Training Days: 3
 ## Palm Crusher [MIDORIKATAI, PHYSICAL, HOLD]
 Description: Luring the opponents into putting up their fists by feigning an attack, the user then grabs hold of the fists, crushing them with all their might before kicking the opponent away.
-Effect: Physical attack doing (50% Power) Damage. This attack cannot be BLOCKED by blocks that can block both physical and energy attacks. SUCCESSFUL - Your opponent cannot perform a multi-dice attack until their KI Points are at 8 or higher. Costs 2 KI Points.
+Effect: Physical attack. Deal (50% Power) damage. This attack cannot be BLOCKED by blocks that can block both physical and energy attacks. SUCCESSFUL - LOCK your opponent's multi-dice attacks until their KI are at 8 or higher. Cost: 2 KI.
 Requirements: N/A
 Training Days: 2
 ## Trapping Headbutts [MIDORIKATAI, PHYSICAL, HOLD]
 Description: By underhooking the opponent's arms, the user keeps them trapped in place before raining down brutal headbutts on the opponent.
-Effect: Physical attack doing (20% Power) Damage per hit. Your attack roll is 3d30 for this attack. SUCCESSFUL - Deactivate one of your opponent's CONSTANT Skills. Costs 2 KI Points.
+Effect: Physical attack. Deal (20% Power) damage per hit. Attack roll: 3d30. If two or more dice are SUCCESSFUL, DEACTIVATE one of your opponent's CONSTANT Skills. Cost: 2 KI.
 Requirements: N/A
 Training Days: 3
 ## Airplane Spin [MIDORIKATAI, PHYSICAL, THROW]
 Description: Grabbing hold of an opponent's limb, the user then spins around at massive speeds before releasing the opponent, allowing inertia to takes its toll. The opponent is sent flying, stopping only when they hit something solid.
-Effect: Physical attack doing (40% Power) Damage. SUCCESSFUL - Your opponent cannot perform an energy attack with a base cost of 2 or more on their next turn. The next time you would be STUNNED, you may lose 2 KI Points. If you do, your opponent is STUNNED instead. Costs 1 KI Point.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - LOCK your opponent's energy attacks with a base cost of 2 or more for their next turn. The next time you would be STUNNED, you may lose 2 KI. If you do, NEGATE the STUN. STUN. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 ## Knee Stomp [MIDORIKATAI, PHYSICAL, KICK]
 Description: A hard, forward kick directed at the kneecap.
-Effect: Physical attack doing (40% Power) Damage. SUCCESSFUL - Your opponent loses their Dexterity Bonus for the next 4 turns. If your attack roll result is 20 or higher, your opponent cannot modify the results or dice sides of their attacks for the next 4 turns. Costs 1 KI Point.
+Effect: Physical attack. Deal (40% Power) damage. SUCCESSFUL - Your opponent loses their Dexterity Bonus for their next 2 turns. If your attack roll result is 20 or higher, your opponent cannot modify the results or dice sides of their attacks for their next 4 turns. Cost: 1 KI.
 Requirements: N/A
 Training Days: 2
 Signature Techniques
 ## Falling Star Charge [MIDORIKATAI, ENERGY, BLAST]
-Description: The use flies miles into the sky, glowing with the faint yellow charge of pure energy. The user eventually ascends so high, they become a tiny spec in the sky, often mistaken for a star. The 'twinkling star' effect comes from the massive cocoon of energy they wrap themselves in. Crashing down to earth at back-braking speeds, they eventually collide with the opponent and cause a thunderous explosion upon impact.
-Effect: RESTRICTEDx1. Energy attack doing (110% Power) Damage. If your attack roll result is 20 or higher, BREAK!x3. SUCCESSFUL - Your next 3 physical Advanced Attacks cost 0 KI Points to perform. Costs 10 KI Points.
-Requirements: Bukujutsu Level 1
+Description: The user flies miles into the sky, glowing with the faint yellow charge of pure energy. The user eventually ascends so high that they become a tiny speck in the sky, often mistaken for a star. The 'twinkling star' effect comes from the massive cocoon of energy they wrap themselves in. Crashing down to earth at breakneck speeds, they eventually collide with the opponent and cause a thunderous explosion upon impact.
+Effect: RESTRICTEDx1. Energy attack. Deal (110% Power) damage. If your attack roll result is 20 or higher, BREAK!x3. SUCCESSFUL - Your next 3 physical Advanced Attacks cost 0 KI to perform. Cost: 10 KI.
+Requirements: Bukujutsu,
 Training Days: 4
 ## Galactic Punisher [MIDORIKATAI, PHYSICAL, THROW]
-Description: As a practioner of Midorikatai, you know that the best weapon is your own body. After ascending into the stratosphere, you descend upon the opponent like an oncoming meteor; leaving a contrail of energy in your wake. Decimating the surrounding the battlefied, this is the perfect head-on attack, destroying everything in its path.
-Effect: RESTRICTEDx1. Physical attack doing (150% Power) Damage. SUCCESSFUL - If your attack roll result is 28 or higher, CRITICAL. Costs 9 KI Points.
-Requirements: Bukujutsu Level 1
+Description: As a practitioner of Midorikatai, you know that the best weapon is your own body. After ascending into the stratosphere, you descend upon the opponent like an oncoming meteor; leaving a contrail of energy in your wake. Decimating the surrounding the battlefield, this is the perfect head-on attack, destroying everything in its path.
+Effect: RESTRICTEDx1. Physical attack. Deal (150% Power) damage. SUCCESSFUL - If your attack roll result is 28 or higher, CRITICAL. Cost: 9 KI.
+Requirements: Bukujutsu,
 Training Days: 4
 Blocks
 ## Built Like A Mountain [MIDORIKATAI, BLOCK]
-Description: Why bother blocking when you've been training your body for all this time to be in prime shape? Shrugging off a direct hit creates an image of a monster that strikes fear into your opponent, making them vulnerable for your next devastating technique.
-Effect: RESTRICTEDx1. Block. Stop a physical attack. If your Power is higher than your opponent's Power, this can also stop an energy attack. Your next attack gains "This attack cannot be BLOCKED or STOPPED by defensive roll results of 14 or less". Costs X-1 KI Points.
+Description: Why bother blocking when you've been training your body for all this time to be in prime shape Shrugging off a direct hit creates an image of a monster that strikes fear into your opponent, making them vulnerable for your next devastating technique.
+Effect: RESTRICTEDx1. Block. Stop a physical attack. If your Power is higher than your opponent's Power, this can also stop an energy attack. Your next attack gains "This attack cannot be BLOCKED or STOPPED by defensive roll results of 14 or less". Cost: X-1 KI.
 Requirements: N/A
 Training Days: 2
 ## Grapple [MIDORIKATAI, BLOCK]
 Description: Catching their opponent's hands mid-attack, the user is capable of intercepting an incoming attack and preventing it.
-Effect: RESTRICTEDx1. Stop a physical attack. You may reactivate one of your CONSTANT Skills that has been deactivated this combat, including Energy Gorged. Costs X KI Points.
+Effect: RESTRICTEDx1. Block. Stop a physical attack. You may reactivate one of your CONSTANT Skills that has been DEACTIVATED this combat, including Energy Gorged. Cost: X KI.
 Requirements: N/A
 Training Days: 2
 Back to contents
