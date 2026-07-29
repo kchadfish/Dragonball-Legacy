@@ -4,7 +4,7 @@ Source: https://www.tapatalk.com/groups/dragonballlegacy1/brutus-quests-t424.htm
 SPQR: Super Powerful Questing Republic
 Description: The Brutii did not become powerful from just their territory. Each loyal member in their territory feels a strong civic responsibility towards their empire. It is time for you to pay fealty, or to spit in the Bruttii Empire's face. Deep in the northern forests, a rebellious band of Brutii barbarians rages against the Brutii Empire. Their Elite soldiers are rumored to not feel pain, and fight endlessly against the unrelenting empire.
 Join them in open battle and preserve their honorable culture. They are sure to reward you with their unique berserker secrets. If they offer you something to smoke, don't inhale too deeply. OR Join the Empire in its unending conquest. They pay a steady salary, and this is sure to smooth your transition into civic Brutii society. Ave, true to Recoome.
-Requirement(s): N/A
+Requirements: None
 Reward: Woad Tattoo
 Alternate Reward? 200z // Your Brutus quests are -200 WPD
 Time: 2 Days // 700 WPD
@@ -22,7 +22,7 @@ Description: It’s a small hut in the middle of the woods, run by a crazy old m
 Effect: USEx1. Gain normal EXP for 2 training days. Racial abilities may not effect this EXP gain, Instead, if you have a Racial Trait affecting Training Day EXP and use this item, you gain x1.0 Bonus EXP
 ## The Champion
 Description: The tavern quiets as you open the door. All heads turn your way. One man sits at the bar. Legend has it he has a stomach of steel, will of iron, that he will not bend nor break for any man. He looks at you with one good eye, his eyepatch slicing through a mane of grizzled hair, and wipes the froth from his beard. They say that any man who can defeat him has the might of a hero. Care for a drink?
-Requirements: N/A
+Requirements: None
 Reward: You may create a new Midorikatai Styled Technique (Mastery, Skill, Advanced Attack, Signature Technique, or Block) that will be permanently added to the Midorikatai Style and taught on Brutus. You may learn this Technique from anywhere by spending the required Training Days -1. This Technique must be approved by an Administrator, and should follow the general theme of the Style.
 Alternate Reward: 300z
 Time: 3 Days // 600 WPD
@@ -34,7 +34,7 @@ Reward: You may make a custom Blunt weapon, to be balanced by an administrator.
 Time: 5 Days // 500 WPD
 ## Iced Iced Baby
 Description: There exists rumors, legends truly, of a man who has the power to slay a seven year old boy. This man is wanted by Intergalactic forces for his televised murder. The only problem is that he has convinced the people of Brutus that he is a prophet and he has a cult following! Tracking down the fugitive known as Iugerius won’t be easy, and he won’t go down without a fight. Bring a shield, because he’s certainly bringing a sword.
-Requirements: N/A
+Requirements: None
 Rewards: 300z // You may use the Cross-Galactic Transit System an additional time this month, free of charge.
 Time: 3 Days (2 RPs, 1 Battle) // 600 WPD
 Battle Info: Iugerius is secretly a Tuffle, and his custom Hellish Rapier is special and so his attacks that require a Sword deal +(5% Power) Damage and SEVER on a successful natural perfect attack. He is equipped with a Hellish Rapier, Leggings, and Tuffle Battle Armor.
@@ -49,7 +49,7 @@ Strength Level 1
 Your physical attacks deal + (5% Power) damage.
 ## The Siren's Call
 Description: There have been many instances of people disappearing in the Big Woodland (No one ever said the Brutii were creative!). Rumors speak of a beautiful maiden playing a black lute in the woods. No one who enters these woods will get out without sucumbing to her call...
-Requirements: N/A
+Requirements: None
 Reward: Feather of an Angel
 Time: 4 Days (3 RPs, 1 Battle) // 500 WPD
 Battle Info: Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.
@@ -87,7 +87,7 @@ Description: White Gloves made out of an unknown leather. These gloves, along wi
 Effect: At the beginning of the match, choose a RESTRICTED Freestyle Skill. That skill is now RESTRICTED+1.
 ## Welcome to the Colosseum
 Description: Brutus is full of very powerful creatures and very powerful structures. One of the most beautiful of these structures is a disk shaped building with stands piled high on either side. This isn't any ordinary Coloseum, though. This one has been gaining a dark reputation. They don't fight to the death! What an outrage! Can you enter the Colosseum and show the world that you can not kill?
-Requirements: N/A
+Requirements: None
 Rewards: Nonlethal Takedown
 Time: 2 Days // 600 WPD
 ## Nonlethal Takedown [FREESTYLE, LATENT SKILL]
@@ -95,12 +95,12 @@ Description: You’ve mastered the art of keeping your opponent alive. Whether t
 Effect: You do not have to spend 1 extra Day to spare your opponent when defeating them in Battle. Your opponent still spends 1 Day when being spared. This skill does not take up a Skill slot.
 ## Training with the Brutes
 Description: The Brutii have an... unusual method of training their young. No, it doesn't involve fights to the death. They aren't that bad. It involves manual labor. Very hard manual labor. Be it plowing the fields or working the forge, their methods can make you stronger.
-Requirements: N/A
+Requirements: None
 Rewards: 1.0x Base Exp
 Time: 2 Days // 800 WPD
 ## The Alpha Project
 Description: Some tuffles have come to try and figure out what makes the Brutii so physically powerful. Their labwork has been going pretty well but they need someone to test the serum they made out of Brutii DNA. Care to try it?
-Requirements: N/A
+Requirements: None
 Rewards: Alpha Serum
 Time: 3 Days // 600 WPD
 Alpha Serum [1,500z]
@@ -110,7 +110,7 @@ Effect: USEx1. When you update your stats, state that you wish to use this item.
 Note: You may only use one Stat-Boosting item per week.
 ## The Apple
 Description: Legends across the galaxy have long foretold of a Golden Apple capable of causing discord between even the closest of friends. Lately, rumors have been floating around about its appearance on Brutus. Friends and family members are fighting. Follow the trail, and maybe you can find the prize.
-Requirements: N/A
+Requirements: None
 Time: 4 Days // 750 WPD
 The Apple of Discord [1,000z]
 Inventory Slots: 1
@@ -118,7 +118,7 @@ Description: A golden apple found on Brutus. Legends have been passed on for age
 Effect: USEx1. Choose a player on the same planet as you. They must challenge another player on the same planet as you this week.
 ## Witch's Brew
 Description: The Giant Woods are said to be home to many witches, and it is for this reason that few Bruti are brave enough to walk through the forest. However, for those brave enough, there is said to be a magical cauldron abandoned in an old cottage that grants restorative powers to anyone whose name is whispered into it. Let's hope the rumors about the witches are not true, at least...
-Requirements: N/A
+Requirements: None
 Reward: Choose one Player. That player heals all SEVER effects and restores up to (100% Total) HP.
 Time: 1 Day // 1,200 WPD
 ## Eliminate the Impossible
@@ -167,7 +167,7 @@ Effect: Your dice gain + 1 side and your escape rolls gain +2 to the combined re
 ## Investigative Spirit [FREESTYLE, SKILL]
 Description: You have learned the one key tenant of being a detective. Once you eliminate the impossible whatever remains, no matter how improbable, must be the truth. Applying this to combat is only a plus
 Effect: Your next two defense rolls against Advanced Attacks gain +2 to the results. If your opponent's attack roll is 17 or lower, that attack loses all SUCCESSFUL effects. This only counts for the first die on multi-dice attacks. Costs 1 Ki Point.
-Requirements: N/A
+Requirements: None
 Training Days: 0
 ## War Only Happens
 Description: Each continent on Brutus has it's own governing body and they have traditionally had a rather contentious relationship. A shady figure picks you out of the crowd and asks you if you want to cause some chaos to make a quick buck. All you need to do is cause some tension between the two continents.

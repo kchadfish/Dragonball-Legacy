@@ -6,7 +6,7 @@ ________________________________________
 Appearance: The Ki of the gods has infused the wielder of this form. Their physical appearance stays largely the same. Their aura changes to a pink color and their bodies take on a more lean look.
 Stats: +20% Power. +20% HP. +15% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -1 KI Point to perform. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -1 KI Point to perform. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [MASTERED] Y Your Signature Techniques cost -1 KI Point to perform. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
@@ -18,7 +18,7 @@ ________________________________________
 Appearance: The wielder has become used to the power of the gods and so are able to take more of it into themselves. Their aura shifts to a sharp red but the physical changes depend on each race. Physically, each race undergoes similar changes as they would in their normal transformations but with  red tones in hair and/or skin and they maintain a more lean look than their normal transformations.
 Stats: +40% Power. +40% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -1 KI Point to perform. Your opponent's attacks deal -5% Damage against you. Your defensive dice against single dice attacks gain +1 to the result. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -1 KI Point to perform. Your opponent's attacks deal -5% Damage against you. Your defensive dice against single dice attacks gain +1 to the result. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [MASTERED] Your Signature Techniques cost -1 KI Point to perform. Your opponent's attacks deal -5% Damage against you. Your defensive dice against single dice attacks gain +1 to the result. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
@@ -30,7 +30,7 @@ ________________________________________
 Appearance: The aura of the user shifts to a light blue. They now are attuned to the nature of the God Form’s ki and are able to use it in a way that is on par with most Supreme Kais. Their bodies still tend to undergo the natural transformations that it would in their normal transformation, just with blue tones.
 Stats: +55% Power. +60% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -2 KI Points to perform.Your opponent's attacks deal -10% Damage against you.Your defensive dice against single dice attacks gain +2 to the result. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -2 KI Points to perform. Your opponent's attacks deal -10% Damage against you.Your defensive dice against single dice attacks gain +2 to the result. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [MASTERED] Your Signature Techniques cost -2 KI Points to perform. Your opponent's attacks deal -10% Damage against you. Your defensive dice against single dice attacks gain +2 to the result. RESTRICTED x1. You may activate a skill with a CONSTANT effect. This does not take up your turn.
@@ -42,7 +42,7 @@ ________________________________________
 Appearance: This final form of the Ki of the Gods purifies the soul. This is a form that is rarely obtained, even by the Supreme Kai. The aura of the individual seems to disappear as their body shifts with their natural transformations. Their hair and/or skin is now white as snow.
 Stats: +75% Power. +80% HP. +65% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -2 KI Points to perform. Your opponent's attacks deal -10% Damage against you.Your defensive dice against single dice attacks gain +3 to the result. RESTRICTED x2. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -2 KI Points to perform. Your opponent's attacks deal -10% Damage against you. Your defensive dice against single dice attacks gain +3 to the result. RESTRICTED x2. You may activate a skill with a CONSTANT effect. This does not take up your turn.
 [MASTERED] Your Signature Techniques cost -2 KI Points to perform. Your opponent's attacks deal -10% Damage against you.Your defensive dice against single dice attacks gain +3 to the result. RESTRICTED x2. You may activate a skill with a CONSTANT effect. This does not take up your turn.
@@ -54,7 +54,7 @@ ________________________________________
 Appearance: Demonic Ki is very similar to the Ki of the Gods. The Ki of the demons is just infused with evil. In the Pseudo Demon form, the users aura takes on a crimson aura. Their hair or skin may change color to match the aura, depending on the race. The transformation physically works similar to the natural transformation of the race.
 Stats: +20% Power. +20% HP. +15% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -1 KI Point to perform. RESTRICTED X 1. You may deactivate a skill with a CONSTANT effect.  This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -1 KI Point to perform. RESTRICTED X 1. You may deactivate a skill with a CONSTANT effect.  This does not take up your turn.
 [MASTERED] Y Your Signature Techniques cost -1 KI Point to perform. RESTRICTED X 1. You may deactivate a skill with a CONSTANT effect.  This does not take up your turn.
@@ -66,7 +66,7 @@ ________________________________________
 Appearance: The body of the user begins adjusting to the Demonic Ki and so absorbs more of the evil energy. In the Demonic form, the user’s aura shifts to a rose color. Their hair or skin may change color to match the aura, depending on the race. The transformation physically works similar to the natural transformation of the race.
 Stats: +40% Power. +40% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -1 KI Point to perform. Your attacks deal + (5% Power) Damage. RESTRICTED x1. You may deactivate a skill with a CONSTANT effect. This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -1 KI Point to perform. Your attacks deal +(5% Power) Damage. RESTRICTED x1. You may deactivate a skill with a CONSTANT effect.  This does not take up your turn.
 [MASTERED] Your Signature Techniques cost -1 KI Point to perform. Your attacks deal + (5% Power) Damage. RESTRICTED x1. You may deactivate a skill with a CONSTANT effect.  This does not take up your turn.
@@ -78,7 +78,7 @@ ________________________________________
 Appearance: The Ki begins to overwhelm the user as they take in unimaginable amounts of evil ki. In the Devil form, the users aura shifts to pure black. Their hair or skin may change color to match the aura, depending on the race. The transformation physically works similar to the natural transformation of the race.
 Stats: +55% Power. +60% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -2 KI Points to perform.Your attacks deal +(10% Power) Damage. RESTRICTED x1. You may deactivate a skill with a CONSTANT effect.  This does not take up your turn.
 [INTERMEDIATE] Your Signature Techniques cost -2 KI Points to perform. Your attacks deal +(10% Power) Damage. RESTRICTED x1. You may deactivate a skill with a CONSTANT effect. This does not take up your turn.
 [MASTERED] Your Signature Techniques cost -2 KI Points to perform. Your attacks deal +( 10% Power) Damage. RESTRICTED x1. You may deactivate a skill with a CONSTANT effect. This does not take up your turn.
@@ -90,7 +90,7 @@ ________________________________________
 Appearance: The user has attained control over the Demonic Ki at a level which very few have reached before. Denizens of Hell recognize the user for what they are, a Leader of Hell. In the True Demon form, the users aura sucks the light out of the surrounding area. Their hair or skin may change color to match the aura, depending on the race. The transformation physically works similar to the natural transformation of the race.
 Stats: +70% Power. +80% HP. +70% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Your Signature Techniques cost -2 KI Points to perform. Your attacks deal +(10% Power)Damage. RESTRICTED x2. You may deactivate a skill with a CONSTANT effect.
 [INTERMEDIATE] Your Signature Techniques cost -2 KI Points to perform. Your attacks deal +(10% Power) Damage. RESTRICTED x2. You may deactivate a skill with a CONSTANT effect.
 [MASTERED] Your Signature Techniques cost -2 KI Points to perform. Your attacks deal + (10% Power) Damage. RESTRICTED x2. You may deactivate a skill with a CONSTANT effect.
@@ -137,7 +137,7 @@ Cyborg[/color] - You may choose one of the [url=http://s15.zetaboards.com/Dragon
 Appearance: The Android's circuitry goes haywire, causing sparks to fly and sometimes knee-jerk responses and unnecessary twitches. While it can be dangerous if prolonged, the malfunction can be kept in check by a resourceful AI. The Android is capable of rerouting and hacking deep into their own power supply as well as nearby power sources to fuel them, temporarily overloading them.
 Stats: +25% Power. +0% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Short Circuit - You may pay 2 KI Points to have any of your attack or defensive rolls gain +2 to the result. You may use this effect after all rolls have been made for that turn. You cannot CRITICAL, COUNTER or SEVER with that roll. You can only use this effect once per turn.
 [INTERMEDIATE] Blown Circuit - You may pay 2 KI Points to have any of your attack or defensive rolls gain +3 to the result. You may use this effect after all rolls have been made for that turn. You cannot CRITICAL, COUNTER or SEVER with that roll. You can only use this effect once per turn.
 [MASTERED] Overdrive - You may pay 2 KI Points to have any of your attack or defensive rolls gain +3 to the result. You may use this effect after all rolls have been made for that turn. You cannot CRITICAL or SEVER with that roll. You can only use this effect once per turn.
@@ -147,7 +147,7 @@ Special Trait(s):
 Appearance: The metal skeleton is re-fitted with a more durable alloy. The internal database is replaced with a more expansive version, allowing for more storage space. The sensory chips are removed and the latest model is put in its place. Any bio-synthetic material used to simulate flesh is replaced with more durable materials. Joints are re-fitted and made of more flexible material.
 Stats: +40% Power. +25% HP. +35% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] They Have The Technology . . . - You may pay 2 KI Points to have any of your attack or defensive rolls gain +3 to the result. You may use this effect after all rolls have been made for that turn. You cannot CRITICAL or SEVER with that roll. You can only use this effect once per turn. Once per combat, you may lose 2 KI Points to negate a COUNTER against you.
 [INTERMEDIATE] The Upgraded Android - You may pay 1 KI Point to have any of your attack or defensive rolls gain +3 to the result. You may use this effect after all rolls have been made for that turn. You cannot CRITICAL or SEVER with that roll. You can only use this effect once per turn. Once per combat, you may lose 2 KI Points to negate a COUNTER against you.
 [MASTERED] The Best Money Can Buy . . . For Now - You may pay 1 KI Point to have any of your attack or defensive rolls gain +3 to the result. You may use this effect after all rolls have been made for that turn. You cannot CRITICAL or SEVER with that roll. You may use this effect twice per turn, on different dice rolls. Twice per combat, you may lose 1 KI Point to negate a COUNTER against you.
@@ -157,7 +157,7 @@ Special Trait(s):
 Appearance: Energy conductors are replaced with the top of the line models. The Power Core is modified to include a better failsafe mechanism, and for Absorption models the gems located on the palms are fine-tuned. Vital components are tucked away behind an extra protective layer of metal inside the Android for optimal protection. Due to the improved ki conductors, lightning crackles around the Android, increasing proportionately with the energy they have stored.
 Stats: +55% Power. +45% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Top of The Line - You may have any attack or defensive roll gain +3 to the result. You cannot CRITICAL or SEVER with that roll. You can only use this effect twice per turn on different attack rolls. Twice per combat, you may lose 1 KI Point to negate a COUNTER against you.
 [INTERMEDIATE] Am I The Droid You're Looking For? - You may have any attack or defensive roll gain +3 to the result. You cannot CRITICAL or SEVER with that roll. You can only use this effect twice per turn on different attack rolls. Twice per combat, you may lose 1 KI Point to negate a COUNTER against you. Once per combat, you may lose 1 KI Point to negate a STUN against you.
 [MASTERED] You're Lucky There's No Skynet - You may have any attack or defensive roll gain +3 to the result. You cannot CRITICAL or SEVER with that roll. You can only use this effect twice per turn on different attack rolls. Twice per combat, you may lose 1 KI Point to negate a COUNTER against you. Twice per combat, you may lose 1 KI Point to negate a STUN against you.
@@ -167,7 +167,7 @@ Special Trait(s):
 Appearance: An unpredictable form that occurs when an Android absorbs the components of two other destroyed Droids. The change in appearance can radically vary from one to the next and can include change in hair, skin color, eye color and size. A sharp increase in muscle mass and/or definition are very common with this form. The merging of an Android with the best components left over from the destruction of others creates a very powerful form, regardless of the appearance.
 Stats: +75% Power. +60% HP. +65% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Hostile Takeover - You may have any attack or defensive roll gain +4 to the result. You cannot SEVER with that roll. You can only use this effect twice per turn on different dice rolls. Twice per combat, you may lose 1 KI Point to negate a COUNTER against you. Twice per combat, you may lose 1 KI Point to negate a STUN against you.
 [INTERMEDIATE] Miracle of Modern Science - You may have any attack or defensive roll gain +4 to the result. You cannot SEVER with that roll. You can only use this effect thrice per turn on different dice rolls. Twice per combat, you may lose 1 KI Point to negate a COUNTER against you. Twice per combat, you may lose 1 KI Point to negate a STUN against you.
 [MASTERED] The Future Is Me - You may have any attack or defensive roll gain +4 to the result. You cannot SEVER with that roll. You can only use this effect thrice per turn on different dice rolls. Twice per combat, you may negate a COUNTER against you. Twice per combat, you may negate a STUN against you.
@@ -209,7 +209,7 @@ Level 1 - Shapeshifting School Copycat[hr]
 Appearance: A student of the Shapeshifting School is first inundated with lessons on how to change their body's shape into household items and smaller creatures, but then learns how to mimic a being standing directly in front of them. The Animal is therefore able to copycat the opponent's appearance and their potential transformation's appearance, usually with imperfect and cartoon-ish results.
 Stats: +25% Power. +0% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Shapeshifting Student - Choose an opponent. You gain the NOVICE effects of that opponent's race's Level 1 Transformation.
 [INTERMEDIATE] Shapeshifting Apprentice - Choose an opponent. You gain the INTERMEDIATE effects of that opponent's race's Level 1 Transformation.
 [MASTERED] Shapeshifting Master - Choose an opponent. You gain the MASTERED effects of that opponent's race's Level 1 Transformation. Whenever your opponent transforms, transform immediately.
@@ -219,7 +219,7 @@ Level 2 - Shapeshifting School Teacher's Pet[hr]
 Appearance: A student of the Shapeshifting School is next challenged to perfect the sounds and voices of the items they are imitating, undergoing intense auditory training. The Animal is also challenged to maintain their obedience in their new form by forming obstacles that might force them to reveal who or what they truly are.
 Stats: +40% Power. +20% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Chameleon - Choose an opponent. You gain the NOVICE effects of that opponent's race's Level 2 Transformation. Whenever your opponent transforms, transform immediately.
 [INTERMEDIATE] Copycat - Choose an opponent. You gain the INTERMEDIATE effects of that opponent's race's Level 2 Transformation. Whenever your opponent transforms, transform immediately.
 [MASTERED] Mimic - Choose an opponent. You gain the MASTERED effects of that opponent's race's Level 2 Transformation. Whenever your opponent transforms, transform immediately. If you are already transformed when your opponent transforms, gain +2 KI Points.[/list]
@@ -260,7 +260,7 @@ Level 1: Sensory Overload
 Appearance: A hazy translucent aura surrounds the Bas-jin as their cranium expands, allowing for the room of a larger brain. Pulsating veins also squirm throughout the bigger head of the four-eyed being. The brain of the Bas-jin is said to process things much faster than others, although they are much better at implementing these advantages defensively.
 Stats: +10% Power. +10% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Whenever you gain a dice side or result bonus from something other than Dexterity, increase that bonus by +1.
 [INTERMEDIATE] Whenever you gain a dice side or result bonus, increase that bonus by +1.
 [MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +2 from this Transformation ability.
@@ -271,7 +271,7 @@ Level 2: Eye of the Beholder
 Appearance: To the outside observer, the Bas-Jin’s eyes glow a dark blue or purple. To the Bas-Jin, this is an incredibly difficult process of maintaining all 4 eyes as a focus medium for the enhanced brain, allowing an extra increase of the Telekinesis and Chronokinesis.
 Stats: +25% Power. +25% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +3 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation..
 [INTERMEDIATE] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation.
 [MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +2 to your result before applying the double bonus from this Transformation.
@@ -314,7 +314,7 @@ STARTING ITEMS[hr]
 Appearance: Due to the variation of Bio-Androids, the physical appearance of an Imperfect Form greatly varies. The few constants include: bug or reptillian-like features becoming pronounced (which can include the sprouting of wings, discoloration of the skin, or a scaly appearance) and an increase in muscle mass. Typically, height is slightly marked up. This form is achieved after the absorption of a single Android.
 Stats: +20% Power. +15% HP. +15% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Anti-Machinist - Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead.
 [INTERMEDIATE] Biological Evolution - Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 28 or higher, you may lose 2 KI Points. If you do, you may add that attack to your Extra Moves List.
 [MASTERED] Almost Perfect - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 27 or higher, you may lose 2 KI Points. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.
@@ -324,7 +324,7 @@ Special Trait(s):
 Appearance: The majority of the bug and reptillian-like feature disappear in favor of a return to a more humanoid, streamlined vision of Bio-Android perfection. Large, bug-like wings are fairly common but they are sleeker and more powerful in this form. Muscle mass remains approximately the same as the Semi-Perfect Form but with slightly more definition. This form is achieved after the absorption of a second Android.
 Stats: +50% Power. +25% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Perfection Conceived - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 26 or higher, you may lose 2 KI Points. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.
 [INTERMEDIATE] Perfection Believed - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 25 or higher, you may lose 2 KI Points. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.
 [MASTERED] Perfection Achieved - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 25 or higher, you may lose 1 KI Points. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.
@@ -334,7 +334,7 @@ Special Trait(s):
 Appearance: The only adjustment made to the Perfect Form is a large increase in muscle mass that is roughly equivalent to a Changeling's 100% Full Power form, and sometimes even moreso. At this stage, lightning begins to crackle around the aura of the Bio-Android. This form lacks the agility a third form should, but it is easier to maintain than the Ultra Super Saiyan form.
 Stats: +80% Power. +40% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] USSJ Mimicry - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 25 or higher, you may lose 1 KI Point. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead. Your attacks do +(5% Power) Damage. Your copied attacks gain +1 dice side.
 [INTERMEDIATE] Cellular Powerhouse - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 24 or higher, you may lose 1 KI Points. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead. Your attacks do +(5% Power) Damage. Your copied attacks gain +1 dice side.
 [MASTERED] Genetic Jackhammer - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 23 or higher, you may lose 1 KI Points. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead. Your attacks do +(5% Power) Damage. Your copied attacks gain +1 dice side. You gain +1 dice side to your defense rolls against your copied attacks.
@@ -344,7 +344,7 @@ Special Trait(s):
 Appearance: Muscle mass is decreased to the level of the basic Perfect Form. Little else is changed in terms of physical appearance, though the skin can appear smoother and have a distinctive semi-metallic sheen to it. The lightning in the aura from the Buff transformation remains and is even more sporadic.
 Stats: +100% Power. +50% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Breakthrough In Perfection - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll of 22 result or higher, you may lose 1 KI Point. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead. Your attacks do +(5% Power) Damage. Your copied attacks gain +2 dice sides. You gain +1 dice side to your defense rolls against your copied attacks.
 [INTERMEDIATE] Superior Genetics - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll of 21 result or higher, you may lose 1 KI Point. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead. Your attacks do +(5% Power) Damage. Your copied attacks gain +2 dice sides. You gain +1 dice side to your defense rolls against your copied attacks.
 [MASTERED] Beyond Perfection - All of your attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead. After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll of 20 result or higher, you may lose 1 KI Point. If you do, you may add that attack to your moveset (even if you do not have enough slots). At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead. Your attacks do +(5% Power) Damage. Your copied attacks gain +2 dice sides. You gain +2 dice sides to your defense rolls against your copied attacks.
@@ -386,7 +386,7 @@ Level 1: Roid Rage
 Appearance: The body of the Brutii 'hulks' up to larger proportions with the muscles becoming increasingly defined. Veins pop out from the skin in all directions, looking more like a road map than anything part of a natural circulatory system. The actions of the Brutii are also noticeable less controlled and more frenetic.
 Stats: +30% Power. +20% HP. +0% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 *Note: The Brutii Transformation is a passive effect and does not add BREAK to attacks, thus it does not qualify for the Midorikatai Bonebreaker mastery and is not removed when using Brute Force.
 [NOVICE] Heavyweight Fighter - When you roll an attack roll of 29 or higher on a single dice physical attack, you may pay 2 KI points. If you do, BREAK. After taking damage from an attack, your next attack gains +1 dice side.
 [INTERMEDIATE] Heavyweight Contender - When you roll an attack roll of 28 or higher on a single dice physical attack, you may pay 2 KI points. If you do, BREAK. After taking damage from an attack, your next attack gains +1 dice side.
@@ -396,7 +396,7 @@ Level 2: Burning Hate
 [hr]
 Appearance: This appearance is much like Roid Rage, except the user’s hair grows longer and their aura changes to a burning red, making the Brutii appear to actually be on fire. This is not far from the truth, as the Brutii’s footsteps leave a smoking trail.
 Stats: +60% Power. +30% HP. +10% Dexterity.
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Bashing Blow - When you roll an attack roll of 27 or higher on a single dice physical attack, you may pay 2 KI points. If you do, BREAK. After taking damage from an attack, your next attack roll gains +2 to dice sides. Your attacks do +(5% Power) Damage.
 [INTERMEDIATE] Burning Blow - When you roll an attack roll of 26 or higher on a single dice physical attack, you may pay 1 Ki Point. If you do, BREAK. After taking damage from an attack, your next attack roll gains +2 to dice sides. Your attacks do +(5% Power) Damage.
 [MASTER] Breaking Blow - If you roll an attack roll of 26 or higher on a single dice attack, you may pay 1 Ki Point. If you do, BREAK. After taking damage from an attack, your next attack roll gains +3 to dice sides. Your attacks do +(5% Power) Damage.
@@ -441,7 +441,7 @@ Henchmen[/color] - Your quests take 1/2 of the listed WPD. Whenever somebody wou
 Appearance: Changelings are born with a Power Level so high that they are initially unable to control it, and therefore they create forms to actually maintain that power -- though there is a high infant mortality rate because of this very reason. Therefore, their first form is actually them hiding a power they are unable to control and Form 2 is the first step to achieving their ultimate power. In Form 2, the Changeling grows taller in size and their muscle mass increases 3-4x their normal size. Horns also protrude from their skull and their body shapeshifts to take on a more armored appearance, specifically around the chest.
 Stats: +30% Power. +20% HP. +0% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Element of Fear – Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.
 [INTERMEDIATE] The Power of Intimidation - Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.
 [MASTERED] The Great Intimidator - Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.
@@ -451,7 +451,7 @@ Special Trait(s):
 Appearance: A drastic change in appearance from the second form. Once again, the Changeling shrinks to roughly their normal size. Their skull becomes elongated and more alien in appearance. The armored appearance becomes more noticeable as bone-like pieces of armor are created to cover the shoulders, torso, and forearms. The horns can remain, receed, or multiply. In this form, the Changeling takes on a slight hunching, reptilian appearance.
 Stats: +55% Power. +25% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Monster of Lore - Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.
 [INTERMEDIATE] The Boogeyman - Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +1 dice side. This effect does not stack with itself.
 [MASTERED] The Alien Menace - Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction. 
@@ -461,7 +461,7 @@ Special Trait(s):
 Appearance: Another complete overhaul of the Changeling takes place. The alien-like nature of the third form disappears and is replaced once more with the humanoid appearance. The body is extremely streamlined, with muscles and skin smooth and sculpted. The muscle mass shrinks and instead the Changeling appears sleek and almost harmless -- though they are anything but. The horns disappear completely and the armored portions are reduced or disappear completely. Skin color is typically two shades with the Arcosian's tail becoming the same color as the majority of their body. This is the true form of any Changeling, if they become worthy of tapping into it.
 Stats: +75% Power. +40% HP. +35% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Final Form . . . FINALLY - Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it. Your attacks do +(5% Power) Damage. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction.
 [INTERMEDIATE] Arcosian's True Power - Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it. Your attacks do +(5% Power) Damage. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction. 
 [MASTERED] Pushed To The Limits - Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it. Your attacks do +(5% Power) Damage. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction.
@@ -471,7 +471,7 @@ Appearance: Pushing their body to the absolute limits, the Changeling's skin tak
 
 Stats: +95% Power. +55% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Destroyer of Worlds - Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it. Your attacks do +(5% Power) Damage. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction.
 [INTERMEDIATE] The Destroyer of Galaxies - Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it. Your attacks do +(5% Power) Damage. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +3 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction.
 [MASTERED] The Destroyer of Universes - Whenever you STOP an attack with a Block or a defense roll of 20 or higher, that attack costs +1 KI Point the next time your opponent uses it. Your attacks do +(5% Power) Damage. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +3 dice sides. This effect does not stack with itself. You are considered to have the [DESTROY] effect for the sake of planetary destruction.
@@ -532,7 +532,7 @@ Poltergeist - You may interfere on two battles per week instead of one per week.
 
 
 [hr]
-[Special Trait(s):
+[Transformation Abilities:
  [NOVICE] Little Boo- Your afterlife techniques gain + 1 to the result. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only.
 [INTERMEDIATE] Boo- Your afterlife techniques gain + 1 to the result. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 1 to the result.
  [MASTERED] Big Boo- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 1 to the result.
@@ -544,7 +544,7 @@ Level 2: Ghoul
 Appearance: The ghost begins to take on a more human-like appearance. It's skin turns a greenish color and plasma oozes off it. While it is more humanoid, it is still a pale imitation of it's former life.
 Stats: +20% Power. +40% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 1 to the result.
 [INTERMEDIATE] TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.
 [MASTERED] TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.
@@ -554,7 +554,7 @@ Level 3: TBD
 Appearance: TBD
 Stats: +40% Power. +55% HP. +55% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 NOVICE] TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.
 [INTERMEDIATE] TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.
 [MASTERED] TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.
@@ -566,7 +566,7 @@ Level 4: TBD
 Appearance: TBD
 Stats: +50% Power. +70% HP. +80% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.
 [INTERMEDIATE] TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first half of the dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.
 [MASTERED] TBD- Your afterlife techniques gain + 4 to the results. Your defensive rolls against non-afterlife techniques gain + 3 to the result.
@@ -639,7 +639,7 @@ Note: Please don't collude to cheat the system. It will lead to repercussions.
 Appearance: The aura of the individual becomes pale in color and whirlwinds around them. Their muscles bulge and become strained. Internally, the body is pumping much more adrenaline than would be medically acceptable and to survive this form shows true strength on the part of the transformed.
 Stats: +17% Power. +17% HP. +16% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 
 [NOVICE] Underdog - You gain +1 Advanced Attack slot. You may choose an Advanced Attack in your Extra Moves list to add to your moveset.
 
@@ -654,7 +654,7 @@ Note: When you unlock this Transformation, you may choose one non-restricted Adv
 Appearance: When looking directly into the full moon or an effect that simulates moonlight, such as the Power Ball technique, a Saiyan or Hybrid Saiyan with a tail can turn into the mythic Giant Ape. The rays from the moon stimulate a gland in the tail which unlocks this transformation, turning the person with Saiyan blood into a wereape creature that is ten times the size of their normal form. In this form, the transformed is in a primal state and through training can they learn to control themselves.
 Stats: +35% Power. +25% HP. -10% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Great Ape - Your opponent's physical attacks do -20% Damage against you. On your turn, you roll 1d2. If the result is 2, you must roll 1dX where X is the number of Advanced Attacks in your moveset. The result corresponds to the order of the moves in your moveset. You must perform that attack or pass.
 [INTERMEDIATE] Raging Ape - Your opponent's physical attacks do -25% Damage against you. On your turn, you roll 1d2. If the result is 2, you must roll 1dX where X is the number of Advanced Attacks in your moveset. The result corresponds to the order of the moves in your moveset. You must perform that attack or pass.
 [MASTERED] Controlled Ape - Your opponent's physical attacks do -25% Damage against you. Your attacks do +(5% Power) Damage.
@@ -665,7 +665,7 @@ Note: While in Oozaru Form, you lose the effect of all worn items, with the exce
 Appearance: Achieving this form pushes the Saiyan's hair upwards in a spiked form due to the massive amount of energy generated around them. The hair takes on a golden color and natural eye color changes to a greenish-blue hue. Muscle tone also becomes more defined and due to the release of ki, a golden aura encompasses the Saiyan at all times. It has been theorized that there is a form in between Super Saiyan and Super Saiyan 2 where the muscle mass increases dramatically, but at the cost of speed.
 Stats: +50% Power. +30% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Power of Legend -You may have your attack roll gain +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
 
 [INTERMEDIATE] Ultra Super Saiyan - You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage. When transforming, you may choose to gain +65% Power, +45% Endurance, and -10% Dexterity instead. 
@@ -677,7 +677,7 @@ Special Trait(s):
 Appearance: The golden hair of the Super Saiyan becomes longer and more rigid. The eyes once again become a greenish-blue. Muscle mass is barely increased, but energy output is said to be increased tenfold. The powerhouse of energy surrounding the Super Saiyan becomes more jagged in appearance, radiating with even more power than the original form. Lightning crackles around the aura at a steady pace. A Super Saiyan 2 is said to experience a change in personality as well, becoming remorseless in their actions.
 Stats: +70% Power. +45% HP. +35% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Beyond Super Saiyan - You may have your attack roll gain +1 dice side and +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
 
 [INTERMEDIATE] Relentless Super Saiyan - You may have your attack roll gain +2 dice sides and +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
@@ -689,7 +689,7 @@ Special Trait(s):
 Appearance: The perfected form of Super Saiyan 2 is a half-step between the second Super Saiyan form and the third. It is the highest level a Halfing can achieve, but it is less strenuous than the Saiyan final form. The gold Super Saiyan hair takes on a paler appearance, as does the aura. The lightning crackling around it becomes more chaotic, much like Super Saiyan 3. There is no personality change, as this is a mastered form.
 Stats: +90% Power. +60% HP. +50% Dexterity.
 
-Special Trait(s)
+Transformation Abilities
 [NOVICE] Mixed Blood's Ascension - You gain +2 Advanced Attack slots. You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset. You may have your attack roll gain +1 dice sides and +1 to the results. You cannot SEVER with that roll. Your attacks do +(5% Power) Damage.
 
 [INTERMEDIATE] - Mixed Blood's Power - You gain +2 Advanced Attack slots. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. You may have your attack roll gain +2 dice sides and +1 to the results. You cannot SEVER with that roll. Your attacks do +(5% Power) Damage.
@@ -735,40 +735,40 @@ STARTING ITEMS[hr]
 Appearance: Once this form is initiated, the Kaizoku-jin's aura explodes outward, tearing up the ground and creating fierce gusts. The skin color, while unchanging, takes on a glossy sheen. The hairs float individually upward, as if the user were underwater. Kaizoku-jins in this form are ruthless pursuers.
 Stats: +20% Power. +15% HP. +15% Dexterity.
 
-Special Trait(s):
-[NOVICE] Thief’s Luck - When you transform, roll 2d30. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per match, after you make an attack roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
-[INTERMEDIATE] Thief’s Training - When you transform, roll 2d30 with +1 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
-[MASTER] Thief’s Mastery - When you transform, roll 2d30 with +2 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per match, after you make an attack roll or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
+Transformation Abilities:
+[NOVICE] Thief’s Luck - When you transform, roll 2d30. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per combat, after you make an attack roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
+[INTERMEDIATE] Thief’s Training - When you transform, roll 2d30 with +1 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
+[MASTER] Thief’s Mastery - When you transform, roll 2d30 with +2 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per combat, after you make an attack roll or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
 
 [color=aqua]Level 2: Galactic Bandit Lord[/color]
 
 Appearance: The main means for the Kaizoku-Jin to ascend is through KI and prowess rather than physical changes. Kaizoku-Jin of this level can enter a state where their Ki not only rips through the ground, but also the air. This allows the user to potentially deflect attacks out of the very sky!
 Stats: +40% Power. +30% HP. +30% Dexterity.
 
-Special Trait(s):
-[NOVICE] Practiced Technique - When you transform, roll 3d30 with +1 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
-[INTERMEDIATE] Practiced Tactics - When you transform, roll 3d30 with +2 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
-[MASTER] Mastered Tactics- When you transform, roll 3d30 with +2 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
+Transformation Abilities:
+[NOVICE] Practiced Technique - When you transform, roll 3d30 with +1 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
+[INTERMEDIATE] Practiced Tactics - When you transform, roll 3d30 with +2 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Once per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
+[MASTER] Mastered Tactics- When you transform, roll 3d30 with +2 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Whenever you STOP an attack, your next attack deals +(5% Power) Damage.
 
 [color=aqua]Level 3: Most Wanted[/color]
 
 Appearance: This form is the first physical transformation of the Kaizoku-Jin. Their skin changes to a pale green and their hair changes to a thick red shade, often being forced upwards. Females of this form gain a sleek sheen to their skin and a light increase in muscle mass, while males do not gain the sheen but have a major increase of muscle, especially in the chest and shoulders.
 Stats: +60% Power. +45% HP. +45% Dexterity.
 
-Special Trait(s):
-[NOVICE] Experienced Combatant - When you transform, roll 3d30 with +3 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +1 to the result.
-[INTERMEDIATE] Expert Combatant - When you transform, roll 3d30 with +3 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +2 to the results.
-[MASTER] Master Combatant - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +2 to the results.
+Transformation Abilities:
+[NOVICE] Experienced Combatant - When you transform, roll 3d30 with +3 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +1 to the result.
+[INTERMEDIATE] Expert Combatant - When you transform, roll 3d30 with +3 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +2 to the results.
+[MASTER] Master Combatant - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +2 to the results.
 
 [color=aqua]Level 4: Legend[/color]
 
 Appearance: The Kaizoku-Jin has breached the highest level of intensity. Objects and buildings around the user of this form spontaneously generate molecule-thin straight slashes, slicing down the center of most objects. The Kaizoku’s irises have circles of lightning inside of them, fueling the Kaizoku-Jin’s heightened awareness.
 Stats: +80% Power. +60% HP. +60% Dexterity.
 
-Special Trait(s):
-[NOVICE] Legendary Guile - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack deals +(5% Power) Damage and gains +1 to the results.
-[INTERMEDIATE] Legendary Prowess - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack deals +(5% Power) Damage and gains +2 to the results.
-[MASTER] Legendary Providence - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Three times per match, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack deals +(5% Power) Damage and gains +2 to the results.
+Transformation Abilities:
+[NOVICE] Legendary Guile - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack deals +(5% Power) Damage and gains +1 to the results.
+[INTERMEDIATE] Legendary Prowess - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Twice per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack deals +(5% Power) Damage and gains +2 to the results.
+[MASTER] Legendary Providence - When you transform, roll 3d30 with +4 to the results. This roll gains bonus dice sides from your Dexterity Bonus. The highest result is considered your Prowess Result. Three times per combat, after you make an attack or defense roll, you may replace the result with your Prowess Result. You cannot SEVER with this ability and it cannot be used for Signature Technique attack rolls. Your attacks deal +(5% Power) Damage. Whenever you STOP an attack, your next attack gains +2 to the results.
 
 
 
@@ -804,7 +804,7 @@ CLASSES[/color]
 Appearance: The intricate ancient song of the race plays in the minds of all that surrounds the Konat as a shimmering blue aura surrounds them. The mystical blue energy solidifies into a semi-transparent blue orb that surrounds the fighter. A vibrant green energy radiates in outline form around them as well, and the look in their eyes intensifies, ready for battle.
 Stats: +15% Power. +15% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Song of The Brave - Your opponent’s attack roll result must be 9 or higher to gain any SUCCESSFUL effects. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 28 or higher, gain 1 Ki.
 [INTERMEDIATE] Melody of The Fierce - Your opponent’s attack roll result must be 10 or higher to gain any SUCCESSFUL effects. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 27 or higher, gain 1 Ki.
 [MASTERED] Cadence of The Soldier - Your opponent’s attack roll result must be 11 or higher to gain any SUCCESSFUL effects. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 26 or higher, gain 1 Ki.
@@ -814,7 +814,7 @@ Special Trait(s):
 Appearance: The Shadow Sonata is a powerful piece of music of the Konats race, which legend has it turned the tides of many seemingly lost battles. The brooding melody plays throughout the battlefield, summoned like a force by the Konatsujin as a mystical gray energy solidifies into a semi-transparent inky-black orb that surrounds them. An outline of black; sometimes white, energy surrounds their body as well.
 Stats: +30% Power. +30% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Harmony of Battle - Your opponent’s attack roll result must be 12 or higher to gain any SUCCESSFUL effects. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 26 or higher, gain 1 Ki.
 [INTERMEDIATE] Cadenza of War - Your opponent’s attack roll result must be 13 or higher to gain any SUCCESSFUL effects. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 26 or higher, gain 1 Ki.
 [MASTERED] The Broken Chord - Your opponent’s attack roll result must be 14 or higher to gain any SUCCESSFUL effects. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 25 or higher, gain 1 Ki.
@@ -824,7 +824,7 @@ Special Trait(s):
 Appearance: The lost music piece of Konatsujin culture was once reserved to honor the fallen. The Righteous Requiem was considered a great honor to have performed at one’s funeral; a hymn with great symbolism and power. Without the use of an instrument the song is divined through the siphoning of power from the Konats homeworld and its inhabitants, mystically channeling the energy into a divine song that empowers the warrior. At funerals it was a sight to behold -- a vast, white sphere of energy surrounding each Konat mourner and rocketing into the sky as a beam of energy. As the song dwindled down, the orbs of white would remain around them until the end of the service, constantly crackling with electrical energy. Learning to divine the melody further away from the Konat homeworld is considered to take great strength and discipline.
 Stats: +50% Power. +45% HP. +55% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Hymn of The Fallen - Your opponent’s attack roll result must be 15 or higher to gain any SUCCESSFUL effects. After you perform a SUCCESSFUL attack against an opponent, that opponent cannot CRITICAL against you until the start of your next turn. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 25 or higher, gain 1 Ki.
 [INTERMEDIATE] The Dead‘s Refrain - Your opponent’s attack roll result must be 15 or higher to gain any SUCCESSFUL effects. After you perform a SUCCESSFUL attack against an opponent, that opponent cannot CRITICAL against you for the next 4 turns. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 25 or higher, gain 1 Ki.
 [MASTERED] Resonance of The Living - Your opponent’s attack roll result must be 15 or higher to gain any SUCCESSFUL effects. After you perform a SUCCESSFUL attack against an opponent, no opponents can CRITICAL against you for the next 6 turns. When your opponent lands a SUCCESSFUL single dice attack against you with an attack roll of 24 or higher, gain 1 Ki.
@@ -861,7 +861,7 @@ Phoenix Rising-When your Health drops to 0 for the first time in a match, you ma
 
 CLASSES
 [hr]
-Maguma-Jin With Style - Once per Match, when one your Advanced Attacks are STOPPED, you may gain 2 KI Points. Once per Week, when one of your Signature Techniques are STOPPED, you may gain 4 KI Points. Your Signature Techniques gain +2 dice sides.
+Maguma-Jin With Style - Once per combat, when one your Advanced Attacks are STOPPED, you may gain 2 KI Points. Once per Week, when one of your Signature Techniques are STOPPED, you may gain 4 KI Points. Your Signature Techniques gain +2 dice sides.
 
 Teammate, Mate! - When interference is made by you or someone on your behalf that person starts at 10 ki and may perform signature techniques. The interfering player may roll additional interference rolls every time they would normally exit the battle until the fail to interfere.
 
@@ -877,7 +877,7 @@ Level 1: Magma Mode
 Appearance: The Maguma-Jin’s hair changes to a charcoal black and their muscles become extraordinarily toned. The Maguma-Jin’s aura becomes a black and red intense flame. Users in this form become extraordinarily hot to the touch.
 Stats: +20% Power. +10% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Whenever your opponent performs a SUCCESSFUL physical attack against you with an attack roll of 20 or higher, they lose (10% Power) HP. Whenever you STOP an Energy Advanced Attack, you may replace the SUCCESSFUL effect of your next Energy attack with that attack's SUCCESSFUL effect.
 [INTERMEDIATE] Whenever your opponent performs a SUCCESSFUL physical attack against you with an attack roll of 15 or higher, they lose (10% Power) HP. Whenever you STOP an Energy attack, your next energy attack deals +(5% Power) Damage. Whenever you STOP an Energy Advanced Attack, you may replace the SUCCESSFUL effect of your next Energy attack with that attack's SUCCESSFUL effect.
 [MASTER] Whenever your opponent performs a SUCCESSFUL physical attack against you, they lose (10% Power) HP. Whenever you STOP an Energy Advanced Attack, you may replace the SUCCESSFUL effect of your next Energy attack with that attack's SUCCESSFUL effect.
@@ -887,7 +887,7 @@ Level 2: Fire Form
 Appearance: The Maguma-Jin’s muscles grow by 20% and their hair and eyes change to a fire-red color, nearly matching the skin. The burning aura from before changes from red and black to red and orange. Maguma-Jin in this form are a danger to anything but other Maguma-Jin around them.
 Stats: +40% Power. +20% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Whenever your opponent performs a SUCCESSFUL physical attack against you, they lose (10% Power) HP. If their attack roll was 28 or higher, you may pay 1 KI to have it lose all SUCCESSFUL effects. Whenever you STOP an Energy Advanced Attack, you may replace the SUCCESSFUL effect of your next Energy attack with that attack's SUCCESSFUL effect.
 [INTERMEDIATE] Whenever your opponent performs a SUCCESSFUL physical attack against you, they lose (10% Power) HP. If their attack roll was 26 or higher, you may pay 1 KI to have it lose all SUCCESSFUL effects. Whenever you STOP an Energy Advanced Attack, you may replace the SUCCESSFUL effect of your next Energy attack with that attack's SUCCESSFUL effect.
 [MASTER] Whenever your opponent performs a SUCCESSFUL physical attack against you, they lose (10% Power) HP. If their attack roll was 24 or higher, you may pay 1 KI to have it lose all SUCCESSFUL effects. Whenever you STOP an Energy Advanced Attack, you may replace the SUCCESSFUL effect of your next Energy attack with that attack's SUCCESSFUL effect.
@@ -928,7 +928,7 @@ Starting Items: Basic Mystic Pants, Majin Cookie
 
 Appearance: As a chaotic race, even Good Majins have a bad day . . . and for those that already towed the line of Evil, this form is just pushing it one step further. The dark side of every Majin is this form. When this form is entered, the normal pink flesh of the Majin becomes a dark gray. Their appearance takes on emaciated, extremely thin look that belies their actual power level. Their voice tends to take on a gravelly, or more sinister tone.
 Stats: +20% Power. +20% HP. +10% Dexterity.
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Back In Gray - Whenever you perform a SUCCESSFUL single dice attack with an attack roll of 26 or higher, gain (5% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(2% Power) Damage.
 [INTERMEDIATE] The Purer Majin - Whenever you perform a SUCCESSFUL single dice attack with an attack roll of 26 or higher, gain (5% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(3% Power) Damage.
 [MASTERED] The Darker Side - Whenever you perform a SUCCESSFUL attack with an attack roll of 25 or higher, gain (5% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(4% Power) Damage.
@@ -937,7 +937,7 @@ Special Trait(s):
 
 Appearance: The flesh returns to its pink hue while size slightly increases and musculature sharply increases from the Evil Form, and increases beyond the Majin's normal appearance. The eyes turn black save for the irisis which can either turn white or red. Majins who reach this form will initially find themselves easily agitated until they can get a feel for the transformation. The voice returns to normal, but can sometimes keep a bit of the sinister tone of the Evil Form.
 Stats: +40% Power. +45% HP. +15% Dexterity.
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Big, Bad Majin - Whenever you perform a SUCCESSFUL attack with an attack roll of 25 or higher, gain (5% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(5% Power) Damage.
 [INTERMEDIATE] Buff Majin - Whenever you perform a SUCCESSFUL  attack with an attack roll of 24 or higher, gain (6% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(5% Power) Damage.
 [MASTERED] Super Majin - Whenever you perform a SUCCESSFUL  attack with an attack roll of 24 or higher, gain (7% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(5% Power) Damage.
@@ -947,7 +947,7 @@ Special Trait(s):
 Appearance: This transformation occurs when a piece of the Majin's flesh is ripped off and thrown at an opponent, engulfing them and then absorbing the flesh back into the body. The power of the opponent is used to generate an even greater power output. The body is expelled from the Majin after this transformation is complete. The Majin's clothing alters to match the style of dress of the person they last absorbed, and their physical appearance slightly changes to mimic features of the person as well.
 Stats: +50% Power. +50% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 *Note: When you kill an opponent, you may choose to Absorb them. See below.
 [NOVICE] Your Power Is . . . MINE! - Whenever you perform a SUCCESSFUL attack with an attack roll of 24 or higher, gain (7% Current HP) HP. You can only gain HP with this effect once per turn. Your attacks do +(5% Power) Damage. When you Absorb an opponent, choose one of their EQUIPPED items. You now have that item EQUIPPED and it does not take up any slots. You lose that item when you Absorb someone else or use a higher transformation.
 [INTERMEDIATE] The Might of Magic - Whenever you perform a SUCCESSFUL  attack with an attack roll of 24 or higher, gain (7% Current HP) HP. You can only gain HP with this effect twice per turn. Your attacks do +(5% Power) Damage. When you Absorb an opponent, choose one of their EQUIPPED items. You now have that item EQUIPPED and it does not take up any slots. You lose that item when you Absorb someone else or use a higher transformation.
@@ -959,7 +959,7 @@ Note: If you Absorbed a Saiyan, Half-Saiyan, or Changeling, gain +30% Power. If 
 Appearance: Unlocking this transformation yields a sharp decrease in size for the Majin, resorting to the size of a child, hence the nickname. Muscle mass sharply declined, but the form is still well-toned and defined. The eyes remain black with their white or red irises. While in Kid Form, the Majin is initially prone to child-like outbursts and psychotic rampages that can only be restrained once proper mastery of the form has been accomplished.
 Stats: +75% Power. +85% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Child Psycho - Whenever you perform a SUCCESSFUL attack with an attack roll of 23 or higher, gain (9% Current HP) HP. You can only gain HP with this effect twice per turn. Your attacks do +(6% Power) Damage.
 [INTERMEDIATE] Chaos Kid - Whenever you perform a SUCCESSFUL attack with an attack roll of 22 or higher, gain (10% Current HP) HP. You can only gain HP with this effect once per turn with different dice rolls. Your attacks do +(8% Power) Damage.
 [MASTERED] The Indestructible Kid - Whenever you perform a SUCCESSFUL attack with an attack roll of 20 or higher, gain (10% Current HP) HP. You can only gain HP with this effect twice per turn. Your attacks do +(10% Power) Damage.
@@ -1001,7 +1001,7 @@ Starting Items:[list]
 Appearance: The creature from the Demon Realm channels the powers of the underworld; the energy surging through their body creating an aura of blood red flames. The flow of energy is constant and continuously rises, the flames themselves generating a scorching heat.
 Stats: +30% Power. +10% HP. +10% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Will of The Minion - When you perform a SUCCESSFUL attack roll of 30 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent.
 [INTERMEDIATE] The Will of The Demon - When you perform a SUCCESSFUL attack roll of 30 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. When your opponent rolls a 1 on their attack roll against you, you may pay 1 KI to STUN your opponent.
 [MASTERED] The Will of The Underworld - When you perform a SUCCESSFUL attack roll of 29 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. When your opponent rolls a 1 on their attack roll against you, You may pay 1 KI to STUN your opponent.
@@ -1011,7 +1011,7 @@ Special Trait(s):
 Appearance: The flames of the previous transformation have been exchanged for a shadowy essence that cloaks the user's frame, making their movements smokey and difficult to follow. Their skin is exchanged for a blackened carapace that covers their entire body -- the details of the carapace (horns, fangs, etc.) differ from person to person, but the eyes always shine a blood red hue.
 Stats: +60% Power. +20% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Please, Allow Me To Introduce Myself - When you perform a SUCCESSFUL attack roll of 29 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 27 instead, you may lose 3 KI Points to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, you may pay 1 Ki to STUN your opponent.
 [INTERMEDIATE] I'm A Man Of Wealth And Taste - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 27 instead, you may lose 3 KI Points to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, you may pay 1 Ki to STUN your opponent.
 [MASTERED] Pleased To Meet You - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 27 instead, you may lose 2 KI Points to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent.
@@ -1021,7 +1021,7 @@ Special Trait(s):
 Appearance: An explosion marks this transformation, combing the field in a blaze of hellfire. Emerging from the ashes is a lithe version of the user in question, boasting shorter hair and alabaster fangs. The carapace from their previous transformation has now receded, extending only to their collar, though it takes on the appearance of armor with gothic undertones (spikes on the shoulders, sharp edges, etc.). Perhaps the most remarkable change is that of the user’s aura: while generally a darker version of the user’s original hue, it is no longer an erratic display of energy, but instead an eloquent array of ki tendrils; capable of boasting physical mass and affecting the environment.
 Stats: +70% Power. +55% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Do You Fear The Reaper? - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 26 or 27 instead, you may lose 2 KI Points to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent.
 [INTERMEDIATE] Don’t Fear The Reaper - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 26 or 27 instead, you may lose 1 KI Point to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent.
 [MASTERED] Fear Me Instead - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 26 or 27 instead, you may lose 1 KI Point to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent. If you STUNNED your opponent with this effect with a dice roll of 30 or higher, gain 1 KI Point.
@@ -1031,7 +1031,7 @@ Special Trait(s):
 Appearance: Eclipsed in a sphere of negative energy, a radical transformation takes place altering the entire physical structure of the participant akin to a Bio-Android’s Perfect form. While the change varies greatly between individuals, there are a few constants amongst every user. Physically, the transformation makes the user significantly larger and well built; they always emerge as the epitome of physical perfection. Skin tone almost always darkens, often becoming obsidian in both hue and sheen, while their clothes seem to get absorbed into their physical frames to varying degrees. Universally between all demons is the ring of horns around their head giving off the appearance of either a crown or circlet; granting them their title.
 Stats: +115% Power. +55% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Dabura’s Apprentice - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 26 or 27 instead, you may lose 1 KI Point to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent. If you STUNNED your opponent with this effect with a dice roll of 29 or higher, gain 1 KI Point.
 [INTERMEDIATE] Dabura’s Usurper - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 26 or 27 instead, you may lose 1 KI Point to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent. If you STUNNED your opponent with this effect with a dice roll of 28 or higher, gain 1 KI Point.
 [MASTERED] King/Queen of The Underworld - When you perform a SUCCESSFUL attack roll of 28 or higher on a single dice attack roll with a base roll of 1d32 or lower, STUN your opponent. If your attack roll is 26 or 27 instead, you may lose 1 KI Point to STUN your opponent. When your opponent rolls a 1 on their attack roll against you, STUN your opponent. If you STUNNED your opponent with this effect with a dice roll of 28 or higher, gain 1 KI Point. Your STUNs with this ability cannot be negated by any of your opponent's effects.
@@ -1076,7 +1076,7 @@ Starting Items:[list]
 "The distance from the Makyo Star no longer hinders the Makyan as the faintest of its radiance, traveling through the cosmos, is absorbed by the super-sensitive Makyo Starchild. The Makyan's eyes lose their pupils and a smoke-like essence begins to mingle with their aura."
 Stats: +20% Power. +20% HP. +10% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Aura of the Makyan- Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -2 until they are successful on a single-dice attack. This does not stack with itself.
 [INTERMEDIATE]Aura of the Star - You may choose a second number for Makyo Megastar. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -2 until they are successful on a single-dice attack. This does not stack with itself.
 [MASTERED] Aura of the Starchild - You may choose a second number for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is one above or below the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -2 until they are successful on a single-dice attack. This does not stack with itself.
@@ -1085,7 +1085,7 @@ Special Trait(s):
 
 "Stats: +40% Power. +40% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Makyan Strength- You may choose a second number for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is one above or below the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -3 until they are successful on a single-dice attack. This does not stack with itself.
 [INTERMEDIATE]Makyan Endurance - You may choose a second number for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within two of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -3 until they are successful on a single-dice attack. This does not stack with itself.
 [MASTERED] Super Makyan - You may choose two more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within two of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -3 until they are successful on a single-dice attack. This does not stack with itself.
@@ -1094,7 +1094,7 @@ Special Trait(s):
 
 Stats: +60% Power. +60% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Strength of the Stars- You may choose two more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within two of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -4 until they are successful on a single-dice attack. This does not stack with itself.
 [INTERMEDIATE] Endurance of the Stars - You may choose two more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within three of the  numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -4 until they are successful on a single-dice attack. This does not stack with itself.
 [MASTERED] Makyan of the Stars - You may choose three more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within three of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -4 until they are successful on a single-dice attack. This does not stack with itself.
@@ -1103,7 +1103,7 @@ Special Trait(s):
 
 Stats:  +70% Power. +90% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Limitless Strength- You may choose three more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within three of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -5 until they are successful on a single-dice attack. This does not stack with itself.
 [INTERMEDIATE]Limitless Endurance -You may choose three more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within four of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -5 until they are successful on a single-dice attack.
 [MASTERED] Immortal Makyan - You may choose four more numbers for Makyo Megastar. Your Makyo Megastar can be triggered whenever your attack roll result is within four of the numbers you chose. Whenever you trigger Makyo Megagastar, your opponent's attack roll results gain -5 until they are successful on a single-dice attack.
@@ -1153,7 +1153,7 @@ STARTING ITEMS[hr] [list]
 Appearance: When initiating this form, the Namekian grows 10x their normal size, roughly the height of a Saiyan Oozaru. Marked by little physical change other than size, this form makes the Namek much more powerful and durable.
 Stats: +20% Power. +30% HP. +0% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Green Giant - Your opponent's physical attacks do -10% Damage against you. You no longer have Meditative Preparation while in this form.
 [INTERMEDIATE] That's A HUGE . . . Namek - Your opponent's physical attacks do -15% Damage against you. Your attacks do +(5% Power) Damage. You no longer have Meditative Preparation while in this form.
 [MASTERED] Big Man On Campus - Your opponent's physical attacks do -15% Damage against you. Your attacks do +(5% Power) Damage.
@@ -1163,7 +1163,7 @@ Special Trait(s):
 Appearance: The Super Namek form increases the size and definition of the Namekian's muscles by a considerable amount, on par with a Super Saiyan's. The lack of a considerable change in appearance is deceptive as when this ancient transformation is reached, the Namek is considerably more powerful.
 Stats: +35% Power. +45% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Namekian Fighter - Your opponent's attacks do -10% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -1 to the result.
 [INTERMEDIATE] Namekian Warrior - Your opponent's attacks do -10% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -2 to the result.
 [MASTERED] Namekian Legend - Your opponent's attacks do -10% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -3 to the result.
@@ -1173,7 +1173,7 @@ Special Trait(s):
 Appearance: The Super Namek form increases the size and definition of the Namekian's muscles by a considerable amount, on par with a Super Saiyan's. The lack of a considerable change in appearance is deceptive as when this ancient transformation is reached, the Namek is considerably more powerful.
 Stats: +55% Power. +65% HP. +30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Namekian Fighter - Your opponent's attacks do -10% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -4 to the result.
 [INTERMEDIATE] Namekian Warrior - Your opponent's attacks do -10% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -4 to the result.
 [MASTERED] Namekian Legend - Your opponent's attacks do -15% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power up, your opponent's next attack roll gains -5 to the result.
@@ -1183,7 +1183,7 @@ Special Trait(s):
 Appearance: The Gods of Planets have traditionally been Namekians who achieved the highest level of enlightenment and traded in the power of this form for the honor and prestige to watch over a planet. As the tradition of Kami's has all but faded out, those who achieve enlightenment are instead bestowed with the power of the form of a Planetary Master. Muscle mass increases and the skin hardens a considerable amount. A permanent aura surrounds the Namek, quiet and calm but containing a tremendous amount of energy.
 Stats:  +70% Power. +90% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Power of Kami - Your opponent's attacks do -15% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -5 to the result.
 [INTERMEDIATE] The Power of Namek - Your opponent's attacks do -15% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -6 to the result. If the attack is a multiple dice roll attack, then -6 to all dice results of that attack.
 [MASTERED] The Power of The Dragon - Your opponent's attacks do -15% Damage against you. Nothing can stop you from preventing damage with this Transformation's effect. When you Power Up, your opponent's next attack roll gains -7 to the result. If the attack is a multiple dice roll attack, then -7 to all dice results of that attack.
@@ -1257,7 +1257,7 @@ Note: Please don't collude to cheat the system. It will lead to repercussions.
 Appearance: When looking directly into the full moon or an effect that simulates moonlight, such as the Power Ball technique, a Saiyan or Halfling with a tail can turn into the mythic Giant Ape. The rays from the moon stimulate a gland in the tail which unlocks this transformation, turning the person with Saiyan blood into a wereape creature that is ten times the size of their normal form. In this form, the transformed is in a primal state and through training can they learn to control themselves.
 Stats: +35% Power. +25% HP. -10% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Great Ape - Your opponent's physical attacks do -20% Damage against you. On your turn, you roll 1d2. If the result is 2, you must roll 1dX where X is the number of Advanced Attacks in your moveset. The result corresponds to the order of the moves in your moveset. You must perform that attack or pass.
 [INTERMEDIATE] Raging Ape - Your opponent's physical attacks do -25% Damage against you. On your turn, you roll 1d2. If the result is 2, you must roll 1dX where X is the number of Advanced Attacks in your moveset. The result corresponds to the order of the moves in your moveset. You must perform that attack or pass.
 [MASTERED] Controlled Ape - Your opponent's physical attacks do -25% Damage against you. Your attacks do +(5% Power) Damage.
@@ -1268,7 +1268,7 @@ Note: While in Oozaru Form, you lose the effect of all worn items, with the exce
 Appearance: Achieving this form pushes the Saiyan's hair upwards in a spiked form due to the massive amount of energy generated around them. The hair takes on a golden color and natural eye color changes to a greenish-blue hue. Muscle tone also becomes more defined and due to the release of ki, a golden aura encompasses the Saiyan at all times. It has been theorized that there is a form in between Super Saiyan and Super Saiyan 2 where the muscle mass increases dramatically, but at the cost of speed.
 Stats: +50% Power. +30% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Power of Legend -You may have your attack roll gain +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
 
 [INTERMEDIATE] Ultra Super Saiyan - You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage. When transforming, you may choose to gain +65% Power, +45% HP, and -10% Dexterity instead. 
@@ -1280,7 +1280,7 @@ Special Trait(s):
 Appearance: The golden hair of the Super Saiyan becomes longer and more rigid. The eyes once again become a greenish-blue. Muscle mass is barely increased, but energy output is said to be increased tenfold. The powerhouse of energy surrounding the Super Saiyan becomes more jagged in appearance, radiating with even more power than the original form. Lightning crackles around the aura at a steady pace. A Super Saiyan 2 is said to experience a change in personality as well, becoming remorseless in their actions.
 Stats: +70% Power. +45% HP. +35% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Beyond Super Saiyan - You may have your attack roll gain +1 dice side and +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
 
 [INTERMEDIATE] Relentless Super Saiyan - You may have your attack roll gain +2 dice sides and +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
@@ -1292,7 +1292,7 @@ Special Trait(s):
 Appearance: The rigid golden hair of the Super Saiyan 2 form increases in length, flowing down to mid-waist. The hair itself loses some of its rigidity but maintains its spiked appearance. The eyebrows disappear completely and the eye ridge is more pronounced. Eye color once again changes to the familiar color and there is a small increase in muscle mass but a very noticeable difference in muscle definition. The aura pulses at an extremely high frequency and the lightning that crackles throughout it is more sporadic.
 Stats: +90% Power. +60% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Strain of Unlimited Power - You may have your attack roll gain +1 dice sides and/or +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only. Your attacks do +(10% Power) Damage.
 
 [INTERMEDIATE] - Wrath of The Super Saiyan 3 - You may have your attack roll gain +2 dice sides and/or +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result and dice sides of the first two dice rolls only. Your attacks do +(10% Power) Damage.
@@ -1306,7 +1306,7 @@ Special Trait(s):
 Appearance: Most think of the Legendary Super Saiyan in the full buff form that Broly was most known for. That isn’t how it begins, though. The first form is just as rare. The hair and aura looks similar to that of the regular Super Saiyan, except it is blue. 
 Stats: +25% Power. +30% HP. 0% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] The Power Of A Myth – You may have your attack roll gain +1 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only.
 [INTERMEDIATE] The Power of the Super Saiyan - You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only.
 [MASTERED] Almost a Legend - You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
@@ -1315,7 +1315,7 @@ Special Trait(s):
 Appearance: The Saiyan's body expands to with incredible muscles and bone density, growing well over nine feet tall and looking nothing like their original stature. The user's hair extends in all directions and takes on a golden hue, and their aura becomes all encompassing, often invisible to those inside of it, much like how one cannot "see" a city when they stand in its streets.
 Stats: +45% Power. +55% HP. +10% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Ascending to Legends – Your Signature Techniques cost -1 Ki Point. You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
 [INTERMEDIATE] Reach the Legend - Your Signature Techniques cost -1 Ki Point. Your opponent's attacks deal -5% Damage to you. You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
 [MASTERED] Exceeding the Legend - Your Signature Techniques cost -1 Ki Point. Your opponent's attacks deal -10% Damage to you. You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage.
@@ -1324,7 +1324,7 @@ Special Trait(s):
 Appearance: The form that the legendary Broly is known for. Physically, the user appears the similar to their Legendary Super Saiyan form, yet their aura and hair color fluctuate between a powerful golden hue and an alien green hue. At this stage the primal might of the Saiyan's bloodline shows, for their pupils disappear into their white, glowing eyes.
 Stats: +60% Power. +80% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Feeding the Anger – Your Signature Techniques cost -1 Ki Point. Your opponent's attacks deal -10% Damage to you. You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(10% Power) Damage.
 [INTERMEDIATE] Embracing the Hate - Your Signature Techniques cost -1 Ki Point. Your opponent's attacks deal -10% Damage to you. You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first two dice rolls only. Your attacks do +(10% Power) Damage.
 [MASTERED] Berserk - Your Signature Techniques cost -1 Ki Points. Your opponent's attacks deal -10% Damage to you. You may have your attack roll gain +3 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +3 to the result of the first two dice rolls only. Your attacks do +(10% Power) Damage.
@@ -1333,7 +1333,7 @@ Special Trait(s):
 Appearance: None have ever witnessed this Transformation. Should a mighty warrior ever seize such power, all the Universe will finally know its form. And they shall know fear.
 Stats: +80% Power. +100% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] End of the Limit – Your Signature Techniques cost -2 Ki Point. Your opponent's attacks deal -10% Damage to you. You may have your attack roll gain +3 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +3 to the result of the first two dice rolls only. Your attacks do +(10% Power) Damage.
 [INTERMEDIATE] Beyond the Limit - Your Signature Techniques cost -2 Ki Point. Your opponent's attacks deal -15% Damage to you. You may have your attack roll gain +3 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +3 to the result of the first two dice rolls only. Your attacks do +(10% Power) Damage.
 [MASTERED] No Limits - Your Signature Techniques cost -2 Ki Points. Your opponent's attacks deal -15% Damage to you. You may have your attack roll gain +4 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +4 to the result of the first two dice rolls only. Your attacks do +(10% Power) Damage.[/color]
@@ -1384,7 +1384,7 @@ Level 1: Enhanced Speed
 Appearance:Unlike most races, the Shamoian does not get bigger and stronger when they transform. They know that true power comes from speed. The Shamoian gathers their ki and focuses it on their feet. Their feet begin to glow with the color of their aura as they dash around the battleground.
 Stats: +10 Power. +15% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Speedster - Your opponents attack roll results must be 1 higher than your defense roll results in order to be successful.When you STOP an attack with a natural defense roll result of 27 or higher, gain 1 ki point.
 [INTERMEDIATE] Quicksilver- Your opponents attack roll results must be 1 higher than your defense roll results in order to be successful.When you STOP an attack with a natural defense roll result of 26 or higher, gain 1 ki point.
 [MASTERED] Max Velocity - Your opponents attack roll results must be 2 higher than your defense roll results in order to be successful. When you STOP an attack with a natural defense roll result of 26 or higher, gain 1 ki point.
@@ -1394,7 +1394,7 @@ Level 2: Ingrained Speed
 Appearance: The user focuses so much of their power on getting faster that their body actually begins to shrink. They stand about six inches shorter in this form. Their feet are now blue, from the ki build-up. The color shifts back to their normal skin-tone about halfway up their body, as the ki becomes less dense.
 Stats: +20 Power. +35% HP. +45% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] - Your opponents attack roll results must be 2 higher than your defense roll results in order to be successful. When you STOP an attack with a natural defense roll result of 26 or higher, gain 1 ki point.
 [INTERMEDIATE] - Your opponents attack roll results must be 2 higher than your defense roll results in order to be successful. When you STOP an attack with a natural defense roll result of 25 or higher, gain 1 ki point.
 [MASTERED] - Your opponents attack roll results must be 2 higher than your defense roll results in order to be successful.
@@ -1439,7 +1439,7 @@ Level 1: Shikirian Lieutenant
 Appearance: The Shikirian culture pays heavy respect to military service, as every Shikirian is bound to serve a minimum of 2 years in the planet's military. Reaching the rank of Lieutenant is more than just symbolic to a Shikirian, as it often pushes them beyond their limits. When in this 'form', a tattoo appears on the transformed being baring the Shikirian symbol for 'Lieutenant'.
 Stats: 20% Power. 20% HP. 10% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Promoted - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 25 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 1 Ki Point that turn.
 [INTERMEDIATE] Rising Through the Ranks - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 23 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 1 Ki Point that turn.
 [MASTERED] Envy of All - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 22 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 1 Ki Point that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first dice roll.Your attacks do +(5% Power) Damage. 
@@ -1449,7 +1449,7 @@ Level 2: Shikirian Captain
 Appearance: The Shikirian’s tattoo evolves into a more complex insignia, representing his rank as Captain. An increase in muscle mass occurs, specifically in the chest, calves, and forearms. Though not all Shikirian with the rank of Captain can actually reach this form, it is a mark of pride to the race when one truly can.
 Stats: 35% Power. 35% HP. 30% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Captain Hardcore - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 20 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 1 Ki Point that turn. Your attacks do +(5% Power) Damage.
 [INTERMEDIATE] Super Soldier - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 19 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 2 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first two dice rolls. Your attacks do +(5% Power) Damage.
 [MASTERED] The Prestige - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 19 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 2 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first four dice rolls. Your attacks do +(5% Power) Damage.
@@ -1459,7 +1459,7 @@ Level 3: Shikirian Major
 Appearance: The Shikirian’s tattoo grows in size and changes to an even more complex insignia, marking them as one of the few and proud to reach the self-evident ranking of Major. The Shikirian’s nails become long taloned claws, their aura condenses so much that it nearly looks like a solid outline, and their eyes crackle with energy.
 Stats: 80% Power. 75% HP. 45% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Militia’s Might - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 18 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 2 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first four dice rolls. Your attacks do +(5% Power) Damage.
 [INTERMEDIATE] Military Master - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 18 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 2 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first six dice rolls. Your attacks do +(5% Power) Damage.
 [MASTER] Armygeddon - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 18 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 3 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first six dice rolls. Your attacks do +(5% Power) Damage.
@@ -1469,7 +1469,7 @@ Level 4: Shikirian General
 Appearance: The Shikirian’s tattoo dramatically shifts in size and location: it becomes a small set of intricate design, military-cut triangles on the Shikirian’s forehead only. The Shikirian’s nails retract but their horns grow to approximately 4 feet in length, curving back sharply so as to point behind the Shikirian. While in this form, a typhoon of energy cascades around the user and the surrounding environment is torn asunder.
 Stats: 160% Power. 150% HP. 90% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] War Leader - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 17 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 3 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first six dice rolls. Your attacks do +(5% Power) Damage.
 [INTERMEDIATE] War Master - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 16 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 3 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first six dice rolls. Your attacks do +(5% Power) Damage.
 [MASTER] War Grandmaster - Whenever you perform a SUCCESSFUL Freestyle Advanced Attack with an attack roll of 16 or higher, gain 1 Ki Point. When you gain Ki Points from this effect, you may not gain more than 3 Ki Points that turn. If this effect is applied to an attack with multiple dice, the effect is only applied to the first six dice rolls. Your attacks do +(5% Power) Damage.
@@ -1512,7 +1512,7 @@ Starting Items:[list]
 Appearance: Above the Shin-jin, a white halo fades into existence. The circular discus radiates a soft glow and continues to flicker in and out of view, all the while showering the ground with white sparks. The aura of the individual also takes on a slightly paler tone.
 Stats: +10% Power. +20% HP. +20% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Warrior of Light - You may pay 2 KI to negate a STUN, COUNTER, or CRITICAL effect. Signature Techniques deal -10% Damage against you.
 [INTERMEDIATE] Champion of Light - You may pay 2 KI to negate a STUN, COUNTER, or CRITICAL effect. If you do, your opponent’s next attack roll gains -1 to the result. Signature Techniques deal -10% Damage against you.
 [MASTER] Lord of Light - You may pay 1 KI to negate a STUN, COUNTER, or CRITICAL effect. If you do, your opponent’s next attack roll gains -2 to the result. Signature Techniques deal -15% Damage against you.
@@ -1522,7 +1522,7 @@ Special Trait(s):
 Appearance: The Shin-Jin surrounds themselves with an aura of holy energy, deflecting the most powerful attacks and allowing them to shrug off concussive blows or heavy injuries. The Shin-Jin’s eyes glow a pure yellow when taking on this form.
 Stats: +20% Power. +40% HP. +40% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Warrior of Saints - You may pay 2 KI to negate a STUN, COUNTER, CRITICAL, or BREAK effect. If you do, your opponent’s next attack roll gains -2 to the result. Signature Techniques deal -15% Damage against you.
 [INTERMEDIATE] Champion of Saints - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, or BREAK effect. If you do, your opponent’s next attack roll gains -2 to the result. Signature Techniques deal -15% Damage against you.
 [MASTER] Lord of Saints - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, or BREAK effect. If you do, your opponent’s next attack roll gains -3 to the result. Signature Techniques deal -20% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
@@ -1532,7 +1532,7 @@ Special Trait(s):
 Appearance: The Shin-Jin taps into their holy nature and grow a pair of white feathered wings. While this outward appearance may seem encumbersome, the Shin-Jin actually grows in speed, power, and toughness while taking on this form. Attacks that would hinder a mortal being can now be completely negated by the Shin-Jin’s divine providence.
 Stats: +40% Power. +55% HP. +55% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Warrior of Heaven - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, BREAK, or dice side modification effect. If you do, your opponent’s next attack roll gains -3 to the result. Signature Techniques deal -20% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
 [INTERMEDIATE] Champion of Heaven - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, BREAK, or dice side modification effect. If you do, your opponent’s next attack roll gains -4 to the result. Signature Techniques deal -20% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
 [MASTER] Lord of Heaven - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, BREAK, or dice side modification effect. If you do, your opponent’s next attack roll gains -5 to the result. Signature Techniques deal -25% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
@@ -1542,7 +1542,7 @@ Special Trait(s):
 Appearance: The Shin-Jin is encased in a radiant set of engraved golden armor. This armor is forged from the Shin-Jin’s very soul and infused with the power of the kaiju tree and the essence of the very Universe itself. It is said that this armor is only dawned to punish the most wicked of souls and cast them into the abyss.
 Stats: +60% Power. +70% HP. +70% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Warrior of Gods - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, BREAK, dice roll result modification, or dice side modification effect. If you do, your opponent’s next attack roll gains -5 to the result. Signature Techniques deal -25% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
 [INTERMEDIATE] Champion of Gods - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, BREAK, dice roll result modification, or dice side modification effect. If you do, your opponent’s next attack roll gains -6 to the result. Signature Techniques deal -25% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
 [MASTER] Lord of Gods - You may pay 1 KI to negate a STUN, COUNTER, CRITICAL, BREAK, SEVER, dice roll result modification, or dice side modification effect. If you do, your opponent’s next attack roll gains -6 to the result. Signature Techniques deal -30% Damage against you. Your Styled single dice attacks deal +(5% Power) Damage.
@@ -1583,7 +1583,7 @@ Level 1: Typhoon Form
 Appearance: A blue-and-white wave effect surges upwards from the bottom of the Taifuu-jins aura to the top, continuing to do the entire time they are in Typhoon Form. From behind the walls of their now blue-and-white aura, their legs appear to be in constant movement.
 Stats: +15% Power. +10% HP. +25% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Wave Rider - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +1 dice side.
 [INTERMEDIATE] Wave Runner - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +2 dice sides.
 [MASTER] Wave Breaker - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +3 dice sides.
@@ -1593,7 +1593,7 @@ Level 2: Storm Form
 Appearance: This image appears similar to the Typhoon Form except that the Taifuu-Jin’s aura is now a dark swirling grey with streaks of blue lightning rushing through it. Many have speculated on the elemental implications of this form, but few survive facing one long enough to make any educational progress.
 Stats: +30% Power. +20% HP. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Storm Rider - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +1 to each attack roll result.
 [INTERMEDIATE] Storm Runner - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +2 to each attack roll result.
 [MASTER] Storm Breaker - Your multi-dice attacks can CRITICAL if the first roll qualifies for a critical. Any effects that adjust critical parameters and refer to “1d” apply to the first dice rolls of your multi-dice attacks. Your multi-dice attacks gain +2 to each attack roll result. You may spend 2 KI when using a single-dice Advanced Attack before your attack roll. If you do, that attack cannot be COUNTERED or BLOCKED.
@@ -1636,7 +1636,7 @@ STARTING ITEMS[hr]
 Appearance: The Tuffles are regarded as some of the universe's greatest scientists -- and unfortunately all scientists know that rodents only go so far in terms of trial runs. The Zeta Injection is one of many risky, scientific endeavors they have undertaken on their own bodies. This one-time injection of custom made nanites provides a small boost in physical prowess, allowing the Tuffle increased strength and endurance. However, it's main purpose is the opening of neural pathways that allow for heightened brain functions.
 Stats: +20% Power. +15% HP. +15% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Patient Zero – Activate immediately after transforming. Deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it.
 [INTERMEDIATE] Nature of The Experiment – Activate immediately after transforming. Deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. Activate a CONSTANT skill with a Base Cost 2 or less. You must pay the cost. You may only use this effect the first time you transform.
 [MASTERED] The Perfect Drug – Immediately after transforming you may activate a CONSTANT skill with a Base Cost 2 or less. You do not have to pay the cost. You may only use this effect the first time you transform. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
@@ -1646,19 +1646,19 @@ Special Trait(s):
 Appearance: An example of a Tuffle experiment gone absolutely right -- the Omega Experiment was an attempt to create a Tuffle that could rival the Saiyans brute force. Unfortunately, it came too late, and while increasing the Tuffles strength it was far more adept at increasing their mental prowess. These nanites induce a painful transformation and creates a more powerful and cunning warrior. At this point a heat wave-like aura seems to permanently surround them.
 Stats: +40% Power. +30% HP. +30% Dexterity.
 
-Special Trait(s):
-[NOVICE] Blinded With Science - Once per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -1 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn. 
-[INTERMEDIATE] Bonding With Science - Once per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -1 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
-[MASTERED] E=MC Squared - Once per match, you may activate a CONSTANT skill with a Base Cost of 3 or less. You do not have to pay the cost, and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -2 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
+Transformation Abilities:
+[NOVICE] Blinded With Science - Once per combat, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -1 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn. 
+[INTERMEDIATE] Bonding With Science - Once per combat, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -1 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
+[MASTERED] E=MC Squared - Once per combat, you may activate a CONSTANT skill with a Base Cost of 3 or less. You do not have to pay the cost, and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -2 to the result. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
 
 [color=slategrey]Level 3: Andromeda Strain[/color]
 [hr]
 Appearance: The strives for scientific perfection have granted you nanites that can produce their own circuitry. At this stage, your veins and lips are a constant blue, charged with the alloys created by the nanites that enhance your body. Enduring the painful Andromeda transformation will not only turn you into a powerful entity, but turn you into a walking Kai. In this state, your eyes burn a constant yellow, your skin develops a glossy sheen, and your physical abilities know little limits.
 Stats: +50% Power. +50% Endurance. +50% Dexterity.
 
-Special Trait(s):
-[NOVICE] Xs and Os - Once per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -2 to the result. Select one of your opponent’s non-CONSTANT skills. That skill costs +1 Ki Points to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
-[INTERMEDIATE] Plotting Stars - Once per match, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -3 to the result. Select one of your opponent’s non-CONSTANT skills. That skill costs +1 Ki Points to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
+Transformation Abilities:
+[NOVICE] Xs and Os - Once per combat, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -2 to the result. Select one of your opponent’s non-CONSTANT skills. That skill costs +1 Ki Points to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
+[INTERMEDIATE] Plotting Stars - Once per combat, you may activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost and this does not take up your turn. If you have more active skills than your opponent, their defensive rolls gain -3 to the result. Select one of your opponent’s non-CONSTANT skills. That skill costs +1 Ki Points to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
 [MASTERED] Any Given Galaxy - Activate a CONSTANT skill with a Base Cost 4 or less. You do not have to pay the cost. You may only use this effect the first time you transform. If you have more active skills than your opponent, their defensive rolls gain -3 to the result. Your opponent’s non-CONSTANT skills cost +1 Ki Point to use while you are in this form. Your opponent’s CONSTANT skills cost +1 Ki Point to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
 
 [color=slategrey]Level 4: Project Baby[/color]
@@ -1667,7 +1667,7 @@ Appearance: When a scientist has completed his work at that maximum of his menta
 Note: When you unlock this transformation you are free to distribute 50% among the three stats in increments of 10% to be reviewed by a moderator. You cannot change the distribution once submitted.
 Stats: +50% Power. +50% Endurance. +50% Dexterity.
 
-Special Trait(s):
+Transformation Abilities:
 [NOVICE] Play My Game - Activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost. You may only use this effect the first time you transform. If you have more active skills than your opponent, their defensive rolls gain -3 to the result. Your opponent’s non-CONSTANT skills cost +1 Ki Point to use while you are in this form. Your opponent’s CONSTANT skills cost +1 Ki Point to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
 [INTERMEDIATE] Know Your Enemy - Activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost. You may only use this effect the first time you transform. If you have more active skills than your opponent, their defensive rolls gain -4 to the result. Your opponent’s non-CONSTANT skills cost +1 Ki Point to use while you are in this form. Your opponent’s CONSTANT skills cost +1 Ki Point to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
 [MASTERED] Know Yourself - Activate a CONSTANT skill with a Base Cost 3 or less. You do not have to pay the cost. You may only use this effect the first time you transform. If you have more active skills than your opponent, their defensive rolls gain -4 to the result. Your opponent’s non-CONSTANT skills cost +2 Ki Points to use while you are in this form. Your opponent’s CONSTANT skills cost +1 Ki Point to use while you are in this form. RESTRICTEDx1. You may deactivate one of your opponent’s active skills. You may deactivate this skill even if you do not meet the requirements necessary to deactivate it. This effect does not take up your turn.
@@ -1721,7 +1721,7 @@ Stats: +20% Power. +15% HP. +15% Dexterity.
 Appearance: Wizard's are not like other races: aesthetic changes are just as common with their trickery as physical ones. Once becoming a Sorcerer(ess), the Wizard's attire undergoes a radical transformation. While the specifications differ from person to person, a gothic cape with a pushed up collar always appears: it is the sign of the Sorcerer(ess). Generally a dichotomy of black and whites, colorful Warlock/Witches are rare, but are known to have existed. Finally, the second universal change is the emergence of their characteristic 'M' across their forehead; it burns in their skin the color of fire, a hue mirrored by their eyes. Usually, the presence of this emblem is evident on other parts of the Sorcerer(ess)'s person/clothing.
 Stats: +40% Power. +35% HP. +25% Dexterity. 
 
-Special Trait(s): 
+Transformation Abilities: 
 [NOVICE] When your opponent rolls a natural attack roll of 6 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.
 [INTERMEDIATE] When your opponent rolls a natural attack roll of 7 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.
 [MASTER] When your opponent rolls a natural attack roll of 8 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.
@@ -1732,7 +1732,7 @@ Special Trait(s):
 Appearance: As a conduit between this world and the other, Wizard's often find they are at their strongest when they forfeit their physical frame in order to fully summon the powers of the netherworld to their beck and call. Wizards adopt a ghastly appearance upon transforming into a Supreme Sorcerer(ess); they become a ghost. A murky cloud of ectoplasm, most Wizards in this state are capable of passing through solid objects with little difficulty. While sufficiently powerful physical attacks can deform their ethereal body and therefore damage them, by and large, Wizards find themselves immune to the threats of this world -- having successfully attained a greater power than the physical realm holds.
 Stats: +55% Power. +55% HP. +40% Dexterity. 
 
-Special Trait(s): 
+Transformation Abilities: 
 [NOVICE] When your opponent rolls a natural attack roll of 8 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.If you have an ally in combat, their advanced attacks do + (5% Power) damage.
 [INTERMEDIATE] When your opponent rolls a natural attack roll of 9 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.If you have an ally in combat, their advanced attacks do + (5% Power) damage.
 [MASTER] When your opponent rolls a natural attack roll of 10 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.If you have an ally in combat, their advanced attacks do + (5% Power) damage.
@@ -1742,7 +1742,7 @@ Special Trait(s):
 Appearance:Elongated frames, twisted and contorted bodies -- horns in a multitude of places? All and none of these characterize those rare few who reach the rank of Supreme Sorcerer. Mastering their powers to a god-like degree,Enlightened Ones are capable of casting illusions and bending the light around themselves; giving them whatever appearance they wish. While some elect a rather constant appearance when they enter this form, most make use of their telepathic abilities to select the most appropriate form for close combat: the physical embodiment of their opponent's nightmares.
 Stats:  +80% Power. +70% HP. +50% Dexterity. 
 
-Special Trait(s): 
+Transformation Abilities: 
 [NOVICE] When your opponent rolls a natural attack roll of 10 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.If you have an ally in combat, their advanced attacks do + (5% Power) damage.
 [INTERMEDIATE] When your opponent rolls a natural attack roll of 11 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.If you have an ally in combat, their advanced attacks do + (10% Power) damage.
 [MASTER] When your opponent rolls a natural attack roll of 12 or less, you gain 1 ki point. Your energy attacks do + (10% Power) Damage.If you have an ally in combat, their advanced attacks do + (10% Power) damage.

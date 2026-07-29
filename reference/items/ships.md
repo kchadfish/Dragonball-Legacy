@@ -29,7 +29,7 @@ Description: An oblong-shaped spacecraft with spike-like protrusions along the h
 Effect: Allows inter-galactic travel.
 Max Capacity: 3 Person(s)
 Weapon Slots:2
-Defense slots:2
+Defense Slots: 2
 Support Systems:
 -- Namekian Technology (Pilot must be Namekian OR know Ancient Namekian Language)
 -- Small Storage Room
@@ -69,7 +69,7 @@ Description: The large pink spheroid is actually a spacecraft. Surrounded in . .
 Effect: Allows inter-galactic travel.
 Max Capacity: 2 Person(s)
 Weapon Slots: 2
-Defense slots: 2
+Defense Slots: 2
 Support Systems:
 --Trading Hub
 --Auto Pilot
@@ -231,7 +231,7 @@ Effect: When challenging someone in space, you may reroll a single dice Advanced
 Notes: Can only be added once.
 Location:Brutus
 
-Lock On System [1,000z][SHIP WEAPON]
+Advanced Lock On System [1,000z][SHIP WEAPON]
 Inventory Slots: 0
 Description: A very large laser Sniper Rifle. The scope can see up to two light years away and the rifle is accurate up to one light year away.
 Effect: Add-on to any spacecraft. When challenging a person in space, you act first in combat and gain +2 to the result(s) of your first attack. Other similar effects cancel each other out.

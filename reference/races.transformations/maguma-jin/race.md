@@ -17,7 +17,7 @@ STARTING ITEMS[hr] [list]
 
 [color=#ee4a2d]Classes[/color]
 [hr]
-[color=#ee4a2d]Maguma-Jin With Style[/color] - Once per match, a stopped Advanced Attack can restore 2 Ki; once per week, a stopped Signature Technique can restore 4 Ki. Signature Techniques gain +2 dice sides.
+[color=#ee4a2d]Maguma-Jin With Style[/color] - Once per combat, a stopped Advanced Attack can restore 2 Ki; once per week, a stopped Signature Technique can restore 4 Ki. Signature Techniques gain +2 dice sides.
 [color=#ee4a2d]Teammate, Mate![/color] - Official 2017 version: interference made by you or on your behalf starts the interfering fighter at 10 Ki and permits Signature Techniques. The interfering fighter can attempt another interference roll each time they would normally exit, continuing until a roll fails.
 [color=#ee4a2d]Undying Flame[/color] - Phoenix Rising triggers on 20+ and may be used up to three times; each revival makes the opponent lose 5% Total HP.
 [color=#ee4a2d]Hot Blooded, Check it and See[/color] - When Powering Up puts you above the opponent’s Ki total, that opponent loses 1 Ki. It cannot trigger again until your Ki has first fallen below theirs.

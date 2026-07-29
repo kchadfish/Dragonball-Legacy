@@ -19,7 +19,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "npm run format:check && npm run lint && npm run test && npm run build"
+    "generate:game-data": "tsx scripts/generate-game-data.ts && prettier --write packages/game-data/src/reference-documents.ts packages/game-data/src/move-source-definitions.ts",
+    "validate:game-data": "tsx scripts/validate-game-data.ts",
+    "validate:reference-markdown": "tsx scripts/validate-reference-markdown.ts",
+    "check": "npm run format:check && npm run lint && npm run validate:reference-markdown && npm run test && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

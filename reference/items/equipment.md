@@ -19,7 +19,7 @@ Location: Earth, Namek
 1/2 Senzu Bean [4,000z]
 Inventory Slots: 1
 Description: A bean with supernatural properties allowing for the regeneration of health.
-Effect: USE x1. Use when you lose a battle. You do not die and you (50% Total HP) HP.
+Effect: USE x1. Use when you lose a battle. You do not die and you gain (50% Total HP) HP.
 Notes: Only one healing item may be used per Battle or Spar.
 Location: Earth, Namek
 
@@ -39,13 +39,13 @@ Location: Earth, Namek
 Vitality X [300Z]
 Medicine
 Inventory Slots:1
-Description of the Item: A drug created by Tuffle scientists meant to help the user recover from injuries quicker. Coming in a glass vial with clear blue liquid inside, the smell is odorless but the taste is more like cough syrup with a strange off putting texture despite not really showing anything else inside the vial. Vitality X is a popular drug that’s sold even on the streets.
+Description: A drug created by Tuffle scientists meant to help the user recover from injuries quicker. Coming in a glass vial with clear blue liquid inside, the smell is odorless but the taste is more like cough syrup with a strange off putting texture despite not really showing anything else inside the vial. Vitality X is a popular drug that’s sold even on the streets.
 Effect:USEx1 Your RECOVER rate increases by 5% for 5 days. Vitality cannot stack with the effects of other RECOVER rate increasing items.
 Location: New Vegeta
 
 Vitality Y [900Z]
 Inventory Slots:1
-Description of the Item: A drug created by Tuffle scientists meant to help the user recover from injuries quicker. Coming in a glass vial with clear yellow liquid inside, the smell is odorless but the taste is pungent and strong of medicine. The aftertaste isn’t too pleasing either. Vitality Y is typically only prescribed by doctors and is not easy or cheap to get your hands on.
+Description: A drug created by Tuffle scientists meant to help the user recover from injuries quicker. Coming in a glass vial with clear yellow liquid inside, the smell is odorless but the taste is pungent and strong of medicine. The aftertaste isn’t too pleasing either. Vitality Y is typically only prescribed by doctors and is not easy or cheap to get your hands on.
 Effect: USEx1 Your RECOVER rate increases by 10% for 5 days. Vitality cannot stack with the effects of other RECOVER rate increasing items.
 Location: New Vegeta
 
@@ -195,7 +195,7 @@ Location: Earth
 
 Armored Red Ribbon Vest [1,500z]
 Inventory Slots: 1
-Description:
+Description: A different variation of the Sturdy Red Ribbon Vest with armored plates sewn into the jacket.
 Effect: 10% HP. 5% Power. RESTRICTEDx1 Activate when performing an Advanced Attack. You may pay 1 Ki Point to make that attack UNBLOCKABLE.
 
 Duelist's Vest [700z]
@@ -330,7 +330,7 @@ Effect: +12% HP.
 
 Martial Arts Gi [1,000z]
 Inventory Slots: 1
-Description: A traditional training uniform matching the wearer's preferred Martial Arts Style. The Kanji on the back is representative of their fighting style, and the color of the uniform is also indicative of their artform. Red indicates Akaikaru. Blue indicates Aoyusumu. Purple indicates Haokiru. Orange indicates Kiihakai. Black indicates Kurokonwaku. Green indicates Midorikatai. [FULL BODY]
+Description: A traditional training uniform matching the wearer's preferred Martial Arts Style. The Kanji on the back is representative of their fighting style, and the color of the uniform is also indicative of their artform. Red indicates Akaikaru. Blue indicates Aoyosumu. Purple indicates Haokiru. Orange indicates Kiihakai. Black indicates Kurokonwaku. Green indicates Midorikatai. [FULL BODY]
 Effect: WEIGHTED POTENTIAL. You can equip up to 10 Training Weights at Maximum with this item. You may give up your bonus EXP from this item for the Spar or Battle to gain 3 Ki and (5% Total Health).
 Weighted Potential says nothing about how it’s activated. Does it take a turn? Does it not?
 Advanced Martial Arts Gi [1,500z]
@@ -632,12 +632,12 @@ Bow Tie [600z]
 Inventory Slots: 1
 Description: A type of necktie consisting of a rabbit of fabric tied around the collar in a symmetrical manner such that the two opposite ends form loops. [ACCESSORY]
 Effect: RESTRICTED X1: You may reroll your defensive dice. You cannot use this if your opponent used a RESTRICTED attack.
-Located: Earth
+Location: Earth
 
 Bunny Ears [400z]
-Inventory Slots:
+Inventory Slots: 1
 Description: A set of large, black rabbit ears that are worn like a headband. [ACCESSORY]
-Effect: Once per match, during your attack phase, you may gain 2 ki.
+Effect: Once per combat, during your attack phase, you may gain 2 ki.
 Location: Earth
 
 ### weights

@@ -1,7 +1,6 @@
-
 [color=#fff][center]I. What is Dragon Ball: Legacy?[/center][hr]
 
-Legacy is a Dragon Ball Z-based online storyline / role-playing game that allows only user-created characters. The storyline is created from original material while having its story firmly rooted in the universe of Akira Toriyama's Dragon Ball. That being said, this edition of the material is run by players of the first few storylines. The original creators, Jay Serrano and Alexander Rodgers, deserve the real credit. Kalkavek and Strange then continued the storylines and they, too, deserve much more credit than I. 
+Legacy is a Dragon Ball Z-based online storyline / role-playing game that allows only user-created characters. The storyline is created from original material while having its story firmly rooted in the universe of Akira Toriyama's Dragon Ball. That being said, this edition of the material is run by players of the first few storylines. The original creators, Jay Serrano and Alexander Rodgers, deserve the real credit. Kalkavek and Strange then continued the storylines and they, too, deserve much more credit than I.
 
 The combat system has been somewhat based on Score's Dragonball Z TCG and has been translated into the realm of a dice-rolling roleplaying game that utilizes online chat rooms for its combat and the forums for its story. The online chatroom we use is [url=https://discord.gg/WmaBsQA] Discord [/url]. Come check us out!
 
@@ -20,11 +19,11 @@ The boards are the primary domain for role-playing, which consists of writing st
 
 Chat rooms are used for our combat system and therefore while battling, you will also be role-playing your characters. Fights and spars are a good way to push and develop storylines, as well as establish your character's presence.
 
-NOTE: Despite developing an RPG based around Dragon Ball, we'd like to think of ourselves as a mature group of people capable of handling mature situations and themes. We try our best not to censor you, but as a decent human being you should know there are certain topics that need not be addressed. Role-plays involving forced sexual situations and overtly racist content (racist towards real races, not in character alien races) will result in action being taken. 
+NOTE: Despite developing an RPG based around Dragon Ball, we'd like to think of ourselves as a mature group of people capable of handling mature situations and themes. We try our best not to censor you, but as a decent human being you should know there are certain topics that need not be addressed. Role-plays involving forced sexual situations and overtly racist content (racist towards real races, not in character alien races) will result in action being taken.
 
-[url=http://www.rpgrating.com][img]http://rpgrating.com/ratings/l2_s2_v2.gif[/img][/url] 
+[url=http://www.rpgrating.com][img]http://rpgrating.com/ratings/l2_s2_v2.gif[/img][/url]
 
-This is our rating from The RPG Rating. 
+This is our rating from The RPG Rating.
 
 We also ask that you do not destroy any established locations in your RPs. We have to keep these locations around for other people to role-play in. There is a balanced, game mechanic that will break this rule however . . . 
 [/color]
@@ -62,7 +61,7 @@ NOTE: If you are not counting a post as a day, please put an OOC note at the bot
 NOTE 2: In ALL cases, you are required to award yourself EXP / Zenni / Moves based on the Experience Chart provided on the website. An OOC note at the end of each post is sufficient so Administrators can make sure that everyone is doing so correctly.
 
 [center]JOINT QUESTS[/center][hr]
-Any quest can be completed with additional players so long as it does not say "Solo Only". Quest battles must be completed individually. Joint Quests require half the listed WPD, unless they are “Joint Mandatory”. In the case of a quest with a UNIQUE or LEGENDARY reward, the participants will roll 1d100 in front of an administrator to see who gets the reward. The player with the lower score will receive an alternate reward, instead. If a Quest is Joint Mandatory, it must be completed with another player, and each participant must complete the quest's WPD and RP days as shown. 
+Any quest can be completed with additional players so long as it does not say "Solo Only". Quest battles must be completed individually. Joint Quests require half the listed WPD, unless they are “Joint Mandatory”. In the case of a quest with a UNIQUE or LEGENDARY reward, the participants will roll 1d100 in front of an administrator to see who gets the reward. The player with the lower score will receive an alternate reward, instead. If a Quest is Joint Mandatory, it must be completed with another player, and each participant must complete the quest's WPD and RP days as shown.
 
 Adding extra players beyond the original 2 does not give further discounts. The third (or fourth, or fifth, etc) player must also post the same amount of words and spend the same amount of days as the original 2 players.
 
@@ -121,6 +120,7 @@ All Items in the Marketplace index can be purchased on certain planets. If an it
     You cannot purchase items if you do not have space in your inventory or storage room.
     Each item can only be traded once per week. This limit does not include item theft, but if you are caught openly trading Dragon Balls through escape rolls there will be Administrator intervention.
     Any Item with an effect that can only be used once in a designated time period (Week, Month, Saga, etc.) cannot be used for a week after it has been traded.
+
  
 [/color]
 [color=#fff][center]VI. Terrestrial Combat System[/center][hr]
@@ -145,7 +145,7 @@ In this way, PL matters little except to show what level you are in and so is an
 
 [center]Sparring vs. Battling[/center][hr]
 
-A Spar or Battle is when you engage in combat with another member of the RPG. A Spar is seen as a friendly fight where no effects last after the SPAR. This includes Death, BREAK, and SEVER. All Spars begin with both participants at (100% Total) HP. HP is set back to its pre-spar level after the spar. A Battle, however, has all this in play. In order for a Spar to be official, you must post a log of the Spar in the proper topic in the "Spar Log" forums. Both members must agree that the match is a Spar before combat begins. 
+A Spar or Battle is when you engage in combat with another member of the RPG. A Spar is seen as a friendly fight where no effects last after the SPAR. This includes Death, BREAK, and SEVER. All Spars begin with both participants at (100% Total) HP. HP is set back to its pre-spar level after the spar. A Battle, however, has all this in play. In order for a Spar to be official, you must post a log of the Spar in the proper topic in the "Spar Log" forums. Both members must agree that the match is a Spar before combat begins.
 
 In a Battle, when someone’s Hit Points (HP) reaches 0, they are killed and sent to the afterlife. The victor of a Battle may choose not to kill his opponent, but both players must then spend an extra day that week writing a 1 Day 500 WPD story post each. This is to discourage purposeful battles that would exploit class/race EXP bonuses. Damage from a battle does not go away immediately. Characters RECOVER 20% of their max HP per roleplay day. If you would die from untransforming at the end of a battle go to 1 HP instead. If untransforming during battle would drop you to 0, then you are dropped to 0.
 
@@ -153,20 +153,20 @@ When a Battle ends, all Zenni from the loser is transferred to the victor. In or
 
 [center]Challenging/Accepting Battles[/center][hr]
 
-Everyone must accept at least one Battle per week, provided the person challenging them is 2 Levels above them or less. If the challenger is more than two levels above you, you can decline the Battle. You must accept the first challenge that is brought to you. 
+Everyone must accept at least one Battle per week, provided the person challenging them is 2 Levels above them or less. If the challenger is more than two levels above you, you can decline the Battle. You must accept the first challenge that is brought to you.
 
 The exceptions are: (1) If someone is carrying a Dragon Ball, and someone else has an item such as a Dragon Radar which allows them to challenge someone with a Dragon Ball. The challenge must be accepted. (2) If any other item or skill says you can challenge someone, they must accept.
 [list]
-[*]Challenged players are not allowed to transfer or receive zenni from other players.
-[*]Challenged players are not allowed to start any new Quests or travel.
-[*]Challenged players cannot transfer or receive items from other players.
-[*]Challenged players are allowed to purchase items with up to half of their zenni to prepare for the upcoming battle.
-[*]Challenged players are allowed to finish any Quests they started for the week unless that Quest is deemed interruptable. "Starting" quests in this regard refers to having at least 1 Day completed.
-[*]Challenged players are allowed to learn moves, provided that they have enough days.
-[*]Challenging players are locked into the same restrictions.
-[*]Players involved in a Battle cannot use the marketplace until their part in the battle is over.
-[*]The excuse "I was going to give it to them anyways" is not a valid excuse for cheating.
-[*]Challenged players may elect whether or not to count the battle as one of their days. If they do so, EXP and any Transformation Dice gained will count towards their Weekly Update.
+[_]Challenged players are not allowed to transfer or receive zenni from other players.
+[_]Challenged players are not allowed to start any new Quests or travel.
+[_]Challenged players cannot transfer or receive items from other players.
+[_]Challenged players are allowed to purchase items with up to half of their zenni to prepare for the upcoming battle.
+[_]Challenged players are allowed to finish any Quests they started for the week unless that Quest is deemed interruptable. "Starting" quests in this regard refers to having at least 1 Day completed.
+[_]Challenged players are allowed to learn moves, provided that they have enough days.
+[_]Challenging players are locked into the same restrictions.
+[_]Players involved in a Battle cannot use the marketplace until their part in the battle is over.
+[_]The excuse "I was going to give it to them anyways" is not a valid excuse for cheating.
+[_]Challenged players may elect whether or not to count the battle as one of their days. If they do so, EXP and any Transformation Dice gained will count towards their Weekly Update.
 [*]You cannot challenge a player on Saturday or Sunday.
 [/list]
 [center]Combat Phases[/center][hr]
@@ -232,14 +232,14 @@ Example: [ Goku - 150/5 ] [ Vegeta - 145/5 ]
 [center]Attacking/Defending[/center][hr]
 
 Players take turns performing an action. When an attack is performed, both players roll 1d30.
-If the attacker’s roll is the same or higher than the defender’s roll, the attack is SUCCESSFUL. The opponent takes damage. 
+If the attacker’s roll is the same or higher than the defender’s roll, the attack is SUCCESSFUL. The opponent takes damage.
 If the defender’s roll is higher than the attacker’s roll, the attack is stopped. No damage is taken.
 When you perform an attack and Role Play it out, in OOC speak, it is courtesy to let the opponent know all the details of the attack. Over time, you can develop your own shorthand, but for example:
 Example: :Player 1’s Attack: [ Super Kick/9 Damage/Costs 2 KI Points/SUCCESSFUL – You lose 1 KI Point ]
 
 NOTE: No matter what, in order to use an attack or skill you must be able to pay the cost. This is regardless of whether the attack is successful or stopped.
 
-The defender can also choose to Block an attack instead of rolling his defensive dice. 
+The defender can also choose to Block an attack instead of rolling his defensive dice.
 
 [center]Blocking[/center][hr]
 
@@ -276,13 +276,11 @@ Transformation Dexterity Penalty
 
 Transforming to higher levels requires more energy output and slows the user down. The amount of Dexterity needed to maintain your dice sides increases by a certain number when transforming above your starting Transformation. In addition, the minimum dice roll is reduced.
 
-TF Level 2: +5% Dexterity Required for Dice Results 
+TF Level 2: +5% Dexterity Required for Dice Results
 TF Level 3: +15% Dexterity Required for Dice Results
 TF Level 4: +30% Dexterity Required for Dice Results
 
 Total SP can easily be found by multiplying the number of your Bracket by 4 and adding 4 (the starting SP bonus).
-
-
 
 [center]Dice Sides & Dice Result Modifications[/center][hr]
 
@@ -326,6 +324,8 @@ SUPPRESS — Ignore all non-damage effects of the affected move.
 
 The rare attacks that say "[DESTROY POTENTIAL]" mean you can use them to DESTROY planets. See the sub-section on Planetary Destruction further down.
 
+DRAIN - If a move says to drain your opponent's ki, then you lower their ki by the amount indicated.
+
 [center]Planetary Destruction[/center][hr]
 
 In order to utilize an attack’s DESTROY effect, you must first announce the planet you wish to obliterate. You must be on that planet to be able to DESTROY it. Once declaring your intent, you may not leave that planet for 4 days. During that time, you must accept at least one challenge a day, regardless of the Power Level of the person challenging you. At the end of 4 days (96 hours), if you have not been defeated in battle, you have successfully DESTROYED the planet and earn an extra day’s worth of experience. If you defeat someone in battle who is attempting to DESTROY a planet, you also earn an extra day’s worth of experience.
@@ -344,6 +344,8 @@ When making multiple adjustments to the same stat, you add the adjustment percen
 Example 1: Tien is wearing a Kai outfit that adds +15% Dexterity. Tien has no other modifiers to his Dexterity and his natural Dexterity is 3. Since 3*1.15 is less than 3.5, we round down. Tien's final Dexterity is 3.
 
 Example 2: Tien is wearing a Kai outfit that adds +15% Dexterity. Tien has no other modifiers to his Dexterity and his natural Dexterity is 4. Since 4*1.15 is more than 4.5, we round up. Tien's final Dexterity is 5.
+
+_Dice Sides & Dice Result Modifications_ - When performing an Advanced Attack, you can only modify the sides of the dice by +10 and the results of the dice by +10. When defending against an Advanced Attack, your dice get the same restrictions. For Signature Techniques, the restriction is changed to +5 instead. This does not count Dexterity Bonuses or the Bukujutsu bonus gained from having Bukujutsu while your opponent does not. This does not count the base roll of an attack. When modifying an opponent's dice sides or results, you can only modify by a maximum of -10 for Advanced Attacks and -5 on Signature Techniques.
 
 [center]Requirements & Restrictions[/center][hr]
 
@@ -392,30 +394,30 @@ You may attempt to escape from a battle once you reach turn 10 or higher. Escape
 
 [center]Interference[/center][hr]
 [list]
-[*]You must be on the same planet as the Battle you are trying to disrupt.
-[*]You must roll 1d100 in that fight and have a result of 70 or higher. If your result is below 70, you fail to interfere in the Battle. For role-play purposes, your character does not reach the battlefield in time or is otherwise interrupted.
-[*]You may only interfere in one Battle per week.
-[*]You may only attempt to interfere in each battle once.
-[*]You do not have to count a Day or make a post to interfere in a Battle.
-[*]You must declare which side you are aiding before taking any actions in combat.
-[*]You may not interfere if one or more of your ally's opponents is at (25% Total HP) or less.
-[*]Each side of a fight may only have 1 character in total interfere.
-[*]If we catch you rigging a fight by interfering and not aiding your ally, just to fill their 1-ally slot, you're not going to have a fun week.
-[*] Interference may only be performed from Turn 8 and onwards.
+[_]You must be on the same planet as the Battle you are trying to disrupt.
+[_]You must roll 1d100 in that fight and have a result of 70 or higher. If your result is below 70, you fail to interfere in the Battle. For role-play purposes, your character does not reach the battlefield in time or is otherwise interrupted.
+[_]You may only interfere in one Battle per week.
+[_]You may only attempt to interfere in each battle once.
+[_]You do not have to count a Day or make a post to interfere in a Battle.
+[_]You must declare which side you are aiding before taking any actions in combat.
+[_]You may not interfere if one or more of your ally's opponents is at (25% Total HP) or less.
+[_]Each side of a fight may only have 1 character in total interfere.
+[_]If we catch you rigging a fight by interfering and not aiding your ally, just to fill their 1-ally slot, you're not going to have a fun week.
+[_] Interference may only be performed from Turn 8 and onwards.
 [/list][list]
 When you successfully interfere in a fight you receive certain restrictions and benefits.
-[*]You have 2 turns to act in combat. You act immediately after your ally in combat, or before if they so desire.
-[*]You may not use Blocks or Skills in place of your ally.
-[*]For all intents and purposes outside of combat, you did not act in this Battle. You do not gain anything mechanical from it such as Zenkai EXP or Bio-Android moves.
-[*]You can still die during interference.
-[*]You may not use RESTRICTED items, moves, or effects. This includes limited-use items, moves, or effects that don't specifically mention they are RESTRICTED or USE.
-[*]You may use Skills that target your opponent and last longer than your duration in combat.
-[*]You may have SUCCESSFUL effects from your attacks last longer than your duration in combat.
-[*]You have 5 Ki Points to use during these turns, despite racials like the Makaio-shin or Namekian. You may Power Up if need be.
-[*]You begin the interference Transformed at your highest level. Unrestricted TF effects that activate when Transforming are instead activated when entering the battlefield.
-[*]The same ruling applies to Racial effects that activate at the start of combat. They begin when you first interfere.
-[*]Floating effects from your Skills or attacks treat your ally as yourself after you leave the Battle.
-[*]If your ally dies in combat, you may remain for your full 2 turns.
+[_]You have 2 turns to act in combat. You act immediately after your ally in combat, or before if they so desire.
+[_]You may not use Blocks or Skills in place of your ally.
+[_]For all intents and purposes outside of combat, you did not act in this Battle. You do not gain anything mechanical from it such as Zenkai EXP or Bio-Android moves.
+[_]You can still die during interference.
+[_]You may not use RESTRICTED items, moves, or effects. This includes limited-use items, moves, or effects that don't specifically mention they are RESTRICTED or USE.
+[_]You may use Skills that target your opponent and last longer than your duration in combat.
+[_]You may have SUCCESSFUL effects from your attacks last longer than your duration in combat.
+[_]You have 5 Ki Points to use during these turns, despite racials like the Makaio-shin or Namekian. You may Power Up if need be.
+[_]You begin the interference Transformed at your highest level. Unrestricted TF effects that activate when Transforming are instead activated when entering the battlefield.
+[_]The same ruling applies to Racial effects that activate at the start of combat. They begin when you first interfere.
+[_]Floating effects from your Skills or attacks treat your ally as yourself after you leave the Battle.
+[_]If your ally dies in combat, you may remain for your full 2 turns.
 [/list]
 Hopefully what you have learned here makes sense. Honestly, it is not difficult. Hell, if we can do it, so can anybody else. It’s a matter of having the patience to try it once. After the first time, it’s a cinch.
 [/color]
@@ -447,18 +449,13 @@ Each character can only use the CGT once per month. The Cross-Galactic Transit S
 
 Space Battles are conducted the same way as terrestrial battles with a few additional points. You may challenge anyone in space, regardless of starting point or destination. You must count it as one of your days. Each ship has a certain number of Weapon and Defense slots for those parts to be equipped to your ship. Each fighter can only use the Weapons/Defenses of a single ship. These Weapons or Defenses will provide certain advantages for battle.
 
-
-
 [/color]
 [color=#fff][center]VIII. Dragon Balls[/center][hr]
 
 [center]Dragon Ball Search[/center][hr]
 It takes 6 days to find one Dragonball. Therefore, six separate RPs searching before one can be found. You must have at least one slot in your inventory to search for a Dragon Ball if you do not already have one. The Dragon Balls stack, taking up 1 slot in total.
 
-You must Role-Play searching for the Dragonball. Think of it as each Dragonball is its own quest created by you. Every 1 Day RP spent searching for the Dragonball must be 500+ words, counting a Dragonball Hunt as a repeatable quest that is 6 Days and 500 WPD. You may only find two Dragonballs per real life day and a max of 2 dragonballs in a 7 “day” period. 
-
-
-
+You must Role-Play searching for the Dragonball. Think of it as each Dragonball is its own quest created by you. Every 1 Day RP spent searching for the Dragonball must be 500+ words, counting a Dragonball Hunt as a repeatable quest that is 6 Days and 500 WPD. You may only find two Dragonballs per real life day and a max of 2 dragonballs in a 7 “day” period.
 
 The following planets currently have a set of Dragon Balls:
 Earth
@@ -472,20 +469,19 @@ You may remove a Dragon Ball from your inventory at any time prior to being chal
 The Dragon Balls are an important part of the story and are much different from the show. In the show, collecting all 7 Dragon Balls gained you an audience with the Eternal Dragon who would then grant you a wish. These Dragon Balls are different; each Dragon Ball has its own effect granted to the person who obtains it. Collecting the 7 Dragon Balls will grant you one Wish chosen from a list. In order to make the wish, you must create a 100+ word wishing post (which does not cost any Days) and wait 24 hours for any potential challengers. If you still have all 7 balls when the 24 hours are up, you can make your wish. During this 24 hour period, there is no restriction on healing items outside of combat for the person awaiting their wish. Challenges made after the 24 hours but before your wish post do not interfere with your ability to make the wish, they represent enemies arriving too late.
 
 Once a set of Dragon Balls is used for a wish, that set is inert for the remainder of the Saga.
- Wishes
+Wishes
 [list]
-[*] Recreate a destroyed planet, resurrecting everyone that was killed in the destruction, including those slain in the DESTROY POTENTIAL fights.
-[*] Create a new Planet.
-[*]Increase your Power Level to [Current Highest Player Power Level] - the equivalent of 1 Day of roleplay.
-[*]Gain a bonus racial trait from a different race
-[*]Gain an extra class from your race
-[*]Create a Custom Transformation (Admin Approval required)
-[*]Custom Technique of Equal Power to an Afterlife Technique (Admin Approval required)
-[*]5,000 Zenni
-[*]10 Free Training Days
-[*]Learn one non-Mastery Technique from another Style, counted as being your style for all effects.
+[_] Recreate a destroyed planet, resurrecting everyone that was killed in the destruction, including those slain in the DESTROY POTENTIAL fights.
+[_] Create a new Planet.
+[_]Increase your Power Level to [Current Highest Player Power Level] - the equivalent of 1 Day of roleplay.
+[_]Gain a bonus racial trait from a different race
+[_]Gain an extra class from your race
+[_]Create a Custom Transformation (Admin Approval required)
+[_]Custom Technique of Equal Power to an Afterlife Technique (Admin Approval required)
+[_]5,000 Zenni
+[_]10 Free Training Days
+[_]Learn one non-Mastery Technique from another Style, counted as being your style for all effects.
 [*]200 WPD reduction on quests, to a minimum of 100 WPD[/list]
- 
 
 [center]Dragon Balls As Items[/center][hr]
 Dragon Balls act as items in every way except that they may not be sold or put into any kind of storage (other than a capsule).
@@ -612,7 +608,7 @@ Character Portrait[hr]
 Your character portrait cannot be anybody from Dragonball/Z/GT/Super/Daima. Your character portrait cannot be a real person (i.e. Nicholas Cage). They must be from an anime, video game, comic book, or otherwise art-related media. If it is from a small-time artist, such as one from Deviant Art, please cite them so they get credit. Additionally, you’ll want to have 2 pictures: one character portrait and one icon to use as your profile picture that will show on all posts.
 
 Races[hr]
-We have a list of acceptable Races you can choose from. There is another option though if you do not see anything you are interested in. You may choose the 'Alien' option. 
+We have a list of acceptable Races you can choose from. There is another option though if you do not see anything you are interested in. You may choose the 'Alien' option.
 
 The 'Alien' option allows you to make a custom race that is based on one of the races from the Dragon Ball or Dragon Ball Z series. i.e., Captain Ginyu's unnamed race. You will be allowed to create the name and history of the race (if none has been established), as well as make suggestions for the racial abilities, stats, and what the transformations should be like.
 
@@ -628,7 +624,7 @@ Martial Arts Style[hr]
 Choose a Martial Arts Style. Currently, there are six (6) Martial Art Styles to choose from:
 
 Akaikaru – The Art of Aggression
-Aoyusumu – The Art of Serenity
+Aoyosumu – The Art of Serenity
 Haokiru – The Art of Preservation
 Kiihakai – The Art of Destruction
 Kurokonwaku – The Art of Confusion
@@ -662,29 +658,29 @@ This one is no different. Each Saga will include a different story that you are 
 However, this is not always the rule. Each Saga might be different and a set of rules and guidelines will be provided so as to keep everybody in the loop. It is encouraged that you try to participate in the Sagas or at least acknowledge their events in your stories to keep a sense of cohesiveness.
 In the event of a Saga Villain, if a character with an Evil alignment chooses to Battle the saga villain and prove their worth (determined by the GM), they may offer for your character to serve them. If you choose to do so, you will be placed underneath them on the totem-pole for other members to fight. While serving the Saga Villain, you will gain unique bonuses. If you choose to escape a Battle while serving underneath them, you will lose all bonuses.
 In the event of a Saga Hero and a character with a Good alignment, the same will occur.
-At the end of each saga, the PL of all characters will be raised to a new baseline. The baseline will be roughly the average PL of the SL. 
+At the end of each saga, the PL of all characters will be raised to a new baseline. The baseline will be roughly the average PL of the SL.
 [/color]
 
 [center][color=#fff]XII. Fusion Dance![/color][/center][color=#fff][hr]
 [list]
-[*]Fusion Dance is a Skill that must be in both players’ movesets.
-[*]Both fusing characters can only be up to 2 Levels apart.
-[*]Both participants must be of the same race, or share exact racial traits with a member of another race. (Example: Hybrid Saiyan & Human share "If There's Life, There's Hope", they may fuse.)
-[*]Fusion is declared during combat and takes up a turn. Both players roll 3d30, each roll representing part of the dance. Combine each participant's individual dice roll into one number (i.e., Person A rolls a 3 and Person B rolls a 10 for their first dice roll, equaling 13). If ANY of those combined rolls equal 10 or less, the Fusion results in a Failed Form. If all of them are above 10, the Fusion results in a Successful Form.
-[*]The Fused character will have 1 Mastery Slot, 4 Skill Slots, 5 Advanced Attack Slots, 2 Signature Technique Slots and 2 Block Slots. If Successful Fusion occurs, +1 slot to either Skills, Advanced Attacks, Signature Technique, or Block Slots. You can only fill in those slots with moves from either character's moveset. Declare this immediately after using the Fusion Dance.
-[*]The Fused Form will have both players’ Inventory available, except worn items.
-[*]The Successful Fused Form will have the Level of the highest character + 1, stats may be divided after fusing.
-[*]The fused character will be wielding only the Fusion Outfit (See below) and any weapons that either character had. They will still have access to unequipped items.
-[*]The Failed Fused Form's stats will have HP, Power, and Dexterity equal to the Stats of the higher Level character in the fusion (in the event of a tie, the characters choose), and will wear the Fusion Outfit and weapons but will have no access to unequipped items. Players may choose whether to roleplay a Fat Failed Form or a Skinny Failed Form.
-[*]For all effects and purposes, the Fused form is considered both martial arts styles of the participants involved.
-[*]Any effect of the fused character that refers to "Style" counts as referring to both of the fused character's Styles.
-[*]Anything that would affect one of the fusers affects the Fused Form.
-[*]Regardless of Form, you can still use any Transformation (and Transformation Dice/Level) of either participant. If you are in a Failed Fused Form, the dice roll gains -25 sides to a minimum of 20.
-[*]Both characters still only gain EXP based off of their individual Brackets for that Spar or Battle. Characters entering the fight do not need to count the Battle as a day unless the characters are the Challenger party.
-[*]If two Fusing characters fuse in a Quest battle, they only have to do the Battle once (together) so long as the entire fight is spent Fused (fuse first turn, do not leave Fusion).
-[*]The Fusion is permanent for thirty of the Fused Form's turns (or until the end of Battle, whichever happens first). After thirty of the Fused Form's turns, a natural perfect roll (even on a multiple dice roll) will end the Fusion. When Fusion ends, all damage dealt so far is split between both combatants. Their KI is set to the number their Fused Form's KI was at the time the Fusion ended. Any of the opponent's effects that would still be affecting the Fused Form affects both players. 
-[*]When fighting an NPC with a relative Level, the NPC's Level is based off of the higher of the two participating character's Level.
-[*]If you are in a Fused state, you cannot use Fuse again. (No Multi-Fusing)
+[_]Fusion Dance is a Skill that must be in both players’ movesets.
+[_]Both fusing characters can only be up to 2 Levels apart.
+[_]Both participants must be of the same race, or share exact racial traits with a member of another race. (Example: Hybrid Saiyan & Human share "If There's Life, There's Hope", they may fuse.)
+[_]Fusion is declared during combat and takes up a turn. Both players roll 3d30, each roll representing part of the dance. Combine each participant's individual dice roll into one number (i.e., Person A rolls a 3 and Person B rolls a 10 for their first dice roll, equaling 13). If ANY of those combined rolls equal 10 or less, the Fusion results in a Failed Form. If all of them are above 10, the Fusion results in a Successful Form.
+[_]The Fused character will have 1 Mastery Slot, 4 Skill Slots, 5 Advanced Attack Slots, 2 Signature Technique Slots and 2 Block Slots. If Successful Fusion occurs, +1 slot to either Skills, Advanced Attacks, Signature Technique, or Block Slots. You can only fill in those slots with moves from either character's moveset. Declare this immediately after using the Fusion Dance.
+[_]The Fused Form will have both players’ Inventory available, except worn items.
+[_]The Successful Fused Form will have the Level of the highest character + 1, stats may be divided after fusing.
+[_]The fused character will be wielding only the Fusion Outfit (See below) and any weapons that either character had. They will still have access to unequipped items.
+[_]The Failed Fused Form's stats will have HP, Power, and Dexterity equal to the Stats of the higher Level character in the fusion (in the event of a tie, the characters choose), and will wear the Fusion Outfit and weapons but will have no access to unequipped items. Players may choose whether to roleplay a Fat Failed Form or a Skinny Failed Form.
+[_]For all effects and purposes, the Fused form is considered both martial arts styles of the participants involved.
+[_]Any effect of the fused character that refers to "Style" counts as referring to both of the fused character's Styles.
+[_]Anything that would affect one of the fusers affects the Fused Form.
+[_]Regardless of Form, you can still use any Transformation (and Transformation Dice/Level) of either participant. If you are in a Failed Fused Form, the dice roll gains -25 sides to a minimum of 20.
+[_]Both characters still only gain EXP based off of their individual Brackets for that Spar or Battle. Characters entering the fight do not need to count the Battle as a day unless the characters are the Challenger party.
+[_]If two Fusing characters fuse in a Quest battle, they only have to do the Battle once (together) so long as the entire fight is spent Fused (fuse first turn, do not leave Fusion).
+[_]The Fusion is permanent for thirty of the Fused Form's turns (or until the end of Battle, whichever happens first). After thirty of the Fused Form's turns, a natural perfect roll (even on a multiple dice roll) will end the Fusion. When Fusion ends, all damage dealt so far is split between both combatants. Their KI is set to the number their Fused Form's KI was at the time the Fusion ended. Any of the opponent's effects that would still be affecting the Fused Form affects both players.
+[_]When fighting an NPC with a relative Level, the NPC's Level is based off of the higher of the two participating character's Level.
+[_]If you are in a Fused state, you cannot use Fuse again. (No Multi-Fusing)
 
 Fusion Outfit
 Inventory Slots: 0
@@ -692,6 +688,3 @@ Description: The outfit consists of a vest that reveals the bare chest of the Fu
 Effect: +25% All Stats. When you enter a successful Fused Form, set your KI to 10.
 
 [/list][/color]
-
-
-
