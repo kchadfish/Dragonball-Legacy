@@ -36,6 +36,24 @@ Ruling needed: If both participants have the same count of qualifying rolls,
 does neither participant lose HP, do both lose HP, or is a tiebreaker roll
 required?
 
+## SB-004 - Time Freeze energy-attack restriction duration
+
+Status: Needs ruling.
+
+Source: `reference/moves/afterlife.md` — Time Freeze
+
+Effect: RESTRICTEDx1. The user rolls 1d30. If the result is 20 or higher, Time
+Freeze is successful. STUN all opponents and allies for their next 2 turns. You
+cannot perform energy attacks while using Time Freeze. Cost: 1 KI.
+
+Why unresolved: The source defines the stun duration but does not define when
+the user stops “using Time Freeze,” so the duration of the energy-attack
+restriction cannot be derived from the source text or existing normalization
+decisions.
+
+Ruling needed: Does the energy-attack restriction last for the same two turns
+as the stun, only during the activation turn, or until a separate end condition?
+
 ## SB-003 - Leg Vice active-constant scope
 
 Status: Needs ruling.

@@ -2,7 +2,527 @@ import type { EffectDefinition } from "../shared/effects.js";
 import type { MoveDefinition } from "../shared/types.js";
 import { createMovesForSource } from "./create-style-moves.js";
 
+const TEAMWORK_KAMEHAMEHA_SOURCE =
+  "RESTRICTEDx1. Energy attack. Deal (70% Power) damage per hit. You may have an ally in combat perform this attack with you on your turn. Each attacker rolls an attack roll and pays the cost of this attack. Alternatively, you may have up to two players on the same planet as you who also possess this attack join in combat for one turn and perform this attack with you. Attack roll: 1d40 for each attacker. Cost: 3 KI.";
+const GALICK_GUN_RESPONSE_SOURCE =
+  "You may forget this move and pay its cost after your opponent rolls their attack roll on a Beam-type attack that is not a Signature Technique to NEGATE the damage from that attack. If you do, LOCK that attack for your opponent's next 4 turns.";
+const WARP_KAMEHAMEHA_SOURCE =
+  "RESTRICTEDx1. You skip your turn when you activate this attack. Warp Kamehameha is performed on your next turn. Energy attack. Deal (100% Power) damage. Your opponent must attack on their next turn or pass. Defense roll: 1d50 for that turn. Attack roll: 1d40. If their attack against you is SUCCESSFUL, Instant Transmission fails; LOCK Warp Kamehameha for the remainder of combat. Cost: 5 KI.";
+const PETRIFYING_SPIT_SOURCE =
+  "RESTRICTEDx1. You roll 1d30. If the result of your dice roll is 15 or higher, your opponent is turned to stone and must skip their next turn. At the start of their turn after that, your opponent must roll 1d30. If the result of their dice roll is below 15, they must pass. They must pass on their turns until their dice roll is 15 or higher. If you do not have Time Freeze in your moveset, this Skill does not take up your turn. Cost: 2 KI.";
+const X20_KAIOKEN_KAMEHAMEHA_SOURCE =
+  "RESTRICTEDx1. Energy attack. Deal (90% Power) damage. If Kaio-Ken's effect is active, this attack does +(25% Power) Damage and costs -2 KI. You may use this attack when your opponent performs a Beam-type energy attack instead of rolling a defensive roll (your defensive roll counts as 0 for all effects and purposes). If you do, that attack does -(75% Power) Damage. If you would take no damage from that attack, your opponent loses (30% Power) HP. SUCCESSFUL - Kaio-Ken gains RESTRICTED+2 and costs -2 KI for the remainder of combat. This is the only effect that can affect Kaio-Ken's cost. Cost: 6 KI.";
+
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
+  [
+    "move-afterlife-kaio-ken-attack",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-low-roll-stop",
+        roll: "defense",
+        comparison: "at-most",
+        value: { type: "literal", value: 7 },
+        scope: { type: "next-action", sourceText: "your next attack" },
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "dexterity",
+            comparison: "higher-than",
+            right: "opponent",
+            sourceText: "If your Dexterity is higher than your opponent's Dexterity",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your Dexterity is higher than your opponent's Dexterity, your next attack cannot be STOPPED by dice rolls of 7 or less",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 10 },
+        scope: { type: "next-action", sourceText: "Your next Styled Advanced Attack" },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "advanced-attack",
+          styleIdExcludes: "style-freestyle",
+          sourceText: "Your next Styled Advanced Attack",
+        },
+        sourceText: "SUCCESSFUL - Your next Styled Advanced Attack does +(10% Power) Damage",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-supernova",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: 2 },
+        scope: { type: "current-action", sourceText: "pay +2 KI" },
+        activationGroup: "supernova-paid-d35",
+        sourceText: "You may pay +2 KI to have your attack roll be 1d35 for this attack",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "attack",
+        dice: 1,
+        sides: 35,
+        activationGroup: "supernova-paid-d35",
+        sourceText: "You may pay +2 KI to have your attack roll be 1d35 for this attack",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 2 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "transformation-mastery",
+            mastery: "mastered",
+            sourceText: "If you have MASTERED the current Transformation you are in (if any)",
+          },
+        ],
+        sourceText:
+          "If you have MASTERED the current Transformation you are in (if any), this attack gains +2 to the result",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-burst-rush",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "attack",
+        dice: 13,
+        sides: 32,
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "dexterity",
+            comparison: "higher-than",
+            right: "opponent",
+            sourceText: "If your Dexterity is higher than your opponent's",
+          },
+        ],
+        sourceText:
+          "If your Dexterity is higher than your opponent's, your dice roll for this attack is 13d32",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "attack",
+        dice: 13,
+        sides: 33,
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "dexterity-bonus",
+            comparison: "higher-than",
+            right: "opponent",
+            sourceText: "If your Dexterity Bonus is higher than your opponent's",
+          },
+        ],
+        sourceText:
+          "If your Dexterity Bonus is higher than your opponent's, your dice roll for this attack is 13d33",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "attack",
+        dice: 13,
+        sides: 34,
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "dexterity-bonus",
+            comparison: "higher-than",
+            right: "opponent",
+            difference: { type: "literal", value: 2 },
+            sourceText: "If your Dexterity Bonus is 2 higher than your opponent's",
+          },
+        ],
+        sourceText:
+          "If your Dexterity Bonus is 2 higher than your opponent's, your dice roll for this attack is 13d34",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "attack",
+        dice: 13,
+        sides: 35,
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "dexterity-bonus",
+            comparison: "higher-than",
+            right: "opponent",
+            difference: { type: "literal", value: 3 },
+            sourceText: "If your Dexterity Bonus is 3 higher than your opponent's",
+          },
+        ],
+        sourceText:
+          "If your Dexterity Bonus is 3 higher than your opponent's, your dice roll for this attack is 13d35",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-masenko",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: -5 },
+        scope: { type: "next-action", sourceText: "your opponent's next attack roll" },
+        conditions: [
+          {
+            type: "no-prior-action",
+            actor: "opponent",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              sourceText: "attacked",
+            },
+            sourceText: "If you weren't attacked on the last turn",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If you weren't attacked on the last turn, your opponent's next attack roll gains -5 to the result",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-kaio-ken",
+    [
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 10 },
+        scope: {
+          type: "next-actions",
+          count: { type: "literal", value: 3 },
+          sourceText: "next 3 attacks",
+        },
+        sourceText: "Your next 3 attacks do +(10% Power) Damage",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "add",
+        amount: { type: "literal", value: 2 },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 6 },
+          sourceText: "for the next 6 turns",
+        },
+        sourceText: "Your Dexterity bonus gains +2 for the next 6 turns",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "set-stat-comparison",
+        left: "self",
+        stat: "dexterity",
+        comparison: "higher-than",
+        right: "opponent",
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 6 },
+          sourceText: "for the next 6 turns",
+        },
+        sourceText: "Your Dexterity is considered higher than your opponent's for the next 6 turns",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-afterlife-kaio-ken"],
+          sourceText: "The cost of this Skill",
+        },
+        aspects: ["cost"],
+        actor: "any",
+        sourceText: "The cost of this Skill cannot be modified",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-x20-kaioken-kamehameha",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 25 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "move-effect-active",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-afterlife-kaio-ken"],
+              sourceText: "Kaio-Ken's effect",
+            },
+            sourceText: "If Kaio-Ken's effect is active",
+          },
+        ],
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -2 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "move-effect-active",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-afterlife-kaio-ken"],
+              sourceText: "Kaio-Ken's effect",
+            },
+            sourceText: "If Kaio-Ken's effect is active",
+          },
+        ],
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "grant-counter-action",
+        stopsTriggeringAttack: false,
+        action: "use-source-attack",
+        activationGroup: "x20-kaioken-kamehameha-beam-response",
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            tags: ["beam", "energy"],
+            sourceText: "a Beam-type energy attack",
+          },
+        ],
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "set-roll-result",
+        roll: "defense",
+        value: { type: "literal", value: 0 },
+        resultScope: "matching-die",
+        scope: { type: "current-action", sourceText: "your defensive roll" },
+        activationGroup: "x20-kaioken-kamehameha-beam-response",
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            tags: ["beam", "energy"],
+            sourceText: "a Beam-type energy attack",
+          },
+        ],
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "opponent",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: -75 },
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          tags: ["beam", "energy"],
+          sourceText: "that attack",
+        },
+        scope: { type: "current-action", sourceText: "that attack" },
+        activationGroup: "x20-kaioken-kamehameha-beam-response",
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            tags: ["beam", "energy"],
+            sourceText: "a Beam-type energy attack",
+          },
+        ],
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "on-damage",
+        target: "opponent",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: { type: "source-expression", text: "(30% Power) HP" },
+        activationGroup: "x20-kaioken-kamehameha-beam-response",
+        conditions: [
+          {
+            type: "incoming-damage",
+            subject: "self",
+            comparison: "exactly",
+            value: { type: "literal", value: 0 },
+            sourceText: "If you would take no damage from that attack",
+          },
+          {
+            type: "move-selector",
+            subject: "target",
+            tags: ["beam", "energy"],
+            sourceText: "that attack",
+          },
+        ],
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-remaining-uses",
+        amount: { type: "literal", value: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-afterlife-kaio-ken"],
+          sourceText: "Kaio-Ken gains RESTRICTED+2",
+        },
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-afterlife-kaio-ken"],
+          sourceText: "Kaio-Ken",
+        },
+        duration: { type: "combat", sourceText: "for the remainder of combat" },
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-afterlife-kaio-ken"],
+          sourceText: "Kaio-Ken's cost",
+        },
+        aspects: ["cost"],
+        actor: "any",
+        exceptSourceMoveIds: ["move-afterlife-x20-kaioken-kamehameha"],
+        duration: { type: "combat", sourceText: "for the remainder of combat" },
+        sourceText: X20_KAIOKEN_KAMEHAMEHA_SOURCE,
+      },
+    ],
+  ],
+  [
+    "move-afterlife-spirit-ball",
+    [
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "set-roll-result",
+        roll: "attack",
+        value: { type: "literal", value: 10 },
+        resultScope: "matching-die",
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-most",
+            value: { type: "literal", value: 5 },
+            sourceText: "If you roll a 5 or less on any of these attack rolls",
+          },
+        ],
+        sourceText:
+          "If you roll a 5 or less on any of these attack rolls, that dice result is considered to be a 10 instead",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 5 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "roll-die-result",
+            roll: "attack",
+            index: 5,
+            result: "successful",
+            sourceText: "If your fifth dice is SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your fifth dice is SUCCESSFUL, this attack does +(5% Power) Damage per hit",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-energy-blade",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "grant-equipment",
+        equipment: "sword",
+        sourceText: "You are considered to have a sword equipped",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-move-requirements",
+        addRequirements: ["Sword Weapon"],
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          tags: ["PHYSICAL"],
+          requirementExcludes: ["sword"],
+          sourceText: "Your Physical Attacks that do not require a sword",
+        },
+        sourceText:
+          'You are considered to have a sword equipped. Your Physical Attacks that do not require a sword gain "Requirements: Sword Weapon"',
+      },
+    ],
+  ],
   [
     "move-afterlife-give-me-energy",
     [
@@ -1630,6 +2150,1150 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         resultScope: "current-attack",
         sourceText:
           "Your opponent's defensive roll must be at least +5 your attack roll to stop this attack",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-burning-slash",
+    [
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "action-phase",
+        move: "source",
+        sourceText:
+          "If you performed Burning Attack and it was STOPPED, perform this attack in the same turn",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 15 },
+        conditions: [
+          {
+            type: "roll-die-result",
+            roll: "attack",
+            index: 6,
+            result: "successful",
+            sourceText: "If your sixth dice is successful",
+          },
+        ],
+        sourceText: "If your sixth dice is successful, this attack does +(15% Power) Damage",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-expanding-energy-blast",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-move-use",
+        operation: "deactivate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          sourceText: "choose one of your Skills. That Skill cannot be DEACTIVATED",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 4 },
+          sourceText: "for the next 4 turns",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-least",
+            value: { type: "literal", value: 4 },
+            sourceText: "If 4 or more attack rolls are SUCCESSFUL",
+          },
+          {
+            type: "successful-hit-count",
+            comparison: "at-most",
+            value: { type: "literal", value: 6 },
+            sourceText: "If 4 or more attack rolls are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If 4 or more attack rolls are SUCCESSFUL, choose one of your Skills. That Skill cannot be DEACTIVATED for the next 4 turns",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-move-use",
+        operation: "deactivate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          sourceText: "choose up to 2 Skills and they cannot be DEACTIVATED",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 10 },
+          sourceText: "for the next 10 turns instead",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-least",
+            value: { type: "literal", value: 7 },
+            sourceText: "If 7 or more dice rolls are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "If 7 or more dice rolls are SUCCESSFUL, choose up to 2 Skills and they cannot be DEACTIVATED for the next 10 turns instead",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-evil-flame",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "lock",
+        affectedType: "power-up",
+        duration: {
+          type: "until-roll-threshold",
+          roll: "attack",
+          comparison: "at-least",
+          value: {
+            type: "source-expression",
+            text: "the lower of this attack's attack roll result or 25",
+          },
+          sourceText:
+            "until one of their attack rolls exceeds your attack roll result or 25 - whichever is lower",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent may not Power Up until one of their attack rolls exceeds your attack roll result or 25 - whichever is lower",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-blade-rush",
+    [
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "action-phase",
+        move: "source",
+        conditions: [
+          {
+            type: "prior-action",
+            actor: "self",
+            result: "stopped",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-afterlife-hellfire-blitz"],
+              sourceText: "you performed Hellfire Blitz and it was STOPPED",
+            },
+            sourceText: "Use only if you performed Hellfire Blitz and it was STOPPED",
+          },
+        ],
+        sourceText:
+          "Use only if you performed Hellfire Blitz and it was STOPPED. Perform this attack in the same turn",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 25 },
+        conditions: [
+          {
+            type: "roll-die-result",
+            roll: "attack",
+            index: 8,
+            result: "successful",
+            sourceText: "If your eighth dice is successful",
+          },
+        ],
+        sourceText: "If your eighth dice is successful, this attack does +(25% Power) Damage",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-vanishing-ball",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "sides",
+        amount: { type: "literal", value: 0 },
+        cap: {
+          type: "maximum",
+          value: { type: "literal", value: 35 },
+          sourceText: "Your dice sides cannot exceed 1d35 with this attack",
+        },
+        sourceText: "Your dice sides cannot exceed 1d35 with this attack",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 0 },
+        cap: {
+          type: "maximum",
+          value: { type: "literal", value: 3 },
+          sourceText: "The results of this attack cannot gain more than +3 from any effects",
+        },
+        sourceText: "The results of this attack cannot gain more than +3 from any effects",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "set",
+        amount: { type: "literal", value: 0 },
+        conditions: [
+          {
+            type: "combat-context",
+            mode: "battle",
+            sourceText: "If used in a Battle",
+          },
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 31 },
+            sourceText: "your attack roll is 31 or higher",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If used in a Battle and your attack roll is 31 or higher, set your opponent's HP to 0",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "prevent-resource-modification",
+        resource: "hp",
+        operation: "gain",
+        duration: { type: "combat", sourceText: "Your opponent cannot gain HP or set their HP" },
+        conditions: [
+          {
+            type: "combat-context",
+            mode: "battle",
+            sourceText: "If used in a Battle",
+          },
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 31 },
+            sourceText: "your attack roll is 31 or higher",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If used in a Battle and your attack roll is 31 or higher, set your opponent's HP to 0. Your opponent cannot gain HP or set their HP",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "prevent-resource-modification",
+        resource: "hp",
+        operation: "set",
+        duration: { type: "combat", sourceText: "Your opponent cannot gain HP or set their HP" },
+        conditions: [
+          {
+            type: "combat-context",
+            mode: "battle",
+            sourceText: "If used in a Battle",
+          },
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 31 },
+            sourceText: "your attack roll is 31 or higher",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If used in a Battle and your attack roll is 31 or higher, set your opponent's HP to 0. Your opponent cannot gain HP or set their HP",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-special-fighting-pose-3",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "special-fighting-pose-3-constant-skill-activation",
+        scope: { type: "next-action", sourceText: "Your next energy attack" },
+        effects: [
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "activate",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              constant: true,
+              sourceText: "Activate one of your CONSTANT Skills",
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                tags: ["energy"],
+                sourceText: "Your next energy attack",
+              },
+            ],
+            sourceText: "SUCCESSFUL - Activate one of your CONSTANT Skills",
+          },
+        ],
+        sourceText:
+          'Your next energy attack gains "SUCCESSFUL - Activate one of your CONSTANT Skills"',
+      },
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 2 },
+        sourceText: "Gain 2 KI",
+      },
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "action-phase",
+        conditions: [
+          {
+            type: "active-move-count",
+            subject: "opponent",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "skill",
+              constant: true,
+              sourceText: "your opponent has no CONSTANT Skills active",
+            },
+            comparison: "exactly",
+            value: { type: "literal", value: 0 },
+            sourceText: "If your opponent has no CONSTANT Skills active",
+          },
+        ],
+        sourceText:
+          "If your opponent has no CONSTANT Skills active, this Skill does not take up your turn",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-wolf-fang-fist",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 5 },
+        conditions: [
+          {
+            type: "active-move-count",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              constant: true,
+              sourceText: "CONSTANT Skills currently active",
+            },
+            comparison: "exactly",
+            value: { type: "literal", value: 0 },
+            sourceText: "If you have no CONSTANT Skills currently active",
+          },
+        ],
+        sourceText:
+          "If you have no CONSTANT Skills currently active, this attack gains +5 to the results",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 2 },
+        conditions: [
+          {
+            type: "active-move-count",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              constant: true,
+              sourceText: "CONSTANT Skill active",
+            },
+            comparison: "exactly",
+            value: { type: "literal", value: 1 },
+            sourceText: "If you have only one CONSTANT Skill active",
+          },
+        ],
+        sourceText:
+          "If you have only one CONSTANT Skill active, this attack gains +2 to the results",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-four-arms",
+    [
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "set-roll-result",
+        roll: "defense",
+        value: { type: "source-expression", text: "the current defensive roll result x2" },
+        resultScope: "matching-die",
+        scope: {
+          type: "next-roll",
+          roll: "defense",
+          sourceText: "The next time your defensive roll",
+        },
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "defense",
+            comparison: "at-most",
+            value: { type: "literal", value: 10 },
+            sourceText: "your defensive roll is 10 or less",
+          },
+        ],
+        stacking: "prevent",
+        sourceText:
+          "SUCCESSFUL - The next time your defensive roll is 10 or less, double your defensive roll. This effect cannot be stacked",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-roll-modification",
+        roll: "defense",
+        modifier: "any",
+        exemptSourceEffect: true,
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 3 },
+          sourceText: "for the next 3 turns",
+        },
+        sourceText:
+          "Your defensive roll cannot be modified for the next 3 turns other than this effect",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-multi-form",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "dice",
+        amount: { type: "source-expression", text: "the chosen number of attack dice to remove" },
+        activationGroup: "multi-form-dice-for-sides",
+        sourceText: "You may have this attack lose any amount of dice",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "sides",
+        amount: {
+          type: "source-expression",
+          text: "+3 dice sides for every 2 attack dice removed",
+        },
+        cap: { type: "allow-exceed", sourceText: "You may exceed the standard dice side cap" },
+        activationGroup: "multi-form-dice-for-sides",
+        sourceText:
+          "For every 2 dice you lose, this attack gains +3 dice sides. You may exceed the standard dice side cap with this effect",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -1 },
+        conditions: [
+          {
+            type: "prior-action",
+            actor: "self",
+            action: "power-up",
+            sourceText: "If you Powered Up on your last turn",
+          },
+        ],
+        sourceText: "If you Powered Up on your last turn, this attack costs -1 KI",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-hellzone-grenade",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-cost-modifier",
+        multiplier: { type: "literal", value: 2 },
+        scope: {
+          type: "next-cost-modification",
+          sourceText: "the next time you modify the cost of an attack",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-least",
+            value: { type: "literal", value: 7 },
+            sourceText: "If 7 or more dice rolls are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If 7 or more dice rolls are SUCCESSFUL, the next time you modify the cost of an attack, double the amount it is modified by",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-mass-genocide-attack",
+    [
+      ...(
+        [
+          {
+            priorSuccessfulDice: [1],
+            dieIndex: 2,
+            bonus: 2,
+            conditionText: "If the first attack roll is SUCCESSFUL",
+            sourceText:
+              "If the first attack roll is SUCCESSFUL, the second attack roll gains +2 to the result",
+          },
+          {
+            priorSuccessfulDice: [1, 2],
+            dieIndex: 3,
+            bonus: 3,
+            conditionText: "If the first two attacks rolls are SUCCESSFUL",
+            sourceText:
+              "If the first two attacks rolls are SUCCESSFUL, the third attack roll gains +3 to the result",
+          },
+          {
+            priorSuccessfulDice: [1, 2, 3],
+            dieIndex: 4,
+            bonus: 4,
+            conditionText: "If the first three attack rolls are SUCCESSFUL",
+            sourceText:
+              "If the first three attack rolls are SUCCESSFUL, the fourth attack roll gains +4 to the result",
+          },
+          {
+            priorSuccessfulDice: [1, 2, 3, 4],
+            dieIndex: 5,
+            bonus: 5,
+            conditionText: "If the first four attack rolls are SUCCESSFUL",
+            sourceText:
+              "If the first four attack rolls are SUCCESSFUL, the fifth attack roll gains +5 to the result",
+          },
+        ] as const
+      ).map(({ priorSuccessfulDice, dieIndex, bonus, conditionText, sourceText }) => ({
+        trigger: "on-roll-result" as const,
+        target: "self" as const,
+        type: "modify-roll" as const,
+        roll: "attack" as const,
+        modifier: "result" as const,
+        amount: { type: "literal" as const, value: bonus },
+        dieIndex,
+        conditions: priorSuccessfulDice.map((index) => ({
+          type: "roll-die-result" as const,
+          roll: "attack" as const,
+          index,
+          result: "successful" as const,
+          sourceText: conditionText,
+        })),
+        sourceText,
+      })),
+      {
+        trigger: "before-defense-roll",
+        target: "interferers",
+        type: "grant-defense-response",
+        roll: "defense",
+        againstAttackDieIndex: 1,
+        sourceText:
+          "If anyone has interfered during this combat, you may choose for them to roll a defense roll against the first die, as well",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-instant-transmission",
+    [
+      {
+        trigger: "out-of-combat",
+        target: "self",
+        type: "travel",
+        destination: "another-planet",
+        frequency: {
+          maximumUses: 1,
+          period: "week",
+          prohibitConsecutivePeriods: true,
+        },
+        exception: {
+          condition: "current-planet-destroyed",
+          sourceText:
+            "In the event that the planet you are on is destroyed, you may use Instant Transmission to take you to another planet (regardless if you used it the week before)",
+        },
+        sourceText:
+          "Once per week, you can Instant Transmission yourself to another planet. You cannot use Instant Transmission to teleport you to another planet 2 weeks in a row. In the event that the planet you are on is destroyed, you may use Instant Transmission to take you to another planet (regardless if you used it the week before)",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-body-change",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "swap-combatant-state",
+        fields: ["moveset", "items", "hp", "ki"],
+        revertWhen: "either-player-dies-or-escapes",
+        defeatBasis: "player",
+        sourceText:
+          "SUCCESSFUL - Switch bodies with your opponent. Both participants will have to use the Battle page of the opponent they switched bodies with, including current moveset and items. Both participants inherit their opponent's HP and KI amounts at the time Body Change was completed. When one player dies or flees, both characters switch bodies back to their old bodies. Death/Escape in this method are determined by Player, not by character",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-guldo-special",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "grant-combat-outcome",
+        outcome: "break",
+        conditions: [
+          {
+            type: "prior-turn-restriction",
+            subject: "opponent",
+            anyOf: ["attack-use", "power-up", "turn-skipped"],
+            sourceText:
+              "If your opponent was prevented from using an attack on their last turn, prevented from Powering Up on their last turn, or if their turn was skipped",
+          },
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If your attack roll is 20 or higher, BREAK",
+          },
+        ],
+        sourceText:
+          'If your opponent was prevented from using an attack on their last turn, prevented from Powering Up on their last turn, or if their turn was skipped, this attack gains "SUCCESSFUL - If your attack roll is 20 or higher, BREAK. If your attack roll is 28 or higher, SEVER"',
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "grant-combat-outcome",
+        outcome: "sever",
+        conditions: [
+          {
+            type: "prior-turn-restriction",
+            subject: "opponent",
+            anyOf: ["attack-use", "power-up", "turn-skipped"],
+            sourceText:
+              "If your opponent was prevented from using an attack on their last turn, prevented from Powering Up on their last turn, or if their turn was skipped",
+          },
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 28 },
+            sourceText: "If your attack roll is 28 or higher, SEVER",
+          },
+        ],
+        sourceText:
+          'If your opponent was prevented from using an attack on their last turn, prevented from Powering Up on their last turn, or if their turn was skipped, this attack gains "SUCCESSFUL - If your attack roll is 20 or higher, BREAK. If your attack roll is 28 or higher, SEVER"',
+      },
+    ],
+  ],
+  [
+    "move-afterlife-teamwork-kamehameha",
+    [
+      {
+        trigger: "action-phase",
+        target: "ally",
+        type: "join-attack",
+        participants: { eligibility: "ally-in-combat", maximum: 1 },
+        attackRoll: { dice: 1, sides: 40 },
+        eachParticipantPaysCost: true,
+        exclusiveActivationGroup: "teamwork-kamehameha-participants",
+        sourceText: TEAMWORK_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "action-phase",
+        target: "remote-target",
+        type: "join-attack",
+        participants: {
+          eligibility: "same-planet-move-owner",
+          maximum: 2,
+          duration: "one-turn",
+        },
+        attackRoll: { dice: 1, sides: 40 },
+        eachParticipantPaysCost: true,
+        exclusiveActivationGroup: "teamwork-kamehameha-participants",
+        sourceText: TEAMWORK_KAMEHAMEHA_SOURCE,
+      },
+    ],
+  ],
+  [
+    "move-afterlife-death-ball",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "defer-move",
+        move: "source",
+        performAfterTurns: 1,
+        damage: { operation: "set", percent: { type: "literal", value: 170 } },
+        cancellation: {
+          actor: "opponent",
+          result: "successful",
+          sourceText:
+            "If your opponent performs a successful attack against you before this move is performed, the Death Ball is not completed and you may not use it",
+        },
+        sourceText:
+          "You may choose to not perform this attack on this turn and to have this attack do (170% Power) Damage instead. If your opponent performs a successful attack against you before this move is performed, the Death Ball is not completed and you may not use it",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "sides",
+        amount: { type: "literal", value: 3 },
+        cap: { type: "allow-exceed", sourceText: "You may exceed the standard dice side cap" },
+        conditions: [
+          {
+            type: "location",
+            subject: "self",
+            state: "planet-has-dragon-balls",
+            sourceText: "if you are on a planet that has Dragon Balls",
+          },
+        ],
+        sourceText:
+          "This attack gains +3 dice sides if you are on a planet that has Dragon Balls. You may exceed the standard dice side cap with this effect",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-galick-gun",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -1 },
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "power",
+            comparison: "higher-than",
+            right: "opponent",
+            rightStat: "power",
+            sourceText: "If your Power is higher than your opponent's power",
+          },
+        ],
+        sourceText: "If your Power is higher than your opponent's power, this attack costs -1 KI",
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "remove-move-from-combat",
+        move: "source",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-afterlife-galick-gun"],
+          sourceText: "forget this move",
+        },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "source-expression", text: "this move's cost" },
+        },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            categoryExcludes: ["signature"],
+            tags: ["beam"],
+            sourceText: "a Beam-type attack that is not a Signature Technique",
+          },
+        ],
+        activationGroup: "galick-gun-sacrifice-response",
+        sourceText: GALICK_GUN_RESPONSE_SOURCE,
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "opponent",
+        type: "negate",
+        aspects: ["prevent-damage"],
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            categoryExcludes: ["signature"],
+            tags: ["beam"],
+            sourceText: "a Beam-type attack that is not a Signature Technique",
+          },
+        ],
+        activationGroup: "galick-gun-sacrifice-response",
+        sourceText: GALICK_GUN_RESPONSE_SOURCE,
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "opponent",
+        type: "lock",
+        affectedType: "attack",
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          category: "advanced-attack",
+          categoryExcludes: ["signature"],
+          tags: ["beam"],
+          sourceText: "that attack",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 4 },
+          sourceText: "for your opponent's next 4 turns",
+        },
+        activationGroup: "galick-gun-sacrifice-response",
+        sourceText: GALICK_GUN_RESPONSE_SOURCE,
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "defense",
+        modifier: "result",
+        amount: { type: "literal", value: -2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          tags: ["physical"],
+          sourceText: "your physical attacks",
+        },
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          sourceText: "until they perform a SUCCESSFUL attack",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent's defensive rolls gain -2 against your physical attacks until they perform a SUCCESSFUL attack",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-warp-kamehameha",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "defer-move",
+        move: "source",
+        performAfterTurns: 1,
+        cancellation: {
+          actor: "opponent",
+          result: "successful",
+          sourceText: "If their attack against you is SUCCESSFUL, Instant Transmission fails",
+        },
+        onCancellation: {
+          type: "lock",
+          affectedType: "attack",
+          duration: {
+            type: "combat",
+            sourceText: "LOCK Warp Kamehameha for the remainder of combat",
+          },
+        },
+        sourceText: WARP_KAMEHAMEHA_SOURCE,
+      },
+      {
+        trigger: "action-phase",
+        target: "opponent",
+        type: "force-action",
+        allowedCategories: ["advanced-attack", "signature"],
+        allowPass: true,
+        scope: { type: "next-turn", subject: "opponent", sourceText: "on their next turn" },
+        sourceText: "Your opponent must attack on their next turn or pass",
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "defense",
+        dice: 1,
+        sides: 50,
+        scope: {
+          type: "next-roll",
+          roll: "defense",
+          sourceText: "Defense roll: 1d50 for that turn",
+        },
+        sourceText: "Defense roll: 1d50 for that turn",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-solar-flare",
+    [
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "roll-and-store",
+        dice: 1,
+        sides: 30,
+        storageKey: "solar-flare-roll",
+        sourceText: "Timing: UPKEEP phase. Roll 1d30",
+      },
+      {
+        trigger: "on-roll-result",
+        target: "opponent",
+        type: "apply-status",
+        statusId: "stun",
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "solar-flare-roll",
+            comparison: "at-least",
+            value: { type: "literal", value: 15 },
+            sourceText: "If your roll is 15 or higher, STUN",
+          },
+        ],
+        sourceText: "If your roll is 15 or higher, STUN",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "solar-flare-same-turn-single-die-follow-up",
+        scope: { type: "next-action", sourceText: "another single dice attack on this turn" },
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "set-roll-definition",
+            roll: "attack",
+            dice: 1,
+            sides: 35,
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                attackRoll: { dice: 1 },
+                sourceText: "another single dice attack on this turn",
+              },
+              {
+                type: "target-relation",
+                subject: "source",
+                relation: "same-as-source-effect-target",
+                sourceText: "attack the same opponent",
+              },
+            ],
+            sourceText: "your attack roll is 1d35",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "opponent",
+            type: "set-roll-definition",
+            roll: "defense",
+            dice: 1,
+            sides: 25,
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                attackRoll: { dice: 1 },
+                sourceText: "another single dice attack on this turn",
+              },
+              {
+                type: "target-relation",
+                subject: "source",
+                relation: "same-as-source-effect-target",
+                sourceText: "attack the same opponent",
+              },
+            ],
+            sourceText: "their defensive roll is 1d25",
+          },
+        ],
+        sourceText:
+          "If you attack the same opponent with another single dice attack on this turn, your attack roll is 1d35 and their defensive roll is 1d25",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "solar-flare-next-turn-single-die-follow-up",
+        scope: { type: "next-turn", subject: "self", sourceText: "On your next turn" },
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "set-roll-definition",
+            roll: "attack",
+            dice: 1,
+            sides: 32,
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                attackRoll: { dice: 1 },
+                sourceText: "if you attack with a single dice attack",
+              },
+            ],
+            sourceText: "your attack roll is 1d32",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "opponent",
+            type: "set-roll-definition",
+            roll: "defense",
+            dice: 1,
+            sides: 28,
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                attackRoll: { dice: 1 },
+                sourceText: "if you attack with a single dice attack",
+              },
+            ],
+            sourceText: "their defensive roll is 1d28",
+          },
+        ],
+        sourceText:
+          "On your next turn, if you attack with a single dice attack, your attack roll is 1d32 and their defensive roll is 1d28",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "lock",
+        affectedType: "skill",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-afterlife-solar-flare"],
+          sourceText: "this Skill",
+        },
+        duration: { type: "combat", sourceText: "LOCK this Skill for the remainder of combat" },
+        sourceText: "LOCK this Skill for the remainder of combat",
+      },
+    ],
+  ],
+  [
+    "move-afterlife-petrifying-spit",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "roll-and-store",
+        dice: 1,
+        sides: 30,
+        storageKey: "petrifying-spit-roll",
+        sourceText: PETRIFYING_SPIT_SOURCE,
+      },
+      {
+        trigger: "on-roll-result",
+        target: "opponent",
+        type: "apply-status",
+        statusId: "petrified",
+        duration: {
+          type: "until-turn-start-roll-threshold",
+          subject: "opponent",
+          dice: 1,
+          sides: 30,
+          comparison: "at-least",
+          value: { type: "literal", value: 15 },
+          startAfterTurns: 1,
+          sourceText: PETRIFYING_SPIT_SOURCE,
+        },
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "petrifying-spit-roll",
+            comparison: "at-least",
+            value: { type: "literal", value: 15 },
+            sourceText: "If the result of your dice roll is 15 or higher",
+          },
+        ],
+        sourceText: PETRIFYING_SPIT_SOURCE,
+      },
+      {
+        trigger: "on-roll-result",
+        target: "opponent",
+        type: "skip-action",
+        scope: { type: "next-turn", subject: "opponent", sourceText: "must skip their next turn" },
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "petrifying-spit-roll",
+            comparison: "at-least",
+            value: { type: "literal", value: 15 },
+            sourceText: "If the result of your dice roll is 15 or higher",
+          },
+        ],
+        sourceText: PETRIFYING_SPIT_SOURCE,
+      },
+      {
+        trigger: "turn-end",
+        target: "opponent",
+        type: "skip-action",
+        duration: {
+          type: "until-turn-start-roll-threshold",
+          subject: "opponent",
+          dice: 1,
+          sides: 30,
+          comparison: "at-least",
+          value: { type: "literal", value: 15 },
+          startAfterTurns: 1,
+          sourceText: PETRIFYING_SPIT_SOURCE,
+        },
+        conditions: [
+          {
+            type: "status",
+            subject: "opponent",
+            statusId: "petrified",
+            state: "active",
+            sourceText: "your opponent is turned to stone",
+          },
+        ],
+        sourceText: PETRIFYING_SPIT_SOURCE,
+      },
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "action-phase",
+        conditions: [
+          {
+            type: "moveset",
+            subject: "self",
+            excludesIds: ["move-afterlife-time-freeze"],
+            sourceText: "If you do not have Time Freeze in your moveset",
+          },
+        ],
+        sourceText: PETRIFYING_SPIT_SOURCE,
       },
     ],
   ],

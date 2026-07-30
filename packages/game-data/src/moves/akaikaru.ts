@@ -5,6 +5,331 @@ import type { MoveDefinition } from "../shared/types.js";
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-akaikaru-fury-strikes",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: -1 },
+        scope: {
+          type: "next-resource-gain",
+          resource: "ki",
+          subject: "opponent",
+          sourceText: "The next time your opponent gains KI",
+        },
+        sourceText: "SUCCESSFUL - The next time your opponent gains KI, they gain 1 less KI",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-intensity-mastery",
+    [
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-move-classification",
+        setStyleId: "style-akaikaru",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-freestyle",
+          category: "advanced-attack",
+          sourceText: "a single Freestyle Advanced Attack",
+        },
+        sourceText:
+          "At the start of each match, you may choose a single Freestyle Advanced Attack to be counted as an Akaikaru attack",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-resolution",
+        prevention: "block",
+        scope: { type: "next-action", sourceText: "your next single-dice Akaikaru attack" },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          attackRoll: { dice: 1 },
+          sourceText: "your next single-dice Akaikaru attack",
+        },
+        conditions: [
+          {
+            type: "combat-result",
+            actor: "opponent",
+            result: "successful",
+            sourceText:
+              "Whenever your opponent performs a SUCCESSFUL Advanced Attack against you with a base cost of 2 or more",
+          },
+          {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            baseKiCost: { comparison: "at-least", value: { type: "literal", value: 2 } },
+            sourceText:
+              "Whenever your opponent performs a SUCCESSFUL Advanced Attack against you with a base cost of 2 or more",
+          },
+        ],
+        sourceText:
+          'Whenever your opponent performs a SUCCESSFUL Advanced Attack against you with a base cost of 2 or more, your next single-dice Akaikaru attack gains "This attack cannot be Blocked. SUCCESSFUL - If your attack roll result is 15 or higher, STUN."',
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "apply-status",
+        statusId: "stun",
+        scope: { type: "next-action", sourceText: "your next single-dice Akaikaru attack" },
+        conditions: [
+          {
+            type: "combat-result",
+            actor: "opponent",
+            result: "successful",
+            sourceText:
+              "Whenever your opponent performs a SUCCESSFUL Advanced Attack against you with a base cost of 2 or more",
+          },
+          {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            baseKiCost: { comparison: "at-least", value: { type: "literal", value: 2 } },
+            sourceText:
+              "Whenever your opponent performs a SUCCESSFUL Advanced Attack against you with a base cost of 2 or more",
+          },
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 15 },
+            sourceText: "If your attack roll result is 15 or higher",
+          },
+        ],
+        sourceText:
+          'Whenever your opponent performs a SUCCESSFUL Advanced Attack against you with a base cost of 2 or more, your next single-dice Akaikaru attack gains "This attack cannot be Blocked. SUCCESSFUL - If your attack roll result is 15 or higher, STUN."',
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-spinebreaker",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-akaikaru-spinebreaker"],
+          sourceText: "The cost of this attack",
+        },
+        aspects: ["cost"],
+        actor: "any",
+        sourceText: "The cost of this attack cannot be reduced",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "apply-status",
+        statusId: "stun",
+        activationCost: {
+          resource: "ki",
+          amount: { type: "source-expression", text: "cost of your opponent's last attack + 1" },
+          operation: "lose",
+        },
+        exclusiveActivationGroup: "spinebreaker-success-choice",
+        sourceText:
+          "SUCCESSFUL - You may pay the cost of your opponent's last attack +1. If you do, STUN",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "transformation",
+        modifier: "result",
+        amount: { type: "literal", value: -3 },
+        scope: {
+          type: "next-phase",
+          subject: "opponent",
+          phase: "end",
+          sourceText: "during the END phase of this turn",
+        },
+        exclusiveActivationGroup: "spinebreaker-success-choice",
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 25 },
+            sourceText: "If your attack roll is 25 or higher",
+          },
+        ],
+        sourceText:
+          "If your attack roll is 25 or higher, you may instead choose to have your opponent roll a Transformation roll during the END phase of this turn, with -3 to the result",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-naginata",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "set-roll-definition",
+        roll: "attack",
+        dice: 1,
+        sides: 35,
+        conditions: [
+          {
+            type: "paid-ki-cost",
+            subject: "self",
+            comparison: "at-least",
+            value: { type: "literal", value: 3 },
+            sourceText: "if you spent 3 or more KI on this attack",
+          },
+        ],
+        sourceText:
+          "Your attack roll for this attack is 1d35 if you spent 3 or more KI on this attack",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "multiply",
+        amount: { type: "literal", value: 2 },
+        scope: { type: "next-action", sourceText: "your next Akaikaru Advanced Attack" },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          category: "advanced-attack",
+          sourceText: "your next Akaikaru Advanced Attack",
+        },
+        sourceText:
+          "SUCCESSFUL - Your Dexterity Bonus is doubled on your next Akaikaru Advanced Attack and your next defense roll",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "multiply",
+        amount: { type: "literal", value: 2 },
+        scope: { type: "next-roll", roll: "defense", sourceText: "your next defense roll" },
+        sourceText:
+          "SUCCESSFUL - Your Dexterity Bonus is doubled on your next Akaikaru Advanced Attack and your next defense roll",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-dazzling-gymnastics",
+    [
+      {
+        trigger: "on-stopped",
+        target: "opponent",
+        type: "set-combat-result",
+        result: "stopped",
+        resultScope: "matching-die",
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            attackRoll: { minimumDice: 2 },
+            sourceText: "multi-dice attacks",
+          },
+        ],
+        sourceText: "This STOPS all dice of multi-dice attacks",
+      },
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "add",
+        amount: { type: "literal", value: 1 },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 3 },
+          sourceText: "for the next 3 turns",
+        },
+        sourceText: "Your Dexterity Bonus is considered to be 1 higher for the next 3 turns",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-blitzkrieg",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-move-classification",
+        addTags: ["ENERGY"],
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText: "This attack also counts as an energy attack for all effects",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "add",
+        amount: { type: "literal", value: 2 },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 3 },
+          sourceText: "for three turns",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "exactly",
+            value: { type: "literal", value: 2 },
+            sourceText: "If two dice are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If two dice are SUCCESSFUL, your Dexterity bonus increases by 2 for three turns",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "add",
+        amount: { type: "literal", value: 3 },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 4 },
+          sourceText: "for four turns instead",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "exactly",
+            value: { type: "literal", value: 3 },
+            sourceText: "If three dice are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If two dice are SUCCESSFUL, your Dexterity bonus increases by 2 for three turns. If three dice are SUCCESSFUL, your Dexterity bonus increases by 3 for four turns instead",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-no-shadow-kick",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-move-classification",
+        addTags: ["PUNCH"],
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText: "This attack also counts as a Punch-type attack for all effects",
+      },
+    ],
+  ],
+  [
     "move-akaikaru-stampede-rush",
     [
       {
@@ -1083,6 +1408,847 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
         ],
         sourceText: "SUCCESSFUL - If four or more dice rolls are SUCCESSFUL, STUN",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-anger-management",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "anger-management-next-single-die-stun",
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "apply-status",
+            statusId: "stun",
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                category: "advanced-attack",
+                attackRoll: { dice: 1 },
+                effectTextExcludes: "STUN",
+                sourceText: "next single dice attack without stun in the effect",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: { type: "literal", value: 23 },
+                sourceText: "If your attack roll is 23 or higher",
+              },
+            ],
+            sourceText: "SUCCESSFUL - If your attack roll is 23 or higher, STUN",
+          },
+        ],
+        termination: [
+          {
+            trigger: "on-success",
+            actor: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              attackRoll: { dice: 1 },
+              effectTextExcludes: "STUN",
+              sourceText: "next single dice attack without stun in the effect",
+            },
+            sourceText: "SUCCESSFUL - If your attack roll is 23 or higher, STUN",
+          },
+        ],
+        sourceText:
+          'SUCCESSFUL - Your next single dice attack without stun in the effect gains "SUCCESSFUL - If your attack roll is 23 or higher, STUN." If that attack is BLOCKED, this added SUCCESSFUL clause carries over to your next single-dice attack',
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-backflip-kick",
+    [
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "backflip-kick-next-dexterity-stun",
+        scope: { type: "next-action", sourceText: "your next attack" },
+        conditions: [
+          {
+            type: "roll-comparison",
+            left: "attack",
+            comparison: "at-least",
+            right: "defense",
+            difference: { type: "literal", value: 7 },
+            sourceText: "If your attack roll result is +7 or more your opponent's defensive roll",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-resolution",
+            prevention: "block",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "Dexterity",
+              sourceText: "your next attack with the word 'Dexterity' in the effect",
+            },
+            sourceText:
+              "your next attack with the word 'Dexterity' in the effect cannot be BLOCKED",
+          },
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "apply-status",
+            statusId: "stun",
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                effectTextIncludes: "Dexterity",
+                sourceText: "your next attack with the word 'Dexterity' in the effect",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: { type: "literal", value: 23 },
+                sourceText: "If your attack roll result is 23 or more",
+              },
+            ],
+            sourceText: "SUCCESSFUL - If your attack roll result is 23 or more, STUN",
+          },
+        ],
+        sourceText:
+          "If your attack roll result is +7 or more your opponent's defensive roll, your next attack with the word 'Dexterity' in the effect cannot be BLOCKED and gains 'SUCCESSFUL - If your attack roll result is 23 or more, STUN'",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-accelerated-shoulder-tackle",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 3 },
+        scope: { type: "next-action", sourceText: "your next attack roll" },
+        conditions: [
+          {
+            type: "moveset-move-count",
+            subject: "self",
+            category: "advanced-attack",
+            tags: ["physical"],
+            comparison: "exactly",
+            value: { type: "literal", value: 4 },
+            sourceText: "If you have at least 4 physical attacks in your moveset",
+          },
+        ],
+        sourceText:
+          "If you have at least 4 physical attacks in your moveset, your next attack roll gains +3 to the result",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 4 },
+        scope: { type: "current-action", sourceText: "the result of this" },
+        conditions: [
+          {
+            type: "moveset-move-count",
+            subject: "self",
+            category: "advanced-attack",
+            tags: ["physical"],
+            comparison: "at-least",
+            value: { type: "literal", value: 5 },
+            sourceText: "If you have at least 5 physical attacks in your moveset",
+          },
+        ],
+        sourceText:
+          "If you have at least 5 physical attacks in your moveset, the result of this and your next attack roll gain +4 instead",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 4 },
+        scope: { type: "next-action", sourceText: "your next attack roll" },
+        conditions: [
+          {
+            type: "moveset-move-count",
+            subject: "self",
+            category: "advanced-attack",
+            tags: ["physical"],
+            comparison: "at-least",
+            value: { type: "literal", value: 5 },
+            sourceText: "If you have at least 5 physical attacks in your moveset",
+          },
+        ],
+        sourceText:
+          "If you have at least 5 physical attacks in your moveset, the result of this and your next attack roll gain +4 instead",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-delta-storm",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "grant-combat-outcome",
+        outcome: "sever",
+        conditions: [
+          {
+            type: "roll-die-threshold",
+            roll: "attack",
+            index: 3,
+            comparison: "at-least",
+            value: { type: "literal", value: 30 },
+            sourceText: "If the last dice roll is 30 or higher",
+          },
+        ],
+        sourceText: "SUCCESSFUL - If the last dice roll is 30 or higher, SEVER",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-ticking-time-bomb",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "turns-after-turn", turn: 10, perTurn: 15, maximum: 75 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        sourceText:
+          "For every turn that passes after the minimum amount of turns after Turn 10, this attack does +(15% Power) Damage to a maximum of +(75% Power) Damage",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-relentless",
+    [
+      {
+        trigger: "passive",
+        target: "participants",
+        type: "lock",
+        affectedType: "escape",
+        sourceText: "Escape rolls cannot be made while this Skill is active",
+      },
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: {
+          type: "participant-count",
+          excludeSelf: true,
+          perParticipant: 1,
+          maximum: 9,
+        },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-akaikaru-relentless"],
+          sourceText: "This Skill",
+        },
+        scope: { type: "current-action", sourceText: "This Skill costs" },
+        sourceText:
+          "This Skill costs +1 KI for every participant in battle, excluding yourself to a maximum of +9 KI",
+      },
+      {
+        trigger: "turn-end",
+        target: "self",
+        type: "deactivate",
+        affectedType: "skill",
+        optional: true,
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-akaikaru-relentless"],
+          sourceText: "this skill",
+        },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
+        sourceText: "You may DEACTIVATE this skill during your END phase by paying 1 KI",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-impulsive",
+    [
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "roll-and-store",
+        dice: 1,
+        sides: { type: "moveset-move-count", subject: "self", category: "advanced-attack" },
+        storageKey: "impulsive-advanced-attack-index",
+        sourceText: "Roll 1dX (X = number of Advanced Attacks in your move set) every turn",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "select-move-by-stored-roll",
+        storageKey: "impulsive-advanced-attack-index",
+        selectionKey: "impulsive-selected-advanced-attack",
+        subject: "self",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "advanced-attack",
+          sourceText: "Advanced Attack appears in your move set",
+        },
+        ordering: "character-sheet-top-to-bottom",
+        reindex: "on-moveset-change",
+        sourceText:
+          "The number you roll corresponds to the number that an Advanced Attack appears in your move set",
+      },
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "force-action",
+        allowedCategories: ["advanced-attack"],
+        allowPass: true,
+        selectedMoveStorageKey: "impulsive-selected-advanced-attack",
+        sourceText: "You must perform that attack, or pass if you cannot pay the cost",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 10 },
+        scope: { type: "current-action", sourceText: "That attack" },
+        conditions: [
+          {
+            type: "stored-move-selection",
+            selectionKey: "impulsive-selected-advanced-attack",
+            sourceText: "That attack",
+          },
+        ],
+        sourceText: "That attack does +(10% Power) damage",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -1 },
+        minimum: { type: "literal", value: 1 },
+        scope: { type: "current-action", sourceText: "That attack" },
+        conditions: [
+          {
+            type: "stored-move-selection",
+            selectionKey: "impulsive-selected-advanced-attack",
+            sourceText: "That attack",
+          },
+        ],
+        sourceText:
+          "That attack does +(10% Power) damage and costs -1 KI to perform to a minimum of 1",
+      },
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "deactivate",
+        affectedType: "skill",
+        optional: true,
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-akaikaru-impulsive"],
+          sourceText: "this Skill",
+        },
+        sourceText: "You may DEACTIVATE this Skill at the start of any turn",
+      },
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "prior-move-activation-count", move: "source", perActivation: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-akaikaru-impulsive"],
+          sourceText: "this Skill",
+        },
+        scope: { type: "current-action", sourceText: "this Skill costs" },
+        sourceText:
+          "This Skill costs +2 KI to activate for every time it's been activated during combat",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-rage-mastery",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "dice",
+        amount: { type: "literal", value: 1 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          category: "advanced-attack",
+          attackRoll: { dice: 1 },
+          sourceText: "an Akaikaru single dice attack",
+        },
+        scope: { type: "current-action", sourceText: "it be a 2d attack" },
+        optional: true,
+        activationGroup: "rage-mastery-single-die-doubling",
+        sourceText:
+          "When you perform an Akaikaru single dice attack you may have it be a 2d attack",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-damage",
+        operation: "multiply",
+        percent: { type: "literal", value: 0.5 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          category: "advanced-attack",
+          attackRoll: { dice: 1 },
+          sourceText: "an Akaikaru single dice attack",
+        },
+        scope: { type: "current-action", sourceText: "base damage cut in half" },
+        activationGroup: "rage-mastery-single-die-doubling",
+        sourceText:
+          "When you perform an Akaikaru single dice attack you may have it be a 2d attack with base damage cut in half",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "require-all-dice-success",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          category: "advanced-attack",
+          attackRoll: { dice: 1 },
+          sourceText: "attacks changed in this way",
+        },
+        appliesTo: "successful-effects",
+        activationGroup: "rage-mastery-single-die-doubling",
+        sourceText:
+          "Any successful effects on attacks changed in this way require both dice to hit to gain the effect",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          category: "advanced-attack",
+          attackRoll: { minimumDice: 2 },
+          sourceText: "Your multi-dice attacks",
+        },
+        scope: { type: "current-action", sourceText: "Your multi-dice attacks" },
+        sourceText: "Your multi-dice attacks gain +2 to their results",
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "opponent",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          category: "block",
+          sourceText: "cost +2 KI to block",
+        },
+        scope: { type: "current-action", sourceText: "cost +2 KI to block" },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "source",
+            styleId: "style-akaikaru",
+            category: "advanced-attack",
+            attackRoll: { minimumDice: 2 },
+            sourceText: "Your multi-dice attacks",
+          },
+        ],
+        sourceText: "Your multi-dice attacks gain +2 to their results and cost +2 KI to block",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-shock-fist",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-move-classification",
+        addTags: ["ENERGY"],
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText: "This attack is also considered an energy attack for all effects",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "defense",
+        modifier: "result",
+        amount: { type: "literal", value: -3 },
+        stacking: "allow",
+        cap: {
+          type: "minimum",
+          value: { type: "literal", value: -6 },
+          sourceText: "This effect stacks up to -6",
+        },
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            attackRoll: { dice: 1 },
+            sourceText: "a SUCCESSFUL single-dice attack",
+          },
+          conditions: [
+            {
+              type: "action-sequence",
+              actor: "opponent",
+              result: "successful",
+              count: 2,
+              sourceText: "minimum 2 defense rolls",
+            },
+          ],
+          sourceText: "until they perform a SUCCESSFUL single-dice attack, minimum 2 defense rolls",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent's defensive dice rolls gain -3 to the result until they perform a SUCCESSFUL single-dice attack, minimum 2 defense rolls. This effect stacks up to -6",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-gone-in-a-sixtieth-of-a-second",
+    [
+      {
+        trigger: "on-stopped",
+        target: "opponent",
+        type: "block-all-dice",
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          category: "advanced-attack",
+          tags: ["energy"],
+          attackRoll: { minimumDice: 2 },
+          sourceText: "energy multi-dice attacks",
+        },
+        sourceText: "This can STOP all dice from energy multi-dice attacks",
+      },
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "gone-in-a-sixtieth-next-base-cost-one-stun",
+        scope: { type: "next-action", sourceText: "Your next base cost 1 attack" },
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "apply-status",
+            statusId: "stun",
+            unpreventable: true,
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "source",
+                baseKiCost: { comparison: "exactly", value: { type: "literal", value: 1 } },
+                sourceText: "Your next base cost 1 attack",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: { type: "literal", value: 20 },
+                sourceText: "If your dice roll result is 20 or higher",
+              },
+            ],
+            sourceText:
+              "SUCCESSFUL - If your dice roll result is 20 or higher, STUN. This STUN cannot be prevented by any means",
+          },
+        ],
+        sourceText:
+          'Your next base cost 1 attack gains "SUCCESSFUL - If your dice roll result is 20 or higher, STUN. This STUN cannot be prevented by any means."',
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-letting-off-steam",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: {
+          type: "consecutive-combat-results",
+          actor: "self",
+          result: "stopped",
+          resetBy: "successful",
+          perResult: 5,
+          maximum: 40,
+        },
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText:
+          "This attack does +(5% Power) Damage and gains +1 to the result for every attack roll of yours that's been STOPPED in a row since your last SUCCESSFUL attack roll to a maximum of +(40% Power) and +4 to the result",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: {
+          type: "consecutive-combat-results",
+          actor: "self",
+          result: "stopped",
+          resetBy: "successful",
+          perResult: 1,
+          maximum: 4,
+        },
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText:
+          "This attack does +(5% Power) Damage and gains +1 to the result for every attack roll of yours that's been STOPPED in a row since your last SUCCESSFUL attack roll to a maximum of +(40% Power) and +4 to the result",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "escape",
+        modifier: "result",
+        amount: { type: "literal", value: -5 },
+        scope: { type: "next-roll", roll: "escape", sourceText: "their next escape roll" },
+        stacking: "prevent",
+        sourceText:
+          "SUCCESSFUL - Your opponent suffers -5 to their next escape roll. This does not stack with itself",
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-chained-mastery",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: {
+          type: "consecutive-combat-results",
+          actor: "self",
+          result: "successful",
+          resetBy: "stopped",
+          perResult: 5,
+        },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-akaikaru",
+          category: "advanced-attack",
+          sourceText: "Your Akaikaru Advanced Attacks",
+        },
+        scope: { type: "current-action", sourceText: "that attack" },
+        sourceText:
+          "Your Akaikaru Advanced Attacks do +(5% Power) Damage for every SUCCESSFUL attack you performed in a row prior to that attack. This effect resets when one of your attacks are STOPPED",
+      },
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "chained-mastery-next-turn-kick-follow-up",
+        scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "source",
+            tags: ["punch"],
+            sourceText: "Your Punch-type attacks",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: { type: "literal", value: 5 },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["kick"],
+              restriction: "unrestricted",
+              sourceText: "an UNRESTRICTED Kick-type attack",
+            },
+            scope: { type: "current-action", sourceText: "the attack" },
+            sourceText: "the attack does +(5% Power) Damage",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: { type: "literal", value: 2 },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["kick"],
+              restriction: "unrestricted",
+              sourceText: "an UNRESTRICTED Kick-type attack",
+            },
+            scope: { type: "current-action", sourceText: "the attack" },
+            sourceText: "the attack gains +2 to the results",
+          },
+        ],
+        sourceText:
+          'Your Punch-type attacks gain "If you perform an UNRESTRICTED Kick-type attack on your next turn, the attack does +(5% Power) Damage and gains +2 to the results."',
+      },
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "chained-mastery-next-turn-punch-follow-up",
+        scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "source",
+            tags: ["kick"],
+            sourceText: "Your Kick-type attacks",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: { type: "literal", value: 5 },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["punch"],
+              restriction: "unrestricted",
+              sourceText: "an UNRESTRICTED Punch-type attack",
+            },
+            scope: { type: "current-action", sourceText: "the attack" },
+            sourceText: "the attack does +(5% Power) Damage",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: { type: "literal", value: 2 },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["punch"],
+              restriction: "unrestricted",
+              sourceText: "an UNRESTRICTED Punch-type attack",
+            },
+            scope: { type: "current-action", sourceText: "the attack" },
+            sourceText: "the attack gains +2 to the results",
+          },
+        ],
+        sourceText:
+          'Your Kick-type attacks gain "If you perform an UNRESTRICTED Punch-type attack on your next turn, the attack does +(5% Power) Damage and gains +2 to the results."',
+      },
+    ],
+  ],
+  [
+    "move-akaikaru-shotgun-blast",
+    [
+      {
+        trigger: "on-roll-modified",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 1 },
+        scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
+        conditions: [
+          {
+            type: "roll-modification",
+            actor: "self",
+            roll: "attack",
+            modifiers: ["sides", "result"],
+            excludeSource: "dexterity",
+            sourceText:
+              "If you modify the dice sides or result of your attack on your next turn from effects other than dexterity",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If you modify the dice sides or result of your attack on your next turn from effects other than dexterity, gain 1 KI",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "prevent-roll-modification",
+        roll: "defense",
+        modifier: "any",
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            attackRoll: { dice: 1 },
+            sourceText: "single dice attacks",
+          },
+          conditions: [
+            {
+              type: "action-sequence",
+              actor: "opponent",
+              result: "successful",
+              count: 2,
+              sourceText: "two SUCCESSFUL single dice attacks in a row",
+            },
+          ],
+          sourceText: "until they perform two SUCCESSFUL single dice attacks in a row",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "exactly",
+            value: { type: "literal", value: 3 },
+            sourceText: "If all dice rolls are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "If all dice rolls are SUCCESSFUL, your opponent cannot modify their defense roll results or dice sides until they perform two SUCCESSFUL single dice attacks in a row",
       },
     ],
   ],

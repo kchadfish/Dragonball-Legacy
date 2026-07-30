@@ -3,6 +3,22 @@ import { describe, expect, it } from "vitest";
 import { MIDORIKATAI_MOVES } from "./midorikatai.js";
 
 describe("MIDORIKATAI_MOVES", () => {
+  it("records Smackdown's cost protection, Bukujutsu bonus, and suppression", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Smackdown")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "prevent-move-modification", aspects: ["cost"] }),
+        expect.objectContaining({ type: "modify-damage", percent: { type: "literal", value: 15 } }),
+        expect.objectContaining({ type: "suppress-requirement", requirement: "Bukujutsu" }),
+      ]),
+    );
+  });
+
+  it("records Back Suplex's successful-result override", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Back Suplex")?.effects).toEqual([
+      expect.objectContaining({ type: "set-combat-result", result: "successful" }),
+    ]);
+  });
+
   it("records Rocket Fire's temporary Dexterity replacement", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Rocket Fire")?.effects).toEqual([
       expect.objectContaining({

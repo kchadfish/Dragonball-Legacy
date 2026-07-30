@@ -4,6 +4,76 @@ import { createStyleMoves } from "./create-style-moves.js";
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-midorikatai-smackdown",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-midorikatai-smackdown"],
+          sourceText: "The cost of this attack",
+        },
+        aspects: ["cost"],
+        actor: "any",
+        sourceText: "The cost of this attack cannot be reduced",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 15 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "prior-action",
+            actor: "opponent",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "advanced-attack",
+              requirementIncludes: ["Bukujutsu"],
+              sourceText: "your opponent's last Advanced Attack required Bukujutsu",
+            },
+            sourceText: "If your opponent's last Advanced Attack required Bukujutsu",
+          },
+        ],
+        sourceText:
+          "If your opponent's last Advanced Attack required Bukujutsu, this attack does +(15% Power) Damage",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "suppress-requirement",
+        requirement: "Bukujutsu",
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 2 },
+          sourceText: "for their next 2 turns",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent is considered to not have Bukujutsu for their next 2 turns",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-back-suplex",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "set-combat-result",
+        result: "successful",
+        resultScope: "current-attack",
+        sourceText:
+          "This attack counts as SUCCESSFUL for all effects. If a SUCCESSFUL effect is applied to this attack, you gain the effect even if it is STOPPED",
+      },
+    ],
+  ],
+  [
     "move-midorikatai-rocket-fire",
     [
       {

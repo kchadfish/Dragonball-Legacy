@@ -85,6 +85,73 @@ export interface EffectClauseDefinition {
 
 export type NumericExpression =
   | { readonly type: "literal"; readonly value: number }
+  | {
+      readonly type: "turns-after-turn";
+      readonly turn: number;
+      readonly perTurn: number;
+      readonly maximum: number;
+    }
+  | {
+      readonly type: "participant-count";
+      readonly excludeSelf: boolean;
+      readonly perParticipant: number;
+      readonly maximum: number;
+    }
+  | {
+      readonly type: "moveset-move-count";
+      readonly subject: "self" | "opponent";
+      readonly category: "advanced-attack" | "signature" | "block" | "skill" | "mastery";
+    }
+  | {
+      readonly type: "prior-move-activation-count";
+      readonly move: "source";
+      readonly perActivation: number;
+    }
+  | {
+      readonly type: "consecutive-combat-results";
+      readonly actor: "self" | "opponent";
+      readonly result: "successful" | "stopped" | "critical" | "counter";
+      readonly resetBy: "successful" | "stopped" | "critical" | "counter";
+      readonly perResult: number;
+      readonly maximum?: number;
+    }
+  | {
+      readonly type: "bounded-stat";
+      readonly subject: "self" | "opponent";
+      readonly stat: "dexterity-bonus";
+      readonly minimum: number;
+      readonly maximum: number;
+    }
+  | {
+      readonly type: "resource-percent";
+      readonly subject: "self" | "opponent";
+      readonly resource: "hp" | "ki";
+      readonly basis: "current" | "total";
+      readonly percent: number;
+    }
+  | {
+      readonly type: "stat-percent";
+      readonly subject: "self" | "opponent";
+      readonly stat: "power";
+      readonly percent: number;
+    }
+  | {
+      readonly type: "triggering-move-base-damage";
+      readonly multiplier: number;
+    }
+  | {
+      readonly type: "blocked-attack-damage";
+      readonly multiplier: number;
+    }
+  | { readonly type: "paid-activation-cost"; readonly resource: "ki" }
+  | {
+      readonly type: "active-move-count";
+      readonly subject: "self" | "opponent";
+      readonly category: "skill";
+      readonly constant: true;
+      readonly perMove: number;
+    }
+  | { readonly type: "successful-hit-count" }
   | { readonly type: "source-expression"; readonly text: string };
 
 export interface MoveMechanics {

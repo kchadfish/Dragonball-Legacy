@@ -3,6 +3,49 @@ import { describe, expect, it } from "vitest";
 import { KIIHAKAI_MOVES } from "./kiihakai.js";
 
 describe("KIIHAKAI_MOVES", () => {
+  it("records Redirected Energy's deactivated-skill cost reduction", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Redirected Energy")?.effects).toEqual([
+      expect.objectContaining({
+        trigger: "on-deactivated",
+        type: "modify-cost",
+        amount: { type: "source-expression", text: "-(cost of the Skill - 1)" },
+      }),
+    ]);
+  });
+
+  it("records Aura Clash's successful and stopped delayed transformations", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Aura Clash")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "force-transformation",
+          trigger: "on-success",
+          target: "self",
+        }),
+        expect.objectContaining({
+          type: "force-transformation",
+          trigger: "on-stopped",
+          target: "participants",
+        }),
+      ]),
+    );
+  });
+
+  it("records Overdrive Blast's power-up-context Mastery activation", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Overdrive Blast")?.effects).toEqual([
+      expect.objectContaining({
+        type: "activate",
+        asIf: "power-up",
+        selector: expect.objectContaining({ ids: ["move-kiihakai-overdrive-mastery"] }),
+      }),
+    ]);
+  });
+
+  it("records Turn Up The Heat's Energy-type classification", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Turn Up The Heat")?.effects).toEqual([
+      expect.objectContaining({ type: "modify-move-classification", addTags: ["ENERGY"] }),
+    ]);
+  });
+
   it("records Orange Burst's linked damage replacement and deactivation", () => {
     expect(KIIHAKAI_MOVES.find((move) => move.name === "Orange Burst")?.effects).toEqual(
       expect.arrayContaining([
@@ -232,5 +275,109 @@ describe("KIIHAKAI_MOVES", () => {
         amount: { type: "source-expression", text: "The cost of your opponent's next attack" },
       }),
     ]);
+  });
+
+  it("records Energy Gathering's Ki-gain follow-up", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Energy Gathering")?.effects).toEqual([
+      expect.objectContaining({
+        type: "modify-resource",
+        resource: "ki",
+        amount: { type: "literal", value: 1 },
+        conditions: [expect.objectContaining({ type: "resource-change", timing: "current-event" })],
+      }),
+    ]);
+  });
+
+  it("records The Rising Sun's combat-long physical-attack retaliation", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "The Rising Sun")?.effects).toEqual([
+      expect.objectContaining({
+        type: "create-floating-effect",
+        floatingEffectId: "the-rising-sun-physical-attack-retaliation",
+      }),
+    ]);
+  });
+
+  it("records Twisting Beam's active-CONSTANT-skill damage scaling", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Twisting Beam")?.effects).toEqual([
+      expect.objectContaining({
+        type: "modify-damage",
+        percent: expect.objectContaining({ type: "active-move-count", perMove: 5 }),
+      }),
+    ]);
+  });
+
+  it("records Triple Torpedo's thresholded constant activation and protection", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Triple Torpedo")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "activate", optional: true }),
+        expect.objectContaining({ type: "prevent-move-use", operation: "deactivate" }),
+      ]),
+    );
+  });
+
+  it("records Ki Jammer's nonstacking Power-Up damage penalty", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Ki Jammer")?.effects).toEqual([
+      expect.objectContaining({
+        type: "create-floating-effect",
+        stacking: "prevent",
+        duration: expect.objectContaining({ type: "until-combat-result" }),
+      }),
+    ]);
+  });
+
+  it("records Shaolin Focused Beam's two-skill deactivation protection", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Shaolin Focused Beam")?.effects).toEqual([
+      expect.objectContaining({
+        type: "prevent-move-use",
+        operation: "deactivate",
+        selectionLimit: 2,
+        duration: expect.objectContaining({ type: "until-combat-result" }),
+      }),
+    ]);
+  });
+
+  it("records Focus Breaker's constant-skill sacrifice to stop an attack", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Focus Breaker")?.effects).toEqual([
+      expect.objectContaining({
+        type: "stop-attack-by-deactivation",
+        lockDuration: { type: "combat", sourceText: "for the remainder of combat" },
+      }),
+    ]);
+  });
+
+  it("records Energy Slasher's stopped-physical-attack Power-Up Ki gain", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Energy Slasher")?.effects).toEqual([
+      expect.objectContaining({
+        type: "modify-resource",
+        resource: "ki",
+        amount: { type: "literal", value: 2 },
+        scope: {
+          type: "next-turn",
+          subject: "self",
+          sourceText: "if you Power Up on your next turn",
+        },
+      }),
+    ]);
+  });
+
+  it("records Devastating Blade's next constant-skill deactivation prevention", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Devastating Blade")?.effects).toEqual([
+      expect.objectContaining({
+        type: "prevent-move-use",
+        operation: "deactivate",
+        useLimit: { scope: "combat", count: 1, sourceText: "The next time" },
+      }),
+    ]);
+  });
+
+  it("records Power Boost's skipped-turn energy-attack bonuses", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Power Boost")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "skip-action", optional: true }),
+        expect.objectContaining({ type: "modify-damage", percent: { type: "literal", value: 20 } }),
+        expect.objectContaining({ type: "modify-roll", amount: { type: "literal", value: 5 } }),
+        expect.objectContaining({ type: "modify-resource", amount: { type: "literal", value: 3 } }),
+      ]),
+    );
   });
 });

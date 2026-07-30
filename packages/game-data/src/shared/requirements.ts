@@ -13,4 +13,5 @@ export type Requirement =
       readonly locationIds: readonly LocationId[];
     }
   | { readonly type: "narrative-trigger"; readonly triggerId: string }
+  | { readonly type: "moveset-excludes"; readonly moveIds: readonly MoveId[] }
   | { readonly type: "source-text"; readonly text: string };

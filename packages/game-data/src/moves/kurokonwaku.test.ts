@@ -3,6 +3,45 @@ import { describe, expect, it } from "vitest";
 import { KUROKONWAKU_MOVES } from "./kurokonwaku.js";
 
 describe("KUROKONWAKU_MOVES", () => {
+  it("records Flashback's last unrestricted attack replay", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Flashback")?.effects).toEqual([
+      expect.objectContaining({
+        type: "copy-move-effect",
+        sourceMove: expect.objectContaining({ type: "last-prior-move" }),
+        damage: { type: "add-percent", value: { type: "literal", value: 10 } },
+      }),
+    ]);
+  });
+
+  it("records Breaking The Cycle's paired unrestricted successful-effect suppression", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Breaking The Cycle")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "suppress",
+          target: "self",
+          aspects: ["successful-effects"],
+        }),
+        expect.objectContaining({
+          type: "suppress",
+          target: "opponent",
+          aspects: ["successful-effects"],
+        }),
+      ]),
+    );
+  });
+
+  it("records Trickster Mastery's permanent penalties and physical-energy branches", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Trickster Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-roll", roll: "attack" }),
+        expect.objectContaining({ type: "modify-roll", roll: "defense" }),
+        expect.objectContaining({ type: "deactivate" }),
+        expect.objectContaining({ type: "prevent-resource-modification", resource: "hp" }),
+        expect.objectContaining({ type: "prevent-resource-modification", resource: "ki" }),
+      ]),
+    );
+  });
+
   it("represents rerolls, threshold branches, and result-gated locks", () => {
     expect(KUROKONWAKU_MOVES.find((move) => move.name === "Second Chance")?.effects).toEqual(
       expect.arrayContaining([
@@ -301,6 +340,152 @@ describe("KUROKONWAKU_MOVES", () => {
       expect.arrayContaining([
         expect.objectContaining({ type: "set-combat-result", result: "stopped" }),
         expect.objectContaining({ type: "set-combat-result", result: "successful" }),
+      ]),
+    );
+  });
+
+  it("records Childish Taunt, Killer Gaze, and Living Voodoo's conditional effects", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Childish Taunt")?.effects).toEqual([
+      expect.objectContaining({
+        type: "modify-roll",
+        trigger: "on-resource-drain",
+        duration: expect.objectContaining({ type: "turns-or-until-perfect-roll" }),
+        stacking: "prevent",
+      }),
+    ]);
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Killer Gaze")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-roll", trigger: "on-resource-gain" }),
+        expect.objectContaining({ type: "prevent-move-use", operation: "deactivate" }),
+      ]),
+    );
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Living Voodoo")?.effects).toEqual([
+      expect.objectContaining({ type: "set-combat-result", result: "stopped" }),
+    ]);
+  });
+
+  it("records Dimension Scream's attack-effect suppression branches", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Dimension Scream")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "suppress",
+          aspects: ["all-effects"],
+          duration: expect.objectContaining({ type: "until-roll-threshold" }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Shadow Stalker's conditional activation and restricted-target protection", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Shadow Stalker")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "activate", trigger: "on-success" }),
+        expect.objectContaining({ type: "prevent-move-use", target: "self" }),
+        expect.objectContaining({ type: "modify-cost" }),
+      ]),
+    );
+  });
+
+  it("records Control Mastery's chosen-move cost, defense, and cooldown effects", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Control Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-cost", amount: { type: "literal", value: 2 } }),
+        expect.objectContaining({ type: "modify-roll", roll: "defense" }),
+        expect.objectContaining({ type: "apply-status", statusId: "cooldown" }),
+      ]),
+    );
+  });
+
+  it("records Cancellation Mastery's Kurokonwaku success mastery lock", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Cancellation Mastery")?.effects).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "lock", affectedType: "mastery" })]),
+    );
+  });
+
+  it("records Cancellation Master's reactive cancellation branches and minimum cost", () => {
+    const effects = KUROKONWAKU_MOVES.find((move) => move.name === "Cancellation Mastery")?.effects;
+
+    expect(effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          trigger: "on-move-use",
+          type: "deactivate",
+          selector: expect.objectContaining({ category: "skill", constant: true }),
+          activationCost: expect.objectContaining({ minimum: { type: "literal", value: 1 } }),
+        }),
+        expect.objectContaining({
+          trigger: "on-move-use",
+          type: "negate",
+          selector: expect.objectContaining({ category: "skill", constant: false }),
+          activationCost: expect.objectContaining({ minimum: { type: "literal", value: 1 } }),
+        }),
+        expect.objectContaining({
+          trigger: "on-combat-result",
+          type: "negate",
+          conditions: [expect.objectContaining({ type: "combat-outcome", outcome: "critical" })],
+        }),
+      ]),
+    );
+  });
+
+  it("records Mimicry Master's effect exchange and once-per-combat borrowed attack", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Mimicry Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "copy-move-effects", sourceEffectResult: "successful" }),
+        expect.objectContaining({
+          type: "copy-move-effect",
+          ignoreRequirements: true,
+          useLimit: expect.objectContaining({ scope: "combat", count: 1 }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Puppet Master, Ki Trap, and Spiked Ball's selected-move mechanics", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Puppet Master")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "force-action", fallback: "basic-attack" }),
+        expect.objectContaining({ type: "modify-roll", amount: { type: "literal", value: -2 } }),
+      ]),
+    );
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Ki Trap")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "roll-and-store", dice: 1, sides: 30 }),
+        expect.objectContaining({ type: "modify-resource", prevention: "prohibited" }),
+        expect.objectContaining({
+          type: "reroll",
+          exclusiveActivationGroup: "ki-trap-self-reroll",
+        }),
+      ]),
+    );
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Spiked Ball")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-remaining-uses" }),
+        expect.objectContaining({ type: "replace-move-effect", remove: "source-effect" }),
+      ]),
+    );
+  });
+
+  it("records Vampiric Lust's terminating Ki siphon and Sweet Dreams' lock", () => {
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Vampiric Lust")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "create-floating-effect",
+          floatingEffectId: "vampiric-lust-ki-siphon",
+          termination: expect.arrayContaining([
+            expect.objectContaining({ trigger: "on-power-up" }),
+          ]),
+        }),
+      ]),
+    );
+    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Sweet Dreams")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-cost", minimum: { type: "literal", value: 3 } }),
+        expect.objectContaining({
+          type: "lock",
+          affectedType: "power-up",
+          duration: expect.objectContaining({ type: "until-turn-start-roll-threshold" }),
+        }),
       ]),
     );
   });

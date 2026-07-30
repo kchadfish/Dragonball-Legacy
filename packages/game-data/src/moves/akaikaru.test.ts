@@ -3,6 +3,94 @@ import { describe, expect, it } from "vitest";
 import { AKAIKARU_MOVES } from "./akaikaru.js";
 
 describe("AKAIKARU_MOVES", () => {
+  it("records Fury Strikes' next KI-gain reduction", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Fury Strikes")?.effects).toEqual([
+      expect.objectContaining({
+        trigger: "on-success",
+        type: "modify-resource",
+        amount: { type: "literal", value: -1 },
+        scope: expect.objectContaining({ type: "next-resource-gain", resource: "ki" }),
+      }),
+    ]);
+  });
+
+  it("records Intensity Mastery's selected style conversion and reactive next attack", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Intensity Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-move-classification",
+          setStyleId: "style-akaikaru",
+        }),
+        expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
+        expect.objectContaining({ type: "apply-status", statusId: "stun" }),
+      ]),
+    );
+  });
+
+  it("records Spinebreaker's cost protection, paid Stun, and alternate Transformation penalty", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Spinebreaker")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "prevent-move-modification", aspects: ["cost"] }),
+        expect.objectContaining({ type: "apply-status", statusId: "stun" }),
+        expect.objectContaining({
+          type: "modify-roll",
+          roll: "transformation",
+          amount: { type: "literal", value: -3 },
+        }),
+      ]),
+    );
+  });
+
+  it("records Naginata's paid d35 and Dexterity Bonus doubling", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Naginata")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "set-roll-definition", dice: 1, sides: 35 }),
+        expect.objectContaining({
+          type: "modify-stat",
+          operation: "multiply",
+          scope: expect.objectContaining({ type: "next-action" }),
+        }),
+        expect.objectContaining({
+          type: "modify-stat",
+          scope: expect.objectContaining({ type: "next-roll", roll: "defense" }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Dazzling Gymnastics' multi-die stop and Dexterity Bonus", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Dazzling Gymnastics")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "set-combat-result", result: "stopped" }),
+        expect.objectContaining({
+          type: "modify-stat",
+          stat: "dexterity-bonus",
+          amount: { type: "literal", value: 1 },
+        }),
+      ]),
+    );
+  });
+
+  it("records Blitzkrieg's Energy type and mutually exclusive Dexterity branches", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Blitzkrieg")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-move-classification", addTags: ["ENERGY"] }),
+        expect.objectContaining({
+          type: "modify-stat",
+          amount: { type: "literal", value: 2 },
+          duration: expect.objectContaining({ type: "turns" }),
+        }),
+        expect.objectContaining({ type: "modify-stat", amount: { type: "literal", value: 3 } }),
+      ]),
+    );
+  });
+
+  it("records No Shadow Kick's Punch-type classification", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "No Shadow Kick")?.effects).toEqual([
+      expect.objectContaining({ type: "modify-move-classification", addTags: ["PUNCH"] }),
+    ]);
+  });
+
   it("records Stampede Rush's Dexterity Bonus damage condition", () => {
     expect(AKAIKARU_MOVES.find((move) => move.name === "Stampede Rush")?.effects).toEqual([
       expect.objectContaining({
@@ -243,6 +331,210 @@ describe("AKAIKARU_MOVES", () => {
           type: "modify-cost",
           operation: "set",
           amount: { type: "literal", value: 0 },
+        }),
+      ]),
+    );
+  });
+
+  it("records Anger Management's carried single-die STUN clause", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Anger Management")?.effects).toEqual([
+      expect.objectContaining({
+        type: "create-floating-effect",
+        floatingEffectId: "anger-management-next-single-die-stun",
+        termination: [expect.objectContaining({ trigger: "on-success" })],
+      }),
+    ]);
+  });
+
+  it("records Backflip Kick's next-Dexterity anti-BLOCK and STUN effect", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Backflip Kick")?.effects).toEqual([
+      expect.objectContaining({
+        type: "create-floating-effect",
+        floatingEffectId: "backflip-kick-next-dexterity-stun",
+        conditions: [expect.objectContaining({ type: "roll-comparison" })],
+      }),
+    ]);
+  });
+
+  it("records Accelerated Shoulder Tackle's physical-moveset bonus branches", () => {
+    expect(
+      AKAIKARU_MOVES.find((move) => move.name === "Accelerated Shoulder Tackle")?.effects,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ amount: { type: "literal", value: 3 } }),
+        expect.objectContaining({
+          amount: { type: "literal", value: 4 },
+          conditions: [expect.objectContaining({ type: "moveset-move-count" })],
+        }),
+      ]),
+    );
+  });
+
+  it("records Delta Storm's last-die SEVER threshold", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Delta Storm")?.effects).toEqual([
+      expect.objectContaining({
+        type: "grant-combat-outcome",
+        outcome: "sever",
+        conditions: [expect.objectContaining({ type: "roll-die-threshold", index: 3 })],
+      }),
+    ]);
+  });
+
+  it("records Ticking Time Bomb's post-turn-ten capped damage scaling", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Ticking Time Bomb")?.effects).toEqual([
+      expect.objectContaining({
+        type: "modify-damage",
+        percent: { type: "turns-after-turn", turn: 10, perTurn: 15, maximum: 75 },
+      }),
+    ]);
+  });
+
+  it("records Relentless's escape lock, participant-scaled cost, and paid deactivation", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Relentless")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "lock", affectedType: "escape", target: "participants" }),
+        expect.objectContaining({
+          type: "modify-cost",
+          amount: { type: "participant-count", excludeSelf: true, perParticipant: 1, maximum: 9 },
+        }),
+        expect.objectContaining({
+          type: "deactivate",
+          optional: true,
+          activationCost: expect.objectContaining({ amount: { type: "literal", value: 1 } }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Impulsive's reindexed random Advanced Attack selection and forced use", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Impulsive")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "roll-and-store",
+          sides: { type: "moveset-move-count", subject: "self", category: "advanced-attack" },
+        }),
+        expect.objectContaining({
+          type: "select-move-by-stored-roll",
+          ordering: "character-sheet-top-to-bottom",
+          reindex: "on-moveset-change",
+        }),
+        expect.objectContaining({
+          type: "force-action",
+          selectedMoveStorageKey: "impulsive-selected-advanced-attack",
+          allowPass: true,
+        }),
+        expect.objectContaining({
+          type: "modify-cost",
+          minimum: { type: "literal", value: 1 },
+        }),
+      ]),
+    );
+  });
+
+  it("records Rage Mastery's optional doubled-die and multi-die branches", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Rage Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-roll",
+          modifier: "dice",
+          optional: true,
+          activationGroup: "rage-mastery-single-die-doubling",
+        }),
+        expect.objectContaining({
+          type: "require-all-dice-success",
+          appliesTo: "successful-effects",
+        }),
+        expect.objectContaining({
+          type: "modify-cost",
+          amount: { type: "literal", value: 2 },
+          target: "opponent",
+        }),
+      ]),
+    );
+  });
+
+  it("records Shock Fist's energy classification and stacked defense penalty", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Shock Fist")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-move-classification", addTags: ["ENERGY"] }),
+        expect.objectContaining({
+          type: "modify-roll",
+          roll: "defense",
+          amount: { type: "literal", value: -3 },
+          cap: expect.objectContaining({ type: "minimum", value: { type: "literal", value: -6 } }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Gone In A Sixtieth of A Second's all-dice Block and carried STUN", () => {
+    expect(
+      AKAIKARU_MOVES.find((move) => move.name === "Gone In A Sixtieth of A Second")?.effects,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "block-all-dice" }),
+        expect.objectContaining({
+          type: "create-floating-effect",
+          floatingEffectId: "gone-in-a-sixtieth-next-base-cost-one-stun",
+        }),
+      ]),
+    );
+  });
+
+  it("records Letting Off Steam's stopped-roll scaling and nonstacking escape penalty", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Letting Off Steam")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-damage",
+          percent: expect.objectContaining({ type: "consecutive-combat-results", maximum: 40 }),
+        }),
+        expect.objectContaining({
+          type: "modify-roll",
+          roll: "escape",
+          stacking: "prevent",
+        }),
+      ]),
+    );
+  });
+
+  it("records Chained Master's escalating attack chain and alternating follow-ups", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Chained Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-damage",
+          percent: expect.objectContaining({
+            type: "consecutive-combat-results",
+            result: "successful",
+          }),
+        }),
+        expect.objectContaining({
+          type: "create-floating-effect",
+          floatingEffectId: "chained-mastery-next-turn-kick-follow-up",
+        }),
+        expect.objectContaining({
+          type: "create-floating-effect",
+          floatingEffectId: "chained-mastery-next-turn-punch-follow-up",
+        }),
+      ]),
+    );
+  });
+
+  it("records Shotgun Blast's modified-roll KI reward and three-hit defense lock", () => {
+    expect(AKAIKARU_MOVES.find((move) => move.name === "Shotgun Blast")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-resource",
+          resource: "ki",
+          conditions: [expect.objectContaining({ type: "roll-modification" })],
+        }),
+        expect.objectContaining({
+          type: "prevent-roll-modification",
+          conditions: [
+            expect.objectContaining({
+              type: "successful-hit-count",
+              value: { type: "literal", value: 3 },
+            }),
+          ],
         }),
       ]),
     );

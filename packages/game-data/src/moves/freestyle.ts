@@ -5,6 +5,895 @@ import { createStyleMoves } from "./create-style-moves.js";
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-freestyle-hidden-power-level",
+    [
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "hidden-power-level-zero-ki-recovery",
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 2 },
+        },
+        useLimit: { scope: "combat", count: 1, sourceText: "Once per combat" },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "ki",
+            basis: "current",
+            comparison: "at-least",
+            value: { type: "literal", value: 7 },
+            sourceText: "when you are at 7 KI or more",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-resource-threshold",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: { type: "literal", value: 3 },
+            conditions: [
+              {
+                type: "resource-threshold",
+                subject: "self",
+                resource: "ki",
+                basis: "current",
+                comparison: "at-most",
+                value: { type: "literal", value: 0 },
+                sourceText: "the next time your KI reach 0",
+              },
+            ],
+            sourceText: "the next time your KI reach 0, you may gain 3 KI",
+          },
+        ],
+        sourceText:
+          "Timing: UPKEEP phase. Once per combat, when you are at 7 KI or more, you may spend 2 KI. If you do, the next time your KI reach 0, you may gain 3 KI",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-sense-power-level",
+    [
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-roll",
+        roll: "initiative",
+        modifier: "result",
+        amount: { type: "literal", value: 10 },
+        scope: { type: "current-action", sourceText: "your roll" },
+        sourceText:
+          "If you have to roll to see who begins the match, your roll gains +10 to the result",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-roll",
+        roll: "defense",
+        modifier: "result",
+        amount: { type: "literal", value: 5 },
+        scope: {
+          type: "next-rolls",
+          roll: "defense",
+          count: { type: "literal", value: 2 },
+          sourceText: "your first two defensive roll result",
+        },
+        conditions: [
+          {
+            type: "level-comparison",
+            left: "opponent",
+            comparison: "higher-than",
+            right: "self",
+            sourceText: "If your opponent's Level is higher than yours",
+          },
+        ],
+        sourceText:
+          "If your opponent's Level is higher than yours, your first two defensive roll result gain +5 and your escape rolls gain +1 to the combined result",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-roll",
+        roll: "escape",
+        modifier: "result",
+        amount: { type: "literal", value: 1 },
+        conditions: [
+          {
+            type: "level-comparison",
+            left: "opponent",
+            comparison: "higher-than",
+            right: "self",
+            sourceText: "If your opponent's Level is higher than yours",
+          },
+        ],
+        sourceText:
+          "If your opponent's Level is higher than yours, your first two defensive roll result gain +5 and your escape rolls gain +1 to the combined result",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-unquenchable-bloodthirst",
+    [
+      {
+        trigger: "passive",
+        target: "participants",
+        type: "prevent-resource-modification",
+        resource: "hp",
+        operation: "gain",
+        sourceText: "No player may gain HP or set their HP",
+      },
+      {
+        trigger: "passive",
+        target: "participants",
+        type: "prevent-resource-modification",
+        resource: "hp",
+        operation: "set",
+        sourceText: "No player may gain HP or set their HP",
+      },
+      {
+        trigger: "on-deactivated",
+        target: "self",
+        type: "lock",
+        affectedType: "skill",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-freestyle-unquenchable-bloodthirst"],
+          sourceText: "this Skill",
+        },
+        duration: { type: "combat", sourceText: "for the remainder of the match" },
+        sourceText: "Once DEACTIVATED, LOCK this Skill for the remainder of the match",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-straining-bodyslam",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: { type: "source-expression", text: "(10% Current HP) HP" },
+        optional: true,
+        activationGroup: "straining-bodyslam-paid-hp",
+        sourceText: "You may lose (10% Current HP) HP when you perform this attack",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "opponent",
+        type: "schedule-effect",
+        timing: { type: "turn-end", subject: "opponent", turnsAfter: 0 },
+        repeat: "each-turn",
+        effect: {
+          type: "modify-resource",
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
+        cancellation: {
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            attackRoll: { dice: 1 },
+            sourceText: "a SUCCESSFUL single dice attack",
+          },
+          target: "source",
+        },
+        activationGroup: "straining-bodyslam-paid-hp",
+        sourceText:
+          "If you do, your opponent loses 1 KI at the end of each of their turns until they perform a SUCCESSFUL single dice attack",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: -4 },
+        stacking: "prevent",
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            attackRoll: { dice: 1 },
+            sourceText: "a SUCCESSFUL single dice attack",
+          },
+          sourceText: "until they perform a SUCCESSFUL single dice attack",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent's attack roll results gain -4 until they perform a SUCCESSFUL single dice attack. This effect cannot stack with itself",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-straining-knockback",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: { type: "source-expression", text: "(10% Current HP) HP" },
+        optional: true,
+        activationGroup: "straining-knockback-paid-hp",
+        sourceText: "You may lose (10% Current HP) HP when you perform this attack",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "opponent",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: 1 },
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          category: "advanced-attack",
+          sourceText: "your opponent's Advanced Attacks",
+        },
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            category: "advanced-attack",
+            attackRoll: { dice: 1 },
+            sourceText: "a SUCCESSFUL single dice attack",
+          },
+          sourceText: "until they perform a SUCCESSFUL single dice attack",
+        },
+        activationGroup: "straining-knockback-paid-hp",
+        sourceText:
+          "If you do, your opponent's Advanced Attacks cost +1 KI until they perform a SUCCESSFUL single dice attack",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-straining-aura-explosion",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-resolution",
+        prevention: "block",
+        sourceText: "This attack cannot be BLOCKED",
+      },
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: { type: "source-expression", text: "(10% Current HP) HP" },
+        conditions: [
+          {
+            type: "prior-action",
+            actor: "self",
+            action: "power-up",
+            sourceText: "You can only perform this attack if you Powered Up on your last turn",
+          },
+        ],
+        sourceText:
+          "Energy attack. Deal (50% Power) damage. This attack cannot be BLOCKED. You must lose (10% Current HP) HP to perform this attack. You can only perform this attack if you Powered Up on your last turn. SUCCESSFUL - Your opponent gains -2 KI the next time they Power Up. If your attack roll result is 27 or more, gain 1 KI. Cost: 2 KI.",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: -2 },
+        scope: {
+          type: "next-resource-gain",
+          resource: "ki",
+          subject: "opponent",
+          sourceText: "the next time they Power Up",
+        },
+        sourceText: "SUCCESSFUL - Your opponent gains -2 KI the next time they Power Up",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 1 },
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 27 },
+            sourceText: "If your attack roll result is 27 or more",
+          },
+        ],
+        sourceText: "If your attack roll result is 27 or more, gain 1 KI",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-multitasking-kick",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 3 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "prior-action",
+            actor: "opponent",
+            result: "stopped",
+            sourceText: "If you STOPPED your opponent's last attack",
+          },
+        ],
+        sourceText:
+          "If you STOPPED your opponent's last attack, this attack gains +3 to its result",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "upkeep-phase",
+        moveCategory: "item-use",
+        scope: { type: "next-turn", subject: "self", sourceText: "On your next turn" },
+        optional: true,
+        sourceText:
+          "SUCCESSFUL - On your next turn, you may use an item in your inventory during your UPKEEP phase instead of your ACTION phase",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-tricky-sword-maneuvers",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          effectTextIncludes: "Swordplay",
+          sourceText: "a CONSTANT Skill with 'Swordplay' in the title",
+        },
+        optional: true,
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If your attack roll result is 20 or more",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your attack roll result is 20 or more, you may activate a CONSTANT Skill with 'Swordplay' in the title",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 3 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "move-effect-active",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-freestyle-expert-swordplay"],
+              sourceText: "'Expert Swordplay' is already activated",
+            },
+            sourceText: "If 'Expert Swordplay' is already activated",
+          },
+        ],
+        sourceText:
+          "If 'Expert Swordplay' is already activated, this attack gains +3 to the results and gains \"SUCCESSFUL - Your opponent loses 1 KI\"",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "lose",
+        amount: { type: "literal", value: 1 },
+        conditions: [
+          {
+            type: "move-effect-active",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-freestyle-expert-swordplay"],
+              sourceText: "If 'Expert Swordplay' is already activated",
+            },
+            sourceText: "If 'Expert Swordplay' is already activated",
+          },
+        ],
+        sourceText:
+          "If 'Expert Swordplay' is already activated, this attack gains +3 to the results and gains \"SUCCESSFUL - Your opponent loses 1 KI\"",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-vile-energy",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "CONSTANT Skills in your moveset",
+        },
+        repeatUntil: {
+          type: "active-move-count-matches-opponent",
+          selector: {
+            type: "move-selector",
+            subject: "source",
+            category: "skill",
+            constant: true,
+            sourceText: "CONSTANT Skills activated",
+          },
+          fallback: "no-eligible-moves",
+        },
+        sourceText:
+          "SUCCESSFUL - You may activate CONSTANT Skills in your moveset until you have the same number of CONSTANT Skills activated as your opponent, or until you have no more CONSTANT Skills that can be activated (whichever happens first)",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-monkey-maneuvers",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-roll-modification",
+        roll: "attack",
+        modifier: "any",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          requirementIncludes: ["blunt weapon"],
+          sourceText: "attacks that require a Blunt Weapon",
+        },
+        sourceText:
+          "Your attacks that require a Blunt Weapon cannot have their dice sides or results decreased by your opponent's effects",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: {
+          type: "bounded-stat",
+          subject: "self",
+          stat: "dexterity-bonus",
+          minimum: 1,
+          maximum: 3,
+        },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          requirementIncludes: ["blunt weapon"],
+          sourceText: 'attacks with "Requirement: Blunt Weapon"',
+        },
+        scope: { type: "current-action", sourceText: "Your attack roll" },
+        sourceText:
+          'Your attacks with "Requirement: Blunt Weapon" gain "Your attack roll gains +X to the result, to a maximum of +3 from this Skill. X = Your Dexterity Bonus, minimum 1."',
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "defense",
+        modifier: "result",
+        amount: { type: "literal", value: 2 },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "target",
+            requirementIncludes: ["weapon"],
+            sourceText: "moves that require a Weapon",
+          },
+        ],
+        sourceText: "Your defensive roll results against moves that require a Weapon gain +2",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-anger-manipulation",
+    [
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "source-expression", text: "The cost of the attack you performed" },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "source",
+            category: "advanced-attack",
+            attackRoll: { minimumDice: 2 },
+            sourceText: "a multi-dice attack",
+          },
+          {
+            type: "stopped-hit-fraction",
+            comparison: "more-than-half",
+            sourceText: "over half of the dice rolls were STOPPED",
+          },
+        ],
+        useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
+        sourceText:
+          "RESTRICTEDx1. Use when you perform a multi-dice attack and over half of the dice rolls were STOPPED. Gain X KI. X = The cost of the attack you performed",
+      },
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "lock",
+        affectedType: "attack",
+        selector: { type: "move-selector", subject: "source", sourceText: "that attack" },
+        scope: { type: "next-turn", subject: "self", sourceText: "for your next turn" },
+        conditions: [
+          {
+            type: "move-selector",
+            subject: "source",
+            category: "advanced-attack",
+            attackRoll: { minimumDice: 2 },
+            sourceText: "a multi-dice attack",
+          },
+          {
+            type: "stopped-hit-fraction",
+            comparison: "more-than-half",
+            sourceText: "over half of the dice rolls were STOPPED",
+          },
+        ],
+        useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
+        sourceText:
+          "RESTRICTEDx1. Use when you perform a multi-dice attack and over half of the dice rolls were STOPPED. Gain X KI. X = The cost of the attack you performed. LOCK that attack for your next turn. Cost: 0 KI.",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-guillotine-pummel",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "prevent-resource-modification",
+        resource: "ki",
+        operation: "gain",
+        exceptAction: "power-up",
+        duration: {
+          type: "turns",
+          turns: { type: "successful-hit-count" },
+          sourceText: "for X turns. X = The number of SUCCESSFUL attack rolls",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent cannot gain KI without Powering Up for X turns. X = The number of SUCCESSFUL attack rolls",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-effortless",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-resource-cost",
+        resource: "hp",
+        operation: "add",
+        percent: { type: "literal", value: -5 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          effectTextIncludes: "Straining",
+          sourceText: "an attack with 'Straining' in the title",
+        },
+        optional: true,
+        sourceText:
+          "Whenever you perform an attack with 'Straining' in the title, you may lose -5% of whichever type of HP that attack states you may or must lose to gain the effects instead",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-monkey-sweep",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-resolution",
+        prevention: "block",
+        conditions: [
+          {
+            type: "combat-outcome",
+            actor: "opponent",
+            outcome: "break",
+            sourceText: "If your opponent has a BREAK or SEVER effect on them",
+          },
+        ],
+        sourceText:
+          "If your opponent has a BREAK or SEVER effect on them, this attack cannot be BLOCKED",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-resolution",
+        prevention: "block",
+        conditions: [
+          {
+            type: "combat-outcome",
+            actor: "opponent",
+            outcome: "sever",
+            sourceText: "If your opponent has a BREAK or SEVER effect on them",
+          },
+        ],
+        sourceText:
+          "If your opponent has a BREAK or SEVER effect on them, this attack cannot be BLOCKED",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-freestyle-monkey-maneuvers"],
+          sourceText: "Monkey Maneuvers",
+        },
+        optional: true,
+        sourceText: 'SUCCESSFUL - You may activate "Monkey Maneuvers"',
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "monkey-sweep-next-stun-or-break-bonus",
+        scope: {
+          type: "next-action",
+          sourceText: "your next attack with STUN or BREAK in the effect",
+        },
+        conditions: [
+          {
+            type: "move-effect-active",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-freestyle-monkey-maneuvers"],
+              sourceText: '"Monkey Maneuvers" is already in play',
+            },
+            sourceText:
+              'If "Monkey Maneuvers" is already in play or cannot be activated by this attack',
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: { type: "literal", value: 10 },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludesAny: ["STUN", "BREAK"],
+              sourceText: "your next attack with STUN or BREAK in the effect",
+            },
+            scope: { type: "current-action", sourceText: "your next attack" },
+            sourceText:
+              "your next attack with STUN or BREAK in the effect deals +(10% Power) Damage",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: { type: "literal", value: 1 },
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "block",
+              sourceText: "must pay +1 KI to BLOCK it",
+            },
+            scope: { type: "current-action", sourceText: "BLOCK it" },
+            sourceText: "your opponent must pay +1 KI to BLOCK it",
+          },
+        ],
+        sourceText:
+          'If "Monkey Maneuvers" is already in play or cannot be activated by this attack, your next attack with STUN or BREAK in the effect deals +(10% Power) Damage and your opponent must pay +1 KI to BLOCK it',
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "monkey-sweep-unavailable-next-stun-or-break-bonus",
+        scope: {
+          type: "next-action",
+          sourceText: "your next attack with STUN or BREAK in the effect",
+        },
+        conditions: [
+          {
+            type: "activation-unavailable",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-freestyle-monkey-maneuvers"],
+              sourceText: "cannot be activated by this attack",
+            },
+            sourceText:
+              'If "Monkey Maneuvers" is already in play or cannot be activated by this attack',
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: { type: "literal", value: 10 },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludesAny: ["STUN", "BREAK"],
+              sourceText: "your next attack with STUN or BREAK in the effect",
+            },
+            scope: { type: "current-action", sourceText: "your next attack" },
+            sourceText:
+              "your next attack with STUN or BREAK in the effect deals +(10% Power) Damage",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: { type: "literal", value: 1 },
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "block",
+              sourceText: "must pay +1 KI to BLOCK it",
+            },
+            scope: { type: "current-action", sourceText: "BLOCK it" },
+            sourceText: "your opponent must pay +1 KI to BLOCK it",
+          },
+        ],
+        sourceText:
+          'If "Monkey Maneuvers" is already in play or cannot be activated by this attack, your next attack with STUN or BREAK in the effect deals +(10% Power) Damage and your opponent must pay +1 KI to BLOCK it',
+      },
+    ],
+  ],
+  [
+    "move-freestyle-underdog-evasion",
+    [
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "override-resolution-immunity",
+        resolution: "block",
+        conditions: [
+          {
+            type: "level-comparison",
+            left: "opponent",
+            comparison: "higher-than",
+            right: "self",
+            difference: { type: "literal", value: 2 },
+            sourceText: "If your opponent's Level is 2 or more above your Level",
+          },
+        ],
+        sourceText:
+          "If your opponent's Level is 2 or more above your Level, this Block can Block Advanced Attacks that cannot be STOPPED or BLOCKED",
+      },
+      {
+        trigger: "on-stopped",
+        target: "opponent",
+        type: "set-combat-result",
+        result: "stopped",
+        resultScope: "current-attack",
+        scope: { type: "next-action", sourceText: "the next attack performed against you" },
+        conditions: [
+          {
+            type: "level-comparison",
+            left: "opponent",
+            comparison: "higher-than",
+            right: "self",
+            difference: { type: "literal", value: 3 },
+            sourceText: "If your opponent's Level is 3 or more above your Level",
+          },
+        ],
+        sourceText:
+          "If your opponent's Level is 3 or more above your Level, STOP the next attack performed against you",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-straining-concussion-wave",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: { type: "source-expression", text: "10% Current HP" },
+        scope: { type: "current-action", sourceText: "to perform this attack" },
+        sourceText: "You must lose (10% Current HP) HP to perform this attack",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "remove-move-from-combat",
+        move: "target",
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          categories: ["advanced-attack", "skill"],
+          sourceText: "one of your opponent's Advanced Attacks or Skills",
+        },
+        duration: {
+          type: "until-perfect-roll",
+          sourceText: "until the end of the match, or until they roll a perfect roll",
+        },
+        sourceText:
+          "SUCCESSFUL - Choose one of your opponent's Advanced Attacks or Skills. That move is removed from your opponent's move set until the end of the match, or until they roll a perfect roll",
+      },
+    ],
+  ],
+  [
+    "move-freestyle-ki-color-cascade",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-move-classification",
+        replaceStyle: "declared-style",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-freestyle",
+          sourceText: "Your Freestyle attacks",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 4 },
+          sourceText: "for the next 4 turns",
+        },
+        sourceText:
+          "SUCCESSFUL - Your Freestyle attacks are considered to match your declared Martial Arts Style instead for the next 4 turns",
+      },
+    ],
+  ],
+  [
     "move-freestyle-all-out-triumphant-beam",
     [
       {

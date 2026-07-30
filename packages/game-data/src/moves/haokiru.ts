@@ -5,6 +5,44 @@ import { createStyleMoves } from "./create-style-moves.js";
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-haokiru-vengeance-wave",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "set",
+        percent: {
+          type: "source-expression",
+          text: "total percentages of damage dealt to you by your opponent from their last two Advanced Attacks combined",
+        },
+        scope: { type: "current-action", sourceText: "Deal (X% Power) damage" },
+        sourceText:
+          "Deal (X% Power) damage. X = The total percentages of damage dealt to you by your opponent from their last two Advanced Attacks combined",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-sonic-kick",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-haokiru-sonic-kick"],
+          sourceText: "The cost of this attack",
+        },
+        aspects: ["cost"],
+        actor: "any",
+        effectSourceStyleExcludes: "style-haokiru",
+        sourceText: "The cost of this attack cannot be modified by non-Haokiru effects",
+      },
+    ],
+  ],
+  [
     "move-haokiru-indestructible-wave",
     [
       {
@@ -1260,6 +1298,1215 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         operation: "gain",
         amount: { type: "source-expression", text: "5% Total HP per hit" },
         sourceText: "SUCCESSFUL - Gain (5% Total HP) per hit",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-healing-ray",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "roll-and-store",
+        dice: 1,
+        sides: 30,
+        storageKey: "healing-ray-result",
+        sourceText: "Roll a d30",
+      },
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "gain",
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 25,
+        },
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "healing-ray-result",
+            comparison: "at-least",
+            value: { type: "literal", value: 10 },
+            sourceText:
+              "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+          },
+        ],
+        exclusiveActivationGroup: "healing-ray-target",
+        optional: true,
+        sourceText:
+          "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+      },
+      {
+        trigger: "on-roll-result",
+        target: "ally",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "gain",
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 25,
+        },
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "healing-ray-result",
+            comparison: "at-least",
+            value: { type: "literal", value: 10 },
+            sourceText:
+              "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+          },
+        ],
+        exclusiveActivationGroup: "healing-ray-target",
+        optional: true,
+        sourceText:
+          "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+      },
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-haokiru-healing-ray"],
+          sourceText: "The amount of healing from this skill",
+        },
+        aspects: ["effects"],
+        actor: "any",
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "healing-ray-result",
+            comparison: "at-least",
+            value: { type: "literal", value: 10 },
+            sourceText:
+              "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+          },
+        ],
+        scope: { type: "current-action", sourceText: "this skill" },
+        sourceText:
+          "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+      },
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 1 },
+        conditions: [
+          {
+            type: "stored-roll-threshold",
+            storageKey: "healing-ray-result",
+            comparison: "at-most",
+            value: { type: "literal", value: 9 },
+            sourceText:
+              "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+          },
+        ],
+        sourceText:
+          "Roll a d30. If the result is 10 or higher, you or an ally HEALS +(25% Your Total HP). The amount of healing from this skill cannot be modified in any way. If the result is less than 10, gain 1 KI",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-halcyon-blow",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-haokiru",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your Haokiru CONSTANT Skills",
+        },
+        conditions: [
+          {
+            type: "resource-change",
+            subject: "self",
+            resource: "hp",
+            operation: "gain",
+            timing: "last-turn",
+            sourceText: "If you gained HP on your last turn",
+          },
+        ],
+        optional: true,
+        sourceText:
+          "SUCCESSFUL - If you gained HP on your last turn, you may activate one of your Haokiru CONSTANT Skills",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-creationist",
+    [
+      {
+        trigger: "on-cost-modified",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: 0 },
+        minimum: { type: "literal", value: 0 },
+        conditions: [
+          {
+            type: "move-modification",
+            aspect: "cost",
+            sourceStyleId: "style-haokiru",
+            sourceText:
+              "Activate when modifying the cost of an attack due to a Haokiru effect. Choose one: They can be modified to a minimum of 0 instead OR the attack is reduced by an additional -1 KI",
+          },
+        ],
+        exclusiveActivationGroup: "creationist-choice",
+        sourceText:
+          "Activate when modifying the cost of an attack due to a Haokiru effect. Choose one: They can be modified to a minimum of 0 instead OR the attack is reduced by an additional -1 KI",
+      },
+      {
+        trigger: "on-cost-modified",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -1 },
+        conditions: [
+          {
+            type: "move-modification",
+            aspect: "cost",
+            sourceStyleId: "style-haokiru",
+            sourceText:
+              "Activate when modifying the cost of an attack due to a Haokiru effect. Choose one: They can be modified to a minimum of 0 instead OR the attack is reduced by an additional -1 KI",
+          },
+        ],
+        exclusiveActivationGroup: "creationist-choice",
+        sourceText:
+          "Activate when modifying the cost of an attack due to a Haokiru effect. Choose one: They can be modified to a minimum of 0 instead OR the attack is reduced by an additional -1 KI",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-mind-reading",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "copy-move-effect",
+        sourceMove: {
+          type: "selected-prior-move",
+          actor: "opponent",
+          categories: ["advanced-attack", "signature"],
+          result: "successful",
+        },
+        effectResult: "successful",
+        resolveAs: "source-move",
+        cost: { type: "selected-move-base-cost" },
+        copies: ["cost", "dice-rolls", "source-modifiers"],
+        sourceText:
+          "Perform the same attack your opponent performed on their last turn, including costs and dice rolls. This copies all modifiers added to that attack by your opponent's effects. You cannot use this Skill if you do not meet the requirement(s) to perform that attack",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-willing-sacrifice",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "current",
+          percent: 10,
+        },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            comparison: "at-most",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 25,
+            },
+            sourceText: "You cannot use this Skill if your HP is (25% Total HP) or less",
+          },
+        ],
+        sourceText:
+          "You lose (10% Current HP) HP. You may have your opponent re-roll their next 3 attack rolls. You must make that choice before rolling your defensive roll against those attack rolls. If your opponent's current HP is higher than yours, this Skill does not take up your turn. You cannot use this Skill if your HP is (25% Total HP) or less",
+      },
+      {
+        trigger: "before-defense-roll",
+        target: "opponent",
+        type: "reroll",
+        roll: "attack",
+        rerollScope: "single-result",
+        scope: {
+          type: "next-rolls",
+          roll: "attack",
+          count: { type: "literal", value: 3 },
+          sourceText: "your opponent re-roll their next 3 attack rolls",
+        },
+        optional: true,
+        sourceText:
+          "You lose (10% Current HP) HP. You may have your opponent re-roll their next 3 attack rolls. You must make that choice before rolling your defensive roll against those attack rolls. If your opponent's current HP is higher than yours, this Skill does not take up your turn. You cannot use this Skill if your HP is (25% Total HP) or less",
+      },
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "action-phase",
+        conditions: [
+          {
+            type: "resource-comparison",
+            resource: "hp",
+            basis: "current",
+            left: "opponent",
+            comparison: "higher-than",
+            right: "self",
+            sourceText: "If your opponent's current HP is higher than yours",
+          },
+        ],
+        sourceText:
+          "You lose (10% Current HP) HP. You may have your opponent re-roll their next 3 attack rolls. You must make that choice before rolling your defensive roll against those attack rolls. If your opponent's current HP is higher than yours, this Skill does not take up your turn. You cannot use this Skill if your HP is (25% Total HP) or less",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-immortal-burst",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 10 },
+        conditions: [
+          {
+            type: "incoming-damage",
+            subject: "self",
+            comparison: "at-least",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 20,
+            },
+            timing: "after-last-turn",
+            sourceText:
+              "If you received a total amount of damage equal or greater to (20% Total HP) HP after your last turn",
+          },
+        ],
+        sourceText:
+          "If you received a total amount of damage equal or greater to (20% Total HP) HP after your last turn, this attack gains 'SUCCESSFUL - Gain 10 KI'",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-focused-mastery",
+    [
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "lock",
+        affectedType: "attack",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-freestyle",
+          category: "advanced-attack",
+          custom: false,
+          sourceText: "your non-custom Freestyle Advanced Attacks",
+        },
+        duration: { type: "combat", sourceText: "in combat" },
+        sourceText:
+          "LOCK your non-custom Freestyle Advanced Attacks and Signature Techniques in combat",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "lock",
+        affectedType: "attack",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-freestyle",
+          category: "signature",
+          custom: false,
+          sourceText: "your non-custom Freestyle Advanced Attacks and Signature Techniques",
+        },
+        duration: { type: "combat", sourceText: "in combat" },
+        sourceText:
+          "LOCK your non-custom Freestyle Advanced Attacks and Signature Techniques in combat",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "lock",
+        affectedType: "move",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleProvenance: "effect",
+          sourceText: "moves that become styled through other effects",
+        },
+        sourceText: "LOCK moves that become styled through other effects",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "gain",
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "current",
+          percent: 10,
+        },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-haokiru",
+          category: "advanced-attack",
+          sourceText: "All of your Haokiru attacks",
+        },
+        sourceText:
+          'All of your Haokiru attacks gain "SUCCESSFUL - HEAL (10% Current HP) HP and gain 1 KI"',
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 1 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-haokiru",
+          category: "advanced-attack",
+          sourceText: "All of your Haokiru attacks",
+        },
+        sourceText:
+          'All of your Haokiru attacks gain "SUCCESSFUL - HEAL (10% Current HP) HP and gain 1 KI"',
+      },
+    ],
+  ],
+  [
+    "move-haokiru-dragon-dust",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "create-floating-effect",
+        floatingEffectId: "dragon-dust-hp-gain-retaliation",
+        effects: [
+          {
+            trigger: "on-resource-gain",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "lose",
+            amount: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
+            conditions: [
+              {
+                type: "resource-change",
+                subject: "self",
+                resource: "hp",
+                operation: "gain",
+                timing: "current-event",
+                sourceText: "every time you use an effect to gain HP",
+              },
+            ],
+            sourceText:
+              "SUCCESSFUL - Your opponent loses (10% Power) HP every time you use an effect to gain HP until they roll an attack roll result of 23 or higher. This effect cannot stack with itself. This effect can only be used once per turn",
+          },
+        ],
+        duration: {
+          type: "until-roll-threshold",
+          roll: "attack",
+          comparison: "at-least",
+          value: { type: "literal", value: 23 },
+          sourceText: "until they roll an attack roll result of 23 or higher",
+        },
+        stacking: "prevent",
+        useLimit: { scope: "turn", count: 1, sourceText: "only be used once per turn" },
+        sourceText:
+          "SUCCESSFUL - Your opponent loses (10% Power) HP every time you use an effect to gain HP until they roll an attack roll result of 23 or higher. This effect cannot stack with itself. This effect can only be used once per turn",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-channeling-mastery",
+    [
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 10 },
+        scope: { type: "current-action", sourceText: "the attack" },
+        activationCost: {
+          resource: "hp",
+          operation: "lose",
+          amount: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "current",
+            percent: 5,
+          },
+        },
+        activationGroup: "channeling-mastery-attack",
+        optional: true,
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          categories: ["advanced-attack", "signature"],
+          sourceText: "When you perform an attack",
+        },
+        sourceText:
+          "When you perform an attack, you may lose (5% Current HP) HP to have the attack do +(10% Power) Damage and become UNBLOCKABLE",
+      },
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "prevent-resolution",
+        prevention: "block",
+        scope: { type: "current-action", sourceText: "the attack" },
+        activationCost: {
+          resource: "hp",
+          operation: "lose",
+          amount: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "current",
+            percent: 5,
+          },
+        },
+        activationGroup: "channeling-mastery-attack",
+        optional: true,
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          categories: ["advanced-attack", "signature"],
+          sourceText: "When you perform an attack",
+        },
+        sourceText:
+          "When you perform an attack, you may lose (5% Current HP) HP to have the attack do +(10% Power) Damage and become UNBLOCKABLE",
+      },
+      {
+        trigger: "on-resource-drain",
+        target: "opponent",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: -25 },
+        scope: { type: "next-action", sourceText: "your opponent's next attack" },
+        conditions: [
+          {
+            type: "resource-change",
+            subject: "self",
+            resource: "hp",
+            operation: "lose",
+            timing: "current-event",
+            cause: "non-damage-effect",
+            sourceText: "When you lose HP from a non-damage effect",
+          },
+        ],
+        sourceText:
+          "When you lose HP from a non-damage effect, your opponent's next attack does -25% Damage",
+      },
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "literal", value: -3 },
+        minimum: { type: "literal", value: 3 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "signature",
+          sourceText: "When you perform a Signature Technique",
+        },
+        activationCost: {
+          resource: "hp",
+          operation: "lose",
+          amount: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "current",
+            percent: 10,
+          },
+        },
+        optional: true,
+        sourceText:
+          "When you perform a Signature Technique, you may lose (10% Current HP) HP to have your Signature Technique costs -3 KI (minimum 3 KI)",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-eternal-mastery",
+    [
+      {
+        trigger: "on-resource-threshold",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "gain",
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "current",
+            comparison: "at-most",
+            value: { type: "literal", value: -1 },
+            sourceText: "When your HP drops below 0 for the first time in combat",
+          },
+        ],
+        useLimit: { scope: "combat", count: 1, sourceText: "for the first time in combat" },
+        sourceText:
+          "When your HP drops below 0 for the first time in combat, gain (10% Total HP) HP",
+      },
+      {
+        trigger: "on-resource-gain",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 5 },
+        scope: { type: "next-action", sourceText: "your next attack" },
+        conditions: [
+          {
+            type: "resource-change",
+            subject: "self",
+            resource: "hp",
+            operation: "gain",
+            timing: "current-event",
+            sourceStyleId: "style-haokiru",
+            sourceText: "Whenever you gain HP from a Haokiru effect",
+          },
+        ],
+        sourceText:
+          "Whenever you gain HP from a Haokiru effect, your next attack does +(5% Power) Damage",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 5 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-haokiru",
+          category: "advanced-attack",
+          sourceText: "your Haokiru Advanced Attacks",
+        },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            comparison: "at-most",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 25,
+            },
+            sourceText: "When at or below (25% Total HP) HP",
+          },
+        ],
+        sourceText:
+          "When at or below (25% Total HP) HP, your Haokiru Advanced Attacks do +(5% Power) Damage and have +3 to the result(s)",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 3 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-haokiru",
+          category: "advanced-attack",
+          sourceText: "your Haokiru Advanced Attacks",
+        },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            comparison: "at-most",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 25,
+            },
+            sourceText: "When at or below (25% Total HP) HP",
+          },
+        ],
+        sourceText:
+          "When at or below (25% Total HP) HP, your Haokiru Advanced Attacks do +(5% Power) Damage and have +3 to the result(s)",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-phoenix-tackle",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource-modifier",
+        resource: "hp",
+        operation: "gain",
+        multiplier: { type: "literal", value: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-haokiru",
+          categoryExcludes: ["block"],
+          sourceText: "a non-block Haokiru effect",
+        },
+        scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
+        cap: {
+          type: "maximum",
+          value: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            percent: 30,
+          },
+          sourceText: "The total amount healed cannot exceed (30% Total HP) HP",
+        },
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If your attack roll result is 20 or higher",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your attack roll result is 20 or higher, double the amount of HP gained from a non-block Haokiru effect on your next turn. The total amount healed cannot exceed (30% Total HP) HP",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-five-finger-shot",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "prevent-move-modification",
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          categories: ["advanced-attack", "signature"],
+          sourceText: "their attack's damage or their dice results",
+        },
+        aspects: ["damage", "roll-results"],
+        actor: "opponent",
+        duration: {
+          type: "until-combat-result",
+          actor: "self",
+          result: "stopped",
+          conditions: [
+            {
+              type: "attack-roll-resolution",
+              actor: "self",
+              anyOf: ["single-die-stopped", "all-dice-stopped"],
+              sourceText:
+                "until one of your single dice attacks are STOPPED or all dice on one of your multi-dice attacks are STOPPED",
+            },
+          ],
+          sourceText:
+            "until one of your single dice attacks are STOPPED or all dice on one of your multi-dice attacks are STOPPED",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent cannot modify their attack's damage or their dice results until one of your single dice attacks are STOPPED or all dice on one of your multi-dice attacks are STOPPED",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-martyrdom",
+    [
+      {
+        trigger: "action-phase",
+        target: "opponent",
+        type: "create-floating-effect",
+        floatingEffectId: "martyrdom-retaliation",
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "lose",
+            amount: { type: "triggering-move-base-damage", multiplier: 1 },
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "advanced-attack",
+              sourceText: "a SUCCESSFUL Advanced Attack",
+            },
+            sourceText:
+              "On your opponent's turn, after your opponent performs a SUCCESSFUL Advanced Attack or Signature Technique, you may have your opponent lose X HP. X = The base damage of the Advanced Attack",
+          },
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "lose",
+            amount: { type: "triggering-move-base-damage", multiplier: 0.5 },
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "signature",
+              sourceText: "a SUCCESSFUL Advanced Attack or Signature Technique",
+            },
+            sourceText:
+              "If that attack was a Signature Technique, X = 1/2 of the base damage for that attack",
+          },
+        ],
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            comparison: "at-most",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 50,
+            },
+            sourceText: "Activate at any point when your HP is below (50% Total HP)",
+          },
+          {
+            type: "moveset",
+            subject: "self",
+            excludesIds: ["move-haokiru-eternal-mastery", "move-haokiru-survival-instinct"],
+            sourceText:
+              "This skill may not be in the same moveset as Eternal Mastery or Survival Instinct",
+          },
+        ],
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            categories: ["advanced-attack", "signature"],
+            sourceText: "a SUCCESSFUL Advanced Attack or Signature Technique",
+          },
+          sourceText:
+            "after your opponent performs a SUCCESSFUL Advanced Attack or Signature Technique",
+        },
+        sourceText:
+          "Activate at any point when your HP is below (50% Total HP). On your opponent's turn, after your opponent performs a SUCCESSFUL Advanced Attack or Signature Technique, you may have your opponent lose X HP. X = The base damage of the Advanced Attack. If that attack was a Signature Technique, X = 1/2 of the base damage for that attack. This skill may not be in the same moveset as Eternal Mastery or Survival Instinct. You may activate this Skill when your HP reaches 0",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-halting-stance",
+    [
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "modify-remaining-uses",
+        amount: { type: "literal", value: 1 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-haokiru-halting-stance"],
+          sourceText: "this Block",
+        },
+        conditions: [
+          {
+            type: "move-use-count",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-haokiru-halting-stance"],
+              sourceText: "The first time you use this Block",
+            },
+            comparison: "exactly",
+            value: 1,
+            timing: "including-current-use",
+            sourceText: "The first time you use this Block",
+          },
+          {
+            type: "resource-change",
+            subject: "self",
+            resource: "ki",
+            operation: "lose",
+            timing: "within-turns",
+            turns: 10,
+            cause: "opponent-effect",
+            sourceText:
+              "if you have lost KI due to your opponent's effects within the last 10 turns",
+          },
+        ],
+        sourceText:
+          "The first time you use this Block, if you have lost KI due to your opponent's effects within the last 10 turns, this Block gains RESTRICTED+1",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-display-of-endurance",
+    [
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "modify-resource",
+        resource: "hp",
+        operation: "lose",
+        amount: { type: "blocked-attack-damage", multiplier: 0.5 },
+        sourceText: "You lose (50% of the attack's damage) HP",
+      },
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "display-of-endurance-blocked-damage-heal",
+        effects: [
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "gain",
+            amount: { type: "blocked-attack-damage", multiplier: 1 },
+            scope: { type: "next-action", sourceText: "Your next attack" },
+            sourceText:
+              "Your next attack gains 'SUCCESSFUL - HEAL (100% of the attack you blocked's damage) HP'",
+          },
+        ],
+        termination: [
+          {
+            trigger: "on-success",
+            actor: "self",
+            sourceText:
+              "Your next attack gains 'SUCCESSFUL - HEAL (100% of the attack you blocked's damage) HP'",
+          },
+        ],
+        sourceText:
+          "Your next attack gains 'SUCCESSFUL - HEAL (100% of the attack you blocked's damage) HP'",
+      },
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "prevent-resource-modification",
+        resource: "ki",
+        operation: "lose",
+        sourceActor: "opponent",
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          sourceText: "until they perform a SUCCESSFUL attack",
+        },
+        sourceText:
+          "You cannot lose KI from your opponent's effects until they perform a SUCCESSFUL attack",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-tornado-uppercut",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage-modifier",
+        multiplier: { type: "literal", value: 3 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "resource-change",
+            subject: "self",
+            resource: "hp",
+            operation: "gain",
+            timing: "last-turn",
+            sourceText: "If you gained HP on your last turn",
+          },
+        ],
+        sourceText:
+          "If you gained HP on your last turn, triple any damage modifiers made to this attack",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        cap: {
+          type: "maximum",
+          value: { type: "stat-percent", subject: "self", stat: "power", percent: 55 },
+          sourceText: "This attack cannot deal more than (55% Power) damage",
+        },
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText: "This attack cannot deal more than (55% Power) damage",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource-cost",
+        resource: "hp",
+        operation: "add",
+        percent: { type: "literal", value: -100 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          categories: ["advanced-attack", "mastery", "skill"],
+          effectKinds: ["resource-loss"],
+          sourceText:
+            "the next Advanced Attack, Mastery, or Skill you use that requires you to lose HP to gain an effect",
+        },
+        scope: {
+          type: "next-action",
+          sourceText: "the next Advanced Attack, Mastery, or Skill you use",
+        },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
+        activationGroup: "tornado-uppercut-hp-loss-choice",
+        optional: true,
+        stacking: "prevent",
+        sourceText:
+          "SUCCESSFUL - You may pay 1 KI. If you do, the next Advanced Attack, Mastery, or Skill you use that requires you to lose HP to gain an effect, you do not have to lose HP to gain the effect. You may use this reduce the required HP loss by half on Signature Techniques instead; this effect does not stack",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource-cost",
+        resource: "hp",
+        operation: "add",
+        percent: { type: "literal", value: -50 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "signature",
+          effectKinds: ["resource-loss"],
+          sourceText: "Signature Techniques",
+        },
+        scope: { type: "next-action", sourceText: "on Signature Techniques instead" },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
+        activationGroup: "tornado-uppercut-hp-loss-choice",
+        optional: true,
+        stacking: "prevent",
+        sourceText:
+          "SUCCESSFUL - You may pay 1 KI. If you do, the next Advanced Attack, Mastery, or Skill you use that requires you to lose HP to gain an effect, you do not have to lose HP to gain the effect. You may use this reduce the required HP loss by half on Signature Techniques instead; this effect does not stack",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-high-threshold",
+    [
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "substitute-defense",
+        payment: {
+          resource: "hp",
+          amount: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            percent: 10,
+          },
+        },
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          tags: ["energy"],
+          categoryExcludes: ["signature"],
+          sourceText:
+            "in place of a defensive roll to STOP an energy attack. This cannot stop Signature Techniques",
+        },
+        outcome: "stop",
+        optional: true,
+        sourceText:
+          "You may lose (10% Total HP) HP in place of a defensive roll to STOP an energy attack. This cannot stop Signature Techniques",
+      },
+      {
+        trigger: "on-resource-threshold",
+        target: "self",
+        type: "deactivate",
+        affectedType: "skill",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-haokiru-high-threshold"],
+          sourceText: "This Skill is DEACTIVATED",
+        },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            comparison: "at-most",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 50,
+            },
+            sourceText: "if you fall below (50% Total HP) HP",
+          },
+        ],
+        sourceText:
+          "This Skill is DEACTIVATED and refunds the Ki you spent on it if you fall below (50% Total HP) HP",
+      },
+      {
+        trigger: "on-resource-threshold",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "paid-activation-cost", resource: "ki" },
+        conditions: [
+          {
+            type: "resource-threshold",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            comparison: "at-most",
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 50,
+            },
+            sourceText: "if you fall below (50% Total HP) HP",
+          },
+        ],
+        sourceText:
+          "This Skill is DEACTIVATED and refunds the Ki you spent on it if you fall below (50% Total HP) HP",
+      },
+    ],
+  ],
+  [
+    "move-haokiru-karmic-chameleon-mastery",
+    [
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "grant-mastery",
+        source: "opponent",
+        duration: { type: "combat", sourceText: "this Match" },
+        sourceText:
+          "At the start of the match, choose an opponent. You are considered to have that opponent's Mastery",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "grant-temporary-move-use",
+        source: "opponent",
+        category: "advanced-attack",
+        selectionKey: "karmic-chameleon-advanced-attack",
+        duration: { type: "combat", sourceText: "this Match" },
+        sourceText:
+          "Choose one of your opponent's Advanced Attacks. You may use that attack this Match",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "grant-temporary-move-use",
+        source: "opponent",
+        category: "skill",
+        selectionKey: "karmic-chameleon-skill",
+        duration: { type: "combat", sourceText: "this Match" },
+        sourceText: "Choose one of your opponent's Skills. You may use that skill this Match",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-move-classification",
+        setStyleId: "style-haokiru",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          selectionKey: "karmic-chameleon-advanced-attack",
+          sourceText: "All of your chosen techniques are considered Haokiru",
+        },
+        duration: { type: "combat", sourceText: "this Match" },
+        sourceText: "All of your chosen techniques are considered Haokiru",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-move-classification",
+        setStyleId: "style-haokiru",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          selectionKey: "karmic-chameleon-skill",
+          sourceText: "All of your chosen techniques are considered Haokiru",
+        },
+        duration: { type: "combat", sourceText: "this Match" },
+        sourceText: "All of your chosen techniques are considered Haokiru",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "override-style-reference",
+        selectionKeys: ["karmic-chameleon-advanced-attack", "karmic-chameleon-skill"],
+        styleId: "style-haokiru",
+        duration: { type: "combat", sourceText: "this Match" },
+        sourceText:
+          "Any effects referring to Martial Arts Style are considered to refer to Haokiru instead",
       },
     ],
   ],

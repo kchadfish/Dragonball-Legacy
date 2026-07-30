@@ -4,6 +4,94 @@ import { createStyleMoves } from "./create-style-moves.js";
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-kiihakai-redirected-energy",
+    [
+      {
+        trigger: "on-deactivated",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: { type: "source-expression", text: "-(cost of the Skill - 1)" },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-kiihakai",
+          categories: ["advanced-attack", "signature"],
+          sourceText: "your next Kiihakai attack",
+        },
+        scope: { type: "next-action", sourceText: "your next Kiihakai attack" },
+        sourceText:
+          "When one of your Skills is DEACTIVATED, your next Kiihakai attack costs -X KI. X = The cost of the Skill -1",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-aura-clash",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "force-transformation",
+        targetTransformation: "highest",
+        required: false,
+        scope: {
+          type: "next-phase",
+          subject: "self",
+          phase: "end",
+          sourceText: "during the next END phase",
+        },
+        sourceText:
+          "SUCCESSFUL - You may Transform to your highest Transformation uring the next END phase",
+      },
+      {
+        trigger: "on-stopped",
+        target: "participants",
+        type: "force-transformation",
+        targetTransformation: "highest",
+        required: false,
+        scope: {
+          type: "next-phase",
+          subject: "self",
+          phase: "end",
+          sourceText: "during the next END phase",
+        },
+        sourceText:
+          "STOPPED - Both players may Transform to their highest Transformation uring the next END phase",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-overdrive-blast",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-kiihakai-overdrive-mastery"],
+          sourceText: "Overdrive Mastery",
+        },
+        asIf: "power-up",
+        sourceText: "SUCCESSFUL - Activate Overdrive Mastery, as if you had just Powered Up",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-turn-up-the-heat",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-move-classification",
+        addTags: ["ENERGY"],
+        scope: { type: "current-action", sourceText: "This attack" },
+        sourceText: "This attack also counts as an energy attack for all effects",
+      },
+    ],
+  ],
+  [
     "move-kiihakai-orange-burst",
     [
       {
@@ -1000,6 +1088,442 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         ],
         sourceText:
           "SUCCESSFUL - If 5 or more dice rolls are SUCCESSFUL, LOCK your opponent's Signature Techniques with a base cost of 7 or more for the remainder of combat",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-energy-gathering",
+    [
+      {
+        trigger: "on-resource-gain",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 1 },
+        conditions: [
+          {
+            type: "resource-change",
+            subject: "self",
+            resource: "ki",
+            operation: "gain",
+            timing: "current-event",
+            sourceText: "Whenever you gain KI",
+          },
+        ],
+        sourceText: "Whenever you gain KI, gain +1 KI",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-the-rising-sun",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "create-floating-effect",
+        floatingEffectId: "the-rising-sun-physical-attack-retaliation",
+        effects: [
+          {
+            trigger: "on-move-use",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "lose",
+            amount: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              tags: ["physical"],
+              sourceText: "every time they perform a physical attack",
+            },
+            sourceText:
+              "SUCCESSFUL - Your opponent loses (10% Power) HP every time they perform a physical attack for the remainder of combat",
+          },
+        ],
+        duration: { type: "combat", sourceText: "for the remainder of combat" },
+        sourceText:
+          "SUCCESSFUL - Your opponent loses (10% Power) HP every time they perform a physical attack for the remainder of combat",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-twisting-beam",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: {
+          type: "active-move-count",
+          subject: "self",
+          category: "skill",
+          constant: true,
+          perMove: 5,
+        },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "move-effect-inactive",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "Channeled Chi Mastery",
+              sourceText: "If you are not using Channeled Chi Mastery",
+            },
+            sourceText: "If you are not using Channeled Chi Mastery",
+          },
+        ],
+        sourceText:
+          "If you are not using Channeled Chi Mastery, this attack does +(5% Power) Damage for every Skill with a 'CONSTANT' effect you have activated",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-triple-torpedo",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your Skills with a CONSTANT effect",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-least",
+            value: { type: "literal", value: 2 },
+            sourceText: "If 2 or more dice rolls are SUCCESSFUL",
+          },
+        ],
+        optional: true,
+        sourceText:
+          "If 2 or more dice rolls are SUCCESSFUL, you may activate one of your Skills with a CONSTANT effect",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-move-use",
+        operation: "deactivate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "That skill",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 5 },
+          sourceText: "for the next 5 turns",
+        },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-least",
+            value: { type: "literal", value: 2 },
+            sourceText: "If 2 or more dice rolls are SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "If 2 or more dice rolls are SUCCESSFUL, you may activate one of your Skills with a CONSTANT effect. That skill cannot be DEACTIVATED for the next 5 turns",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-ki-jammer",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "create-floating-effect",
+        floatingEffectId: "ki-jammer-power-up-damage-penalty",
+        effects: [
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-damage",
+            operation: "add",
+            percent: { type: "literal", value: -10 },
+            scope: { type: "next-action", sourceText: "each time they Power Up" },
+            sourceText:
+              "SUCCESSFUL - Your opponent loses (10% Power) Damage each time they Power Up until they roll a 25 or higher on a SUCCESSFUL single dice attack roll. This effect does not stack with itself",
+          },
+        ],
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            attackRoll: { dice: 1 },
+            sourceText: "a SUCCESSFUL single dice attack roll",
+          },
+          conditions: [
+            {
+              type: "roll-threshold",
+              roll: "attack",
+              comparison: "at-least",
+              value: { type: "literal", value: 25 },
+              sourceText: "until they roll a 25 or higher",
+            },
+          ],
+          sourceText: "until they roll a 25 or higher on a SUCCESSFUL single dice attack roll",
+        },
+        stacking: "prevent",
+        sourceText:
+          "SUCCESSFUL - Your opponent loses (10% Power) Damage each time they Power Up until they roll a 25 or higher on a SUCCESSFUL single dice attack roll. This effect does not stack with itself",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-shaolin-focused-beam",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-move-use",
+        operation: "deactivate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "choose two of your Skills with a 'CONSTANT' effect",
+        },
+        selectionLimit: 2,
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If your attack roll is 20 or higher",
+          },
+        ],
+        duration: {
+          type: "until-combat-result",
+          actor: "opponent",
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            attackRoll: { dice: 1 },
+            sourceText: "a single dice attack",
+          },
+          conditions: [
+            {
+              type: "roll-threshold",
+              roll: "attack",
+              comparison: "at-least",
+              value: { type: "literal", value: 23 },
+              sourceText: "until your opponent rolls a 23 or higher",
+            },
+          ],
+          sourceText: "until your opponent rolls a 23 or higher on a single dice attack",
+        },
+        sourceText:
+          "SUCCESSFUL - If your attack roll is 20 or higher, choose two of your Skills with a 'CONSTANT' effect. Those Skills cannot be DEACTIVATED until your opponent rolls a 23 or higher on a single dice attack. You may not have more than two skills chosen with this effect at a time",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-focus-breaker",
+    [
+      {
+        trigger: "before-defense-roll",
+        target: "self",
+        type: "stop-attack-by-deactivation",
+        sacrificedMove: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "DEACTIVATE one of your Skills with a 'CONSTANT' effect",
+        },
+        attack: {
+          type: "move-selector",
+          subject: "target",
+          categoryExcludes: ["signature"],
+          sourceText: "STOP an attack that is not a Signature Technique",
+        },
+        lockDuration: { type: "combat", sourceText: "for the remainder of combat" },
+        optional: true,
+        sourceText:
+          "You may choose to DEACTIVATE one of your Skills with a 'CONSTANT' effect in order to STOP an attack that is not a Signature Technique. If you do, LOCK that Skill for the remainder of combat",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-energy-slasher",
+    [
+      {
+        trigger: "on-power-up",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 2 },
+        scope: {
+          type: "next-turn",
+          subject: "self",
+          sourceText: "if you Power Up on your next turn",
+        },
+        conditions: [
+          {
+            type: "prior-action",
+            actor: "opponent",
+            result: "stopped",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              tags: ["physical"],
+              sourceText: "your opponent's last attack was a physical attack and it was STOPPED",
+            },
+            sourceText: "If your opponent's last attack was a physical attack and it was STOPPED",
+          },
+        ],
+        sourceText:
+          "If your opponent's last attack was a physical attack and it was STOPPED, you may gain +2 KI if you Power Up on your next turn",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-devastating-blade",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "prevent-move-use",
+        operation: "deactivate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your CONSTANT skills",
+        },
+        useLimit: { scope: "combat", count: 1, sourceText: "The next time" },
+        sourceText:
+          "SUCCESSFUL - The next time one of your CONSTANT skills would be DEACTIVATED, it remains in play",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-power-boost",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "skip-action",
+        optional: true,
+        sourceText: "You may skip any of your ACTION phases",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 20 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          tags: ["energy"],
+          sourceText: "if you perform an energy attack on your following turn",
+        },
+        scope: { type: "following-action", offset: 1, sourceText: "on your following turn" },
+        conditions: [
+          {
+            type: "prior-turn-restriction",
+            subject: "self",
+            anyOf: ["turn-skipped"],
+            sourceText: "If you do",
+          },
+        ],
+        sourceText:
+          'If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "SUCCESSFUL - Gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead."',
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 5 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          tags: ["energy"],
+          sourceText: "if you perform an energy attack on your following turn",
+        },
+        scope: { type: "following-action", offset: 1, sourceText: "on your following turn" },
+        conditions: [
+          {
+            type: "prior-turn-restriction",
+            subject: "self",
+            anyOf: ["turn-skipped"],
+            sourceText: "If you do",
+          },
+        ],
+        sourceText:
+          'If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "SUCCESSFUL - Gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead."',
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 3 },
+        conditions: [
+          {
+            type: "perfect-roll",
+            roll: "attack",
+            natural: true,
+            sourceText: "If the attack roll was a natural Perfect Roll",
+          },
+          {
+            type: "prior-turn-restriction",
+            subject: "self",
+            anyOf: ["turn-skipped"],
+            sourceText: "If you do",
+          },
+        ],
+        sourceText:
+          'If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "SUCCESSFUL - Gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead."',
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: 1 },
+        conditions: [
+          {
+            type: "prior-turn-restriction",
+            subject: "self",
+            anyOf: ["turn-skipped"],
+            sourceText: "If you do",
+          },
+          {
+            type: "perfect-roll",
+            roll: "attack",
+            natural: true,
+            negated: true,
+            sourceText: "If the attack roll was a natural Perfect Roll",
+          },
+        ],
+        sourceText:
+          'If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "SUCCESSFUL - Gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead."',
       },
     ],
   ],

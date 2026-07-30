@@ -31,6 +31,11 @@ export const EFFECT_TRIGGER = {
   ACTION_PHASE: "action-phase",
   ON_POWER_UP: "on-power-up",
   ON_RESOURCE_DRAIN: "on-resource-drain",
+  ON_RESOURCE_GAIN: "on-resource-gain",
+  ON_MOVE_USE: "on-move-use",
+  ON_COST_MODIFIED: "on-cost-modified",
+  ON_COMBAT_RESULT: "on-combat-result",
+  ON_ROLL_RESULT: "on-roll-result",
   ON_RESOURCE_THRESHOLD: "on-resource-threshold",
   ON_ROLL_MODIFIED: "on-roll-modified",
   BEFORE_ATTACK_ROLL: "before-attack-roll",
@@ -39,7 +44,9 @@ export const EFFECT_TRIGGER = {
   ON_SUCCESS: "on-success",
   ON_STOPPED: "on-stopped",
   ON_DAMAGE: "on-damage",
+  ON_DEACTIVATED: "on-deactivated",
   TURN_END: "turn-end",
+  OUT_OF_COMBAT: "out-of-combat",
 } as const;
 
 export const EFFECT_TARGET = {

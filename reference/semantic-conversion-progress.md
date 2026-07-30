@@ -15,26 +15,30 @@ context changes. It supplements `normalization-decisions.md`.
 ## Current Scope
 
 The semantic pass has completed `reference/moves/aoyosumu.md` (61 of 61
-moves). The current pass is `reference/moves/kurokonwaku.md`.
+moves), `reference/moves/kurokonwaku.md` (60 of 60 moves), and
+`reference/moves/akaikaru.md` (60 of 60 moves), and
+`reference/moves/freestyle.md` (49 of 49 moves), and
+`reference/moves/haokiru.md` (60 of 60 moves). Afterlife is complete except
+for the unresolved Time Freeze ruling in SB-004. The current pass is
+`reference/moves/kiihakai.md`.
 
-As of the latest reindex, 358 of 499 moves have declarative structured
+As of the latest reindex, 475 of 499 moves have declarative structured
 effects. The current per-catalog counts are:
 
-- Afterlife: 59 of 88
-- Akaikaru: 40 of 60
+- Afterlife: 87 of 88
+- Akaikaru: 60 of 60
 - Aoyosumu: 61 of 61
-- Freestyle: 32 of 49
-- Haokiru: 40 of 60
-- Kiihakai: 38 of 61
-- Kurokonwaku: 43 of 60
-- Midorikatai: 45 of 60
+- Freestyle: 49 of 49
+- Haokiru: 60 of 60
+- Kiihakai: 51 of 61
+- Kurokonwaku: 60 of 60
+- Midorikatai: 47 of 60
 
 ## Next Work
 
-1. Finish the remaining Kurokonwaku effect clauses in source order.
-2. Continue the remaining style catalogs, recording only genuine source
+1. Continue the remaining style catalogs, recording only genuine source
    ambiguities in `semantic-conversion-blockers.md`.
-3. Add a semantic-coverage validation report before declaring the conversion
+2. Add a semantic-coverage validation report before declaring the conversion
    complete.
 
 ## Work Rule
