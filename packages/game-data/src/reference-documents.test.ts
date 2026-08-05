@@ -5,7 +5,7 @@ import { validateGameDataDocuments } from "./validation.js";
 
 describe("game-data reference catalog", () => {
   it("preserves every reference document in a valid static catalog", () => {
-    expect(GAME_DATA_DOCUMENTS).toHaveLength(92);
+    expect(GAME_DATA_DOCUMENTS).toHaveLength(102);
     expect(validateGameDataDocuments(GAME_DATA_DOCUMENTS)).toEqual([]);
   });
 
@@ -22,6 +22,7 @@ describe("game-data reference catalog", () => {
         "quest",
         "location",
         "trainers",
+        "reference",
       ]),
     );
   });

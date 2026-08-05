@@ -246,7 +246,7 @@ describe("AKAIKARU_MOVES", () => {
         expect.objectContaining({ type: "apply-status", statusId: "stun" }),
         expect.objectContaining({
           type: "modify-damage",
-          percent: { type: "source-expression", text: "10% Power" },
+          percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         }),
       ]),
     );

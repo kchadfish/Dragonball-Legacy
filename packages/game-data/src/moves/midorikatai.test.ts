@@ -3,6 +3,27 @@ import { describe, expect, it } from "vitest";
 import { MIDORIKATAI_MOVES } from "./midorikatai.js";
 
 describe("MIDORIKATAI_MOVES", () => {
+  it("records Test of Strength's contest thresholds, attacker-wins ties, and HP penalty", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Test of Strength")?.effects).toEqual([
+      expect.objectContaining({
+        type: "resolve-contest",
+        tie: "self-wins",
+        qualifyingThreshold: { default: 5, whenSelfPowerHigher: 6 },
+      }),
+    ]);
+  });
+
+  it("records Leg Vice's two-turn bonus loss and either-combatant CONSTANT condition", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Leg Vice")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-stat", stat: "dexterity-bonus" }),
+        expect.objectContaining({
+          type: "prevent-resolution",
+          conditions: [expect.objectContaining({ type: "active-move-count", subject: "either" })],
+        }),
+      ]),
+    );
+  });
   it("records Smackdown's cost protection, Bukujutsu bonus, and suppression", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Smackdown")?.effects).toEqual(
       expect.arrayContaining([
@@ -25,7 +46,7 @@ describe("MIDORIKATAI_MOVES", () => {
         type: "modify-stat",
         stat: "dexterity",
         operation: "set",
-        amount: { type: "source-expression", text: "Power / 20" },
+        amount: { type: "stat-quotient", subject: "self", stat: "power", divisor: 20 },
       }),
     ]);
   });
@@ -34,7 +55,7 @@ describe("MIDORIKATAI_MOVES", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Energy Gorged")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-damage",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
       }),
     ]);
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Knee Stomp")?.effects).toEqual([
@@ -104,7 +125,7 @@ describe("MIDORIKATAI_MOVES", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Bonecrusher Mastery")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-damage",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
       }),
     ]);
   });
@@ -114,7 +135,7 @@ describe("MIDORIKATAI_MOVES", () => {
       [
         expect.objectContaining({
           type: "modify-damage",
-          percent: { type: "source-expression", text: "5% Power" },
+          percent: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         }),
       ],
     );
@@ -169,7 +190,7 @@ describe("MIDORIKATAI_MOVES", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Gorilla Press")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-damage",
-        percent: { type: "source-expression", text: "-20% Your Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: -20 },
       }),
     ]);
   });
@@ -224,7 +245,7 @@ describe("MIDORIKATAI_MOVES", () => {
         expect.objectContaining({ type: "lock", stacking: "prevent" }),
         expect.objectContaining({
           type: "modify-damage",
-          percent: { type: "source-expression", text: "-10% Damage" },
+          percent: { type: "damage-percent", subject: "current-action", percent: -10 },
         }),
       ]),
     );
@@ -297,5 +318,186 @@ describe("MIDORIKATAI_MOVES", () => {
         duration: expect.objectContaining({ type: "until-combat-result" }),
       }),
     ]);
+  });
+
+  it("records Whiplash's active-opponent-skill low-defense stop prevention", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Whiplash")?.effects).toEqual([
+      expect.objectContaining({
+        type: "set-resolution-threshold",
+        value: { type: "literal", value: 15 },
+        conditions: [expect.objectContaining({ type: "active-move-count", subject: "opponent" })],
+      }),
+    ]);
+  });
+
+  it("records One-Two Punch's first-hit second-roll bonus and two-hit penalty", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "One-Two Punch")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-roll",
+          dieIndex: 2,
+          amount: { type: "literal", value: 5 },
+        }),
+        expect.objectContaining({
+          type: "modify-damage",
+          percent: { type: "literal", value: -10 },
+        }),
+      ]),
+    );
+  });
+
+  it("records Raining Bombs's cost floor and all-stopped end-phase escape roll", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Raining Bombs")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-cost",
+          minimum: { type: "literal", value: 2 },
+        }),
+        expect.objectContaining({
+          type: "grant-escape-roll",
+          phase: "end-phase",
+          conditions: [expect.objectContaining({ type: "attack-roll-resolution" })],
+        }),
+      ]),
+    );
+  });
+
+  it("records Grapple's optional one-constant-skill combat reactivation", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Grapple")?.effects).toEqual([
+      expect.objectContaining({
+        type: "reactivate-deactivated-constant-skill",
+        deactivatedTiming: "combat",
+        selectionLimit: 1,
+      }),
+    ]);
+  });
+
+  it("records Torture Rack's no-turn transformation and first-use roll bonus", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Torture Rack")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "grant-transformation-action", turnCost: "none" }),
+        expect.objectContaining({
+          type: "modify-roll",
+          roll: "transformation",
+          conditions: [expect.objectContaining({ type: "move-use-count", value: 1 })],
+        }),
+      ]),
+    );
+  });
+
+  it("records Cobra Clutch Drop's power bonus and Beam/Blast roll penalty", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Cobra Clutch Drop")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-damage",
+          conditions: [expect.objectContaining({ type: "stat-comparison", stat: "power" })],
+        }),
+        expect.objectContaining({
+          type: "modify-roll",
+          amount: { type: "literal", value: -3 },
+          selector: expect.objectContaining({ tags: ["beam", "blast"] }),
+          duration: expect.objectContaining({ type: "until-combat-result" }),
+        }),
+      ]),
+    );
+  });
+
+  it("records X-Attack's stopped-die transformation penalty and forced roll", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "X-Attack")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-roll",
+          roll: "transformation",
+          amount: { type: "stopped-hit-count", perHit: -3 },
+          stacking: "allow",
+        }),
+        expect.objectContaining({
+          type: "require-transformation-roll",
+          ignoreTransformationDice: true,
+        }),
+      ]),
+    );
+  });
+
+  it("records Breaker Breaker's first-turn BREAK and subsequent BREAKx2 effect", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Breaker Breaker")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "grant-combat-outcome",
+          outcome: "break",
+          conditions: [expect.objectContaining({ type: "combat-turn", value: 1 })],
+        }),
+        expect.objectContaining({
+          type: "modify-combat-outcome",
+          outcome: "break",
+          multiplier: { type: "literal", value: 2 },
+        }),
+      ]),
+    );
+  });
+
+  it("records Fall 7 Times's two-stopped activation and low-cost attack protection", () => {
+    expect(
+      MIDORIKATAI_MOVES.find((move) => move.name === "Fall 7 Times, Get Up 8")?.effects,
+    ).toEqual([
+      expect.objectContaining({
+        type: "create-floating-effect",
+        activationCost: expect.objectContaining({ amount: { type: "literal", value: 1 } }),
+        conditions: [expect.objectContaining({ type: "action-sequence", count: 2 })],
+        effects: expect.arrayContaining([
+          expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
+          expect.objectContaining({
+            type: "prevent-resolution",
+            prevention: "stop",
+            source: "effect",
+          }),
+          expect.objectContaining({ type: "set-resolution-threshold", relativeTo: "attack-roll" }),
+        ]),
+      }),
+    ]);
+  });
+
+  it("records Not Over Till It's Over's sacrifice, partial doubling, and SEVER prevention", () => {
+    expect(
+      MIDORIKATAI_MOVES.find((move) => move.name === "Not Over Till It's Over!")?.effects,
+    ).toEqual([
+      expect.objectContaining({
+        type: "create-floating-effect",
+        selectionLimit: 1,
+        effects: expect.arrayContaining([
+          expect.objectContaining({ type: "remove-move-from-combat" }),
+          expect.objectContaining({
+            type: "modify-roll",
+            multiplier: { type: "literal", value: 2 },
+            affectedDice: "ceiling-half",
+          }),
+          expect.objectContaining({ type: "prevent-combat-result", result: "sever" }),
+        ]),
+      }),
+    ]);
+  });
+
+  it("records Domination Master's damage-reduction surcharge and two-turn attack reward", () => {
+    expect(MIDORIKATAI_MOVES.find((move) => move.name === "Domination Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-damage-reduction-cost",
+          amount: { type: "literal", value: 1 },
+        }),
+        expect.objectContaining({
+          type: "create-floating-effect",
+          conditions: [
+            expect.objectContaining({ type: "action-sequence", count: 2, differentTurns: true }),
+          ],
+          effects: expect.arrayContaining([
+            expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
+            expect.objectContaining({
+              type: "set-resolution-threshold",
+              value: { type: "literal", value: 22 },
+            }),
+          ]),
+        }),
+      ]),
+    );
   });
 });

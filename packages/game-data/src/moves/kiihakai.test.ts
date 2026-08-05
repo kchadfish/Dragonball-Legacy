@@ -8,7 +8,7 @@ describe("KIIHAKAI_MOVES", () => {
       expect.objectContaining({
         trigger: "on-deactivated",
         type: "modify-cost",
-        amount: { type: "source-expression", text: "-(cost of the Skill - 1)" },
+        amount: { type: "triggering-move-ki-cost", addition: -1 },
       }),
     ]);
   });
@@ -218,7 +218,7 @@ describe("KIIHAKAI_MOVES", () => {
       expect.objectContaining({
         type: "set-resolution-threshold",
         outcome: "stop",
-        value: { type: "source-expression", text: "double your attack roll" },
+        value: { type: "literal", value: 2 },
       }),
     ]);
   });
@@ -228,7 +228,7 @@ describe("KIIHAKAI_MOVES", () => {
       expect.objectContaining({
         type: "modify-damage",
         trigger: "on-power-up",
-        percent: { type: "source-expression", text: "15% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
       }),
     ]);
     expect(KIIHAKAI_MOVES.find((move) => move.name === "Thunder Ball")?.effects).toEqual([
@@ -272,7 +272,7 @@ describe("KIIHAKAI_MOVES", () => {
       expect.objectContaining({
         type: "modify-cost",
         operation: "set",
-        amount: { type: "source-expression", text: "The cost of your opponent's next attack" },
+        amount: { type: "next-move-ki-cost", actor: "opponent" },
       }),
     ]);
   });
@@ -379,5 +379,114 @@ describe("KIIHAKAI_MOVES", () => {
         expect.objectContaining({ type: "modify-resource", amount: { type: "literal", value: 3 } }),
       ]),
     );
+  });
+
+  it("records Rollback Barrage's per-two-success constant reactivation", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Rollback Barrage")?.effects).toEqual([
+      expect.objectContaining({
+        type: "activate",
+        repeatCount: { type: "successful-hit-count-groups", groupSize: 2 },
+        ignoreRequirements: true,
+      }),
+    ]);
+  });
+
+  it("records Big Shot's high-roll constant activation and delayed deactivation", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Big Shot")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "activate", selectionKey: "big-shot-activated-constants" }),
+        expect.objectContaining({ type: "delayed-deactivate", turnsAfter: 3 }),
+      ]),
+    );
+  });
+
+  it("records Fierce Focus Master's start activation and deactivation negations", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Fierce Focus Mastery")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-cost", amount: { type: "literal", value: 0 } }),
+        expect.objectContaining({ type: "activate", optional: true }),
+        expect.objectContaining({
+          type: "negate-deactivation",
+          useLimit: expect.objectContaining({ count: 2 }),
+        }),
+        expect.objectContaining({
+          type: "negate-deactivation",
+          useLimit: expect.objectContaining({ count: 1 }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Ki Barbs' exclusive Power-Up damage choices and all-dice stun", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Ki Barbs")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-damage", percent: { type: "literal", value: 15 } }),
+        expect.objectContaining({ type: "modify-damage", percent: { type: "literal", value: 25 } }),
+        expect.objectContaining({
+          type: "grant-combat-outcome",
+          outcome: "stun",
+          requireAllDiceSuccess: true,
+        }),
+      ]),
+    );
+  });
+
+  it("records Evening The Field's typed constant-skill exchange", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Evening The Field")?.effects).toEqual([
+      expect.objectContaining({
+        type: "exchange-constant-skill",
+        optionalNoTurnCost: { resource: "ki", amount: 1 },
+        cooldown: 4,
+      }),
+    ]);
+  });
+
+  it("records Synergy's no-turn trigger, damage-modification bonus, and End-phase activation", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Synergy")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "grant-extra-action", phase: "action-phase" }),
+        expect.objectContaining({ type: "modify-roll", amount: { type: "literal", value: 2 } }),
+        expect.objectContaining({
+          type: "activate",
+          scope: expect.objectContaining({ phase: "end" }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Diving Elbow's recent reactivation and protected constant activation", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Diving Elbow")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "reactivate-recent-skill",
+          deactivatedTiming: "last-turn",
+        }),
+        expect.objectContaining({
+          type: "activate-protected-constant",
+          protectionDuration: expect.objectContaining({ turns: 4 }),
+        }),
+      ]),
+    );
+  });
+
+  it("records Downward Spiral's skill-activation immunity and effect replacement", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Downward Spiral")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "override-skill-activation-prevention" }),
+        expect.objectContaining({ type: "replace-active-constant-effects", optional: true }),
+      ]),
+    );
+  });
+
+  it("records Destruction Mastery's selected-move protections and interference effects", () => {
+    expect(KIIHAKAI_MOVES.find((move) => move.name === "Destruction Mastery")?.effects).toEqual([
+      expect.objectContaining({
+        type: "grant-destruction-mastery",
+        naturalDefenseStopPreventionAtMost: 12,
+        zeroCostSignatureUses: 1,
+        targetsInterferers: true,
+        damageBonusAfterOpponentInterferencePercent: 5,
+      }),
+    ]);
   });
 });

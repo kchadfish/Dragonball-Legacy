@@ -166,7 +166,7 @@ describe("KUROKONWAKU_MOVES", () => {
       [
         expect.objectContaining({
           type: "modify-resource",
-          amount: { type: "source-expression", text: "1 KI per hit" },
+          amount: { type: "successful-hit-count", perHit: 1 },
         }),
       ],
     );
@@ -189,7 +189,7 @@ describe("KUROKONWAKU_MOVES", () => {
       expect.objectContaining({
         type: "modify-resource",
         resource: "hp",
-        amount: { type: "source-expression", text: "20% That Attack's Total Damage" },
+        amount: { type: "damage-percent", subject: "current-action", percent: 20 },
       }),
     ]);
   });

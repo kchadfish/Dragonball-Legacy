@@ -128,10 +128,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "until-roll-threshold",
           roll: "attack",
           comparison: "at-least",
-          value: {
-            type: "source-expression",
-            text: "the attack roll result of this attack + 1",
-          },
+          value: { type: "prior-roll-result", roll: "attack", addition: 1 },
           sourceText:
             "until the results of one of their attacks exceeds the attack roll result of this attack",
         },
@@ -204,7 +201,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         activationCost: {
           resource: "ki",
           operation: "lose",
-          amount: { type: "source-expression", text: "the cost of this skill" },
+          amount: { type: "source-move-ki-cost" },
         },
         sourceText:
           "You may activate this after performing a SUCCESSFUL attack with a roll of 25 or higher without taking up your turn. You must pay the cost of this skill to activate it in this way",
@@ -245,7 +242,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-cost",
         operation: "add",
-        amount: { type: "source-expression", text: "an additional KI for each prior activation" },
+        amount: { type: "prior-move-activation-count", move: "source", perActivation: 1 },
         selector: {
           type: "move-selector",
           subject: "source",
@@ -331,7 +328,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         activationCost: {
           resource: "ki",
           operation: "lose",
-          amount: { type: "source-expression", text: "the triggering Skill's cost - 1" },
+          amount: { type: "triggering-move-ki-cost", addition: -1 },
           minimum: { type: "literal", value: 1 },
         },
         sourceText:
@@ -351,7 +348,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         activationCost: {
           resource: "ki",
           operation: "lose",
-          amount: { type: "source-expression", text: "the triggering Skill's cost - 1" },
+          amount: { type: "triggering-move-ki-cost", addition: -1 },
           minimum: { type: "literal", value: 1 },
         },
         sourceText:
@@ -372,10 +369,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         activationCost: {
           resource: "ki" as const,
           operation: "lose" as const,
-          amount: {
-            type: "source-expression" as const,
-            text: "the triggering Advanced Attack's cost - 1",
-          },
+          amount: { type: "triggering-move-ki-cost" as const, addition: -1 },
           minimum: { type: "literal" as const, value: 1 },
         },
         sourceText:
@@ -697,7 +691,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "attack",
         modifier: "result",
-        amount: { type: "source-expression", text: "5 - your opponent's current KI" },
+        amount: {
+          type: "resource-from-threshold",
+          subject: "opponent",
+          resource: "ki",
+          threshold: 5,
+          sign: 1,
+        },
         scope: { type: "current-action", sourceText: "Your results" },
         sourceText: "Your results gain +X. X = 5 - your opponent's current KI",
       },
@@ -826,7 +826,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "20% That Attack's Total Damage" },
+        amount: { type: "damage-percent", subject: "current-action", percent: 20 },
         scope: {
           type: "next-action",
           sourceText: "your opponent performs an attack on their next turn",
@@ -872,7 +872,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "attack",
         modifier: "result",
-        amount: { type: "source-expression", text: "-(10 - their current KI)" },
+        amount: {
+          type: "resource-from-threshold",
+          subject: "opponent",
+          resource: "ki",
+          threshold: 10,
+          sign: -1,
+        },
         cap: {
           type: "maximum",
           value: { type: "literal", value: -5 },
@@ -896,7 +902,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "defense",
         modifier: "result",
-        amount: { type: "source-expression", text: "-(10 - their current KI)" },
+        amount: {
+          type: "resource-from-threshold",
+          subject: "opponent",
+          resource: "ki",
+          threshold: 10,
+          sign: -1,
+        },
         cap: {
           type: "maximum",
           value: { type: "literal", value: -5 },
@@ -925,7 +937,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "ki",
         operation: "lose",
-        amount: { type: "source-expression", text: "1 KI per hit" },
+        amount: { type: "successful-hit-count", perHit: 1 },
         sourceText: "SUCCESSFUL - Your opponent loses 1 KI per hit",
       },
     ],
@@ -1176,7 +1188,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "10% Power" },
+        amount: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         sourceText: "STOPPED - Your opponent loses (10% Power) HP",
       },
     ],
@@ -1598,7 +1610,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "55% Your Power" },
+        amount: { type: "stat-percent", subject: "self", stat: "power", percent: 55 },
         conditions: [
           {
             type: "resource-threshold",
@@ -1666,7 +1678,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "15% Your Power" },
+        amount: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
         cap: {
           type: "minimum",
           value: { type: "literal", value: 1 },
@@ -1781,7 +1793,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "ki",
         operation: "set",
-        amount: { type: "source-expression", text: "your current KI" },
+        amount: { type: "current-resource", subject: "self", resource: "ki" },
         conditions: [
           {
             type: "roll-comparison",
@@ -2098,7 +2110,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "modify-resource",
           resource: "ki",
           operation: "gain",
-          amount: { type: "source-expression", text: "the amount of KI drained" },
+          amount: { type: "triggering-resource-change", resource: "ki", operation: "drain" },
           sourceText: "SUCCESSFUL - The next time you DRAIN Ki, gain the same amount of Ki",
         },
         activationGroup: "spiked-ball-selected-move",
@@ -2173,7 +2185,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-cost",
         operation: "set",
-        amount: { type: "source-expression", text: "this attack's calculated cost" },
+        amount: { type: "source-move-calculated-ki-cost" },
         minimum: { type: "literal", value: 3 },
         selector: {
           type: "move-selector",

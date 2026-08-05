@@ -505,8 +505,8 @@ not attack before that turn.
 
 Status: Approved
 
-Decision: When Test of Strength produces a tie, its user chooses which
-participant loses HP.
+Decision: When Test of Strength produces a tie, its user wins the contest and
+the opponent loses HP.
 
 ## ND-062 - Unqualified move selectors
 
@@ -551,6 +551,20 @@ Status: Approved
 Decision: HEAL means gaining HP. It triggers effects that react to gaining HP
 and is prevented by an effect that says the combatant cannot gain HP. HEAL
 must be defined in the rules glossary.
+
+## ND-068 - Leg Vice active CONSTANT scope
+
+Status: Approved
+
+Decision: Leg Vice's active CONSTANT Skill condition includes an eligible
+active CONSTANT Skill controlled by either combatant.
+
+## ND-069 - Time Freeze energy-attack restriction
+
+Status: Approved
+
+Decision: The Time Freeze user cannot perform energy attacks during the same
+next two turns in which Time Freeze STUNS allies and opponents.
 
 ## NR-001 - Empty item description
 

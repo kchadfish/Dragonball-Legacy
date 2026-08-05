@@ -15,6 +15,63 @@ const X20_KAIOKEN_KAMEHAMEHA_SOURCE =
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-afterlife-time-freeze",
+    [
+      {
+        trigger: "action-phase",
+        target: "participants",
+        type: "apply-status",
+        statusId: "stun",
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 2 },
+          sourceText: "for their next 2 turns",
+        },
+        useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If the result is 20 or higher",
+          },
+        ],
+        sourceText:
+          "If the result is 20 or higher, Time Freeze is successful. STUN all opponents and allies for their next 2 turns",
+      },
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "lock",
+        affectedType: "attack",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "advanced-attack",
+          tags: ["energy"],
+          sourceText: "energy attacks",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 2 },
+          sourceText: "for their next 2 turns",
+        },
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If the result is 20 or higher",
+          },
+        ],
+        sourceText:
+          "RESTRICTEDx1. The user rolls 1d30. If the result is 20 or higher, Time Freeze is successful. STUN all opponents and allies for their next 2 turns. You cannot perform energy attacks while using Time Freeze. Cost: 1 KI.",
+      },
+    ],
+  ],
+  [
     "move-afterlife-kaio-ken-attack",
     [
       {
@@ -388,7 +445,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "(30% Power) HP" },
+        amount: { type: "stat-percent", subject: "self", stat: "power", percent: 30 },
         activationGroup: "x20-kaioken-kamehameha-beam-response",
         conditions: [
           {
@@ -545,8 +602,9 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-damage",
         operation: "add",
         percent: {
-          type: "source-expression",
-          text: "25% Power for every time you have used 'Give Me Energy!' this combat",
+          type: "move-activation-count",
+          moveId: "move-afterlife-give-me-energy",
+          perActivation: 25,
         },
         scope: { type: "current-action", sourceText: "This attack" },
         sourceText:
@@ -563,7 +621,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
         scope: { type: "current-action", sourceText: "this attack" },
         sourceText: "You lose (10% Total HP) HP",
       },
@@ -577,7 +641,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "65% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 65 },
         scope: { type: "current-action", sourceText: "this attack" },
         conditions: [
           {
@@ -610,7 +674,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "-20% Damage" },
+        percent: { type: "damage-percent", subject: "current-action", percent: -20 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -646,7 +710,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "modify-resource",
           resource: "hp",
           operation: "lose",
-          amount: { type: "source-expression", text: "5% Power" },
+          amount: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         },
         cancellation: {
           actor: "opponent",
@@ -805,7 +869,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "15% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
         scope: { type: "current-action", sourceText: "this attack" },
         conditions: [
           {
@@ -877,7 +941,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "attack",
         modifier: "result",
-        amount: { type: "source-expression", text: "-1 per SUCCESSFUL roll" },
+        amount: { type: "successful-hit-count", perHit: -1 },
         scope: { type: "next-roll", roll: "attack", sourceText: "next attack roll" },
         sourceText:
           "SUCCESSFUL - For every roll that was SUCCESSFUL, your opponent's next attack roll gains -1 to the result",
@@ -901,7 +965,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             resource: "hp",
             basis: "total",
             comparison: "at-most",
-            value: { type: "source-expression", text: "15% Total HP" },
+            value: {
+              type: "resource-percent",
+              subject: "opponent",
+              resource: "hp",
+              basis: "total",
+              percent: 15,
+            },
             sourceText: "If your opponent's HP is 15% or less their total HP",
           },
         ],
@@ -971,7 +1041,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "transformation",
         modifier: "result",
-        amount: { type: "source-expression", text: "-3 per SUCCESSFUL dice roll" },
+        amount: { type: "successful-hit-count", perHit: -3 },
         scope: {
           type: "next-roll",
           roll: "transformation",
@@ -1144,7 +1214,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "40% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 40 },
         scope: { type: "current-action", sourceText: "this attack" },
         conditions: [
           {
@@ -1192,7 +1262,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Current HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "current",
+          percent: 10,
+        },
         sourceText: "SUCCESSFUL - Gain (10% Current HP) HP",
       },
     ],
@@ -1729,10 +1805,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "ki",
         operation: "lose",
-        amount: {
-          type: "source-expression",
-          text: "the amount of Advanced Attacks in their moveset",
-        },
+        amount: { type: "moveset-move-count", subject: "opponent", category: "advanced-attack" },
         conditions: [
           {
             type: "successful-hit-count",
@@ -1845,7 +1918,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "15% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
         scope: {
           type: "next-actions",
           count: { type: "literal", value: 2 },
@@ -1958,7 +2031,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         scope: { type: "next-action", sourceText: "Your next attack" },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         sourceText: "RESTRICTEDx1. Your next attack does +(10% Power) Damage",
@@ -2121,7 +2194,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "40% Their Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "opponent",
+          resource: "hp",
+          basis: "total",
+          percent: 40,
+        },
         sourceText: "SUCCESSFUL - Your opponent loses (40% Their Total HP) HP",
       },
       {
@@ -2130,7 +2209,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "15% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 15,
+        },
         sourceText: "you gain (15% Total HP) HP",
       },
     ],
@@ -2262,8 +2347,11 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           roll: "attack",
           comparison: "at-least",
           value: {
-            type: "source-expression",
-            text: "the lower of this attack's attack roll result or 25",
+            type: "minimum",
+            values: [
+              { type: "prior-roll-result", roll: "attack" },
+              { type: "literal", value: 25 },
+            ],
           },
           sourceText:
             "until one of their attack rolls exceeds your attack roll result or 25 - whichever is lower",
@@ -2558,7 +2646,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "set-roll-result",
         roll: "defense",
-        value: { type: "source-expression", text: "the current defensive roll result x2" },
+        value: { type: "prior-roll-result", roll: "defense", multiplier: 2 },
         resultScope: "matching-die",
         scope: {
           type: "next-roll",
@@ -2604,7 +2692,11 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "attack",
         modifier: "dice",
-        amount: { type: "source-expression", text: "the chosen number of attack dice to remove" },
+        amount: {
+          type: "selected-dice-count",
+          selectionKey: "multi-form-dice-for-sides",
+          operation: "negate",
+        },
         activationGroup: "multi-form-dice-for-sides",
         sourceText: "You may have this attack lose any amount of dice",
       },
@@ -2615,8 +2707,11 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         roll: "attack",
         modifier: "sides",
         amount: {
-          type: "source-expression",
-          text: "+3 dice sides for every 2 attack dice removed",
+          type: "selected-dice-count",
+          selectionKey: "multi-form-dice-for-sides",
+          operation: "groups",
+          groupSize: 2,
+          perGroup: 3,
         },
         cap: { type: "allow-exceed", sourceText: "You may exceed the standard dice side cap" },
         activationGroup: "multi-form-dice-for-sides",
@@ -2928,7 +3023,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         activationCost: {
           resource: "ki",
           operation: "lose",
-          amount: { type: "source-expression", text: "this move's cost" },
+          amount: { type: "source-move-ki-cost" },
         },
         conditions: [
           {

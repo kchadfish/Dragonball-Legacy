@@ -42,13 +42,6 @@ However, if performed correctly, they will merge into a single powerful combatan
 Effect: Allows Fusion Dance Fusion.
 Requirements: None
 Training Days: N/A
-## First Day of School
-Description: The Bas-Jin University is one of the best in the Universe and, somehow, you've been accepted. Do you have what it takes to make it through school? Well, hopefully you can do more than just memorize things. This school is renowned for it's graduation criteria. You have to conduct your own research and contribute to the field! Good luck!
-Requirements: None
-Reward: You may create a new Aoyosumu Styled Technique (Mastery, Skill, Advanced Attack, Signature Technique, or Block) that will be permanently added to the Aoyosumu Style and taught on Basbas. You may learn this Technique from anywhere by spending the required Training Days -1. This Technique must be approved by an Administrator, and should follow the general theme of the Style.
-Alternate Reward: 300z
-Time: 3 Days // 600 WPD
-Note: You obtain the Alternate Reward if you are not an Aoyosumu user.
 ## Invasion!
 Description: Bas-Bas has taken it's time altering experiments too far. However it happened, individuals from across the Multiverse have invaded Bas Bas. Help rid this Universe of the invaders and prevent chaos or...... this is the perfect opportunity to join in the chaos. Maybe you can team up with some of the badder individuals from the other universes.
 Requirements: None
@@ -273,15 +266,6 @@ Description: An old Bas-Jin has approached you and is asking you for a favor. He
 Requirements: None
 Reward(s): Choose another player. That player receives 50% of their base Zeni for this week instead of 100%.
 Time: 2 Days // 300 WPD
-## Me, Myself
-Description: There’s a thief running about in Basbas who stole a device from one of the government’s lab. Since he stole the device he’s been able to juke the law like no one’s business, creating doppelgangers of himself and splitting up, making it a real hassle to find the real one and stop him. At this point it's less about getting the device back and more about just putting a stop to his reign of crime.
-Requirements: None
-Reward: Parallel Doppelganger
-Time: 3 Days // 750 wpd
-Parallel Doppelganger [1,500z]
-Item Slots: 1
-Description: A sleek remote control with only a single button. Pressing it creates several image of you in a parallel universe coincidentally doing the same fight, and probably better. The illusions are an exact duplicate of you that you can use in place of yourself to hightail it out of there.
-Effect: Once per Saga, when your HP reaches 0 during a non-saga Quest Battle, you may escape from Battle. Your HP is set to 1.
 ## Time on Your Hands
 Description: With the multiverse consistently in flux, Basbas becomes a bit of a hot spot at times when the unusual would transpire. One such “unusual” is a human looking fellow running around claiming his own expertise on time and causing a bit of a stir in the community. He seems to be a bit of a magnet for trouble. He hasn’t done anything wrong but if you can convince this nutter to bugger on off, the people would be happy.
 Requirements: None

@@ -47,25 +47,6 @@ Dexterity: 6 +6% = 6
 Move List: Trickster Mastery, Bukujutsu, Sense Power Level, Puppetmaster, Future Sight, Expert Swordplay, Poison Mist, Ear Piercer, Tricky Sword Maneuvers, Slice N’ Hack, Chaos Detonation, Mirage
 Strength Level 1
 Your physical attacks deal + (5% Power) damage.
-## The Siren's Call
-Description: There have been many instances of people disappearing in the Big Woodland (No one ever said the Brutii were creative!). Rumors speak of a beautiful maiden playing a black lute in the woods. No one who enters these woods will get out without sucumbing to her call...
-Requirements: None
-Reward: Feather of an Angel
-Time: 4 Days (3 RPs, 1 Battle) // 500 WPD
-Battle Info: Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.
-Lilith [Akakairu]
-Level: B (12)
-Race: Angel [Shin-Jin for racial purposes]
-HP: 300
-Power: 100
-Dexterity: 5
-Move List: Bukujutsu, Adrenaline Rush Mastery, Speed Demon, Swift Re-Action, Torpedo Kick, Continuous Knee Smash, Anger Management, Machine Gun Kicks, Burn Out, Chained Mauler, Limb Twist, Backflip
-Bukujutsu Level 1- You are beginning to learn how to fly. It may not be the most elegant flying ever but you stay afloat.
-Effect: Your dice gain + 1 side and your escape rolls gain +2 to the combined results.
-Feather of an Angel [500z]
-Inventory Slots: 1
-Description: Angels don't actually have feathers, but sometimes they carry one. The Angel known as Lilith had this feather and it still seems to have some of her Angelic ki on it.
-Effect: USEx1. If you have a halo, you may remove it.
 ## The Brutish One!
 Description: So, you passed your first test. Well, it's not over. The Bas-Jin said that you have to pass the test of each of the members of The Ginyu Force. Sadly, this one would rather fight than dance. Hope you came ready...
 Requirements: The Ginyu Force is open for Recruitment!
@@ -98,29 +79,6 @@ Description: The Brutii have an... unusual method of training their young. No, i
 Requirements: None
 Rewards: 1.0x Base Exp
 Time: 2 Days // 800 WPD
-## The Alpha Project
-Description: Some tuffles have come to try and figure out what makes the Brutii so physically powerful. Their labwork has been going pretty well but they need someone to test the serum they made out of Brutii DNA. Care to try it?
-Requirements: None
-Rewards: Alpha Serum
-Time: 3 Days // 600 WPD
-Alpha Serum [1,500z]
-Inventory Slots: 1
-Description: The serum developed by the Tuffle scientists from Brutii DNA. They gave you a sample for letting them test it on you.
-Effect: USEx1. When you update your stats, state that you wish to use this item. +20% Power for the remainder of the week. You may not use Stat-Boosting items two weeks in a row.
-Note: You may only use one Stat-Boosting item per week.
-## The Apple
-Description: Legends across the galaxy have long foretold of a Golden Apple capable of causing discord between even the closest of friends. Lately, rumors have been floating around about its appearance on Brutus. Friends and family members are fighting. Follow the trail, and maybe you can find the prize.
-Requirements: None
-Time: 4 Days // 750 WPD
-The Apple of Discord [1,000z]
-Inventory Slots: 1
-Description: A golden apple found on Brutus. Legends have been passed on for ages about the wars caused by this apple. Toss it into a crowd and watch the action.
-Effect: USEx1. Choose a player on the same planet as you. They must challenge another player on the same planet as you this week.
-## Witch's Brew
-Description: The Giant Woods are said to be home to many witches, and it is for this reason that few Bruti are brave enough to walk through the forest. However, for those brave enough, there is said to be a magical cauldron abandoned in an old cottage that grants restorative powers to anyone whose name is whispered into it. Let's hope the rumors about the witches are not true, at least...
-Requirements: None
-Reward: Choose one Player. That player heals all SEVER effects and restores up to (100% Total) HP.
-Time: 1 Day // 1,200 WPD
 ## Eliminate the Impossible
 Description: Each continent on Brutus has it's own governing body and they have traditionally had a rather contentious relationship. Someone is trying to stir up trouble again and they need an outsider to look into it. Looks like you're on the case.
 Requirements: Must not have taken War Only Happens

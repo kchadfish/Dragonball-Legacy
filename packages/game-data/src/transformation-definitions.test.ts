@@ -114,7 +114,7 @@ describe("transformation definitions", () => {
       "Invalid transformation source path: Invalid ID",
       "Invalid transformation stat modifier: Invalid ID",
       "Invalid novice Transformation Ability name: Invalid ID",
-      "Missing novice Transformation Ability effects: Invalid ID",
+      "Missing novice Transformation Ability effect text: Invalid ID",
       "Invalid transformation ID: Invalid ID",
       "Invalid transformation race ID: Invalid ID",
       "Duplicate transformation ID: Invalid ID",
@@ -122,7 +122,7 @@ describe("transformation definitions", () => {
       "Invalid transformation source path: Invalid ID",
       "Invalid transformation stat modifier: Invalid ID",
       "Invalid novice Transformation Ability name: Invalid ID",
-      "Missing novice Transformation Ability effects: Invalid ID",
+      "Missing novice Transformation Ability effect text: Invalid ID",
     ]);
   });
 });

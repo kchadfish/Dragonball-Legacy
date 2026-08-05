@@ -11,24 +11,6 @@ Description: The user dematerializes and moves as a mass of light, disappearing 
 Effect: Once per week, you can Instant Transmission yourself to another planet. You cannot use Instant Transmission to teleport you to another planet 2 weeks in a row. In the event that the planet you are is destroyed, you may use Instant Transmission to take you to another planet (regardless if you used it the week before). Instant Transmission is a requirement to learn certain moves.
 Requirements: None
 Training Days: 2
-## Wreckage in the Storm
-Description: The Right Eye of the storm holds ruins beyond measure. Rumors have it that one of the ruins used to be Garlic Jr.'s previous residence. If you explore, maybe you will find something worthwhile or a clue to defeating the monster. Of course, the storm isn't the easiest to navigate through and the locals don't seem willing to help you.
-Requirements: 1,000 HP (Base + Gear)
-Reward(s): Cracked Time Machine
-Time: 3 Days // 600 wpd
-Cracked Time Machine [500z]
-Inventory Slots: 1
-Description: Garlic Jr. has lived for a very long time. This is one of the failed experiments he has done in order to try to gain power. While this time machine may not work very well, it may be somewhat useful for you.
-Effect: USEx1. You may redo a quest you have failed. This only works in cases where you lost a battle.
-## Poor Little Orphaned Boy (Girl?)
-Description: Travelling the expanses of Dark Star, there is a small child who has been stirring up trouble. It seems that wherever it goes, the world becomes dark. The Makyans aren't the nicest folk and they do enjoy the deadzone but they don't like the unexpected darkness! Put a stop to the creature... oh? It's an orphaned Dark-Jin? Well, that complicates things.
-Requirements: None
-Reward(s): Dark-Jin Companion
-Time: 4 Days // 800 wpd
-## Dark-Jin Companion [FREESTYLE, SKILL]
-Description: A small Dark-Jin companion you have somehow managed to coerce into joining you. It's not kidnapping, I swear. It can jump in to help you out from time to time. It has a taste for energy so maybe that can be useful?
-Effect: RESTRICTEDx2. Use whenever your opponent powers up. They gain -1 ki on their power up. You gain 1 ki. Costs 0 ki.
-Requirements: None
 ## Negating the Star
 Description: An old Makyan has been doing the unthinkable. He has been researching how to negate the effects of the Makyo Star. I mean, he says he is doing it so he can learn how to enhance the effects but everyone knows its a bad idea except this guy. Old Man Jenkins needs a new research assistant and says that he will teach you how darkness and shadows effect the transformations that all races have. Oh? He wanted a bodyguard. Now you tell me...
 Requirements: None

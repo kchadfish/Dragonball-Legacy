@@ -6970,7 +6970,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     description:
       "The user sends a deadly accurate kick directly at their opponent's windpipe, halting their breath and knocking them straight to the ground. Once their opponent is face down on the floor, the user raises a leg high into the air and sends it crashing down upon the top of their skull.",
     effectText:
-      "Physical attack. Deal (25% Power) damage per hit. Attack roll: 2d30. If both rolls are SUCCESSFUL, your next single dice physical Advanced Attack gains +2 sides and CRITICALS on a natural roll of 30 or more, including modifiers. If your Dexterity bonus is +3 or more, your next physical attack gains +5 sides instead. Cost: 2 KI.",
+      "Physical attack. Deal (25% Power) damage per hit. Attack roll: 2d30. If both rolls are SUCCESSFUL, your next single dice physical Advanced Attack gains +2 sides and CRITICALS on a natural roll of 30 or more. If your Dexterity bonus is +3 or more, your next physical attack gains +5 sides instead. Cost: 2 KI.",
     effectClauses: [
       {
         order: 1,
@@ -6989,7 +6989,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       {
         order: 4,
-        text: "If both rolls are SUCCESSFUL, your next single dice physical Advanced Attack gains +2 sides and CRITICALS on a natural roll of 30 or more, including modifiers.",
+        text: "If both rolls are SUCCESSFUL, your next single dice physical Advanced Attack gains +2 sides and CRITICALS on a natural roll of 30 or more.",
         ruleTokens: ["successful"],
       },
       {
@@ -7024,7 +7024,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 3,
     source: {
       path: "reference/moves/akaikaru.md",
-      text: "## Dexterous Glaive [AKAIKARU, PHYSICAL, KICK]\nDescription: The user sends a deadly accurate kick directly at their opponent's windpipe, halting their breath and knocking them straight to the ground. Once their opponent is face down on the floor, the user raises a leg high into the air and sends it crashing down upon the top of their skull.\nEffect: Physical attack. Deal (25% Power) damage per hit. Attack roll: 2d30. If both rolls are SUCCESSFUL, your next single dice physical Advanced Attack gains +2 sides and CRITICALS on a natural roll of 30 or more, including modifiers. If your Dexterity bonus is +3 or more, your next physical attack gains +5 sides instead. Cost: 2 KI.\nRequirements: None\nTraining Days: 3\n[b]Taifuu\nEarth[/b]",
+      text: "## Dexterous Glaive [AKAIKARU, PHYSICAL, KICK]\nDescription: The user sends a deadly accurate kick directly at their opponent's windpipe, halting their breath and knocking them straight to the ground. Once their opponent is face down on the floor, the user raises a leg high into the air and sends it crashing down upon the top of their skull.\nEffect: Physical attack. Deal (25% Power) damage per hit. Attack roll: 2d30. If both rolls are SUCCESSFUL, your next single dice physical Advanced Attack gains +2 sides and CRITICALS on a natural roll of 30 or more. If your Dexterity bonus is +3 or more, your next physical attack gains +5 sides instead. Cost: 2 KI.\nRequirements: None\nTraining Days: 3\n[b]Taifuu\nEarth[/b]",
     },
   },
   {
@@ -7805,7 +7805,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     description:
       "The user slowly extends their arms outward, fists closed before slowly unclenching them. As they do so, a flurry of small, slow, but powerful ki blasts move toward the opponent, exploding and disorienting them on impact. The ki blasts are often mistaken for small, glowing flies due to their size.",
     effectText:
-      "Energy attack. Deal (5% Power) damage. Attack roll: 10d28. The cost of this attack cannot be reduced below 2 KI. If 5 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it. If 5 or more dice rolls are SUCCESSFUL, STUN. Cost: 3 KI.",
+      "Energy attack. Deal (5% Power) damage. Attack roll: 10d28. The cost of this attack cannot be reduced below 2 KI. If 4 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it. If 5 or more dice rolls are SUCCESSFUL, STUN. Cost: 3 KI.",
     effectClauses: [
       {
         order: 1,
@@ -7829,7 +7829,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       {
         order: 5,
-        text: "If 5 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it.",
+        text: "If 4 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it.",
         ruleTokens: ["successful"],
       },
       {
@@ -7864,7 +7864,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 2,
     source: {
       path: "reference/moves/akaikaru.md",
-      text: "## Lord of the Flies [AKAIKARU, ENERGY, BLAST, VOLLEY]\nDescription: The user slowly extends their arms outward, fists closed before slowly unclenching them. As they do so, a flurry of small, slow, but powerful ki blasts move toward the opponent, exploding and disorienting them on impact. The ki blasts are often mistaken for small, glowing flies due to their size.\nEffect: Energy attack. Deal (5% Power) damage. Attack roll: 10d28. The cost of this attack cannot be reduced below 2 KI. If 5 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it. If 5 or more dice rolls are SUCCESSFUL, STUN. Cost: 3 KI.\nRequirements: None\nTraining Days: 2\n[b]Taifuu\nNew Vegeta[/b]",
+      text: "## Lord of the Flies [AKAIKARU, ENERGY, BLAST, VOLLEY]\nDescription: The user slowly extends their arms outward, fists closed before slowly unclenching them. As they do so, a flurry of small, slow, but powerful ki blasts move toward the opponent, exploding and disorienting them on impact. The ki blasts are often mistaken for small, glowing flies due to their size.\nEffect: Energy attack. Deal (5% Power) damage. Attack roll: 10d28. The cost of this attack cannot be reduced below 2 KI. If 4 or fewer attack rolls are SUCCESSFUL, this attack adds the full bonus damage applied to it. If 5 or more dice rolls are SUCCESSFUL, STUN. Cost: 3 KI.\nRequirements: None\nTraining Days: 2\n[b]Taifuu\nNew Vegeta[/b]",
     },
   },
   {
@@ -8509,7 +8509,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/akaikaru.md",
-      text: "## Burnout [AKAIKARU, PHYSICAL, PUNCH]\nDescription: A red, burning aura surrounds the user before they charge at the opponent, a trail of fire being left in their wake. As they speed by, their opponent feels an inexplicable slash across their chest. The user turns around and quickly repeats the motion, slashing their opponent across the back. The after-effect of the move leaves the opponent feeling like their flesh and internal organs (or processors) are on fire.\nEffect: RESTRICTEDx1. Physical attack. Deal (85% Power) damage. STUN. Your next attack roll gains +2 sides and does +(10% Power) Damage. Cost: 6 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Taifuu\nAlpha Collective[/b]",
+      text: "## Burnout [AKAIKARU, PHYSICAL, PUNCH]\nDescription: A red, burning aura surrounds the user before they charge at the opponent, a trail of fire being left in their wake. As they speed by, their opponent feels an inexplicable slash across their chest. The user turns around and quickly repeats the motion, slashing their opponent across the back. The after-effect of the move leaves the opponent feeling like their flesh and internal organs (or processors) are on fire.\nEffect: RESTRICTEDx1. Physical attack. Deal (85% Power) damage. STUN. Your next attack roll gains +2 sides and does +(10% Power) Damage. Cost: 6 KI.\nRequirements: None\nTraining Days: 4\n[b]Taifuu\nAlpha Collective[/b]",
     },
   },
   {
@@ -8662,7 +8662,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/akaikaru.md",
-      text: "## Chained Mauler [AKAIKARU, PHYSICAL, PUNCH]\nDescription: Throwing a powerful hook to the enemy's face, this initial punch is merely a set up for another hook coming from the opposite end. Despite the relatively simple nature of this technique, this particular move is legendary throughout the universe: it is said to only end when the target can no longer move.\nEffect: RESTRICTEDx1. Physical attack. Deal (50% Power) damage. Attack roll: 1d45. SUCCESSFUL - You may use this Signature Technique again on the same turn. If you do, it costs 0 KI. You cannot use this attack more than 3 times per combat. STOPPED - If this attack is stopped on its first attack roll, regain half the KI you spent to activate it. Cost: 7 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Taifuu\nAlpha Collective[/b]",
+      text: "## Chained Mauler [AKAIKARU, PHYSICAL, PUNCH]\nDescription: Throwing a powerful hook to the enemy's face, this initial punch is merely a set up for another hook coming from the opposite end. Despite the relatively simple nature of this technique, this particular move is legendary throughout the universe: it is said to only end when the target can no longer move.\nEffect: RESTRICTEDx1. Physical attack. Deal (50% Power) damage. Attack roll: 1d45. SUCCESSFUL - You may use this Signature Technique again on the same turn. If you do, it costs 0 KI. You cannot use this attack more than 3 times per combat. STOPPED - If this attack is stopped on its first attack roll, regain half the KI you spent to activate it. Cost: 7 KI.\nRequirements: None\nTraining Days: 4\n[b]Taifuu\nAlpha Collective[/b]",
     },
   },
   {
@@ -8866,7 +8866,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/akaikaru.md",
-      text: "## Ticking Time Bomb [AKAIKARU, PHYSICAL, PUNCH]\nDescription: Slowly burning with anger to the point of nearly exploding, the user lets out a horrendous howl before charging the opponent and unleashing a flurry of punches. With the opponent dazed, the user grabs hold of their collar (or an equivalent) and bashes their skull into theirs a total of ten times -- sometimes even counting down with each hit. When done, the opponent is simply thrown aside.\nEffect: RESTRICTEDx1. Physical attack. Deal (100% Power) damage. For every turn that passes after the minimum amount of turns after Turn 10, this attack does +(15% Power) Damage to a maximum of +(75% Power) Damage. Cost: 8 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Taifuu\nNew Vegeta[/b]\n[/list]\n\n[color=#ee4a2d][big][b][center]Blocks[/center][/b][/big][/color][list]",
+      text: "## Ticking Time Bomb [AKAIKARU, PHYSICAL, PUNCH]\nDescription: Slowly burning with anger to the point of nearly exploding, the user lets out a horrendous howl before charging the opponent and unleashing a flurry of punches. With the opponent dazed, the user grabs hold of their collar (or an equivalent) and bashes their skull into theirs a total of ten times -- sometimes even counting down with each hit. When done, the opponent is simply thrown aside.\nEffect: RESTRICTEDx1. Physical attack. Deal (100% Power) damage. For every turn that passes after the minimum amount of turns after Turn 10, this attack does +(15% Power) Damage to a maximum of +(75% Power) Damage. Cost: 8 KI.\nRequirements: None\nTraining Days: 4\n[b]Taifuu\nNew Vegeta[/b]\n[/list]\n\n[color=#ee4a2d][big][b][center]Blocks[/center][/b][/big][/color][list]",
     },
   },
   {
@@ -10918,7 +10918,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     description:
       "A fluid motion sends the user dashing forward; their feet never lifting off the ground as they skid at top speed towards their opponent with their fist held outright. Driving their fist into the opponent's midsection, the Aoyosumu user continues to skid forward and speed gradually drops off.",
     effectText:
-      "Physical attack. Deal (35% Power) damage. If your attack roll result is +3 or more your opponent's defensive roll result, your next single attack changes its base roll to 1d35. SUCCESSFUL - Your opponent's attack roll dice sides cannot exceed 30 until they perform a SUCCESSFUL single dice attack. Cost: 2 KI.",
+      "Physical attack. Deal (35% Power) damage. If your attack roll result is +3 or more your opponent's defensive roll result, your next single-die attack changes its base roll to 1d35. SUCCESSFUL - Your opponent's attack roll dice sides cannot exceed 30 until they perform a SUCCESSFUL single dice attack. Cost: 2 KI.",
     effectClauses: [
       {
         order: 1,
@@ -10932,7 +10932,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       {
         order: 3,
-        text: "If your attack roll result is +3 or more your opponent's defensive roll result, your next single attack changes its base roll to 1d35.",
+        text: "If your attack roll result is +3 or more your opponent's defensive roll result, your next single-die attack changes its base roll to 1d35.",
         ruleTokens: [],
       },
       {
@@ -10963,7 +10963,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 2,
     source: {
       path: "reference/moves/aoyosumu.md",
-      text: "## Dashing Fist Drive [AOYOSUMU, PHYSICAL, PUNCH]\nDescription: A fluid motion sends the user dashing forward; their feet never lifting off the ground as they skid at top speed towards their opponent with their fist held outright. Driving their fist into the opponent's midsection, the Aoyosumu user continues to skid forward and speed gradually drops off.\nEffect: Physical attack. Deal (35% Power) damage. If your attack roll result is +3 or more your opponent's defensive roll result, your next single attack changes its base roll to 1d35. SUCCESSFUL - Your opponent's attack roll dice sides cannot exceed 30 until they perform a SUCCESSFUL single dice attack. Cost: 2 KI.\nRequirements: None\nTraining Days: 2\nBasbas\nNew Vegeta\nNamek",
+      text: "## Dashing Fist Drive [AOYOSUMU, PHYSICAL, PUNCH]\nDescription: A fluid motion sends the user dashing forward; their feet never lifting off the ground as they skid at top speed towards their opponent with their fist held outright. Driving their fist into the opponent's midsection, the Aoyosumu user continues to skid forward and speed gradually drops off.\nEffect: Physical attack. Deal (35% Power) damage. If your attack roll result is +3 or more your opponent's defensive roll result, your next single-die attack changes its base roll to 1d35. SUCCESSFUL - Your opponent's attack roll dice sides cannot exceed 30 until they perform a SUCCESSFUL single dice attack. Cost: 2 KI.\nRequirements: None\nTraining Days: 2\nBasbas\nNew Vegeta\nNamek",
     },
   },
   {
@@ -12017,7 +12017,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/aoyosumu.md",
-      text: "## Creeping Death [AOYOSUMU, ENERGY, MANIPULATED KI]\nDescription: The user stands still with arms across the chest, appearing to do nothing. They focus their ki into an invisible force which levitates and chokes the opponent. The user is then free to manipulate the opponent as they wish.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack. Cost: 6 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Basbas\nAlpha Collective[/b]",
+      text: "## Creeping Death [AOYOSUMU, ENERGY, MANIPULATED KI]\nDescription: The user stands still with arms across the chest, appearing to do nothing. They focus their ki into an invisible force which levitates and chokes the opponent. The user is then free to manipulate the opponent as they wish.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack. Cost: 6 KI.\nRequirements: None\nTraining Days: 4\n[b]Basbas\nAlpha Collective[/b]",
     },
   },
   {
@@ -12082,7 +12082,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/aoyosumu.md",
-      text: "## Epitaph To War [AOYOSUMU, PHYSICAL, PUNCH]\nDescription: The wind suddenly comes to a stop. Everything on the battlefield seem to go silent. The eyes of the user glow a soft blue. Sounds begin to come back in the form of a sorrow-filled and melodic wail before the user charges forward, their footsteps silent. They move at a great speed, their attack unseen but leaving a brutal slash across the opponent's chest as if struck by a blade. The natural sounds of the area then return.\nEffect: RESTRICTEDx1. Physical attack. Deal (75% Power) damage. SUCCESSFUL - Your opponent's next attack must be 25 or higher to be successful. All attacks performed against you for the remainder of combat must have an attack roll result of 13 or higher to be SUCCESSFUL. Cost: 6 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Basbas\nAlpha Collective[/b]",
+      text: "## Epitaph To War [AOYOSUMU, PHYSICAL, PUNCH]\nDescription: The wind suddenly comes to a stop. Everything on the battlefield seem to go silent. The eyes of the user glow a soft blue. Sounds begin to come back in the form of a sorrow-filled and melodic wail before the user charges forward, their footsteps silent. They move at a great speed, their attack unseen but leaving a brutal slash across the opponent's chest as if struck by a blade. The natural sounds of the area then return.\nEffect: RESTRICTEDx1. Physical attack. Deal (75% Power) damage. SUCCESSFUL - Your opponent's next attack must be 25 or higher to be successful. All attacks performed against you for the remainder of combat must have an attack roll result of 13 or higher to be SUCCESSFUL. Cost: 6 KI.\nRequirements: None\nTraining Days: 4\n[b]Basbas\nAlpha Collective[/b]",
     },
   },
   {
@@ -12282,7 +12282,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/aoyosumu.md",
-      text: "## Sonic Whisper [AOYOSUMU, ENERGY, MANIPULATED KI]\nDescription: While appearing to do nothing but move their lips at first; the quaking ground and loud rumble soon give way to the truth. As their lips move faster, the tremors intensify and soon all that is left for them to do is open their mouth and release a sonic burst that cuts through the opponent and sends them soaring.\nEffect: RESTRICTEDx1. Energy attack. Deal (75% Power) damage. SUCCESSFUL - Your opponent cannot attack you on their next turn. Your opponent's next 3 attacks gain -8 to the results. Cost: 6 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Basbas\nEarth[/b]",
+      text: "## Sonic Whisper [AOYOSUMU, ENERGY, MANIPULATED KI]\nDescription: While appearing to do nothing but move their lips at first; the quaking ground and loud rumble soon give way to the truth. As their lips move faster, the tremors intensify and soon all that is left for them to do is open their mouth and release a sonic burst that cuts through the opponent and sends them soaring.\nEffect: RESTRICTEDx1. Energy attack. Deal (75% Power) damage. SUCCESSFUL - Your opponent cannot attack you on their next turn. Your opponent's next 3 attacks gain -8 to the results. Cost: 6 KI.\nRequirements: None\nTraining Days: 4\n[b]Basbas\nEarth[/b]",
     },
   },
   {
@@ -12342,7 +12342,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/aoyosumu.md",
-      text: "## The Secret of The Universe [AOYOSUMU, ENERGY, MANIPULATED KI]\nDescription: An ancient technique passed down sparingly from master to student; the attack begins as the user assaults the victim with a barrage of energy beams, each with a blue blurred tail like a comet. After a pause, a large beam of energy is sent that completely overtakes the opponent. As they lie there, a secret is whispered into their ear that shocks the system -- the secret of the entire universe. The words aren't meant for everyone's ears and they literally prevent someone from moving. Too powerful for some to know, the secret is soon forgotten -- but for a moment the truth revealed to them is too much.\nEffect: RESTRICTEDx1. Energy attack. Deal (110% Power) damage. SUCCESSFUL - For the rest of combat, your opponent's attack roll result(s) must be 5 higher than your defensive result to count as SUCCESSFUL for any effects. Cost: 8 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Basbas\nNew Vegeta[/b]\n[/list]\n\n[center][color=#5a70b3][big][b]Blocks[/b][/big][/color][/center][hr][list]",
+      text: "## The Secret of The Universe [AOYOSUMU, ENERGY, MANIPULATED KI]\nDescription: An ancient technique passed down sparingly from master to student; the attack begins as the user assaults the victim with a barrage of energy beams, each with a blue blurred tail like a comet. After a pause, a large beam of energy is sent that completely overtakes the opponent. As they lie there, a secret is whispered into their ear that shocks the system -- the secret of the entire universe. The words aren't meant for everyone's ears and they literally prevent someone from moving. Too powerful for some to know, the secret is soon forgotten -- but for a moment the truth revealed to them is too much.\nEffect: RESTRICTEDx1. Energy attack. Deal (110% Power) damage. SUCCESSFUL - For the rest of combat, your opponent's attack roll result(s) must be 5 higher than your defensive result to count as SUCCESSFUL for any effects. Cost: 8 KI.\nRequirements: None\nTraining Days: 4\n[b]Basbas\nNew Vegeta[/b]\n[/list]\n\n[center][color=#5a70b3][big][b]Blocks[/b][/big][/color][/center][hr][list]",
     },
   },
   {
@@ -17971,7 +17971,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     description:
       "Channeling their strength into a simple spear hand strike, a thunderous roar is heard upon impact with the opponent being thrown backwards.",
     effectText:
-      "Physical attack. Deal (0% Power) damage. If your current HP is higher than your opponent's, this attack costs -1 KI, to a minimum of 0. This attack can If you gained HP on your last turn, this attack does +(10% Power) Damage for every KI you have after paying the cost of this attack. Cost: 4 KI.",
+      "Physical attack. Deal (0% Power) damage. If your current HP is higher than your opponent's, this attack costs -1 KI, to a minimum of 0. If you gained HP on your last turn, this attack does +(10% Power) Damage for every KI you have after paying the cost of this attack. Cost: 4 KI.",
     effectClauses: [
       {
         order: 1,
@@ -17990,7 +17990,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       {
         order: 4,
-        text: "This attack can If you gained HP on your last turn, this attack does +(10% Power) Damage for every KI you have after paying the cost of this attack.",
+        text: "If you gained HP on your last turn, this attack does +(10% Power) Damage for every KI you have after paying the cost of this attack.",
         ruleTokens: [],
       },
       {
@@ -18016,7 +18016,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 3,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Dragon Effect [HAOKIRU, PHYSICAL, PUNCH]\nDescription: Channeling their strength into a simple spear hand strike, a thunderous roar is heard upon impact with the opponent being thrown backwards.\nEffect: Physical attack. Deal (0% Power) damage. If your current HP is higher than your opponent's, this attack costs -1 KI, to a minimum of 0. This attack can If you gained HP on your last turn, this attack does +(10% Power) Damage for every KI you have after paying the cost of this attack. Cost: 4 KI.\nRequirements: None\nTraining Days: 3\n[b]Magumar\nNew Vegeta[/b]",
+      text: "## Dragon Effect [HAOKIRU, PHYSICAL, PUNCH]\nDescription: Channeling their strength into a simple spear hand strike, a thunderous roar is heard upon impact with the opponent being thrown backwards.\nEffect: Physical attack. Deal (0% Power) damage. If your current HP is higher than your opponent's, this attack costs -1 KI, to a minimum of 0. If you gained HP on your last turn, this attack does +(10% Power) Damage for every KI you have after paying the cost of this attack. Cost: 4 KI.\nRequirements: None\nTraining Days: 3\n[b]Magumar\nNew Vegeta[/b]",
     },
   },
   {
@@ -18286,7 +18286,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Apocalyptic Chaos [HAOKIRU, ENERGY, BLAST]\nDescription: The user's aura multiplies tenfold as they pour their life force into their attack. The aura is then reabsorbed into the form of a sphere that radiates a beautiful green swirl of ki. Thrusting their arm outward, the user then hurls the sphere at the opponent.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. You may lose X amount of HP. For every (10% Total HP) HP you lose, this attack does +(20% Power) Damage. STOPPED - Gain 3 KI. Cost: 7 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Magumar\nNew Vegeta[/b]",
+      text: "## Apocalyptic Chaos [HAOKIRU, ENERGY, BLAST]\nDescription: The user's aura multiplies tenfold as they pour their life force into their attack. The aura is then reabsorbed into the form of a sphere that radiates a beautiful green swirl of ki. Thrusting their arm outward, the user then hurls the sphere at the opponent.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. You may lose X amount of HP. For every (10% Total HP) HP you lose, this attack does +(20% Power) Damage. STOPPED - Gain 3 KI. Cost: 7 KI.\nRequirements: None\nTraining Days: 4\n[b]Magumar\nNew Vegeta[/b]",
     },
   },
   {
@@ -18351,7 +18351,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Hellstorm [HAOKIRU, ENERGY, BEAM, VOLLEY]\nDescription: The user's eyes glow red as their energy crackles around them. Their arms are then thrown forward as a stream of red, thin beams are hurled at the opponent in rapid succession leaving little to no time to dodge any of them -- once one gets them, the rest are sure to hit as well.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. SUCCESSFUL - You can perform this attack again this turn for 0 KI. If you use this moves SUCCESSFUL effect, this attack gains -10 dice sides the next time you perform it. Cost: 7 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Magumar\nNamek[/b]",
+      text: "## Hellstorm [HAOKIRU, ENERGY, BEAM, VOLLEY]\nDescription: The user's eyes glow red as their energy crackles around them. Their arms are then thrown forward as a stream of red, thin beams are hurled at the opponent in rapid succession leaving little to no time to dodge any of them -- once one gets them, the rest are sure to hit as well.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. SUCCESSFUL - You can perform this attack again this turn for 0 KI. If you use this moves SUCCESSFUL effect, this attack gains -10 dice sides the next time you perform it. Cost: 7 KI.\nRequirements: None\nTraining Days: 4\n[b]Magumar\nNamek[/b]",
     },
   },
   {
@@ -18416,7 +18416,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Miracle Wave [HAOKIRU, ENERGY, MANIPULATED KI]\nDescription: A torrent of blue ki surrounds and explodes outwards from the user's body, forming multiple free-flowing and unpredictable energy waves. If performed correctly, a fraction of the energy used to perform this attack can be reintegrated into the being as a healing force.\nEffect: RESTRICTEDx1. Energy attack. Deal (85% Power) damage. SUCCESSFUL - If your attack roll result is 20 or higher, HEAL (20% Total HP) and choose 2 of your Skills. You may use and/or activate them immediately. Cost: 7 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Magumar\nNamek[/b]",
+      text: "## Miracle Wave [HAOKIRU, ENERGY, MANIPULATED KI]\nDescription: A torrent of blue ki surrounds and explodes outwards from the user's body, forming multiple free-flowing and unpredictable energy waves. If performed correctly, a fraction of the energy used to perform this attack can be reintegrated into the being as a healing force.\nEffect: RESTRICTEDx1. Energy attack. Deal (85% Power) damage. SUCCESSFUL - If your attack roll result is 20 or higher, HEAL (20% Total HP) and choose 2 of your Skills. You may use and/or activate them immediately. Cost: 7 KI.\nRequirements: None\nTraining Days: 4\n[b]Magumar\nNamek[/b]",
     },
   },
   {
@@ -18481,7 +18481,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Rapture [HAOKIRU, ENERGY, BEAM]\nDescription: As the sky becomes dark and stormy, a large ray of harmless light engulfs your foe. Now trapped, they ascend above the clouds and out of sight. The distinct boom of thunder is repeatedly heard, accompanying an impressive light display before your opponent, momentarily knocked out, falls back to the ground -- smoking.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. SUCCESSFUL - HEAL (25% Damage) HP. Your opponent cannot Power Up or perform a Signature Technique on their next 2 turns. Cost: 8 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Magumar\nEarth[/b]",
+      text: "## Rapture [HAOKIRU, ENERGY, BEAM]\nDescription: As the sky becomes dark and stormy, a large ray of harmless light engulfs your foe. Now trapped, they ascend above the clouds and out of sight. The distinct boom of thunder is repeatedly heard, accompanying an impressive light display before your opponent, momentarily knocked out, falls back to the ground -- smoking.\nEffect: RESTRICTEDx1. Energy attack. Deal (100% Power) damage. SUCCESSFUL - HEAL (25% Damage) HP. Your opponent cannot Power Up or perform a Signature Technique on their next 2 turns. Cost: 8 KI.\nRequirements: None\nTraining Days: 4\n[b]Magumar\nEarth[/b]",
     },
   },
   {
@@ -18551,7 +18551,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Soul Breaker [HAOKIRU, ENERGY, BLAST]\nDescription: Astrally projecting themselves into a form of energy, the astral form is then directed at the opponent. The user's astral form tackles the opponent's and engages in spiritual combat. By taking the foe by surprise, this attack devastates the opponent's strength as their focus is completely disrupted.\nEffect: RESTRICTEDx1. Energy attack. Deal (125% Power) damage. SUCCESSFUL - Your opponent's next attack does -100% Damage. You cannot STOP or BLOCK that attack. Your opponent's next attack following that one does -50% Damage against you and loses all SUCCESSFUL effects. Cost: 9 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Magumar\nAlpha Collective[/b]",
+      text: "## Soul Breaker [HAOKIRU, ENERGY, BLAST]\nDescription: Astrally projecting themselves into a form of energy, the astral form is then directed at the opponent. The user's astral form tackles the opponent's and engages in spiritual combat. By taking the foe by surprise, this attack devastates the opponent's strength as their focus is completely disrupted.\nEffect: RESTRICTEDx1. Energy attack. Deal (125% Power) damage. SUCCESSFUL - Your opponent's next attack does -100% Damage. You cannot STOP or BLOCK that attack. Your opponent's next attack following that one does -50% Damage against you and loses all SUCCESSFUL effects. Cost: 9 KI.\nRequirements: None\nTraining Days: 4\n[b]Magumar\nAlpha Collective[/b]",
     },
   },
   {
@@ -18616,7 +18616,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
     trainingDays: 4,
     source: {
       path: "reference/moves/haokiru.md",
-      text: "## Spirit Cannon [HAOKIRU, ENERGY, BLAST]\nDescription: Bringing both of their arms to their waist, the user illuminates themselves within a band of golden ki that goes surging over their entire body, starting from the feet up. It appears as a halo for a brief moment upon reaching the user's head before dissipating as the user thrusts both of their arms in the direction of their opponent, shouting the name of their attack as it is delivered.\nEffect: RESTRICTEDx1. Energy attack. Deal (X% Power) damage. X = The percentages of your last attack's damage x2 to a max of 140%. STOPPED - Your opponent's next 2 attacks gain -4 to the result(s). Cost: 7 KI.\nRequirements: None\r\nTraining Days: 4\n[b]Magumar\nEarth[/b]\n[/list]\n\n[color=#9300C4][big][b][center]Blocks[/center][/b][/big][/color][hr][list]",
+      text: "## Spirit Cannon [HAOKIRU, ENERGY, BLAST]\nDescription: Bringing both of their arms to their waist, the user illuminates themselves within a band of golden ki that goes surging over their entire body, starting from the feet up. It appears as a halo for a brief moment upon reaching the user's head before dissipating as the user thrusts both of their arms in the direction of their opponent, shouting the name of their attack as it is delivered.\nEffect: RESTRICTEDx1. Energy attack. Deal (X% Power) damage. X = The percentages of your last attack's damage x2 to a max of 140%. STOPPED - Your opponent's next 2 attacks gain -4 to the result(s). Cost: 7 KI.\nRequirements: None\nTraining Days: 4\n[b]Magumar\nEarth[/b]\n[/list]\n\n[color=#9300C4][big][b][center]Blocks[/center][/b][/big][/color][hr][list]",
     },
   },
   {

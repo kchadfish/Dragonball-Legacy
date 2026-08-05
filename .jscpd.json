@@ -1,0 +1,18 @@
+{
+  "threshold": 8,
+  "minLines": 8,
+  "minTokens": 60,
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/*.{test,spec}.ts",
+    "**/fixtures/**",
+    "packages/game-data/src/**/*-definitions.ts",
+    "packages/game-data/src/move-source-definitions.ts",
+    "packages/game-data/src/reference-documents.ts",
+    "packages/game-data/src/moves/**",
+    "packages/game-data/src/styles/**"
+  ]
+}

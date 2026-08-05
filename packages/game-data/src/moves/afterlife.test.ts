@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import { AFTERLIFE_MOVES } from "./afterlife.js";
 
 describe("AFTERLIFE_MOVES", () => {
+  it("records Time Freeze's successful two-turn stun and matching energy-attack lock", () => {
+    expect(AFTERLIFE_MOVES.find((move) => move.name === "Time Freeze")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "apply-status", statusId: "stun" }),
+        expect.objectContaining({
+          type: "lock",
+          affectedType: "attack",
+          duration: expect.objectContaining({ turns: { type: "literal", value: 2 } }),
+        }),
+      ]),
+    );
+  });
   it("records Kaio-ken Attack's low-defense stop prevention and styled bonus", () => {
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Kaio-ken Attack")?.effects).toEqual(
       expect.arrayContaining([
@@ -306,7 +318,7 @@ describe("AFTERLIFE_MOVES", () => {
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Kamehameha")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-damage",
-        percent: { type: "source-expression", text: "15% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
       }),
     ]);
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Final Revenger")?.effects).toEqual(
@@ -377,7 +389,13 @@ describe("AFTERLIFE_MOVES", () => {
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
       }),
     ]);
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Present Bomb")?.effects).toEqual([
@@ -406,7 +424,11 @@ describe("AFTERLIFE_MOVES", () => {
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Spirit Bomb")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-damage",
-        percent: expect.objectContaining({ text: expect.stringContaining("Give Me Energy!") }),
+        percent: {
+          type: "move-activation-count",
+          moveId: "move-afterlife-give-me-energy",
+          perActivation: 25,
+        },
       }),
     ]);
   });

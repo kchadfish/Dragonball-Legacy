@@ -4,6 +4,70 @@ import { createStyleMoves } from "./create-style-moves.js";
 
 const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
   [
+    "move-midorikatai-test-of-strength",
+    [
+      {
+        trigger: "on-move-use",
+        target: "participants",
+        type: "resolve-contest",
+        rolls: { dice: 1, sides: 10, repetitions: 3 },
+        qualifyingThreshold: { default: 5, whenSelfPowerHigher: 6 },
+        loser: "lower-qualifying-count",
+        tie: "self-wins",
+        penalty: {
+          resource: "hp",
+          amount: { type: "stat-percent", subject: "self", stat: "power", percent: 55 },
+        },
+        sourceText:
+          "You and your opponent roll 1d10 three times each. The person who rolls 5 or higher the most times loses (55% Your Power) HP. If you have higher power than your opponent, you count how many roll are 6 or higher instead",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-leg-vice",
+    [
+      {
+        trigger: "on-move-use",
+        target: "opponent",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "set",
+        amount: { type: "literal", value: 0 },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 2 },
+          sourceText: "for their next 2 turns",
+        },
+        useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
+        sourceText: "Your opponent loses their Dexterity Bonus for their next 2 turns",
+      },
+      {
+        trigger: "on-move-use",
+        target: "opponent",
+        type: "prevent-resolution",
+        prevention: "block",
+        scope: { type: "next-action", sourceText: "your next attack" },
+        conditions: [
+          {
+            type: "active-move-count",
+            subject: "either",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              constant: true,
+              sourceText: "any CONSTANT Skills are active",
+            },
+            comparison: "at-least",
+            value: { type: "literal", value: 1 },
+            sourceText: "If any CONSTANT Skills are active",
+          },
+        ],
+        sourceText: "If any CONSTANT Skills are active, your next attack cannot be BLOCKED",
+      },
+    ],
+  ],
+  [
     "move-midorikatai-smackdown",
     [
       {
@@ -82,7 +146,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-stat",
         stat: "dexterity",
         operation: "set",
-        amount: { type: "source-expression", text: "Power / 20" },
+        amount: { type: "stat-quotient", subject: "self", stat: "power", divisor: 20 },
         duration: {
           type: "turns",
           turns: { type: "literal", value: 2 },
@@ -369,7 +433,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -388,7 +452,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "5% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -616,7 +680,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "-20% Your Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: -20 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -637,7 +701,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         sourceText: "Your attacks do +(10% Power) damage",
       },
     ],
@@ -650,7 +714,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "15% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -959,7 +1023,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -1092,7 +1156,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         duration: {
           type: "turns",
-          turns: { type: "source-expression", text: "1 turn per SUCCESSFUL hit" },
+          turns: { type: "successful-hit-count" },
           sourceText: "for 1 turn per SUCCESSFUL hit",
         },
         stacking: "prevent",
@@ -1104,7 +1168,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "-10% Damage" },
+        percent: { type: "damage-percent", subject: "current-action", percent: -10 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -1124,7 +1188,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "-10% Damage" },
+        percent: { type: "damage-percent", subject: "current-action", percent: -10 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -1226,8 +1290,11 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         resource: "ki",
         operation: "lose",
         amount: {
-          type: "source-expression",
-          text: "1 KI for every energy attack in their moveset, to a maximum of 4 KI",
+          type: "moveset-tag-count",
+          subject: "opponent",
+          tag: "energy",
+          perMove: 1,
+          maximum: 4,
         },
         sourceText:
           "SUCCESSFUL - Your opponent loses 1 KI for every energy attack in their moveset, to a maximum of 4 KI",
@@ -1368,6 +1435,596 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         scope: { type: "next-action", sourceText: "Your next attack" },
         sourceText:
           'Your next attack gains "This attack cannot be BLOCKED or STOPPED by defensive roll results of 14 or less"',
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-whiplash",
+    [
+      {
+        trigger: "passive",
+        target: "opponent",
+        type: "set-resolution-threshold",
+        outcome: "stop",
+        roll: "defense",
+        comparison: "at-most",
+        value: { type: "literal", value: 15 },
+        resultScope: "current-attack",
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "active-move-count",
+            subject: "opponent",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "skill",
+              sourceText: "If your opponent has any Skills activated",
+            },
+            comparison: "at-least",
+            value: { type: "literal", value: 1 },
+            sourceText: "If your opponent has any Skills activated",
+          },
+        ],
+        sourceText:
+          "If your opponent has any Skills activated, this attack cannot be STOPPED by a defensive roll result of 15 or less",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-one-two-punch",
+    [
+      {
+        trigger: "before-attack-roll",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        dieIndex: 2,
+        amount: { type: "literal", value: 5 },
+        conditions: [
+          {
+            type: "roll-die-result",
+            roll: "attack",
+            index: 1,
+            result: "successful",
+            sourceText: "If the first roll is SUCCESSFUL",
+          },
+        ],
+        sourceText:
+          "If the first roll is SUCCESSFUL, the result of the second roll gains +5 to the result",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: -10 },
+        scope: { type: "next-turn", subject: "opponent", sourceText: "on their next turn" },
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-least",
+            value: { type: "literal", value: 2 },
+            sourceText: "If both attacks are successful",
+          },
+        ],
+        sourceText:
+          "If both attacks are successful and your opponent attacks on their next turn, that attack deals -(10% Power) Damage",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-raining-bombs",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-cost",
+        operation: "set",
+        amount: { type: "literal", value: 0 },
+        minimum: { type: "literal", value: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-midorikatai-raining-bombs"],
+          sourceText: "The cost of this attack",
+        },
+        sourceText: "The cost of this attack cannot be reduced below 2 KI",
+      },
+      {
+        trigger: "on-stopped",
+        target: "self",
+        type: "grant-escape-roll",
+        phase: "end-phase",
+        optional: true,
+        conditions: [
+          {
+            type: "attack-roll-resolution",
+            actor: "self",
+            anyOf: ["all-dice-stopped"],
+            sourceText: "If all 3 attack rolls are STOPPED",
+          },
+        ],
+        sourceText:
+          "STOPPED - If all 3 attack rolls are STOPPED, you may perform an escape roll during your END phase",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-grapple",
+    [
+      {
+        trigger: "on-move-use",
+        target: "self",
+        type: "reactivate-deactivated-constant-skill",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your CONSTANT Skills that has been DEACTIVATED this combat",
+        },
+        deactivatedTiming: "combat",
+        optional: true,
+        selectionLimit: 1,
+        useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
+        sourceText:
+          "RESTRICTEDx1. Block. Stop a physical attack. You may reactivate one of your CONSTANT Skills that has been DEACTIVATED this combat, including Energy Gorged",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-torture-rack",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "grant-transformation-action",
+        turnCost: "none",
+        scope: { type: "next-action", sourceText: "The next time you Transform" },
+        useLimit: { scope: "combat", count: 2, sourceText: "RESTRICTEDx2" },
+        sourceText: "SUCCESSFUL - The next time you Transform, it doesn't take up your turn",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-roll",
+        roll: "transformation",
+        modifier: "result",
+        amount: { type: "literal", value: 2 },
+        scope: { type: "combat", sourceText: "for the remainder of the match" },
+        conditions: [
+          {
+            type: "move-use-count",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-midorikatai-torture-rack"],
+              sourceText: "this attack",
+            },
+            comparison: "exactly",
+            value: 1,
+            timing: "including-current-use",
+            sourceText: "If this is the first time you are performing this attack",
+          },
+        ],
+        sourceText:
+          "If this is the first time you are performing this attack, your Transformation rolls gain +2 to their results for the remainder of the match",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-cobra-clutch-drop",
+    [
+      {
+        trigger: "passive",
+        target: "opponent",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 10 },
+        scope: { type: "current-action", sourceText: "this attack" },
+        conditions: [
+          {
+            type: "stat-comparison",
+            left: "self",
+            stat: "power",
+            comparison: "higher-than",
+            right: "opponent",
+            rightStat: "power",
+            sourceText: "If your power is higher than your opponent's power",
+          },
+        ],
+        sourceText:
+          "If your power is higher than your opponent's power, this attack does +(10% Power) Damage",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: -3 },
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          tags: ["beam", "blast"],
+          sourceText: "Your opponent's Beam-Type and Blast-Type attacks",
+        },
+        duration: {
+          type: "until-combat-result",
+          actor: "self",
+          result: "stopped",
+          moveSelector: {
+            type: "move-selector",
+            subject: "source",
+            category: "advanced-attack",
+            sourceText: "one of your attacks",
+          },
+          conditions: [
+            {
+              type: "defense-response",
+              blockUsed: false,
+              sourceText: "without the use of a BLOCK",
+            },
+            {
+              type: "roll-die-result",
+              roll: "attack",
+              index: 1,
+              result: "stopped",
+              sourceText: "In the case of multi-dice attacks, only the first die roll counts",
+            },
+          ],
+          sourceText:
+            "until one of your attacks is STOPPED without the use of a BLOCK. In the case of multi-dice attacks, only the first die roll counts for ending this effect",
+        },
+        sourceText:
+          "SUCCESSFUL - Your opponent's Beam-Type and Blast-Type attacks gain -3 to the result until one of your attacks is STOPPED without the use of a BLOCK. In the case of multi-dice attacks, only the first die roll counts for ending this effect",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-x-attack",
+    [
+      {
+        trigger: "on-stopped",
+        target: "opponent",
+        type: "modify-roll",
+        roll: "transformation",
+        modifier: "result",
+        amount: { type: "stopped-hit-count", perHit: -3 },
+        scope: {
+          type: "next-roll",
+          roll: "transformation",
+          sourceText: "your opponent's next Transformation roll",
+        },
+        stacking: "allow",
+        conditions: [
+          {
+            type: "successful-hit-count",
+            comparison: "at-most",
+            value: { type: "literal", value: 3 },
+            sourceText: "If 3 or more dice rolls are STOPPED",
+          },
+        ],
+        sourceText:
+          "STOPPED - If 3 or more dice rolls are STOPPED, your opponent's next Transformation roll gains -3 to the result for each STOPPED attack roll. This effect stacks with itself",
+      },
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "require-transformation-roll",
+        phase: "upkeep-phase",
+        ignoreTransformationDice: true,
+        scope: {
+          type: "next-phase",
+          subject: "opponent",
+          phase: "upkeep",
+          sourceText: "during their next UPKEEP phase",
+        },
+        conditions: [
+          {
+            type: "combat-state",
+            subject: "opponent",
+            state: "transformed",
+            sourceText: "If your opponent is transformed",
+          },
+          {
+            type: "resource-threshold",
+            subject: "opponent",
+            resource: "hp",
+            basis: "current",
+            comparison: "lower-than",
+            value: {
+              type: "resource-percent",
+              subject: "opponent",
+              resource: "hp",
+              basis: "total",
+              percent: 50,
+            },
+            sourceText: "below (50% Total HP)",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your opponent is transformed and below (50% Total HP) they must make a Transformation Roll during their next UPKEEP phase regardless of their transformation dice",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-breaker-breaker",
+    [
+      {
+        trigger: "on-success",
+        target: "opponent",
+        type: "grant-combat-outcome",
+        outcome: "break",
+        conditions: [
+          {
+            type: "combat-turn",
+            comparison: "exactly",
+            value: 1,
+            sourceText: "If you perform this attack on your first turn",
+          },
+        ],
+        sourceText:
+          'If you perform this attack on your first turn, this attack gains "SUCCESSFUL - BREAK"',
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "modify-combat-outcome",
+        outcome: "break",
+        multiplier: { type: "literal", value: 2 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "advanced-attack",
+          effectTextIncludes: "BREAK",
+          sourceText: "The next attack you perform that can cause BREAK",
+        },
+        scope: { type: "next-action", sourceText: "The next attack you perform" },
+        duration: { type: "combat", sourceText: "For the remainder of the match" },
+        sourceText:
+          'For the remainder of the match, this attack gains "SUCCESSFUL - The next attack you perform that can cause BREAK instead can cause BREAKx2"',
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-fall-7-times-get-up-8",
+    [
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "fall-7-times-next-low-cost-attack",
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
+        conditions: [
+          {
+            type: "action-sequence",
+            actor: "self",
+            result: "stopped",
+            count: 2,
+            sourceText: "after two of your attacks are stopped in a row",
+          },
+        ],
+        scope: {
+          type: "next-action",
+          sourceText: "Your next attack with a base cost of 2 or less",
+        },
+        effects: [
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "prevent-resolution",
+            prevention: "block",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: { comparison: "at-most", value: { type: "literal", value: 2 } },
+              sourceText: "Your next attack with a base cost of 2 or less",
+            },
+            sourceText: "cannot be BLOCKED",
+          },
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "prevent-resolution",
+            prevention: "stop",
+            source: "effect",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: { comparison: "at-most", value: { type: "literal", value: 2 } },
+              sourceText: "Your next attack with a base cost of 2 or less",
+            },
+            sourceText: "cannot be STOPPED by an effect",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "opponent",
+            type: "set-resolution-threshold",
+            outcome: "stop",
+            roll: "defense",
+            comparison: "at-least",
+            value: { type: "literal", value: 2 },
+            relativeTo: "attack-roll",
+            resultScope: "current-attack",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: { comparison: "at-most", value: { type: "literal", value: 2 } },
+              sourceText: "Your next attack with a base cost of 2 or less",
+            },
+            sourceText:
+              "Your opponent's defensive roll result has to be 2x or more your attack roll result to STOP this attack",
+          },
+        ],
+        sourceText:
+          "Activate during your UPKEEP phase after two of your attacks are stopped in a row. Your next attack with a base cost of 2 or less cannot be BLOCKED or STOPPED by an effect. Your opponent's defensive roll result has to be 2x or more your attack roll result to STOP this attack. Cost: 1 KI",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-not-over-till-it-s-over",
+    [
+      {
+        trigger: "upkeep-phase",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "not-over-next-unrestricted-advanced-attack",
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
+        optional: true,
+        selectionLimit: 1,
+        useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
+        scope: { type: "next-action", sourceText: "your next unrestricted Advanced Attack" },
+        effects: [
+          {
+            trigger: "on-move-use",
+            target: "self",
+            type: "remove-move-from-combat",
+            move: "source",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              selectionKey: "not-over-sacrificed-advanced-attack",
+              sourceText:
+                "remove an Advanced Attack from your moveset for the remainder of the match",
+            },
+            sourceText:
+              "remove an Advanced Attack from your moveset for the remainder of the match",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            multiplier: { type: "literal", value: 2 },
+            affectedDice: "ceiling-half",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              restriction: "unrestricted",
+              sourceText: "your next unrestricted Advanced Attack",
+            },
+            scope: { type: "current-action", sourceText: "your next unrestricted Advanced Attack" },
+            sourceText:
+              "double the attack roll result(s) of your next unrestricted Advanced Attack. If used on a multi-dice attack roll, only half of the attack rolls (rounded up) are affected",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "opponent",
+            type: "prevent-combat-result",
+            result: "sever",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              restriction: "unrestricted",
+              sourceText: "that attack",
+            },
+            scope: { type: "current-action", sourceText: "that attack" },
+            sourceText: "You cannot SEVER with that attack",
+          },
+        ],
+        sourceText:
+          "RESTRICTEDx1. Activate during your UPKEEP phase. You may remove an Advanced Attack from your moveset for the remainder of the match to double the attack roll result(s) of your next unrestricted Advanced Attack. If used on a multi-dice attack roll, only half of the attack rolls (rounded up) are affected. You cannot SEVER with that attack. Cost: 1 KI",
+      },
+    ],
+  ],
+  [
+    "move-midorikatai-domination-mastery",
+    [
+      {
+        trigger: "passive",
+        target: "opponent",
+        type: "modify-damage-reduction-cost",
+        resource: "ki",
+        amount: { type: "literal", value: 1 },
+        reductions: "reduce-or-nullify",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "midorikatai",
+          category: "advanced-attack",
+          sourceText: "the damage of your attacks",
+        },
+        sourceText:
+          "Your opponent must spend +1 KI to reduce or nullify the damage of your attacks",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "create-floating-effect",
+        floatingEffectId: "domination-mastery-next-midorikatai-advanced-attack",
+        scope: { type: "next-action", sourceText: "your next Midorikatai Advanced Attack" },
+        conditions: [
+          {
+            type: "action-sequence",
+            actor: "self",
+            result: "successful",
+            count: 2,
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              categories: ["advanced-attack", "signature"],
+              sourceText: "two SUCCESSFUL Advanced Attacks and/or Signature Techniques",
+            },
+            differentTurns: true,
+            sourceText:
+              "After you perform two SUCCESSFUL Advanced Attacks and/or Signature Techniques on different turns in a row",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "prevent-resolution",
+            prevention: "block",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "midorikatai",
+              category: "advanced-attack",
+              sourceText: "your next Midorikatai Advanced Attack",
+            },
+            sourceText: "your next Midorikatai Advanced Attack cannot be BLOCKED",
+          },
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "set-resolution-threshold",
+            outcome: "stop",
+            roll: "defense",
+            comparison: "at-most",
+            value: { type: "literal", value: 22 },
+            resultScope: "current-attack",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "midorikatai",
+              category: "advanced-attack",
+              sourceText: "your next Midorikatai Advanced Attack",
+            },
+            sourceText:
+              "your next Midorikatai Advanced Attack cannot be STOPPED with a defense roll of 22 or lower",
+          },
+        ],
+        sourceText:
+          "After you perform two SUCCESSFUL Advanced Attacks and/or Signature Techniques on different turns in a row, your next Midorikatai Advanced Attack cannot be BLOCKED and cannot be STOPPED with a defense roll of 22 or lower. This effect resets after you use that attack",
       },
     ],
   ],

@@ -23,7 +23,7 @@ character-sheet order.
 
 ## SB-002 - Test of Strength tied contest
 
-Status: Needs ruling.
+Status: Resolved — see ND-061 in `normalization-decisions.md`.
 
 Source: `reference/moves/midorikatai.md` — Test of Strength
 
@@ -32,13 +32,11 @@ Effect: Physical attack. Deal (0% Power) damage. You and your opponent roll
 (55% Your Power) HP. If you have higher power than your opponent, you count
 how many roll are 6 or higher instead. Cost: 1 KI.
 
-Ruling needed: If both participants have the same count of qualifying rolls,
-does neither participant lose HP, do both lose HP, or is a tiebreaker roll
-required?
+Resolution: The attacker wins a tied contest, so the opponent loses HP.
 
 ## SB-004 - Time Freeze energy-attack restriction duration
 
-Status: Needs ruling.
+Status: Resolved — see ND-069 in `normalization-decisions.md`.
 
 Source: `reference/moves/afterlife.md` — Time Freeze
 
@@ -51,12 +49,12 @@ the user stops “using Time Freeze,” so the duration of the energy-attack
 restriction cannot be derived from the source text or existing normalization
 decisions.
 
-Ruling needed: Does the energy-attack restriction last for the same two turns
-as the stun, only during the activation turn, or until a separate end condition?
+Resolution: The user cannot perform energy attacks during the same next two
+turns affected by Time Freeze's STUN.
 
 ## SB-003 - Leg Vice active-constant scope
 
-Status: Needs ruling.
+Status: Resolved — see ND-068 in `normalization-decisions.md`.
 
 Source: `reference/moves/midorikatai.md` — Leg Vice
 
@@ -64,5 +62,4 @@ Effect: RESTRICTEDx1. Block. Stop a physical attack. Your opponent loses their
 Dexterity Bonus for their next 2 turns. If any CONSTANT Skills are active, your
 next attack cannot be BLOCKED. Cost: X-1 KI.
 
-Ruling needed: Does “any CONSTANT Skills are active” include active CONSTANT
-Skills controlled by either combatant, only the user, or only the opponent?
+Resolution: Active CONSTANT Skills controlled by either combatant qualify.

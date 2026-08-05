@@ -237,10 +237,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "defense",
         modifier: "result",
-        amount: {
-          type: "source-expression",
-          text: "1 for each time you have COUNTERED this match",
-        },
+        amount: { type: "combat-result-count", actor: "self", result: "counter", perResult: 1 },
         scope: { type: "next-roll", roll: "defense", sourceText: "Your next defensive roll" },
         cap: {
           type: "allow-exceed",
@@ -280,7 +277,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "set",
-        percent: { type: "source-expression", text: "last defensive roll result x2" },
+        percent: { type: "prior-roll-result", roll: "defense", multiplier: 2 },
         cap: {
           type: "maximum",
           value: { type: "literal", value: 50 },
@@ -446,7 +443,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "5% Power per completed prior combat turn" },
+        percent: { type: "completed-combat-turn-count", perTurn: 5 },
         cap: {
           type: "maximum",
           value: { type: "literal", value: 60 },
@@ -462,7 +459,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "attack",
         modifier: "result",
-        amount: { type: "source-expression", text: "1 per completed prior combat turn" },
+        amount: { type: "completed-combat-turn-count", perTurn: 1 },
         cap: {
           type: "maximum",
           value: { type: "literal", value: 5 },
@@ -493,7 +490,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "attack",
         modifier: "result",
-        amount: { type: "source-expression", text: "2 per successful hit" },
+        amount: { type: "successful-hit-count", perHit: 2 },
         scope: { type: "next-action", sourceText: "Your next Aoyosumu Advanced Attack roll" },
         conditions: [
           { type: "combat-result", actor: "self", result: "successful", sourceText: "SUCCESSFUL" },
@@ -514,7 +511,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "defense",
         modifier: "result",
-        amount: { type: "source-expression", text: "2 per successful hit" },
+        amount: { type: "successful-hit-count", perHit: 2 },
         scope: { type: "next-roll", roll: "defense", sourceText: "Your next defensive roll" },
         conditions: [
           { type: "combat-result", actor: "self", result: "successful", sourceText: "SUCCESSFUL" },
@@ -603,7 +600,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         outcome: "stop",
         roll: "defense",
         comparison: "at-least",
-        value: { type: "source-expression", text: "source last defensive roll result" },
+        value: { type: "prior-roll-result", roll: "defense" },
         scope: { type: "current-action", sourceText: "STOP this attack" },
         sourceText:
           "Your opponent's defensive roll result must be equal to or greater than your last defensive roll result to STOP this attack.",
@@ -622,7 +619,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "modify-resource",
           resource: "hp",
           operation: "lose",
-          amount: { type: "source-expression", text: "35% Power" },
+          amount: { type: "stat-percent", subject: "self", stat: "power", percent: 35 },
         },
         cancellation: {
           actor: "opponent",
@@ -651,7 +648,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         roll: "attack",
         dice: 1,
         sides: 35,
-        scope: { type: "next-action", sourceText: "your next single attack" },
+        scope: { type: "next-action", sourceText: "your next single-die attack" },
         conditions: [
           {
             type: "roll-comparison",
@@ -666,11 +663,11 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             type: "move-selector",
             subject: "source",
             attackRoll: { dice: 1 },
-            sourceText: "single attack",
+            sourceText: "single-die attack",
           },
         ],
         sourceText:
-          "If your attack roll result is +3 or more your opponent's defensive roll result, your next single attack changes its base roll to 1d35.",
+          "If your attack roll result is +3 or more your opponent's defensive roll result, your next single-die attack changes its base roll to 1d35.",
       },
     ],
   ],
@@ -737,7 +734,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         outcome: "stop",
         roll: "defense",
         comparison: "at-least",
-        value: { type: "source-expression", text: "attack roll result +4" },
+        value: { type: "prior-roll-result", roll: "attack", addition: 4 },
         resultScope: "matching-die",
         scope: { type: "current-action", sourceText: "STOP this attack" },
         sourceText:
@@ -1154,8 +1151,12 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         resource: "hp",
         operation: "lose",
         amount: {
-          type: "source-expression",
-          text: "15% Power for every point that your Dexterity bonus is above theirs, maximum 60% Power",
+          type: "stat-difference-percent",
+          left: "self",
+          right: "opponent",
+          stat: "dexterity-bonus",
+          percentPerPoint: 15,
+          maximum: 60,
         },
         conditions: [
           {
@@ -1383,10 +1384,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-roll",
         roll: "defense",
         modifier: "result",
-        amount: {
-          type: "source-expression",
-          text: "1 for every attack you have stopped prior to that roll",
-        },
+        amount: { type: "combat-result-count", actor: "self", result: "stopped", perResult: 1 },
         sourceText:
           "Your defensive roll results gain +1 for every attack you've STOPPED prior to that roll",
       },
@@ -1444,8 +1442,12 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-damage",
         operation: "add",
         percent: {
-          type: "source-expression",
-          text: "5% Power for every time you have countered this match, minimum 5% and maximum 15%",
+          type: "combat-result-count",
+          actor: "self",
+          result: "counter",
+          perResult: 5,
+          minimum: 5,
+          maximum: 15,
         },
         selector: {
           type: "move-selector",
@@ -1770,7 +1772,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "deactivate",
         affectedType: "skill",
-        count: { type: "source-expression", text: "one for every 2 successful hits" },
+        count: { type: "successful-hit-count-groups", groupSize: 2 },
         conditions: [
           {
             type: "move-selector",

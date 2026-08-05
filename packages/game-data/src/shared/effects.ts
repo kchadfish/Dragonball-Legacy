@@ -37,6 +37,7 @@ export type EffectCondition =
   | DefenseResponseCondition
   | CombatStateCondition
   | CombatContextCondition
+  | CombatTurnCondition
   | TransformationMasteryCondition
   | ResourceThresholdCondition
   | ResourceComparisonCondition
@@ -94,7 +95,7 @@ export interface MoveUseCountCondition {
 
 export interface ActiveMoveCountCondition {
   readonly type: "active-move-count";
-  readonly subject: "self" | "opponent";
+  readonly subject: "self" | "opponent" | "either";
   readonly selector: MoveSelectorCondition;
   readonly comparison: "at-least" | "at-most" | "exactly";
   readonly value: NumericExpression;
@@ -162,8 +163,8 @@ export interface IncomingDamageCondition {
 export interface DefenseResponseCondition {
   readonly type: "defense-response";
   readonly blockUsed: boolean;
-  readonly resultModified: boolean;
-  readonly rerolled: boolean;
+  readonly resultModified?: boolean;
+  readonly rerolled?: boolean;
   readonly sourceText: string;
 }
 
@@ -177,6 +178,13 @@ export interface CombatStateCondition {
 export interface CombatContextCondition {
   readonly type: "combat-context";
   readonly mode: "battle";
+  readonly sourceText: string;
+}
+
+export interface CombatTurnCondition {
+  readonly type: "combat-turn";
+  readonly comparison: "exactly";
+  readonly value: number;
   readonly sourceText: string;
 }
 
@@ -351,6 +359,8 @@ export interface ActionSequenceCondition {
   readonly actor: "self" | "opponent";
   readonly result: "successful" | "stopped" | "critical" | "counter";
   readonly count: number;
+  readonly selector?: MoveSelectorCondition;
+  readonly differentTurns?: boolean;
   readonly withoutResultBy?: {
     readonly actor: "self" | "opponent";
     readonly result: "successful" | "stopped" | "critical" | "counter";
@@ -363,7 +373,7 @@ export interface ResourceThresholdCondition {
   readonly subject: "self" | "opponent";
   readonly resource: "hp" | "ki";
   readonly basis: "current" | "total";
-  readonly comparison: "at-least" | "at-most";
+  readonly comparison: "at-least" | "at-most" | "lower-than";
   readonly value: NumericExpression;
   readonly sourceText: string;
 }
@@ -392,7 +402,7 @@ export interface ResourceChangeCondition {
 
 export interface MoveModificationCondition {
   readonly type: "move-modification";
-  readonly aspect: "cost";
+  readonly aspect: "cost" | "damage";
   readonly sourceStyleId: string;
   readonly sourceText: string;
 }
@@ -521,6 +531,7 @@ export interface BaseEffectDefinition {
   readonly exclusiveActivationGroup?: string;
   readonly optional?: boolean;
   readonly selectionLimit?: number;
+  readonly cooldown?: number;
   readonly sourceText: string;
 }
 
@@ -535,12 +546,17 @@ export type EffectDefinition =
   | RequireAllDiceSuccessEffect
   | ModifyRemainingUsesEffect
   | DeactivateEffect
+  | DelayedDeactivateEffect
   | DeferMoveEffect
   | EndFloatingEffect
   | ForceActionEffect
+  | ResolveContestEffect
   | ForceTransformationEffect
+  | RequireTransformationRollEffect
   | GrantEquipmentEffect
   | GrantDefenseResponseEffect
+  | GrantEscapeRollEffect
+  | GrantTransformationActionEffect
   | GrantCombatOutcomeEffect
   | JoinAttackEffect
   | GrantRacialTraitsEffect
@@ -555,7 +571,9 @@ export type EffectDefinition =
   | ModifySlotCapacityEffect
   | ModifyStatEffect
   | ModifyDamageEffect
+  | ModifyCombatOutcomeEffect
   | ModifyDamageModifierEffect
+  | ModifyDamageReductionCostEffect
   | ModifyResourceEffect
   | ModifyResourceModifierEffect
   | ModifyResourceCostEffect
@@ -566,6 +584,7 @@ export type EffectDefinition =
   | OverrideStyleReferenceEffect
   | ReplaceMoveEffect
   | NegateEffect
+  | NegateDeactivationEffect
   | PreventResolutionEffect
   | PreventLowRollStopEffect
   | OverrideResolutionImmunityEffect
@@ -591,6 +610,13 @@ export type EffectDefinition =
   | SuppressEffect
   | SubstituteDefenseEffect
   | StopAttackByDeactivationEffect
+  | ExchangeConstantSkillEffect
+  | ReactivateRecentSkillEffect
+  | ReactivateDeactivatedConstantSkillEffect
+  | ActivateProtectedConstantEffect
+  | OverrideSkillActivationPreventionEffect
+  | ReplaceActiveConstantEffectsEffect
+  | GrantDestructionMasteryEffect
   | SwapCombatantStateEffect
   | TravelEffect;
 
@@ -610,6 +636,9 @@ export interface ActivateEffect extends BaseEffectDefinition {
   readonly type: "activate";
   readonly selector: MoveSelectorCondition;
   readonly asIf?: "power-up";
+  readonly repeatCount?: NumericExpression;
+  readonly ignoreRequirements?: boolean;
+  readonly selectionKey?: string;
   readonly repeatUntil?: {
     readonly type: "active-move-count-matches-opponent";
     readonly selector: MoveSelectorCondition;
@@ -716,10 +745,28 @@ export interface ForceActionEffect extends BaseEffectDefinition {
   readonly fallback?: "basic-attack";
 }
 
+export interface ResolveContestEffect extends BaseEffectDefinition {
+  readonly type: "resolve-contest";
+  readonly rolls: { readonly dice: number; readonly sides: number; readonly repetitions: number };
+  readonly qualifyingThreshold: {
+    readonly default: number;
+    readonly whenSelfPowerHigher: number;
+  };
+  readonly loser: "lower-qualifying-count";
+  readonly tie: "self-wins";
+  readonly penalty: { readonly resource: "hp"; readonly amount: NumericExpression };
+}
+
 export interface ForceTransformationEffect extends BaseEffectDefinition {
   readonly type: "force-transformation";
   readonly targetTransformation: "highest";
   readonly required: boolean;
+}
+
+export interface RequireTransformationRollEffect extends BaseEffectDefinition {
+  readonly type: "require-transformation-roll";
+  readonly phase: "upkeep-phase";
+  readonly ignoreTransformationDice: true;
 }
 
 export interface GrantRacialTraitsEffect extends BaseEffectDefinition {
@@ -736,6 +783,16 @@ export interface GrantDefenseResponseEffect extends BaseEffectDefinition {
   readonly type: "grant-defense-response";
   readonly roll: "defense";
   readonly againstAttackDieIndex: number;
+}
+
+export interface GrantEscapeRollEffect extends BaseEffectDefinition {
+  readonly type: "grant-escape-roll";
+  readonly phase: "end-phase";
+}
+
+export interface GrantTransformationActionEffect extends BaseEffectDefinition {
+  readonly type: "grant-transformation-action";
+  readonly turnCost: "none";
 }
 
 export interface SubstituteDefenseEffect extends BaseEffectDefinition {
@@ -755,9 +812,66 @@ export interface StopAttackByDeactivationEffect extends BaseEffectDefinition {
   readonly lockDuration: { readonly type: "combat"; readonly sourceText: string };
 }
 
+export interface ExchangeConstantSkillEffect extends BaseEffectDefinition {
+  readonly type: "exchange-constant-skill";
+  readonly selfSkill: MoveSelectorCondition;
+  readonly opponentSkill: MoveSelectorCondition;
+  readonly optionalNoTurnCost: { readonly resource: "ki"; readonly amount: number };
+  readonly reactivateWhen: {
+    readonly attack: MoveSelectorCondition;
+    readonly result: "stopped";
+    readonly blockUsed: false;
+  };
+}
+
+export interface ReactivateRecentSkillEffect extends BaseEffectDefinition {
+  readonly type: "reactivate-recent-skill";
+  readonly deactivatedTiming: "last-turn";
+  readonly payment: { readonly resource: "ki"; readonly amount: number };
+}
+
+export interface ReactivateDeactivatedConstantSkillEffect extends BaseEffectDefinition {
+  readonly type: "reactivate-deactivated-constant-skill";
+  readonly selector: MoveSelectorCondition;
+  readonly deactivatedTiming: "combat";
+}
+
+export interface ActivateProtectedConstantEffect extends BaseEffectDefinition {
+  readonly type: "activate-protected-constant";
+  readonly selector: MoveSelectorCondition;
+  readonly payment: { readonly resource: "ki"; readonly amount: number };
+  readonly protectionDuration: {
+    readonly type: "turns";
+    readonly turns: number;
+    readonly sourceText: string;
+  };
+}
+
+export interface OverrideSkillActivationPreventionEffect extends BaseEffectDefinition {
+  readonly type: "override-skill-activation-prevention";
+}
+
+export interface ReplaceActiveConstantEffectsEffect extends BaseEffectDefinition {
+  readonly type: "replace-active-constant-effects";
+  readonly sourceSkill: MoveSelectorCondition;
+  readonly targetSkill: MoveSelectorCondition;
+}
+
+export interface GrantDestructionMasteryEffect extends BaseEffectDefinition {
+  readonly type: "grant-destruction-mastery";
+  readonly advancedAttack: MoveSelectorCondition;
+  readonly signatureTechnique: MoveSelectorCondition;
+  readonly naturalDefenseStopPreventionAtMost: number;
+  readonly zeroCostSignatureUses: number;
+  readonly targetsInterferers: true;
+  readonly damageBonusAfterOpponentInterferencePercent: number;
+}
+
 export interface GrantCombatOutcomeEffect extends BaseEffectDefinition {
   readonly type: "grant-combat-outcome";
-  readonly outcome: "break" | "sever";
+  readonly outcome: "break" | "sever" | "stun";
+  readonly requireAllDiceSuccess?: boolean;
+  readonly selector?: MoveSelectorCondition;
 }
 
 export interface JoinAttackEffect extends BaseEffectDefinition {
@@ -789,6 +903,13 @@ export interface DeactivateEffect extends BaseEffectDefinition {
   readonly optional?: boolean;
   readonly count?: NumericExpression;
   readonly selector?: MoveSelectorCondition;
+}
+
+export interface DelayedDeactivateEffect extends BaseEffectDefinition {
+  readonly type: "delayed-deactivate";
+  readonly affectedType: "skill";
+  readonly selectionKey: string;
+  readonly turnsAfter: number;
 }
 
 export interface DeferMoveEffect extends BaseEffectDefinition {
@@ -830,10 +951,25 @@ export interface ModifyDamageEffect extends BaseEffectDefinition {
   };
 }
 
+export interface ModifyCombatOutcomeEffect extends BaseEffectDefinition {
+  readonly type: "modify-combat-outcome";
+  readonly outcome: "break" | "sever" | "stun";
+  readonly multiplier: NumericExpression;
+  readonly selector: MoveSelectorCondition;
+}
+
 export interface ModifyDamageModifierEffect extends BaseEffectDefinition {
   readonly type: "modify-damage-modifier";
   readonly multiplier: NumericExpression;
   readonly selector?: MoveSelectorCondition;
+}
+
+export interface ModifyDamageReductionCostEffect extends BaseEffectDefinition {
+  readonly type: "modify-damage-reduction-cost";
+  readonly resource: "ki";
+  readonly amount: NumericExpression;
+  readonly reductions: "reduce-or-nullify";
+  readonly selector: MoveSelectorCondition;
 }
 
 export interface ModifyCostEffect extends BaseEffectDefinition {
@@ -914,7 +1050,9 @@ export interface ModifyRollEffect extends BaseEffectDefinition {
   readonly roll: "attack" | "defense" | "escape" | "initiative" | "transformation";
   readonly modifier: "dice" | "result" | "sides";
   readonly amount?: NumericExpression;
+  readonly multiplier?: NumericExpression;
   readonly dieIndex?: number;
+  readonly affectedDice?: "all" | "ceiling-half";
   readonly selector?: MoveSelectorCondition;
   readonly cap?:
     | { readonly type: "allow-exceed"; readonly sourceText: string }
@@ -958,7 +1096,7 @@ export interface ReplaceMoveEffect extends BaseEffectDefinition {
     readonly type: "modify-resource";
     readonly resource: "ki";
     readonly operation: "gain";
-    readonly amount: { readonly type: "source-expression"; readonly text: string };
+    readonly amount: NumericExpression;
     readonly sourceText: string;
   };
 }
@@ -969,9 +1107,15 @@ export interface NegateEffect extends BaseEffectDefinition {
   readonly selector?: MoveSelectorCondition;
 }
 
+export interface NegateDeactivationEffect extends BaseEffectDefinition {
+  readonly type: "negate-deactivation";
+  readonly selector: MoveSelectorCondition;
+}
+
 export interface PreventResolutionEffect extends BaseEffectDefinition {
   readonly type: "prevent-resolution";
   readonly prevention: "block" | "stop";
+  readonly source?: "effect";
   readonly selector?: MoveSelectorCondition;
 }
 
@@ -989,7 +1133,8 @@ export interface OverrideResolutionImmunityEffect extends BaseEffectDefinition {
 
 export interface PreventCombatResultEffect extends BaseEffectDefinition {
   readonly type: "prevent-combat-result";
-  readonly result: "critical" | "counter";
+  readonly result: "critical" | "counter" | "sever";
+  readonly selector?: MoveSelectorCondition;
 }
 
 export interface PreventMoveModificationEffect extends BaseEffectDefinition {

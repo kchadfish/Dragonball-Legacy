@@ -75,26 +75,6 @@ Power: 30%
 Dexterity: 30%
 Move Set:Conservation Mastery, Energy Absorption, Eye Laser Assault, Rising Dragon Wave, Ki Lance, Dragon Swipes, Healing Ray, Rapture, Miraculous Recovery
 Endurance and Bukujutsu based[/list]
-## Destroying the Profane
-Description: A cult of destruction-worshiping martial artists has sprung up in an ancient temple deep in the remote Taifuu rain forests. Government officials have sent you in to weed them out. At the center of their complex is a massive statue of a hairless cat, in ancient garb. A great energy ebbs forth from this statue. Is this the source of their power?
-Requirements: Must not have [DESTROY POTENTIAL]
-Reward: 0.75x EXP // During your next battle with a character that has initiated Destroy Potential, you may gain 15% to one Stat of your choice. You go first in this combat, regardless of dexterity.
-Time: 3 Days // 500 WPD
-## Temple of Doom
-Description: Deep in the tropical rainforests of Taifuu, an expeditionary team of archaeologists have discovered an ancient temple. At its heart is a statue of a bipedal hairless cat, clad in ancient garb. You sense a great power here. Something forbidden. It's said that a cult worships the statue as their God. Luckily or unluckily for them, a new one may have shown up: you.
-Requirements: Must have [DESTROY POTENTIAL]
-Reward: Your next [DESTROY POTENTIAL] attempt takes 2 days. You must accept one challenge per day as normal.
-Alternate Reward: Gain +15% power and +15% recovery rate for your next 7 in-game days.
-Time: 4 Days // 750 WPD
-## Bet it All On Knack
-Description: Taifuu has the West Galaxy’s most exclusive Casinos, run by its most powerful gangs. You’re approached by a young Taifu-Jin. He’s identified a security vulnerability in the Winds of Fortune casino, but that window will be closing soon. He needs you, and your particular set of skills in on a heist to take them for everything they’ve got. Are you in?
-Requirements: Must have completed at least one quest on Taifuu
-Reward: 300z // Lucky Poker Chip
-Time: 4 Days// 400WPD
-Lucky Poker Chip [1200z]
-Inventory Slots: 1
-Description: In a world with world destroying Ki blasts and Magic, it never pays to dismiss the power of luck. Give this chip a rub, and watch your bad day turn around.
-Effect: USEx1 Use after your attack roll or defense roll. You may substitute your result with a 15. You may use this effect after you opponent has rolled their defensive die. Only one Lucky Poker Chip may be used per match.
 ## On the Double
 Description: Most in the North Galaxy would pick a Saiyan to smuggle their goods. The West Galaxy would have you know, this is a poor choice. Taifu-Jin smugglers are discreet and more importantly, they're quick. Velocidad, top dog in the the Taifuu smuggling world needs your help getting some illicit merchandise off planet. He will not tell you what is is, and says his crew will hide it on your ship under his supervision. You will be paid once the goods arrive at their destination.
 What could go wrong?
@@ -123,16 +103,6 @@ Power: (40% SP) + 0%
 Dexterity: (35% SP) + 12%
 Move List: Critical Mass Mastery, Not Over Till It's Over! Fall 7 Times, Get Up 8, Guillotine Pummel, X-Attack, One-Two Punch, Trapping Headbutts, Aggravated Assault, Leg Vice, Violence Party
 Strength and Bukujutsu Based
-## Red Ribbon R&R
-Description: Red Ribbon’s personnel have found a new favorite spot for some hard earned R&R. Big Blue, Taifuu’s premier budget resort destination is overflowing with vacationing troopers. Problem is, some old Namekian Alliance members have found the spot and booked getaways there as well. Tensions are growing as you arrive, do you join them all for drinks and share war stories or start a beach bar fight?
-Requirements: None
-Reward: 0.25x Base EXP // Taifuu Tornado Cocktail
-Alternate Reward: 0.25x Base EXP // 200z
-Time: 2 Days // 600 WPD
-Taifuu Tornado Cocktail [500z]
-Item Slots: 1
-Description: This delightful drink is a swirling combination of red and blue liquors, spinning together without so much as a mix. It even comes with a little umbrella!
-Effect: USEx1: Activate when Powering Up. Your dexterity bonus is considered + 1 for your next 5 turns.
 ## What Could Be Faster?
 Description: While the masses on Taifuu obsess with physical speed, Its scientists do their best to up the status quo. For most of Taifuu’s greatest minds, this means a faster engine, or a streamlined running shoe. For Dr. Celeritate, this means one thing, and one thing only. Teleportation. He's out of test subjects and offers you a small sum of zenni to get into his newly designed machine.
 Requirements: None
@@ -147,12 +117,6 @@ Marathon Medal [750z]
 Item Slots: 0
 Description: You are the fastest being this side of the West Galaxy, or you are so far as the Taifuu Marathon Organization is concerned.
 Use x1: Your next quest on Taifuu takes -1 day and -100 WPD.
-## The Not So Simple Truth
-Description: Somewhere deep in the barrens, secluded away from the troubles of life, you stumble across a lone man surrounded by wild animals. When you approach you're baffled by the sudden calm this man brings to you. Sensing potential within you, he offers to teach you a fragment of what he calls "The Great Truth". Its the idea that all things are connected even if they don't know it.
-You wouldn't normally believe him until he closes his hand around some fruit only to open it and reveal a precious gem. Perhaps what he has to teach is of equal value?
-Requirements: None
-Rewards: You may choose one freestyle Advanced Attack in your move set. That attack is now a Styled attack matching your style.
-Time: 3 Days // 800 wpd
 ## Yawn-Zaht.
 Description: The Ancient Temple of Yahn-Zaht has suffered almost a complete loss of its students. The teachings of the temple have been so successful in the past that its time-honored techniques have become mainstream and considered plain. In a last ditch effort, Master Tuhla of the Yahn-Zaht temple has spent the last 8 months locked in her chambers.
 When she emerged, she entered accepted a belated duel with a rival dojo and shot her rival through the chest with a Braced Energy Beam...launched through a Gun. Now thousands swarm the dojo in hopes of learning the new Yahn-Zaht style of channeling techniques through weapons. You’ll need something special to get yourself to the head of the line, any ideas?
@@ -187,14 +151,6 @@ Water of the Fountain of Youth [1000z]
 Inventory Slots: 1
 Description: A chalice filled with water from the Fountain of Youth. This water has magical properties and can restore you to your former glory.
 Effect: USE x1. Activate outside of combat. Heal to 100% Total HP. You may instead heal a SEVER or BREAK effect.
-## Angry Reavers
-Description: Taifuu-jin raiders living under the sea have been attacking ships and coastlines for months now, destroying everything they can get their hands on. The local coastguard have tried attacking the mutated bandits but the criminals are too fast underwater and too skilled on land.
-Law Enforcement on Taifuu is trained heavily in Akaikaru, but the bandits know all their moves! No technique has been able to stop them so far, but you have something in mind that you've been working on before. Something they'd never see coming.
-Requirements: None
-Reward(s): You may create a new Akaikaru Styled Technique (Mastery, Skill, Advanced Attack, Signature Technique, or Block) that will be permanently added to the Akaikaru Style and taught on Taifuu. You may learn this Technique from anywhere by spending the required Training Days -1. This Technique must be approved by an Administrator, and should follow the general theme of the Style.
-Alternate Reward(s): 300z
-Time: 3 Days // 600 WPD
-Note: You obtain the Alternate Reward if you are not an Akaikaru user.
 ## Ayyy LMAO
 Description: Not all Taifuu tribes are as civilized as one might think. Which is terrifying, as most don’t think of them as civilized. A village of dark blue Taifuu-Jin living in a jungle of the eastern regions are incredibly hostile to outsiders on their planet, but that was until they met you. As the first alien to grace this tribe, your actions could shape their way of life for generations to come.
 Requirements: None

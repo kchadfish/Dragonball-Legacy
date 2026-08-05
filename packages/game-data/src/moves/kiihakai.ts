@@ -11,7 +11,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-cost",
         operation: "add",
-        amount: { type: "source-expression", text: "-(cost of the Skill - 1)" },
+        amount: { type: "triggering-move-ki-cost", addition: -1 },
         selector: {
           type: "move-selector",
           subject: "source",
@@ -160,7 +160,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "15% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -184,8 +184,11 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         roll: "attack",
         modifier: "result",
         amount: {
-          type: "source-expression",
-          text: "The number of Skills with CONSTANT effects you have activated this combat x2",
+          type: "active-move-count",
+          subject: "self",
+          category: "skill",
+          constant: true,
+          perMove: 2,
         },
         cap: {
           type: "maximum",
@@ -285,10 +288,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-cost",
         operation: "set",
-        amount: {
-          type: "source-expression",
-          text: "The cost of your opponent's next attack",
-        },
+        amount: { type: "next-move-ki-cost", actor: "opponent" },
         selector: {
           type: "move-selector",
           subject: "source",
@@ -325,7 +325,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         outcome: "stop",
         roll: "defense",
         comparison: "at-least",
-        value: { type: "source-expression", text: "double your attack roll" },
+        value: { type: "literal", value: 2 },
         relativeTo: "attack-roll",
         resultScope: "current-attack",
         sourceText:
@@ -390,7 +390,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "5% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -469,7 +469,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         scope: { type: "next-action", sourceText: "Your next attack" },
         sourceText: "SUCCESSFUL - Your next attack does +(10% Power) Damage",
       },
@@ -619,7 +619,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -719,7 +719,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "15% Power" },
+        amount: { type: "stat-percent", subject: "self", stat: "power", percent: 15 },
         conditions: [
           {
             type: "move-selector",
@@ -866,7 +866,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "10% Power" },
+        amount: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         sourceText: "Your opponent loses (10% Power) HP",
       },
       {
@@ -1004,7 +1004,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "-20% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: -20 },
         scope: { type: "next-action", sourceText: "Your opponent's next attack" },
         sourceText: "SUCCESSFUL - Your opponent's next attack does -(20% Power) Damage",
       },
@@ -1524,6 +1524,466 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         ],
         sourceText:
           'If you do, and if you perform an energy attack on your following turn, it does +(20% Power) Damage, gains +5 to the result(s), and gains "SUCCESSFUL - Gain 1 KI. If the attack roll was a natural Perfect Roll, gain 3 KI instead."',
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-rollback-barrage",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "one skill with a CONSTANT effect that was DEACTIVATED this fight",
+        },
+        repeatCount: { type: "successful-hit-count-groups", groupSize: 2 },
+        ignoreRequirements: true,
+        optional: true,
+        sourceText:
+          "SUCCESSFUL - For every 2 dice rolls that are SUCCESSFUL, you may reactivate one skill with a CONSTANT effect that was DEACTIVATED this fight, ignoring all requirements",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-big-shot",
+    [
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "all of your Skills with a 'CONSTANT' effect",
+        },
+        selectionKey: "big-shot-activated-constants",
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If your attack roll is 20 or higher",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your attack roll is 20 or higher, activate all of your Skills with a 'CONSTANT' effect",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "delayed-deactivate",
+        affectedType: "skill",
+        selectionKey: "big-shot-activated-constants",
+        turnsAfter: 3,
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 20 },
+            sourceText: "If your attack roll is 20 or higher",
+          },
+        ],
+        sourceText:
+          "SUCCESSFUL - If your attack roll is 20 or higher, activate all of your Skills with a 'CONSTANT' effect. After 3 of your turns, DEACTIVATE all of your Skills with a 'CONSTANT' effect that were activated in this way",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-fierce-focus-mastery",
+    [
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "modify-cost",
+        operation: "set",
+        amount: { type: "literal", value: 0 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-kiihakai",
+          category: "skill",
+          constant: true,
+          selectionKey: "fierce-focus-selected-skill",
+          sourceText: "choose a Kiihakai CONSTANT Skill in your moveset",
+        },
+        sourceText:
+          "You may activate that Skill at the start of combat (before any turns) at a cost of 0 KI",
+      },
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-kiihakai",
+          category: "skill",
+          constant: true,
+          selectionKey: "fierce-focus-selected-skill",
+          sourceText: "choose a Kiihakai CONSTANT Skill in your moveset",
+        },
+        optional: true,
+        sourceText:
+          "You may activate that Skill at the start of combat (before any turns) at a cost of 0 KI",
+      },
+      {
+        trigger: "on-deactivated",
+        target: "self",
+        type: "negate-deactivation",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-kiihakai",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your Kiihakai CONSTANT Skills",
+        },
+        useLimit: { scope: "combat", count: 2, sourceText: "Twice per combat" },
+        optional: true,
+        sourceText:
+          "Twice per combat, when one of your Kiihakai CONSTANT Skills would be DEACTIVATED, you may NEGATE the DEACTIVATE effect",
+      },
+      {
+        trigger: "on-deactivated",
+        target: "self",
+        type: "negate-deactivation",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-freestyle",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your Freestyle CONSTANT Skills",
+        },
+        useLimit: { scope: "combat", count: 1, sourceText: "Once per combat" },
+        optional: true,
+        sourceText:
+          "Once per combat, when one of your Freestyle CONSTANT Skills would be DEACTIVATED, you may NEGATE the DEACTIVATE effect",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-ki-barbs",
+    [
+      {
+        trigger: "on-power-up",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 15 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          categories: ["advanced-attack", "signature"],
+          sourceText: "your next Advanced Attack or Signature Technique",
+        },
+        scope: {
+          type: "next-action",
+          sourceText: "your next Advanced Attack or Signature Technique",
+        },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 2 },
+        },
+        activationGroup: "ki-barbs-damage-choice",
+        optional: true,
+        sourceText:
+          "Timing: when you Power Up. You may gain -2 KI to have your next Advanced Attack or Signature Technique do +(15% Power) Damage or you may gain -3 KI to have your next Advanced Attack or Signature Technique do +(25% Power) Damage",
+      },
+      {
+        trigger: "on-power-up",
+        target: "self",
+        type: "modify-damage",
+        operation: "add",
+        percent: { type: "literal", value: 25 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          categories: ["advanced-attack", "signature"],
+          sourceText: "your next Advanced Attack or Signature Technique",
+        },
+        scope: {
+          type: "next-action",
+          sourceText: "your next Advanced Attack or Signature Technique",
+        },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 3 },
+        },
+        activationGroup: "ki-barbs-damage-choice",
+        optional: true,
+        sourceText:
+          "Timing: when you Power Up. You may gain -2 KI to have your next Advanced Attack or Signature Technique do +(15% Power) Damage or you may gain -3 KI to have your next Advanced Attack or Signature Technique do +(25% Power) Damage",
+      },
+      {
+        trigger: "on-power-up",
+        target: "opponent",
+        type: "grant-combat-outcome",
+        outcome: "stun",
+        requireAllDiceSuccess: true,
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          categories: ["advanced-attack", "signature"],
+          attackRoll: { minimumDice: 2 },
+          sourceText: "If you perform an attack with multiple dice rolls on your next turn",
+        },
+        scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
+        sourceText:
+          'If you perform an attack with multiple dice rolls on your next turn, the attack gains "SUCCESSFUL - STUN. In order to get the SUCCESSFUL effect on this attack, all dice rolls must be higher than your opponent\'s defensive roll"',
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-evening-the-field",
+    [
+      {
+        trigger: "action-phase",
+        target: "opponent",
+        type: "exchange-constant-skill",
+        selfSkill: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "DEACTIVATE one of your Skills with a CONSTANT effect",
+        },
+        opponentSkill: {
+          type: "move-selector",
+          subject: "target",
+          category: "skill",
+          constant: true,
+          sourceText: "DEACTIVATE one of your opponent's Skills with a CONSTANT effect",
+        },
+        optionalNoTurnCost: { resource: "ki", amount: 1 },
+        reactivateWhen: {
+          attack: {
+            type: "move-selector",
+            subject: "target",
+            attackRoll: { dice: 1 },
+            sourceText: "your opponent's next single dice attack",
+          },
+          result: "stopped",
+          blockUsed: false,
+        },
+        cooldown: 4,
+        sourceText:
+          "You may DEACTIVATE one of your Skills with a CONSTANT effect to DEACTIVATE one of your opponent's Skills with a CONSTANT effect. You may spend 1 KI to have this effect not take up your turn. If you STOP your opponent's next single dice attack without the use of a Block, you may reactivate your Skill. COOLDOWN 4",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-synergy",
+    [
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "grant-extra-action",
+        phase: "action-phase",
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 25 },
+            sourceText: "if you roll 25 or higher on a single dice attack",
+          },
+          {
+            type: "move-selector",
+            subject: "source",
+            attackRoll: { dice: 1 },
+            sourceText: "on a single dice attack",
+          },
+        ],
+        sourceText:
+          "You may activate this Skill during your ACTION phase without taking up your turn if you roll 25 or higher on a single dice attack",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "result",
+        amount: { type: "literal", value: 2 },
+        scope: { type: "current-action", sourceText: "that attack" },
+        conditions: [
+          {
+            type: "move-modification",
+            aspect: "damage",
+            sourceStyleId: "style-kiihakai",
+            sourceText:
+              "When you perform an attack that is having its damage modified by another Kiihakai effect",
+          },
+        ],
+        sourceText:
+          "When you perform an attack that is having its damage modified by another Kiihakai effect, that attack gains +2 to the result",
+      },
+      {
+        trigger: "on-roll-result",
+        target: "self",
+        type: "activate",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "a CONSTANT Skill",
+        },
+        scope: {
+          type: "next-phase",
+          subject: "self",
+          phase: "end",
+          sourceText: "during the END phase of that turn",
+        },
+        conditions: [
+          {
+            type: "roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 25 },
+            sourceText: "if you roll an attack roll of 25 or higher on a single dice attack",
+          },
+          {
+            type: "move-selector",
+            subject: "source",
+            attackRoll: { dice: 1 },
+            sourceText: "on a single dice attack",
+          },
+        ],
+        optional: true,
+        sourceText:
+          "While this Skill is active, if you roll an attack roll of 25 or higher on a single dice attack, you may activate a CONSTANT Skill during the END phase of that turn",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-diving-elbow",
+    [
+      {
+        trigger: "action-phase",
+        target: "self",
+        type: "reactivate-recent-skill",
+        deactivatedTiming: "last-turn",
+        payment: { resource: "ki", amount: 1 },
+        optional: true,
+        sourceText:
+          "You may lose 1 KI to reactivate one of your Skills that was DEACTIVATED on the last turn",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "activate-protected-constant",
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "activate a CONSTANT Skill",
+        },
+        payment: { resource: "ki", amount: 1 },
+        protectionDuration: { type: "turns", turns: 4, sourceText: "for the next 4 turns" },
+        conditions: [
+          {
+            type: "move-effect-inactive",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-kiihakai-fierce-focus-mastery"],
+              sourceText: "If you are not using Fierce Focus Mastery",
+            },
+            sourceText: "If you are not using Fierce Focus Mastery",
+          },
+        ],
+        optional: true,
+        sourceText:
+          "SUCCESSFUL - If you are not using Fierce Focus Mastery, you may lose 1 KI to activate a CONSTANT Skill. That Skill cannot be DEACTIVATED for the next 4 turns",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-downward-spiral",
+    [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "override-skill-activation-prevention",
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 5 },
+          sourceText: "For the next 5 turns",
+        },
+        sourceText: "For the next 5 turns, nothing can prevent you from activating your Skills",
+      },
+      {
+        trigger: "on-success",
+        target: "self",
+        type: "replace-active-constant-effects",
+        sourceSkill: {
+          type: "move-selector",
+          subject: "target",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your opponent's CONSTANT Skills in their moveset",
+        },
+        targetSkill: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          constant: true,
+          sourceText: "one of your CONSTANT Skills currently active",
+        },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: 4 },
+          sourceText: "for the next 4 turns",
+        },
+        optional: true,
+        sourceText:
+          "SUCCESSFUL - Choose one of your opponent's CONSTANT Skills in their moveset. You may choose to replace the effects of one of your CONSTANT Skills currently active with the chosen effect for the next 4 turns",
+      },
+    ],
+  ],
+  [
+    "move-kiihakai-destruction-mastery",
+    [
+      {
+        trigger: "start-combat",
+        target: "self",
+        type: "grant-destruction-mastery",
+        advancedAttack: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-kiihakai",
+          category: "advanced-attack",
+          selectionKey: "destruction-mastery-advanced-attack",
+          sourceText: "select one of your Kiihakai Advanced Attacks",
+        },
+        signatureTechnique: {
+          type: "move-selector",
+          subject: "source",
+          styleId: "style-kiihakai",
+          category: "signature",
+          selectionKey: "destruction-mastery-signature-technique",
+          sourceText: "one of your Kiihakai Signature Techniques",
+        },
+        naturalDefenseStopPreventionAtMost: 12,
+        zeroCostSignatureUses: 1,
+        targetsInterferers: true,
+        damageBonusAfterOpponentInterferencePercent: 5,
+        sourceText:
+          "At the start of each match, select one of your Kiihakai Advanced Attacks and one of your Kiihakai Signature Techniques. Those attacks cannot be STOPPED by natural defensive roll results of 12 or less and that Signature Technique may be used a single time for 0 KI. Your attacks against your opponent also target anyone who interferes against you. If you have had an opponent interfere against you in this combat, your attacks deal +(5% Power) Damage",
       },
     ],
   ],

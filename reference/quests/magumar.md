@@ -1,11 +1,6 @@
 # Magumar
 
 Source: https://www.tapatalk.com/groups/dragonballlegacy1/magumar-quests-t404.html
-## Surfs Up!
-Description: The Maguma-Jin have practiced and perfected the art of surfing on lava. Very few outsiders manage to do this...and live. They are out on the beach in hordes and there is a surfing contest. Do you have what it takes?
-Requirements: None
-Reward(s): During your next Battle, your HP is considered to be 10% higher.
-Time: 1 Day // 500 WPD
 ## Three Wishes
 Description: Rumors always float around about the Efreeti on Earth, but that is not their true world of origin. The fire-type Genies were originally manifested on Magumar. Though many have since been captured or left the planet, many still remain to enjoy the natural heat to be found in Magumar's many lava pools. Legends say that if you manage to defeat one, he will grant you power beyond the realm of mortals.
 Requirements: None
@@ -95,11 +90,6 @@ Ginyu Force Pants [1000z]
 Inventory Slots: 1
 Description: Black pants made out of a special durable spandex. These pants, along with the rest of the Ginyu Force outfit, show everyone that you are a part of the elite mercenary team known as The Ginyu Force [LOWER BODY].
 Effect: +5% Dexterity. +5% HP. Your first Freestyle skill of each match costs -1 Ki Point to a minimum of 0 Ki Points. RESTRICTEDx1. Activate when using a skill with "Fighting Pose" in the name, that skill costs -1 to a minimum of 0.
-## What Happens in Vegas
-Description: In the lava oceans of Magumar, a whale named Vegas has grown famous among the local villages. Known for eating people, one could imagine the lore doesn't end with many happy endings. A mad Maguma-jin that goes by the name Rehab is setting off to take care of this whale once and for all. While normally you may have no qualms of watching a man go off and get maimed by an overgrown fish, somehow or another you've been suckered into being his first mate.
-Requirements: None
-Reward(s): 0.5x Base EXP Gain // 200z
-Time: 2 Days // 550 WPD
 ## Martial Arts Training
 Description: The Sensei of your Martial Art is big on training and plans on working you to the bone. The list of training regiments may range from bizarre to harsh, but at the end of the day you will be grateful for it. If you manage to graduate from their rigorous training methods, they even have a customized gi with their emblem for you to wear proudly!
 Requirements: 750 PL // 1 Inventory Slot
@@ -151,23 +141,6 @@ Requirements: None
 Reward(s): 50z // Choose another player. That player's next quest takes an additional +100 WPD. This stacks to a maximum of +300 WPD.
 Time: 1 Day // 200 WPD
 Note: You may take this quest once every other week.
-## Qualitative Research
-Description: Magumar may not be known for their technology but they are certainly not lacking. Somehow or other, you have been roped into helping a research team with their newest project. They promise it won't hurt...too much.
-Requirements: Must not have taken "Quantitative Research"
-Reward(s): Plasma Cannon
-Time: 3 Days // 500 WPD
-Plasma Cannon [1000z] [SHIP WEAPON]
-Inventory Slots: 0
-Description: A large attachable cannon. This isn't any ordinary cannon. It fires blasts of pure plasma. If it hits, it will disrupt the enemy ship and throw them off guard while you board.
-Effect: Add-on to any non-Space Pod spacecraft. Whenever challenging someone while in Space, Roll 1d30. If the result is 15 or above, you start combat Transformed.
-Notes: Can only be added once.
-## Quantitative Research
-Description: Magumar may not be known for their technology but they are certainly not lacking. Somehow or other, you have been roped into helping a research team with their newest project. They promise it won't hurt...too much.
-Requirements: Must not have taken "Qualitative Research"
-Reward(s): You start combat at +1 Ki Point and +5% Total HP for the remainder of the saga // Your next quest on Magumar takes -1 day, to a minimum of 1.
-Alternate Reward(s): 0.25x Base EXP // You lose 50% Total HP and your RECOVER rate is reduced to (0% Total) HP for the remainder of the week.
-Time: 1 Day // 500 WPD
-Note: At the end of your Quest, you must roll 1d10 in front of an Administrator. If your result is 5 or less, you get the Alternate Reward(s) instead.
 ## Pantsuits
 Description: Magumar has often taken its own approach to style. Because of this, it has taken a while for some fashions to take hold here. That leaves a hole in the market. Come up with your favorite pants and market them like crazy. You may just become very successful if you do.
 Requirements: None

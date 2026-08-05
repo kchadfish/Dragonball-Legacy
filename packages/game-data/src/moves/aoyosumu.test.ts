@@ -109,7 +109,7 @@ describe("AOYOSUMU_MOVES", () => {
         type: "set-resolution-threshold",
         outcome: "stop",
         roll: "defense",
-        value: { type: "source-expression", text: "source last defensive roll result" },
+        value: { type: "prior-roll-result", roll: "defense" },
       }),
     ]);
     expect(AOYOSUMU_MOVES.find((move) => move.name === "Dashing Fist Drive")?.effects).toEqual([
@@ -187,7 +187,7 @@ describe("AOYOSUMU_MOVES", () => {
         expect.objectContaining({
           type: "modify-roll",
           roll: "attack",
-          amount: { type: "source-expression", text: "2 per successful hit" },
+          amount: { type: "successful-hit-count", perHit: 2 },
         }),
         expect.objectContaining({ type: "modify-roll", roll: "defense" }),
       ]),

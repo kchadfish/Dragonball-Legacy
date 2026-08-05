@@ -1,41 +1,6 @@
 # New Vegeta
 
 Source: https://www.tapatalk.com/groups/dragonballlegacy1/new-vegeta-quests-t56.html
-## Scout Her
-Description: A famous scouter shop has been consistently robbed over the past few months. The shop owner wants you to stakeout the shop at night and see what exactly is allowing this criminal to steal precious scouters at will. All of the security measures taken, from automated cameras to armed guards has failed. It is now up to you to figure out how to stop the crook from performing another heist. The shop owner promises a valuable reward upon your success.
-Requirements: None
-Reward(s): Scouter // 100 Zenni
-Time: 2 Days // 600 wpd
-## The Best Type of Training
-Description: Today is your lucky day. You were out walking the streets of Vegeta when, what else, you get accosted by the Browncoats, one of the finest, upstanding gangs of Saiyan military castoffs this side of the North Galaxy. They make Changeling hitmen look like altar boys from Konats. Apparently you did something to offend them -- probably walked on the wrong side of the street, or looked at one of them cross -- and their leader wants to make an example out of you.
-Requirements: Reward(s): 1.0x Base EXP Gain // Molotov Cocktail
-Time: 3 Days (2 RP, 1 Battle) // 600 WPD
-Battle Info: Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.
-Chaos Browncoat [Midorikatai]
-Level: D
-Race: Saiyan [Oozaru TF, 1d80]
-HP: 400 +10%= 440
-Power: 200+ 10%= 220
-Dexterity: 6 + 10%= 7
-Move Set: War Cry, Energy Gorged, Gut Punch, Torture Rack, Enraged Piledriver, Breaker Breaker
-Bukujutsu Level 1
-Strength Level 1
-## Chunky Monkey
-Description: They say that Saiyan Battle Armor is one size fits all, but that statement is about to be put to the test. A wealthy Saiyan family has offered you the chance to earn their good graces by helping them with a ‘small’ problem. Your job is to find Saiyan Battle Armor that will fit one of the largest Saiyans you have ever seen, and no he is not in his Oozaru Form.
-Rumor has it that a high-tech company outside of the capital of Vegeta has been working on a brand new version of the Saiyan Battle Armor. If you can figure out a way to acquire a prototype, you can return it to the Saiyan family and help their son look more…acceptable.
-Requirements: None
-Reward(s): Saiyan Battle Armor (Capsule Corp. Model) // 100z
-Time: 3 Days // 600 wpd
-## Kryptonite
-Description: Scientists on planet Vegeta are rarely actually Saiyans, since most are wanted for combat means. Their scientific endeavors are largely outsourced to other races who are more suited for that line of work, but even they are perplexed. A meteor hit the planet several weeks ago, breaking into several shards and dispersing itself amongst the surface of the planet.
-When retrieved for sampling, the scientists began to fall ill, leaving the Saiyans who approached it with bio-suits only after seeing their fellow scientists become sick. They're unable to figure out its origin though and they need to either dispose of it, or weaponize it real quick. They could use a hand.
-Requirements: None
-Reward(s): Meteorite Shard x2
-Time: 2 Days // 600 wpd
-Meteorite Shard
-Inventory Slots: 1
-Description: A shard of a meteorite found on Vegeta. It gives off an eerie green glow that makes most people sick upon contact.
-Effect: USEx1. Roll 1d10. If the result is 3 or more, your opponent loses [10% Total HP] HP. This does not take up your turn. If this item brings a user to 0 HP or below, set them to 1 HP.
 ## Super Soldiers
 Description: The Saiyan military is always looking to improve the physical fitness of their soldiers, however, unlike the Tuffles, they do not enjoy testing on their own people. It's not out of honor, but rather, they don't want to risk killing much needed soldiers in times of perpetual war. A new serum is to be tested and they are looking for healthy volunteers. Should everything go right, you should see some marked improvement in your physical performance.
 Should things go wrong .... they'll go very wrong.
@@ -58,29 +23,6 @@ Savage Saiyan Fur Boots [300z]
 Inventory Slots: 1
 Description: Fur boots made and worn by uncivilized Saiyans living in the outskirts of Planet Vegeta. [ACCESSORY]
 Effect: +5% HP. RESTRICTEDx1. You may perform a Basic Attack. This does not take up your turn.
-## Kill 'Em All
-Description: A bleeding heart group has released a bunch of Saibamen from their cages at one of the labs and now the creatures are wreaking havoc in the streets. What? You don't see them wreaking havoc? Well, you're told they are and to eliminate them. Just do your job and let that be that. Kill 'em all and collect your reward. Don't get all doe-y eyed over a bunch of monsters either. Oh, and just to be even crueler, they've given you a Machete to do the job.
-Requirements: Must not have taken Saiba Survival.
-Reward(s): Blunt Blade (You may receive this Reward even if you fail the Quest) // 100z // 1.0x Base EXP Gain
-Time: 2 Days (1 RP, 1 Battle) // 800 WPD
-Battle Info: You will fight the toughest of the Saibamen present, the rest fall easily.
-Saibaman [Akaikaru]
-Race: Saibaman [Frenzied Saibaman 1d50]
-Level: B
-HP: 250
-Power: 100
-Dexterity: 6
-Move Set: Blazing Speed Mastery, Torpedo Kick, Chained Strikes, Machine Gun Kicks
-Bukujutsu Level 1
-## Saiba Survival
-Description: Sure, Saibamen can be mindless creatures but the vast majority have also spent their time in captivity. Some Saibamen have escaped and now they are being hunted down to be eradicated. It seems a bit harsh, especially since oddly enough, there have been zero reports of these particular Saibamen causing any kind of trouble. If you are so inclined, maybe you could do something noble and help these escaped creatures out.
-Requirements: Must not have taken Kill 'Em All.
-Reward(s): 1.0x Base EXP Gain // Once, you may have an NPC Saibaman with a Suicide Saibaman class use his class' ability during one of your Battles
-Time: 2 Days // 800 wpd
-Suicide Saibaman
-Inventory Slots: 0
-Description: A Saibaman with a dead look in his eye. He's set on doing three things: eating, following you around, and self destructing when required. Give him a name, but don't get too attached.
-Effect: Inspired by you, the Saibaman's Self Destruct is based on your HP. USEx1. Roll 1d30. If the result is 15 or higher, your opponent loses [20% Your Total HP]. If this would set them at or below 0 HP, set them to 1 instead. You may only use one Suicide Saibaman per Match.
 ## Royal Pains
 Description: The Royal Guard have caught you snooping where you shouldn't be and they're about to throw the book at you. The prison systems on Vegeta aren't that pleasant and they've trumped up the charges, as per the norm. However, there's one way out. A little bit of regicide. The leader of a small planet is supposed to be meeting with the Emperor for 'diplomatic' reasons.
 The truth is, Wrolen has no desire to offer this man protection, but given how sensitive things are in the universe right now it's in his best interest to come across noble and honorable and blah blah blah. What he'd rather do is have this man killed and be able to come in and take the planet for himself, claiming he will protect its inhabitants (and steal their resources). Make this program go away, and make sure it looks like the Alpha Collective did it.
@@ -97,22 +39,6 @@ Vegeta Medal of Honor [600z]
 Inventory Slots: 1
 Description: A medal awarded to you for honorable actions on Planet Vegeta by the royal family. [ACCESSORY]
 Effect: +5% HP. While on New Vegeta, your attack and defense rolls gain +1 dice sides.
-## The Great Gray Sea
-Description: The sea of New Vegeta is a largely untouched immense resource. Though there isn't likely to be much buried treasure, there are certainly plenty of precious metal veins and gems lining the bottom of the ocean. These riches go untouched for two reasons: giant sea serpents and Saiyan pirates.
-However, an energetic pirate crew excavation team is looking to cash in on the resources below and they're willing to split a share of the profits with you! No really, they're actually willing. Old Pete got eaten in the last scuffle, and they're short on allies.
-Requirements: None
-Reward(s): 500z
-Time: 3 Days // 700 WPD
-## Pirate's Cove
-Description: In the center of the Grayrian Ocean rests a small country of its own, one of Saiyan piracy where wealth rules above all and strength decides who takes the wealth. The Pirate's Cove is the biggest den of scum this side of the Alpha Collective, and they all have one thing in common: money. Every single Saiyan pirate here has robbed trade routes and coastal settlements, and those suckers were kind enough to bring it all to one place.
-It's time to pull off the biggest heist of the year: Who robs the robbers?
-Requirements: Joint Mandatory, at least 2 players.
-Reward(s): Pirate Treasure
-Time: 3 Days // 750 WPD
-Pirate Treasure
-Item Slots: 1
-Description: A collection of items and jewels prized most on New Vegeta. This loot is worth enough to get you shot in the Pirate's Cove, but hey, what isn't?
-Effect: You may trade this for up to 1,000z worth of items sold on New Vegeta. Each character may only use this item once.
 ## A Need for a Guinea Pig
 Description: The Saiyans are not known for being an intelligent race. That doesn’t mean they don’t have good scientists, even if they aren’t saiyan. The bulk of their research focuses on how to continue to fight. A few scientists think they may have recreated the medical machines of the Age of Legends. The only problem is that no one wants to test it out. They said something about the possibility of the liquid burning the flesh… It’s worth a shot, though, right?
 Requirements: None
@@ -125,25 +51,6 @@ Reward(s): Space Pod
 Alternate Reward(s):500z
 Time:3 days//500WPD
 Note: You get to choose which reward you receive.
-## Gluttony in the Land of Vegetables
-Description: A meteor has crashed just outside of the mainland. Scientists and news anchors originally showed great relief that the crash did not cause as much damage as expected, until it was revealed why: the meteor is made of Majin flesh...and it’s still alive. This gluttonous creature has begun to consume everything on its rolling path across the mainland.
-Hundreds have died already, and the creature gets more and more powerful with each village it rolls over. Stop the monster before it reaches Vegeta, or its all-consuming body could take the entire planet!
-Requirements: None
-Reward(s): Gluttonous Glob// 1.0 EXP
-Time: 4 Days (3 RPs, 1 Battle) // 600 WPD
-Battle Info: Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.
-Koutton [Midorikatai]
-Level: B [Evil Form, 1d50]
-Race: Majin
-HP: 300
-Power: 140
-Dexterity: 3
-Move Set: Critical Mass Mastery, Galactic Punisher, Gut Punch, Enraged Piledriver, Palm Crusher
-Bukujutsu Level 1
-Gluttonous Glob
-Inventory Slots: 1
-Description: A small, portable piece of goo left behind by Koutton. It is currently in a jar, where the rest of him is...well....that's hard to say. But, he is out of your hair. If you throw it at your opponent, maybe it will take something from them.
-Effect: USEx1. Use during your UPKEEP PHASE. Your opponent loses two ki points. You cannot use this if your opponent has lost ki due to your effects in the last four turns.
 ## Dragon in the South
 Description: There are strange rumors of a flying scaled creature on New Vegeta. It began in Vegeta, where buildings were found burnt to the ground and cattle were killed. It has since been seen flying around the Akaru Jungle. The creature has been said to be 60 ft long and to be extremely aggressive. Search the jungle and find clues of the illusive lizard.
 Requirements: None

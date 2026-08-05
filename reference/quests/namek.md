@@ -12,33 +12,6 @@ Description: The user understands the old tongue of the Namekian language. The t
 Effect: You may use the Namekian Dragon Balls to make a wish. You begin Spars with +1 KI Point. This does not take up one of your skill slots.
 Requirements: None
 Training Days: N/A
-## Forest from Another World
-Description: Ages ago, when the first Planet Namek was ruthlessly destroyed by Frieza, the surviving inhabitants fled to the planet Earth. The humans and Namekians co-existed peacefully, sharing their cultures, games, knowledge and technology freely. When they left, some more “green thumbed” Namekians received gifts of various seeds from the Earth’s flora.
-The constant sunlight and alien soil of Namek did wonders for the plants, creating massive forests of twisting trees and floral vines. In recent times, however, visitors have begun to disappear into the forest. The locals are deeply concerned and are seeking aid from anyone who could investigate the issue and bring it to a close.
-Requirements: None
-Rewards: 0.5x Base EXP Gain // Senzu Root
-Time: 3 Days (2 RP, 1 Battle) // 600 WPD
-Battle Info: The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.
-Dryad Nymph [Kurokonwaku]
-Level: B
-Race: Saibaman [Mutated]
-Transformation:Frenzied Saibaman [1d50]
-HP: 250
-Power: 120
-Dexterity: 5 (+3 dice bonus)
-Move Set: Childish Taunt, Hidden Power Level, Dismissive Kick, Freestyle Ki Color Cascade, Poison Mist
-Capsule Corps: Going Green!
-Description: Ever since their collaboration with Earth, many of the weaker-caste Namekians have taken a renewed interest in engineering. While they may not be the friendliest with Earth anymore, their friendship with Capsule Corps. is alive and well.
-With funding and assistance from Capsule Corps., the Namekians have begun to make their own tech teams! Unlike on Earth, however, these engineering teams do not have companies, and instead work for the good of their village. They’re a bit short on staff right now and could use somebody who can handle heavy lifting. They may have er...lost a shipment or two in the sea connecting their islands. Give them a hand and they may just whip something up for you!
-Requirements: None
-Rewards: 1 Technology item of 1,500z value or less.
-Time: 2 Days // 600 WPD
-## Sons of Sahm Village
-Description: Sahm village is known for its warrior clan. Starting from a young age, all children go through combat training to become fine warriors of Namek. Though the childrens' masters are very understanding and patient, the children themselves are harsh with each other, competitive by nature and strict with those who can't keep up. The weaker children have trouble fitting in only because of their lack of skill.
-A child desperate for the bullying to end approaches you, hoping a stranger such as yourself can show him something new that could give them an edge against the other kids who are limited to what their teachers know. In return, they're willing to offer you the teachings of the clan!
-Requirements: None
-Rewards: +1d30 to current Trandformation roll
-Time: 1 Day // 750 WPD
 ## The Healer Clan
 Description: The Healer Clan is famous for their miraculous cures they perform with their mystical energies. For those in need of serious medical attention that science cannot fully fix, seeking out a Healer is your next best bet. Unfortunately, Healers do not often perform work on members outside of their own species, but they do allow their healers-in-training to work on non-Namekians provided they have never received this kind of aid before.
 The healing process can take a while as the mystic act is being performed by a newbie, but in the end, all injuries will be healed. The only problem is finding a healer in training that needs a test patient!
@@ -56,11 +29,6 @@ Unlocked Potential in a Can [2,000z]
 Item Slots: 1
 Description: The Guru's ability to unlock one's potential is well-known, but normally very restricted. For some reason or another, he had found the way to keep this power in a canister and had given it to the Guard. For what reason? Who knows? The canister is cracked and the mystic mojo has lost some of its oomph, but it's still there.
 Effect: 1.5x Base EXP Gain. Each character may only use this item once.
-## Underwater Wreckage
-Description: The seas of Namek may look peaceful but they are filled with large, dangerous fish creatures. Rumors have spread that a spacecraft crashed into the murky depths ages ago filled with treasure that nobody has claimed. Given its nature as a rumor and the danger involved, nobody's investigated. Not until now, right?
-Requirements: None
-Reward(s): Namek Spacecraft // 100z
-Time: 1 Days // 1,900 WPD
 ## Popoken Orphan
 Description: A lost Namekian child is roaming the lands, unsure of his past, present, or future. It is likely that he was reborn from the Popoken technique and somehow in the process lost his memory. Whatever your feelings about helping an innocent are, he does promise you the amulet around his neck should you help him discover his past.
 Requirements: None

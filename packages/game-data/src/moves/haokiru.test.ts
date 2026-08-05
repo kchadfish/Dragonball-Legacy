@@ -8,7 +8,7 @@ describe("HAOKIRU_MOVES", () => {
       expect.objectContaining({
         type: "modify-damage",
         operation: "set",
-        percent: expect.objectContaining({ type: "source-expression" }),
+        percent: { type: "prior-attack-damage-percent", actor: "opponent", count: 2 },
       }),
     ]);
   });
@@ -229,7 +229,7 @@ describe("HAOKIRU_MOVES", () => {
         }),
         expect.objectContaining({
           type: "modify-damage",
-          percent: { type: "source-expression", text: "-50% Damage" },
+          percent: { type: "damage-percent", subject: "current-action", percent: -50 },
         }),
       ]),
     );

@@ -12,10 +12,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "set",
-        percent: {
-          type: "source-expression",
-          text: "total percentages of damage dealt to you by your opponent from their last two Advanced Attacks combined",
-        },
+        percent: { type: "prior-attack-damage-percent", actor: "opponent", count: 2 },
         scope: { type: "current-action", sourceText: "Deal (X% Power) damage" },
         sourceText:
           "Deal (X% Power) damage. X = The total percentages of damage dealt to you by your opponent from their last two Advanced Attacks combined",
@@ -111,7 +108,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "-50% Damage" },
+        percent: { type: "damage-percent", subject: "current-action", percent: -50 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -174,12 +171,24 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         resource: "hp",
         operation: "gain",
         amount: {
-          type: "source-expression",
-          text: "5% Total HP for every SUCCESSFUL dice roll result above 20",
+          type: "resource-percent-per-successful-roll-threshold",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percentPerRoll: 5,
+          roll: "attack",
+          comparison: "above",
+          value: 20,
         },
         cap: {
           type: "maximum",
-          value: { type: "source-expression", text: "50% Total HP" },
+          value: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            percent: 50,
+          },
           sourceText: "to a maximum of (50% Total HP) HP",
         },
         sourceText:
@@ -322,7 +331,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "5% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 5,
+        },
         useLimit: { scope: "turn", count: 1, sourceText: "once per turn" },
         activationCost: {
           resource: "ki",
@@ -404,7 +419,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             resource: "hp",
             basis: "current",
             comparison: "at-most",
-            value: { type: "source-expression", text: "15% Total HP" },
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 15,
+            },
             sourceText: "when your HP falls below (15% Total HP) HP",
           },
         ],
@@ -417,7 +438,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
         scope: { type: "next-action", sourceText: "Your next attack" },
         conditions: [
           {
@@ -426,7 +453,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             resource: "hp",
             basis: "current",
             comparison: "at-most",
-            value: { type: "source-expression", text: "15% Total HP" },
+            value: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 15,
+            },
             sourceText: "when your HP falls below (15% Total HP) HP",
           },
         ],
@@ -444,7 +477,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
         conditions: [
           {
             type: "stat-comparison",
@@ -469,7 +508,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
         scope: { type: "next-action", sourceText: "your next attack" },
         conditions: [
           {
@@ -543,7 +588,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "20% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 20,
+        },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         conditions: [
           {
@@ -602,7 +653,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
         conditions: [
           {
             type: "stat-comparison",
@@ -697,7 +754,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "ki",
         operation: "gain",
-        amount: { type: "source-expression", text: "The base cost of the attack" },
+        amount: { type: "triggering-move-base-ki-cost" },
         conditions: [
           {
             type: "move-selector",
@@ -728,7 +785,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Current HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "current",
+          percent: 10,
+        },
         sourceText: "SUCCESSFUL - HEAL (10% Current HP)",
       },
     ],
@@ -762,10 +825,16 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "the Base Damage dealt" },
+        amount: { type: "triggering-move-base-damage", multiplier: 1 },
         cap: {
           type: "maximum",
-          value: { type: "source-expression", text: "15% Total HP" },
+          value: {
+            type: "resource-percent",
+            subject: "self",
+            resource: "hp",
+            basis: "total",
+            percent: 15,
+          },
           sourceText: "to a maximum of (15% Total HP)",
         },
         conditions: [
@@ -789,10 +858,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: {
-          type: "source-expression",
-          text: "The number of SUCCESSFUL hits x5",
-        },
+        percent: { type: "successful-hit-count", perHit: 5 },
         scope: { type: "next-action", sourceText: "your opponent's next attack" },
         stacking: "prevent",
         sourceText:
@@ -1062,7 +1128,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Current HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "current",
+          percent: 10,
+        },
         conditions: [
           {
             type: "roll-threshold",
@@ -1080,7 +1152,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "10% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 10,
+        },
         conditions: [
           {
             type: "roll-threshold",
@@ -1136,7 +1214,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "25% Damage" },
+        amount: { type: "damage-percent", subject: "current-action", percent: 25 },
         sourceText: "SUCCESSFUL - HEAL (25% Damage) HP",
       },
       {
@@ -1230,10 +1308,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "ki",
         operation: "gain",
-        amount: {
-          type: "source-expression",
-          text: "The percentage of damage the attack would have done divided by 10",
-        },
+        amount: { type: "triggering-move-base-damage-percent", divisor: 10 },
         sourceText:
           "Gain Y KI. Y = The percentage of damage the attack would have done divided by 10",
       },
@@ -1296,7 +1371,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "gain",
-        amount: { type: "source-expression", text: "5% Total HP per hit" },
+        amount: {
+          type: "resource-percent-per-successful-hit",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percentPerHit: 5,
+        },
         sourceText: "SUCCESSFUL - Gain (5% Total HP) per hit",
       },
     ],

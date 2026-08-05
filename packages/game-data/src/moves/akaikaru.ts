@@ -134,7 +134,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         statusId: "stun",
         activationCost: {
           resource: "ki",
-          amount: { type: "source-expression", text: "cost of your opponent's last attack + 1" },
+          amount: { type: "prior-move-ki-cost", actor: "opponent", addition: 1 },
           operation: "lose",
         },
         exclusiveActivationGroup: "spinebreaker-success-choice",
@@ -459,7 +459,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "20% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 20 },
         scope: { type: "current-action", sourceText: "this attack" },
         conditions: [
           {
@@ -707,7 +707,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "5% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -869,7 +869,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "modify-resource",
           resource: "hp",
           operation: "lose",
-          amount: { type: "source-expression", text: "5% Power" },
+          amount: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         },
         sourceText:
           "SUCCESSFUL - Your opponent cannot Power Up on their next turn. Your opponent loses (5% Power) HP during their next UPKEEP phase",
@@ -1130,7 +1130,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "modify-resource",
           resource: "hp",
           operation: "lose",
-          amount: { type: "source-expression", text: "5% Power" },
+          amount: { type: "stat-percent", subject: "self", stat: "power", percent: 5 },
         },
         cancellation: {
           actor: "opponent",
@@ -1158,7 +1158,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "hp",
         operation: "lose",
-        amount: { type: "source-expression", text: "5% Total HP" },
+        amount: {
+          type: "resource-percent",
+          subject: "self",
+          resource: "hp",
+          basis: "total",
+          percent: 5,
+        },
         sourceText: "SUCCESSFUL - You lose (5% Total HP) HP",
       },
       {
@@ -1221,7 +1227,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "source-expression", text: "10% Power" },
+        percent: { type: "stat-percent", subject: "self", stat: "power", percent: 10 },
         scope: { type: "next-action", sourceText: "Your next attack roll" },
         sourceText: "Your next attack roll gains +2 sides and does +(10% Power) Damage",
       },

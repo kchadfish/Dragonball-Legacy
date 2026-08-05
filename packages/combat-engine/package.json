@@ -12,7 +12,16 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
+  },
+  "dependencies": {
+    "@dragonball-resurgence/game-config": "0.1.0",
+    "@dragonball-resurgence/game-data": "0.1.0",
+    "zod": "^4.4.3"
   },
   "scripts": {
     "build": "tsc --build",
