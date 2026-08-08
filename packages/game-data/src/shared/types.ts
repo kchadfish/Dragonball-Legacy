@@ -281,6 +281,13 @@ export interface MoveMechanics {
     readonly damagePerHit?: boolean;
     readonly attackRoll?: { readonly dice: number; readonly sides: number };
   };
+  /** Declarative eligibility and base-cost formula for a Block move. */
+  readonly block?: {
+    readonly allowedAttackTypes?: readonly ("physical" | "energy")[];
+    readonly allowedAttackTags?: readonly ("beam" | "blast" | "weapon")[];
+    readonly stopsAllDice?: boolean;
+    readonly baseCostAdjustment: number;
+  };
 }
 
 export interface UnresolvedMoveSource {

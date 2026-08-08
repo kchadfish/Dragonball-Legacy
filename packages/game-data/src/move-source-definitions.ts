@@ -283,6 +283,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 14,
           sides: 32,
@@ -459,6 +460,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 7,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 6,
           sides: 30,
@@ -1124,6 +1126,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 7,
           sides: 30,
@@ -1252,6 +1255,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 70,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 1,
           sides: 40,
@@ -1335,6 +1339,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 13,
           sides: 30,
@@ -1586,6 +1591,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 6,
           sides: 30,
@@ -1714,6 +1720,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 8,
           sides: 30,
@@ -1991,6 +1998,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 9,
           sides: 32,
@@ -2258,6 +2266,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 10,
           sides: 30,
@@ -2331,6 +2340,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 5,
           sides: 30,
@@ -2840,6 +2850,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 7,
           sides: 30,
@@ -3459,6 +3470,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -3523,6 +3535,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
       },
     },
     requirementsText: "None",
@@ -4166,6 +4179,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 8,
           sides: 30,
@@ -4392,6 +4406,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 30,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 5,
           sides: 30,
@@ -7014,6 +7029,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -7342,6 +7358,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 40,
@@ -7468,6 +7485,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -7659,6 +7677,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -7724,6 +7743,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 7,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 10,
           sides: 30,
@@ -7784,6 +7804,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -7924,6 +7945,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 5,
           sides: 30,
@@ -8349,6 +8371,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 4,
           sides: 30,
@@ -8568,6 +8591,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 45,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 32,
@@ -8731,6 +8755,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 30,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 5,
           sides: 20,
@@ -8921,6 +8946,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -8982,6 +9011,11 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "physical",
       },
+      block: {
+        allowedAttackTypes: ["physical"],
+        stopsAllDice: true,
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -9042,6 +9076,11 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["energy"],
+        stopsAllDice: true,
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -9109,6 +9148,11 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        stopsAllDice: true,
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -9164,6 +9208,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -9225,6 +9273,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -2,
       },
     },
     requirementsText: "None",
@@ -11074,6 +11126,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 10,
           sides: 30,
@@ -11742,6 +11795,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 4,
           sides: 30,
@@ -11947,6 +12001,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -12146,6 +12201,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
       },
     },
     requirementsText: "Bukujutsu,",
@@ -12393,6 +12449,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: -1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -12442,6 +12502,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -12504,6 +12568,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "physical",
       },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: 1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -12559,6 +12627,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -12621,6 +12693,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -12676,6 +12752,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -13477,6 +13557,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -13547,6 +13628,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 6,
           sides: 28,
@@ -14280,6 +14362,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 4,
           sides: 32,
@@ -14522,6 +14605,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 10,
           sides: 32,
@@ -15103,6 +15187,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 6,
           sides: 30,
@@ -15248,6 +15333,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 30,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -15461,6 +15547,9 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
         type: "literal",
         value: 1,
       },
+      block: {
+        baseCostAdjustment: -2,
+      },
     },
     requirementsText: "Weapon",
     trainingDays: 2,
@@ -15527,6 +15616,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: -2,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -15587,6 +15680,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: 0,
       },
     },
     requirementsText: "None",
@@ -16645,6 +16742,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 5,
           sides: 30,
@@ -16888,6 +16986,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -16963,6 +17062,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 5,
           sides: 30,
@@ -17830,6 +17930,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -17950,6 +18051,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -18127,6 +18229,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 4,
           sides: 30,
@@ -18206,6 +18309,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 5,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 10,
           sides: 30,
@@ -18677,6 +18781,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: -2,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -18732,6 +18840,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -2,
       },
     },
     requirementsText: "None",
@@ -18794,6 +18906,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "physical",
       },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: 1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -18855,6 +18971,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "physical",
       },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -18911,6 +19031,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: -1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -18966,6 +19090,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -19888,6 +20016,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -19953,6 +20082,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -21120,6 +21250,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -21460,6 +21591,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -21520,6 +21652,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 4,
           sides: 30,
@@ -21649,6 +21782,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 10,
           sides: 30,
@@ -21973,6 +22107,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 8,
           sides: 30,
@@ -22036,6 +22171,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
         type: "literal",
         value: 1,
       },
+      block: {
+        allowedAttackTags: ["beam", "blast"],
+        baseCostAdjustment: -2,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -22091,6 +22230,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: 1,
       },
     },
     requirementsText: "None",
@@ -22151,6 +22294,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",
@@ -22213,6 +22360,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "physical",
       },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -22273,6 +22424,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: 1,
       },
     },
     requirementsText: "None",
@@ -23608,6 +23763,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -24368,6 +24524,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 15,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -25396,6 +25553,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 6,
           sides: 30,
@@ -25461,6 +25619,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: -1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -25522,6 +25684,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -25577,6 +25743,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: -2,
       },
     },
     requirementsText: "None",
@@ -25634,6 +25804,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: 0,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -25689,6 +25863,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["physical", "energy"],
+        baseCostAdjustment: 0,
       },
     },
     requirementsText: "None",
@@ -27343,6 +27521,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -27678,6 +27857,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 20,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -27748,6 +27928,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 10,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 6,
           sides: 30,
@@ -28154,6 +28335,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 25,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 3,
           sides: 30,
@@ -28284,6 +28466,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 35,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 2,
           sides: 30,
@@ -28799,6 +28982,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
           type: "literal",
           value: 40,
         },
+        damagePerHit: true,
         attackRoll: {
           dice: 4,
           sides: 28,
@@ -28865,6 +29049,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "physical",
       },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -28920,6 +29108,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "energy",
+      },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: 0,
       },
     },
     requirementsText: "None",
@@ -28982,6 +29174,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       attack: {
         type: "energy",
       },
+      block: {
+        allowedAttackTypes: ["energy"],
+        baseCostAdjustment: -1,
+      },
     },
     requirementsText: "None",
     trainingDays: 2,
@@ -29037,6 +29233,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: 0,
       },
     },
     requirementsText: "None",
@@ -29098,6 +29298,10 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       attack: {
         type: "physical",
+      },
+      block: {
+        allowedAttackTypes: ["physical"],
+        baseCostAdjustment: -1,
       },
     },
     requirementsText: "None",

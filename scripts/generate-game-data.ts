@@ -130,6 +130,7 @@ const mechanicsFor = (effectText: string): Record<string, unknown> => {
   const attackType = /\b(Physical|Energy) attack\./iu.exec(effectText)?.[1]?.toLowerCase();
   const damage = /Deal \(([^)]*)\) damage/iu.exec(effectText)?.[1];
   const damagePercent = damage?.replace(/\s+per hit$/iu, "").match(/^(\d+)% Power$/iu)?.[1];
+  const damagePerHit = /Deal \([^)]*\) damage per hit/iu.test(effectText);
   const attackRoll = /Attack roll:\s*(\d+)d(\d+)/iu.exec(effectText);
   const attack =
     attackType === undefined
@@ -144,10 +145,34 @@ const mechanicsFor = (effectText: string): Record<string, unknown> => {
                     ? numericExpression(damage)
                     : numericExpression(damagePercent),
               }),
-          ...(damage?.toLowerCase().includes("per hit") === true ? { damagePerHit: true } : {}),
+          ...(damagePerHit ? { damagePerHit: true } : {}),
           ...(attackRoll === null
             ? {}
             : { attackRoll: { dice: Number(attackRoll[1]), sides: Number(attackRoll[2]) } }),
+        };
+  const blockStopClause = /\bBlock\.\s*Stop\s+([^.]*)\s+attack\b/iu.exec(effectText)?.[1];
+  const blockCost = /Cost:\s*X\s*([+-])?\s*(\d+)?\s+KI\b/iu.exec(effectText);
+  const blockAttackTypes = [
+    ...(blockStopClause !== undefined && /\bphysical\b/iu.test(blockStopClause)
+      ? ["physical"]
+      : []),
+    ...(blockStopClause !== undefined && /\benergy\b/iu.test(blockStopClause) ? ["energy"] : []),
+  ];
+  const blockAttackTags = [
+    ...(blockStopClause !== undefined && /\bbeam-type\b/iu.test(blockStopClause) ? ["beam"] : []),
+    ...(blockStopClause !== undefined && /\bblast-type\b/iu.test(blockStopClause) ? ["blast"] : []),
+    ...(blockStopClause !== undefined && /\bweapon\b/iu.test(blockStopClause) ? ["weapon"] : []),
+  ];
+  const blockCostAdjustment =
+    blockCost === null ? undefined : (blockCost[1] === "+" ? 1 : -1) * Number(blockCost.at(2) ?? 0);
+  const block =
+    blockStopClause === undefined || blockCost === null
+      ? undefined
+      : {
+          ...(blockAttackTypes.length === 0 ? {} : { allowedAttackTypes: blockAttackTypes }),
+          ...(blockAttackTags.length === 0 ? {} : { allowedAttackTags: blockAttackTags }),
+          ...(/(?:can )?STOP(?:S)? all dice/iu.test(effectText) ? { stopsAllDice: true } : {}),
+          baseCostAdjustment: blockCostAdjustment ?? 0,
         };
 
   return {
@@ -155,6 +180,7 @@ const mechanicsFor = (effectText: string): Record<string, unknown> => {
     ...(restrictedUses === undefined ? {} : { restrictedUses: numericExpression(restrictedUses) }),
     ...(timingText === undefined ? {} : { timingText }),
     ...(attack === undefined ? {} : { attack }),
+    ...(block === undefined ? {} : { block }),
   };
 };
 
@@ -272,7 +298,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
     for (const match of clause.text.matchAll(
       /([+-]?\s*\d+)%\s*(Power|HP|Health|Dexterity|Dex|All Stats)\b/giu,
     )) {
-      const statName = (match[2] ?? "").toLowerCase();
+      const statName = match[2].toLowerCase();
       effects.push({
         trigger: /for the next week/iu.test(clause.text) ? "on-item-use" : "passive",
         type: "item-modify-stat-percent",
@@ -284,11 +310,11 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
               : statName === "all stats"
                 ? "all-stats"
                 : "hp",
-        percent: Number((match[1] ?? "").replace(/\s/gu, "")),
+        percent: Number(match[1].replace(/\s/gu, "")),
         ...(/for the next week/iu.test(clause.text)
           ? { duration: { unit: "week", value: 1 } }
           : {}),
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(/gain\s+\((\d+)%\s+total\s+hp\)\s+hp/giu)) {
@@ -305,7 +331,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
           basis: "total",
           percent: Number(match[1]),
         },
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(/\+(\d+)\s+Inventory Slots/giu)) {
@@ -313,7 +339,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         trigger: "passive",
         type: "item-modify-inventory-capacity",
         slots: Number(match[1]),
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(/\+(\d+)\s+Max Capacity/giu)) {
@@ -321,7 +347,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         trigger: "passive",
         type: "item-modify-ship-capacity",
         capacity: Number(match[1]),
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     const travelMatch = /-(\d+)\s*days?\s+to\s+Travel Time/iu.exec(clause.text);
@@ -398,7 +424,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
       effects.push({
         trigger: "passive",
         type: "item-modify-experience-percent",
-        activity: /or battling/iu.test(experienceMatch[2] ?? "") ? "spar-or-battle" : "spar",
+        activity: /or battling/iu.test(experienceMatch[2]) ? "spar-or-battle" : "spar",
         percent: Number(experienceMatch[1]),
         rounding: "nearest",
         sourceText: experienceMatch[0],
@@ -412,7 +438,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         resource: "ki",
         operation: "gain",
         amount: { type: "literal", value: Number(match[1]) },
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(
@@ -426,7 +452,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         modifier: "sides",
         amount: Number(match[1]),
         duration: { unit: "combat" },
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(
@@ -439,13 +465,13 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         roll: "transformation",
         modifier: "sides",
         amount: Number(match[1]),
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(
       /(?:add|gain)\s+\+(\d+)\s+to (?:the )?(?:results? of |result of )?(?:a |your )?(defensive|defense|advanced attack|attack|transformation) roll/giu,
     )) {
-      const rollName = (match[2] ?? "").toLowerCase();
+      const rollName = match[2].toLowerCase();
       effects.push({
         trigger: /after (?:your |the opponent's )?defen[cs]e roll/iu.test(clause.text)
           ? "after-defense-roll"
@@ -463,7 +489,7 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         modifier: "result",
         amount: Number(match[1]),
         selectorText: rollName === "advanced attack" ? "advanced-attack" : undefined,
-        sourceText: match[0] ?? clause.text,
+        sourceText: match[0],
       });
     }
     for (const match of clause.text.matchAll(
@@ -474,8 +500,10 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
         type: "item-modify-damage",
         target: "self",
         percent: Number(match[2]),
-        ...(match[1] === undefined ? {} : { duration: { unit: "combat", value: 1 } }),
-        sourceText: match[0] ?? clause.text,
+        ...(match[0].toLocaleLowerCase().startsWith("next ")
+          ? { duration: { unit: "combat", value: 1 } }
+          : {}),
+        sourceText: match[0],
       });
     }
     if (/negate a BREAK or SEVER/iu.test(clause.text)) {
@@ -967,7 +995,7 @@ const itemRulesFor = (effectText: string, effects: readonly Record<string, unkno
   });
 
 const itemNotes = (sourceText: string): readonly string[] =>
-  [...sourceText.matchAll(/^Notes?:\s*(.+)$/gmu)].map((match) => match[1]?.trim() ?? "");
+  [...sourceText.matchAll(/^Notes?:\s*(.+)$/gmu)].map((match) => match[1].trim());
 
 const itemHeaderLine = (sourceText: string): string | undefined => {
   const lines = sourceText.split("\n");
@@ -975,7 +1003,7 @@ const itemHeaderLine = (sourceText: string): string | undefined => {
   if (inventoryIndex < 1) return undefined;
 
   for (let index = inventoryIndex - 1; index >= 0; index -= 1) {
-    const candidate = lines[index]?.trim() ?? "";
+    const candidate = lines.at(index)?.trim() ?? "";
     if (
       candidate.length > 0 &&
       !/^(?:Medicine|Ship Stats:|Space Ships?\s*\/\/\s*Space Ships? Addons)$/iu.test(candidate)
@@ -994,7 +1022,7 @@ const itemName = (sourceText: string): string | undefined =>
 
 const itemPrice = (sourceText: string): number | undefined => {
   const prices = [...(itemHeaderLine(sourceText) ?? "").matchAll(/\[([\d,\s]+)(?:z|Zenni)?\]/giu)]
-    .map((match) => Number((match[1] ?? "").replace(/[\s,]/gu, "")))
+    .map((match) => Number(match[1].replace(/[\s,]/gu, "")))
     .filter(Number.isSafeInteger);
   return prices.at(-1);
 };
@@ -1195,11 +1223,11 @@ for (const path of sourceFiles.filter((file) =>
   const normalized = normalizeTransformationSource(source);
   const normalizedStarts = transformationStarts(source);
   for (const [index, start] of normalizedStarts.entries()) {
-    const startOffset = start.index ?? 0;
-    const endOffset = normalizedStarts[index + 1]?.index ?? normalized.length;
+    const startOffset = start.index;
+    const endOffset = normalizedStarts.at(index + 1)?.index ?? normalized.length;
     const text = normalized.slice(startOffset, endOffset).trim();
     const tier = Number(start[1]);
-    const name = (start[2] ?? `Level ${tier}`).trim() || `Level ${tier}`;
+    const name = start[2].trim() || `Level ${tier}`;
     const stats =
       /Stats:\s*([+-]?\d+)%\s*Power[.,]\s*([+-]?\d+)%\s*(?:HP|Endurance)[.,]\s*([+-]?\d+)%\s*Dexterity/iu.exec(
         text,
@@ -1210,7 +1238,7 @@ for (const path of sourceFiles.filter((file) =>
       ),
     ];
     const abilityFor = (mastery: string) => {
-      const match = abilityMatches.find((candidate) => candidate[1]?.toLowerCase() === mastery);
+      const match = abilityMatches.find((candidate) => candidate[1].toLowerCase() === mastery);
       const effectText =
         match?.[3]?.trim() ?? "Source does not define this Transformation Ability.";
       const abilityName = match?.[2]?.trim().replace(/[:—-]+$/u, "");
@@ -1248,8 +1276,8 @@ for (const path of sourceFiles.filter((file) =>
 const namedRaceEntries = (sourceText: string) =>
   [...sourceText.matchAll(/\[color=[^\]]+\]\s*([^[]+?)\s*\[\/color\]\s*-\s*([^\r\n]+)/giu)].map(
     (match) => ({
-      name: match[1]?.trim() ?? "",
-      effectText: match[2]?.trim() ?? "",
+      name: match[1].trim(),
+      effectText: match[2].trim(),
     }),
   );
 
@@ -1397,17 +1425,17 @@ const trainerDefinitions = trainerCatalogDefinitions.flatMap((catalog) => {
   for (let index = 0; index < lines.length; index += 1) {
     const heading = /^(.+?)\s+(?:â€”|—)\s+(.+)$/u.exec(lines[index] ?? "");
     if (heading === null) continue;
-    const [styleName, name] = [heading[1]?.trim() ?? "", heading[2]?.trim() ?? ""];
+    const [styleName, name] = [heading[1].trim(), heading[2].trim()];
     const moves: string[] = [];
     const unresolvedMoveNames: string[] = [];
     let end = index + 1;
-    while (end < lines.length && !/^.+?\s+(?:â€”|—)\s+.+$/u.test(lines[end] ?? "")) {
+    while (end < lines.length && !/^.+?\s+(?:â€”|—)\s+.+$/u.test(lines.at(end) ?? "")) {
       const category =
         /^(?:Masteries|Skills|Advanced Attacks|Signature Techniques|Blocks):\s*(.+)$/u.exec(
-          lines[end] ?? "",
+          lines.at(end) ?? "",
         );
       if (category !== null) {
-        for (const moveName of (category[1] ?? "").split(";").map((value) => value.trim())) {
+        for (const moveName of category[1].split(";").map((value) => value.trim())) {
           if (moveName.length === 0) continue;
           const moveId = moveIdByName.get(moveName);
           if (moveId === undefined) unresolvedMoveNames.push(moveName);
@@ -1501,7 +1529,7 @@ const questRewardsFor = (rewardsText: string): readonly Record<string, unknown>[
       return {
         type: "quest-outcome",
         operation: "reduce-move-training-days",
-        amount: Number(trainingDays[1] ?? trainingDays[2]),
+        amount: Number(trainingDays[1] || trainingDays[2]),
         executable: true,
         sourceText: reward,
       };
@@ -1626,7 +1654,7 @@ const equipmentNamesFromBattleText = (battleText: string): readonly string[] =>
     ...battleText.matchAll(/(?:wearing|equipped with)\s+(?:an?\s+)?([^.!\n]+)/giu),
     ...battleText.matchAll(/\bhas\s+(?:an?\s+)?([A-Z][^.!\n]+)/gu),
   ]
-    .flatMap((match) => (match[1] ?? "").split(/,|\band\b/iu))
+    .flatMap((match) => match[1].split(/,|\band\b/iu))
     .map((name) => name.trim().replace(/^(?:a|an|the)\s+/iu, ""))
     .filter((name) => name.length > 0);
 
@@ -1654,22 +1682,20 @@ const questDefinitions = await Promise.all(
         const notesText = questFieldValue(text, ["Battle Notes"]);
         const legacyNpcIds: string[] = [];
         const npcIds: string[] = [];
-        if (battleText !== undefined) {
-          const npcName =
-            /^(?:You (?:face|fight)|Battle:)?\s*([^.!]+?)(?:\s+(?:is|isn't|isnâ€™t|who|wearing|,)|[.!]|$)/iu
-              .exec(battleText)?.[1]
-              ?.trim();
-          if (npcName !== undefined && npcName.length > 0) {
-            const npcId = `npc-${toId(sourcePath.replace(/^quests\//u, "").replace(/\.md$/u, ""))}-${toId(npcName)}`;
-            legacyNpcIds.push(npcId);
-            legacyNpcDefinitions.push({
-              id: npcId,
-              name: npcName,
-              moveIds: [],
-              description: battleText,
-              source: { path: `reference/${sourcePath}`, text },
-            });
-          }
+        const npcName =
+          /^(?:You (?:face|fight)|Battle:)?\s*([^.!]+?)(?:\s+(?:is|isn't|isnâ€™t|who|wearing|,)|[.!]|$)/iu
+            .exec(battleText)?.[1]
+            ?.trim();
+        if (npcName !== undefined && npcName.length > 0) {
+          const npcId = `npc-${toId(sourcePath.replace(/^quests\//u, "").replace(/\.md$/u, ""))}-${toId(npcName)}`;
+          legacyNpcIds.push(npcId);
+          legacyNpcDefinitions.push({
+            id: npcId,
+            name: npcName,
+            moveIds: [],
+            description: battleText,
+            source: { path: `reference/${sourcePath}`, text },
+          });
         }
         const encounterIds: string[] = [];
         if (battleFields.length > 0) {
@@ -1830,10 +1856,13 @@ const ruleSectionStarts = [
   ),
 ];
 const ruleSectionDefinitions = ruleSectionStarts.map((start, index) => {
-  const startOffset = start.index ?? 0;
-  const endOffset = ruleSectionStarts[index + 1]?.index ?? rulesSource.length;
-  const title = start[2]?.trim() ?? "";
-  const number = romanNumeralValues[start[1] ?? ""] ?? 0;
+  const startOffset = start.index;
+  const endOffset = ruleSectionStarts.at(index + 1)?.index ?? rulesSource.length;
+  const title = start[2].trim();
+  const numeral = start[1];
+  const number = Object.hasOwn(romanNumeralValues, numeral)
+    ? romanNumeralValues[numeral as keyof typeof romanNumeralValues]
+    : 0;
   return {
     id: `rule-section-${number}-${toId(title)}`,
     number,

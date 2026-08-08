@@ -318,6 +318,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "deactivate",
         affectedType: "skill",
+        selection: "all",
         selector: {
           type: "move-selector",
           subject: "target",

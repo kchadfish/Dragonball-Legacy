@@ -6,7 +6,31 @@ import type {
   CombatantId,
   FightId,
   PendingDecisionId,
+  ResolutionFrameId,
 } from "../ids.js";
+import type { MoveId } from "@dragonball-resurgence/game-data";
+
+export interface TestCombatMove {
+  readonly category: "advanced-attack" | "block" | "signature";
+  readonly dice?: { readonly count: number; readonly sides: number };
+  readonly id: MoveId;
+  readonly kiCost: number;
+  readonly powerDamagePercent?: number;
+  readonly restrictedUses?: number;
+}
+
+export const createTestCombatMove = (
+  input: Partial<TestCombatMove> & Pick<TestCombatMove, "id">,
+): TestCombatMove => ({
+  category: input.category ?? "advanced-attack",
+  dice: input.dice ?? { count: 1, sides: 30 },
+  id: input.id,
+  kiCost: input.kiCost ?? 0,
+  ...(input.powerDamagePercent === undefined
+    ? {}
+    : { powerDamagePercent: input.powerDamagePercent }),
+  ...(input.restrictedUses === undefined ? {} : { restrictedUses: input.restrictedUses }),
+});
 
 export class SequenceRandomSource implements RandomSource {
   readonly #values: readonly number[];
@@ -17,7 +41,7 @@ export class SequenceRandomSource implements RandomSource {
   }
 
   integer(minimum: number, maximum: number): number {
-    const value = this.#values[this.#index++];
+    const value = this.#values.at(this.#index++);
     if (value === undefined) throw new Error("SequenceRandomSource is exhausted.");
     if (value < minimum || value > maximum) {
       throw new RangeError(
@@ -47,6 +71,7 @@ export interface CombatIdSequences {
   readonly eventIds?: readonly CombatEventId[];
   readonly fightIds?: readonly FightId[];
   readonly pendingDecisionIds?: readonly PendingDecisionId[];
+  readonly resolutionFrameIds?: readonly ResolutionFrameId[];
 }
 
 const takeSequenceValue = <T>(values: readonly T[], name: string): readonly [T, readonly T[]] => {
@@ -62,6 +87,7 @@ export class SequenceCombatIdSource implements CombatIdSource {
   #eventIds: readonly CombatEventId[];
   #fightIds: readonly FightId[];
   #pendingDecisionIds: readonly PendingDecisionId[];
+  #resolutionFrameIds: readonly ResolutionFrameId[];
 
   constructor(sequences: CombatIdSequences) {
     this.#activeEffectIds = sequences.activeEffectIds ?? [];
@@ -70,6 +96,7 @@ export class SequenceCombatIdSource implements CombatIdSource {
     this.#eventIds = sequences.eventIds ?? [];
     this.#fightIds = sequences.fightIds ?? [];
     this.#pendingDecisionIds = sequences.pendingDecisionIds ?? [];
+    this.#resolutionFrameIds = sequences.resolutionFrameIds ?? [];
   }
 
   nextFightId(): FightId {
@@ -105,6 +132,12 @@ export class SequenceCombatIdSource implements CombatIdSource {
   nextActiveEffectId(): ActiveEffectId {
     const [value, remaining] = takeSequenceValue(this.#activeEffectIds, "activeEffectIds");
     this.#activeEffectIds = remaining;
+    return value;
+  }
+
+  nextResolutionFrameId(): ResolutionFrameId {
+    const [value, remaining] = takeSequenceValue(this.#resolutionFrameIds, "resolutionFrameIds");
+    this.#resolutionFrameIds = remaining;
     return value;
   }
 }

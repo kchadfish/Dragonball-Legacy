@@ -1,0 +1,125 @@
+import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
+
+import {
+  resolveContestedAttackRolls,
+  type AttackDieRoll,
+  type AttackRollDefinition,
+  type ContestedAttackNaturalRoll,
+} from "./attack-rolls.js";
+import { qualifiesForCounter, qualifiesForCritical } from "./combat-mechanics.js";
+
+import type { CombatantState } from "./contracts.js";
+import type { RandomSource } from "./dependencies.js";
+
+export interface MoveAttackDefinition {
+  readonly attack: AttackRollDefinition;
+  readonly attackResultModifier?: number;
+  readonly defenseResultModifier?: number;
+  readonly preventCritical?: boolean;
+  readonly preventCounter?: boolean;
+  /** Previously rolled dice for resuming a post-roll reaction deterministically. */
+  readonly naturalRolls?: readonly ContestedAttackNaturalRoll[];
+  /** Declarative after-defense-roll results to use when replaying persisted dice. */
+  readonly resultOverrides?: readonly ("stopped" | "successful" | undefined)[];
+  readonly numericResultOverrides?: readonly (
+    { readonly attack?: number; readonly defense?: number } | undefined
+  )[];
+  readonly baseDamage: number;
+  /** A converted `damagePerHit` move deals its listed damage for every successful die. */
+  readonly damagePerHit?: boolean;
+}
+
+export interface MoveAttackResolution {
+  readonly counter: boolean;
+  readonly critical: boolean;
+  readonly damage: number;
+  readonly rolls: readonly AttackDieRoll[];
+  readonly successfulHitCount: number;
+  readonly totalDice: number;
+}
+
+const damageForSuccessfulDice = (
+  baseDamage: number,
+  dice: number,
+  successfulHitCount: number,
+  critical: boolean,
+  damagePerHit: boolean,
+) =>
+  Math.round(
+    (damagePerHit ? baseDamage : baseDamage / dice) * successfulHitCount * (critical ? 2 : 1),
+  );
+
+/** Resolves a converted attack before move effects are applied. */
+export const resolveMoveAttack = (
+  attacker: CombatantState,
+  defender: CombatantState,
+  definition: MoveAttackDefinition,
+  random: RandomSource,
+  blockedDice = 0,
+): MoveAttackResolution => {
+  const rolls = resolveContestedAttackRolls(
+    {
+      attack: definition.attack,
+      blockedDice,
+      attackerDexterityBonus:
+        attacker.stats.dexterityBonus + (definition.attackResultModifier ?? 0),
+      defenderDexterityBonus: defender.stats.dexterityBonus,
+      defenderResultModifier: definition.defenseResultModifier,
+      naturalRolls: definition.naturalRolls,
+      resultOverrides: definition.resultOverrides,
+      numericResultOverrides: definition.numericResultOverrides,
+    },
+    random,
+  );
+  const successful = rolls.filter((roll) => roll.outcome === "successful");
+  const firstRoll = rolls.at(0);
+  const critical =
+    definition.preventCritical !== true &&
+    rolls.length === 1 &&
+    firstRoll !== undefined &&
+    qualifiesForCritical({
+      attackerDexterity: attacker.stats.dexterity,
+      defenderDexterity: defender.stats.dexterity,
+      diceCount: definition.attack.dice,
+      diceSides: definition.attack.sides,
+      naturalAttackResult: firstRoll.attackNaturalResult,
+      naturalDefenseResult: firstRoll.defenseNaturalResult ?? 0,
+      outcome: firstRoll.outcome === "successful" ? "successful" : "stopped",
+    });
+  const counter =
+    definition.preventCounter !== true &&
+    successful.length === 0 &&
+    rolls.some(
+      (roll) =>
+        roll.defenseNaturalResult !== undefined &&
+        qualifiesForCounter({
+          attackerDexterity: attacker.stats.dexterity,
+          defenderDexterity: defender.stats.dexterity,
+          diceCount: definition.attack.dice,
+          diceSides: definition.attack.sides,
+          naturalAttackResult: roll.attackNaturalResult,
+          naturalDefenseResult: roll.defenseNaturalResult,
+          outcome: "stopped",
+        }),
+    );
+
+  return {
+    rolls,
+    totalDice: definition.attack.dice,
+    successfulHitCount: successful.length,
+    critical,
+    counter,
+    damage: damageForSuccessfulDice(
+      definition.baseDamage,
+      definition.attack.dice,
+      successful.length,
+      critical,
+      definition.damagePerHit === true,
+    ),
+  };
+};
+
+export const defaultMoveAttackRoll = (): AttackRollDefinition => ({
+  dice: 1,
+  sides: GLOBAL_RULES.combat.standardDieSides,
+});

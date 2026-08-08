@@ -73,33 +73,34 @@ behavior rather than as a placeholder function.
 
 ### Initial fight creation
 
-`createFight` accepts exactly two validated combatant setups, a mode, and an
-explicit initial-combatant index. It snapshots current hit points, the
+`createFight` accepts exactly two validated combatant setups and a mode. It snapshots current hit points, the
 configured starting and maximum Ki values, combat stats, selected move IDs, and
 the rules version. It rejects malformed inputs, duplicate or unknown move IDs,
 and does not consume generated IDs for rejected setup.
 
-The initiating caller currently selects the first combatant. The canonical
-initiative configuration now states highest Dexterity first, with a 1d100
-tie-break for equal Dexterity, but applying that rule in fight creation is
-deferred until its injected-randomness transition is implemented. A successful
-result starts turn 1 in `upkeep` at state version 0 and emits `fight-started`
-followed by `turn-started`. The state is checked against the internal 1v1
-invariant validator before it is returned.
+The engine selects the first combatant: highest Dexterity goes first, while tied
+Dexterity is resolved through injected 1d100 rolls (rerolling tied results).
+Creation emits `fight-started`, each required tie-break roll, and `turn-started`.
+A successful result starts turn 1 in `upkeep` at state version 0. The state is
+checked against the internal 1v1 invariant validator before it is returned.
 
 ### Initial turn progression
 
 `advanceFight` resolves only non-interactive boundaries in this slice: it moves
 an `upkeep` phase to `action`, and moves an empty `end` phase to the other
-combatant's next `upkeep` while incrementing the turn. `enumerateLegalDecisions`
-returns `pass` and `power-up` only for the active combatant during `action`.
-`submitCombatDecision` accepts those actions, advances to `end`, caps Ki gained
-from a power-up at the configured maximum, and emits factual Ki and phase/turn
-events.
+combatant's next `upkeep` while incrementing the turn. During `action`,
+`enumerateLegalDecisions` returns the supported basic attacks, pass, power-up,
+surrender, and an owned Death Beam. During `counter`, it returns basic attacks
+and surrender for the countering combatant. `submitCombatDecision` applies those
+actions, caps Ki gained from a power-up at the configured maximum, and emits
+factual Ki, phase, turn, and completion events. A moderator-authorized
+`cancel-fight` decision is accepted by the engine boundary but deliberately is
+not a player legal action.
 
-Move and pending-decision resolution are not represented as legal actions yet.
-Hand-authored attempts to submit either return a typed unsupported or missing
-pending-decision failure rather than approximating their behavior.
+Pending-decision resolution is not represented as a legal action yet.
+Hand-authored pending-decision responses return a typed missing-pending-decision
+failure rather than approximating that behavior. Moves outside the explicitly
+supported Death Beam slice return typed failures.
 
 ### Basic attack slice
 
@@ -111,9 +112,11 @@ attacker's Power, while a stopped attack deals no damage. The engine emits raw
 attack and defense rolls, the outcome, damage, and defeat/fight-end events as
 applicable.
 
-Critical-hit, counter, block, and move-specific behavior are deliberately not
-part of this basic-attack slice; they must be introduced as subsequent explicit
-resolution work rather than inferred from these transitions.
+Single-die attacks can critically hit using the configured natural-roll
+threshold, while qualifying stopped defenses enter the serializable Counter
+phase. Counter ownership transfers to the defender and consecutive counter
+attacks stop at the configured engineering safeguard. Blocks and broader
+move-specific behavior remain subsequent explicit resolution work.
 
 ### Universal combat configuration
 
@@ -124,12 +127,11 @@ minimum turn for Signature Techniques. The source supports an iterative Counter
 phase but does not state a maximum chain length.
 
 `combat.engineeringSafeguards.maximumConsecutiveCounterAttacks` is therefore
-an explicit engine protection, set to 3. It is not a game rule. When counter
-resolution is implemented, the third consecutive counter attack in one chain
-will be the last allowed; a further counter opportunity will not create another
-counter attack. The safeguard must be emitted or otherwise observable in the
-event stream when it prevents a counter, and it may be replaced only by a
-source-backed rule decision.
+an explicit engine protection, set to 3. It is not a game rule. The third
+consecutive counter attack in one chain is the last allowed; a further counter
+opportunity does not create another counter attack. The engine emits
+`counter-chain-limit-reached` when it prevents a counter, and the safeguard may
+be replaced only by a source-backed rule decision.
 
 ### First effect-runtime slice
 
@@ -146,6 +148,17 @@ unsupported until their complete effect behavior is implemented.
 `FightState` should explicitly represent the active combat phase, the current
 participant or action owner, active and scheduled effects, use counters,
 transformation state, action history needed by rules, and completion state.
+
+The current contract now carries these temporary-state foundations directly:
+each combatant has move-use counts, active statuses with explicit duration
+clocks, and an optional active transformation. The fight records completed
+actions separately from presentation events and has a serializable stack of
+resolution frames for suspended attack or effect work. Creation initializes all
+of these collections empty; accepted current actions append their history and
+advanced moves increment their use count. A turn-based Stun now consumes the
+affected combatant's action during Upkeep; transformation and broader status
+semantics remain unsupported until their dedicated resolution slices define the
+transition.
 
 Some rules require a choice after an action or roll. Such a pause is a
 first-class pending decision with a stable ID, the combatant permitted to make

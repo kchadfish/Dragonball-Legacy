@@ -31,8 +31,8 @@ export const createMovesForSource = ({
       ...(styleId === undefined ? {} : { styleId }),
       category: sourceMove.category,
       tags: sourceMove.declaredTags.flatMap((tag) => {
-        const attackTag = attackTagBySourceTag[tag as keyof typeof attackTagBySourceTag];
-        return attackTag === undefined ? [] : [attackTag];
+        if (!Object.hasOwn(attackTagBySourceTag, tag)) return [];
+        return [attackTagBySourceTag[tag as keyof typeof attackTagBySourceTag]];
       }),
       description: sourceMove.description,
       effectText: sourceMove.effectText,

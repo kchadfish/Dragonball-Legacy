@@ -901,6 +901,8 @@ export interface DeactivateEffect extends BaseEffectDefinition {
   readonly type: "deactivate";
   readonly affectedType: "skill" | "transformation";
   readonly optional?: boolean;
+  /** Whether this effect removes one eligible target or every eligible target. */
+  readonly selection?: "one" | "all";
   readonly count?: NumericExpression;
   readonly selector?: MoveSelectorCondition;
 }

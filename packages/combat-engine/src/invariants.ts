@@ -1,11 +1,24 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 
-import { activeEffectIdSchema, combatantIdSchema } from "./ids.js";
+import {
+  activeEffectIdSchema,
+  combatDecisionIdSchema,
+  combatantIdSchema,
+  pendingDecisionIdSchema,
+  resolutionFrameIdSchema,
+} from "./ids.js";
+import type { CombatantId } from "./ids.js";
 import type {
+  ActiveFightState,
+  ActiveCombatEffect,
+  ActiveCostModifierEffect,
+  CombatActionRecord,
   CombatResources,
   CombatantState,
+  CompletedFightState,
   FightState,
   FightStateInvariantViolation,
+  ResolutionFrame,
 } from "./contracts.js";
 
 const validCounter = (value: number, minimum: number) =>
@@ -51,23 +64,11 @@ const validateResource = (
   }
 };
 
-const validateCombatant = (
-  recordId: string,
+const validateCombatantStats = (
   combatant: CombatantState,
+  recordId: string,
   violations: FightStateInvariantViolation[],
 ) => {
-  if (!combatantIdSchema.safeParse(recordId).success || combatant.id !== recordId) {
-    addViolation(
-      violations,
-      "invalid-combatant-identity",
-      "Each combatant record key must be a valid combatant ID matching its state ID.",
-      recordId,
-    );
-  }
-
-  validateResource("hitPoints", combatant.hitPoints, recordId, violations);
-  validateResource("ki", combatant.ki, recordId, violations);
-
   for (const [statName, statValue] of Object.entries(combatant.stats)) {
     const validStat =
       statName === "dexterityBonus"
@@ -86,6 +87,96 @@ const validateCombatant = (
       );
     }
   }
+};
+
+const validateMoveUses = (
+  combatant: CombatantState,
+  recordId: string,
+  violations: FightStateInvariantViolation[],
+) => {
+  for (const [moveId, useCount] of Object.entries(combatant.moveUses)) {
+    if (!combatant.moveIds.includes(moveId) || !validCounter(useCount, 1)) {
+      addViolation(
+        violations,
+        "invalid-use-count",
+        "Move use counts must be positive integers for moves owned by the combatant.",
+        recordId,
+      );
+    }
+  }
+};
+
+const validateItemUses = (
+  combatant: CombatantState,
+  recordId: string,
+  violations: FightStateInvariantViolation[],
+) => {
+  for (const [itemId, useCount] of Object.entries(combatant.itemUses ?? {})) {
+    if (!combatant.itemIds?.includes(itemId) || !validCounter(useCount, 1)) {
+      addViolation(
+        violations,
+        "invalid-use-count",
+        "Item use counts must be positive integers for items owned by the combatant.",
+        recordId,
+      );
+    }
+  }
+};
+
+const hasValidStatusDetails = (combatant: CombatantState, statusIndex: number) => {
+  const activeStatus = combatant.activeStatuses[statusIndex];
+  const priorStatuses = combatant.activeStatuses.slice(0, statusIndex);
+  const validDuration =
+    activeStatus.duration.type === "combat" ||
+    (activeStatus.duration.type === "turns" && validCounter(activeStatus.duration.remaining, 1)) ||
+    (activeStatus.duration.type === "uses" && validCounter(activeStatus.duration.remaining, 1));
+
+  return (
+    typeof activeStatus.statusId === "string" &&
+    activeStatus.statusId.length > 0 &&
+    typeof activeStatus.sourceDefinitionId === "string" &&
+    activeStatus.sourceDefinitionId.length > 0 &&
+    validCounter(activeStatus.stacks, 1) &&
+    validDuration &&
+    !priorStatuses.some((priorStatus) => priorStatus.statusId === activeStatus.statusId)
+  );
+};
+
+const validateActiveStatuses = (
+  combatant: CombatantState,
+  recordId: string,
+  violations: FightStateInvariantViolation[],
+) => {
+  for (const [statusIndex] of combatant.activeStatuses.entries()) {
+    if (!hasValidStatusDetails(combatant, statusIndex)) {
+      addViolation(
+        violations,
+        "invalid-status",
+        "Active statuses must have unique IDs, a source definition, positive stacks, and a valid duration.",
+        recordId,
+      );
+    }
+  }
+};
+
+const validateCombatant = (
+  recordId: string,
+  combatant: CombatantState,
+  violations: FightStateInvariantViolation[],
+) => {
+  if (!combatantIdSchema.safeParse(recordId).success || combatant.id !== recordId) {
+    addViolation(
+      violations,
+      "invalid-combatant-identity",
+      "Each combatant record key must be a valid combatant ID matching its state ID.",
+      recordId,
+    );
+  }
+
+  validateResource("hitPoints", combatant.hitPoints, recordId, violations);
+  validateResource("ki", combatant.ki, recordId, violations);
+
+  validateCombatantStats(combatant, recordId, violations);
 
   if (new Set(combatant.moveIds).size !== combatant.moveIds.length) {
     addViolation(
@@ -95,16 +186,373 @@ const validateCombatant = (
       recordId,
     );
   }
+  if (
+    combatant.itemIds !== undefined &&
+    new Set(combatant.itemIds).size !== combatant.itemIds.length
+  ) {
+    addViolation(
+      violations,
+      "invalid-combatant-identity",
+      "Combatant item IDs must not contain duplicates.",
+      recordId,
+    );
+  }
+  if (combatant.status === "defeated" && combatant.hitPoints.current !== 0) {
+    addViolation(
+      violations,
+      "invalid-combatant-state",
+      "A defeated combatant must have zero current hit points.",
+      recordId,
+    );
+  }
+  if (combatant.status === "active" && combatant.hitPoints.current === 0) {
+    addViolation(
+      violations,
+      "invalid-combatant-state",
+      "An active combatant must have positive current hit points.",
+      recordId,
+    );
+  }
+
+  validateMoveUses(combatant, recordId, violations);
+  validateItemUses(combatant, recordId, violations);
+  validateActiveStatuses(combatant, recordId, violations);
 };
 
-/**
- * Checks the invariants shared by all current initial 1v1 fight states. This
- * remains internal so future transition functions cannot emit a corrupt state.
- */
-export const validateFightState = (state: FightState): readonly FightStateInvariantViolation[] => {
-  const violations: FightStateInvariantViolation[] = [];
-  const combatantEntries = Object.entries(state.combatants);
+const combatantForId = (state: FightState, combatantId: string) => {
+  if (!Object.hasOwn(state.combatants, combatantId)) return undefined;
 
+  return state.combatants[combatantId as CombatantId];
+};
+
+const isActiveCombatant = (state: FightState, combatantId: string) =>
+  combatantForId(state, combatantId)?.status === "active";
+
+const validateCombatantReferences = (
+  state: FightState,
+  combatant: CombatantState,
+  violations: FightStateInvariantViolation[],
+) => {
+  for (const activeStatus of combatant.activeStatuses) {
+    const validDurationOwner =
+      activeStatus.duration.type !== "turns" ||
+      combatantForId(state, activeStatus.duration.ownerCombatantId) !== undefined;
+    if (
+      combatantForId(state, activeStatus.sourceCombatantId) === undefined ||
+      !validDurationOwner
+    ) {
+      addViolation(
+        violations,
+        "invalid-status",
+        "Active statuses must reference existing combatants for their source and turn owner.",
+        combatant.id,
+      );
+    }
+  }
+
+  const { transformation } = combatant;
+  if (
+    transformation !== undefined &&
+    (typeof transformation.transformationId !== "string" ||
+      transformation.transformationId.length === 0 ||
+      !validCounter(transformation.activatedOnTurn, 1) ||
+      transformation.activatedOnTurn > state.turnNumber)
+  ) {
+    addViolation(
+      violations,
+      "invalid-transformation",
+      "An active transformation must have an ID and an activation turn within the fight.",
+      combatant.id,
+    );
+  }
+};
+
+interface RuntimeActiveEffect {
+  readonly amount?: unknown;
+  readonly scope?: unknown;
+  readonly selector?: {
+    readonly baseKiCost?: unknown;
+    readonly category?: unknown;
+  };
+  readonly sourceDefinitionId?: unknown;
+  readonly type?: unknown;
+}
+
+const hasValidCostEffectDetails = (effect: ActiveCostModifierEffect) => {
+  const runtimeEffect: RuntimeActiveEffect = effect;
+  const { selector } = runtimeEffect;
+
+  return (
+    runtimeEffect.type === "modify-ki-cost" &&
+    runtimeEffect.scope === "next-eligible-action" &&
+    selector?.category === "advanced-attack" &&
+    typeof selector.baseKiCost === "number" &&
+    Number.isFinite(selector.baseKiCost) &&
+    selector.baseKiCost >= 0 &&
+    Number.isFinite(runtimeEffect.amount) &&
+    typeof runtimeEffect.sourceDefinitionId === "string" &&
+    runtimeEffect.sourceDefinitionId.length > 0
+  );
+};
+
+const hasValidRollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "modify-roll" }>) =>
+  Number.isFinite(effect.amount) &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0;
+
+const hasValidNextActionModifierDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "modify-next-action" }>,
+) =>
+  Number.isFinite(effect.modifier.amount) &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0;
+
+const hasValidConstantEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "active-constant" }>,
+) =>
+  effect.duration === "combat" &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0 &&
+  validCounter(effect.activatedOnTurn, 1) &&
+  (effect.lifecycle === undefined ||
+    effect.lifecycle === "active" ||
+    (effect.lifecycle === "deactivated" && validCounter(effect.deactivatedOnTurn ?? 0, 1)));
+
+const hasValidForcedActionEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "force-next-action" }>,
+) =>
+  effect.allowedCategories.length > 0 &&
+  effect.allowedCategories.every(
+    (category) => category === "advanced-attack" || category === "signature",
+  ) &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0;
+
+const hasValidItemDamageModifierEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "modify-item-next-attack-damage" }>,
+) =>
+  Number.isFinite(effect.amount) &&
+  validCounter(effect.remainingAttacks, 1) &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0;
+
+const hasValidActionLockEffectDetails = (
+  effect: Extract<
+    ActiveCombatEffect,
+    {
+      type:
+        | "action-lock"
+        | "prevent-move-use"
+        | "prevent-status"
+        | "prevent-combat-result"
+        | "prevent-roll-modification";
+    }
+  >,
+) => {
+  const duration = effect.duration;
+  const validDuration =
+    duration.type === "combat" ||
+    (duration.type === "turns" && validCounter(duration.remaining, 1)) ||
+    (duration.type === "until-roll-threshold" && Number.isFinite(duration.value)) ||
+    (duration.type === "until-resource-threshold" && Number.isFinite(duration.value)) ||
+    duration.type === "until-combat-result" ||
+    (duration.type === "until-turn-start-roll-threshold" &&
+      validCounter(duration.dice, 1) &&
+      validCounter(duration.sides, 1) &&
+      validCounter(duration.remainingIgnoredChecks, 0));
+  return (
+    validDuration &&
+    typeof effect.sourceDefinitionId === "string" &&
+    effect.sourceDefinitionId.length > 0
+  );
+};
+
+const hasValidActionLockCombatantReferences = (
+  state: FightState,
+  effect: Extract<
+    ActiveCombatEffect,
+    {
+      type:
+        | "action-lock"
+        | "prevent-move-use"
+        | "prevent-status"
+        | "prevent-combat-result"
+        | "prevent-roll-modification";
+    }
+  >,
+) => {
+  const duration = effect.duration;
+  if (duration.type === "turns") return isActiveCombatant(state, duration.ownerCombatantId);
+  if (
+    duration.type === "until-roll-threshold" ||
+    duration.type === "until-resource-threshold" ||
+    duration.type === "until-combat-result" ||
+    duration.type === "until-turn-start-roll-threshold"
+  )
+    return isActiveCombatant(state, duration.combatantId);
+  return true;
+};
+
+const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
+  if (effect.type === "modify-ki-cost") return hasValidCostEffectDetails(effect);
+  if (effect.type === "modify-roll") return hasValidRollEffectDetails(effect);
+  if (effect.type === "active-constant") return hasValidConstantEffectDetails(effect);
+  if (effect.type === "force-next-action") return hasValidForcedActionEffectDetails(effect);
+  if (effect.type === "modify-item-next-attack-damage")
+    return hasValidItemDamageModifierEffectDetails(effect);
+  if (effect.type === "action-lock") return hasValidActionLockEffectDetails(effect);
+  if (effect.type === "prevent-move-use") return hasValidActionLockEffectDetails(effect);
+  if (effect.type === "prevent-status") return hasValidActionLockEffectDetails(effect);
+  if (effect.type === "prevent-combat-result") return hasValidActionLockEffectDetails(effect);
+  if (effect.type === "prevent-roll-modification") return hasValidActionLockEffectDetails(effect);
+  return hasValidNextActionModifierDetails(effect);
+};
+
+const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
+  const activeEffectIds = new Set<string>();
+
+  for (const effect of state.activeEffects) {
+    const validEffect =
+      activeEffectIdSchema.safeParse(effect.id).success &&
+      !activeEffectIds.has(effect.id) &&
+      isActiveCombatant(state, effect.sourceCombatantId) &&
+      isActiveCombatant(state, effect.targetCombatantId) &&
+      ((effect.type !== "action-lock" &&
+        effect.type !== "prevent-move-use" &&
+        effect.type !== "prevent-status" &&
+        effect.type !== "prevent-combat-result" &&
+        effect.type !== "prevent-roll-modification") ||
+        hasValidActionLockCombatantReferences(state, effect)) &&
+      hasValidEffectDetails(effect);
+    if (!validEffect) {
+      addViolation(
+        violations,
+        "invalid-active-effect",
+        "Active effects must have unique valid IDs, active combatant references, and valid selectors.",
+        effect.id,
+      );
+    }
+    activeEffectIds.add(effect.id);
+  }
+};
+
+const validateActionHistory = (state: FightState, violations: FightStateInvariantViolation[]) => {
+  const decisionIds = new Set<string>();
+  let previousTurnNumber = 0;
+
+  for (const action of state.actionHistory) {
+    const validAction = (action: CombatActionRecord) => {
+      const baseValid =
+        combatDecisionIdSchema.safeParse(action.decisionId).success &&
+        combatantForId(state, action.actorId) !== undefined &&
+        validCounter(action.turnNumber, 1) &&
+        action.turnNumber <= state.turnNumber &&
+        !decisionIds.has(action.decisionId) &&
+        action.turnNumber >= previousTurnNumber;
+      if (!baseValid) return false;
+      if (action.type === "basic-attack") {
+        return combatantForId(state, action.targetCombatantId) !== undefined;
+      }
+      if (action.type === "use-move") {
+        return (
+          combatantForId(state, action.targetCombatantId) !== undefined &&
+          typeof action.moveId === "string" &&
+          action.moveId.length > 0
+        );
+      }
+      if (action.type === "use-item") {
+        return combatantForId(state, action.actorId)?.itemIds?.includes(action.itemId) ?? false;
+      }
+      return true;
+    };
+
+    if (!validAction(action)) {
+      addViolation(
+        violations,
+        "invalid-action-history",
+        "Action history must contain ordered, unique decision records with valid combatant references.",
+        action.decisionId,
+      );
+    }
+    decisionIds.add(action.decisionId);
+    previousTurnNumber = action.turnNumber;
+  }
+};
+
+const validAttackResolutionFrame = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
+) =>
+  combatDecisionIdSchema.safeParse(frame.decisionId).success &&
+  isActiveCombatant(state, frame.attackerId) &&
+  isActiveCombatant(state, frame.targetCombatantId) &&
+  frame.attackerId !== frame.targetCombatantId;
+
+const validEffectSelectionFrame = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) => {
+  if (frame.pendingDecisionId === undefined) return true;
+  if (state.status !== "active" || state.pendingDecision?.type !== "select-move") return false;
+  if (state.pendingDecision.id !== frame.pendingDecisionId) return false;
+  if (state.pendingDecision.combatantId !== frame.sourceCombatantId) return false;
+  if (!validCounter(frame.remainingSelections ?? 0, 1)) return false;
+  if (frame.optional !== undefined && typeof frame.optional !== "boolean") return false;
+  if (frame.eligibleMoveIds === undefined || frame.eligibleMoveIds.length === 0) return false;
+  if (new Set(frame.eligibleMoveIds).size !== frame.eligibleMoveIds.length) return false;
+  return frame.eligibleMoveIds.every((moveId) =>
+    state.activeEffects.some(
+      (effect) =>
+        effect.type === "active-constant" &&
+        effect.sourceCombatantId === frame.targetCombatantId &&
+        effect.sourceDefinitionId === moveId,
+    ),
+  );
+};
+
+const validEffectResolutionFrame = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) =>
+  isActiveCombatant(state, frame.sourceCombatantId) &&
+  isActiveCombatant(state, frame.targetCombatantId) &&
+  typeof frame.sourceDefinitionId === "string" &&
+  frame.sourceDefinitionId.length > 0 &&
+  validCounter(frame.effectIndex, 0) &&
+  validEffectSelectionFrame(state, frame);
+
+const validateResolutionFrames = (
+  state: FightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const frameIds = new Set<string>();
+
+  for (const frame of state.resolutionFrames) {
+    const validCommon =
+      resolutionFrameIdSchema.safeParse(frame.id).success && !frameIds.has(frame.id);
+    const validFrame =
+      validCommon &&
+      (frame.type === "attack"
+        ? validAttackResolutionFrame(state, frame)
+        : validEffectResolutionFrame(state, frame));
+
+    if (!validFrame) {
+      addViolation(
+        violations,
+        "invalid-resolution-frame",
+        "Resolution frames must have unique valid IDs and reference active combatants and resumable work.",
+        frame.id,
+      );
+    }
+    frameIds.add(frame.id);
+  }
+};
+
+const validateFightMetadata = (
+  state: FightState,
+  combatantEntries: readonly [string, CombatantState][],
+  violations: FightStateInvariantViolation[],
+) => {
   if (!validCounter(state.version, 0)) {
     addViolation(
       violations,
@@ -136,88 +584,258 @@ export const validateFightState = (state: FightState): readonly FightStateInvari
       "The initial combat engine scope supports exactly two combatants.",
     );
   }
+};
+
+const validPendingDecision = (state: ActiveFightState) => {
+  const { pendingDecision } = state;
+  if (pendingDecision === undefined) return true;
+  const selectableMoveIsEligible = (moveId: string) =>
+    state.resolutionFrames.some(
+      (frame) =>
+        frame.type === "effect" &&
+        frame.pendingDecisionId === pendingDecision.id &&
+        frame.eligibleMoveIds?.includes(moveId) === true &&
+        state.activeEffects.some(
+          (effect) =>
+            effect.type === "active-constant" &&
+            effect.sourceCombatantId === frame.targetCombatantId &&
+            effect.sourceDefinitionId === moveId,
+        ),
+    );
+  const validOptions = pendingDecision.options.every(
+    (option) =>
+      option.id.length > 0 &&
+      (option.combatantId === undefined || isActiveCombatant(state, option.combatantId)) &&
+      (option.itemId === undefined ||
+        state.combatants[pendingDecision.combatantId].itemIds?.includes(option.itemId)) &&
+      (option.moveId === undefined ||
+        (pendingDecision.type === "select-move"
+          ? selectableMoveIsEligible(option.moveId)
+          : state.combatants[pendingDecision.combatantId].moveIds.includes(option.moveId))),
+  );
+  return (
+    pendingDecisionIdSchema.safeParse(pendingDecision.id).success &&
+    pendingDecision.stateVersion === state.version &&
+    isActiveCombatant(state, pendingDecision.combatantId) &&
+    pendingDecision.options.length > 0 &&
+    new Set(pendingDecision.options.map((option) => option.id)).size ===
+      pendingDecision.options.length &&
+    validOptions &&
+    (pendingDecision.type !== "select-move" ||
+      (() => {
+        const frame = state.resolutionFrames.find(
+          (candidate): candidate is Extract<ResolutionFrame, { readonly type: "effect" }> =>
+            candidate.type === "effect" && candidate.pendingDecisionId === pendingDecision.id,
+        );
+        const declineOptions = pendingDecision.options.filter(
+          (option) => option.type === "decline",
+        );
+        return (
+          frame !== undefined &&
+          declineOptions.length <= 1 &&
+          (frame.optional === true ? declineOptions.length === 1 : declineOptions.length === 0)
+        );
+      })())
+  );
+};
+
+const validatePendingDecision = (
+  state: ActiveFightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const { pendingDecision } = state;
+  if (pendingDecision !== undefined && !validPendingDecision(state)) {
+    addViolation(
+      violations,
+      "invalid-pending-decision",
+      "A pending decision must target an active combatant, match the state version, and have unique options.",
+      pendingDecision.id,
+    );
+  }
+};
+
+type PostDefenseReactionFrame = Extract<
+  ResolutionFrame,
+  { readonly stage: "awaiting-post-defense-reaction" }
+>;
+
+const validPostDefenseNaturalRolls = (frame: PostDefenseReactionFrame | undefined) => {
+  if (frame === undefined || frame.naturalRolls.length === 0) return false;
+  if (frame.resultOverrides.length !== frame.naturalRolls.length) return false;
+  if (frame.numericResultOverrides.length !== frame.naturalRolls.length) return false;
+  const validResultOverrides = frame.resultOverrides.every(
+    (outcome) => outcome === undefined || outcome === "stopped" || outcome === "successful",
+  );
+  const validNumericOverrides = frame.numericResultOverrides.every(
+    (override) =>
+      override === undefined ||
+      ((override.attack === undefined || Number.isFinite(override.attack)) &&
+        (override.defense === undefined || Number.isFinite(override.defense))),
+  );
+  const validNaturalResults = frame.naturalRolls.every(
+    (roll) => validCounter(roll.attack, 1) && validCounter(roll.defense, 1),
+  );
+  return validResultOverrides && validNumericOverrides && validNaturalResults;
+};
+
+const validPostDefenseReactionMatch = (
+  frames: readonly PostDefenseReactionFrame[],
+  pending: { readonly id: string; readonly combatantId: CombatantId } | undefined,
+) => {
+  const frame = frames.at(0);
+  return (
+    frames.length === 1 &&
+    frame !== undefined &&
+    pending !== undefined &&
+    frame.pendingDecisionId === pending.id &&
+    frame.reactionCombatantId === pending.combatantId &&
+    validPostDefenseNaturalRolls(frame)
+  );
+};
+
+const validatePostDefenseRollFrames = (
+  state: ActiveFightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const postRollFrames = state.resolutionFrames.filter(
+    (frame) => frame.type === "attack" && frame.stage === "awaiting-post-defense-reaction",
+  );
+  const postRollPending =
+    state.pendingDecision?.type === "post-defense-roll" ? state.pendingDecision : undefined;
+  if (postRollPending === undefined && postRollFrames.length === 0) return;
+  if (!validPostDefenseReactionMatch(postRollFrames, postRollPending)) {
+    addViolation(
+      violations,
+      "invalid-resolution-frame",
+      "A post-defense reaction must have exactly one matching frame with persisted natural dice.",
+    );
+  }
+};
+
+const validateAttackFrames = (
+  state: ActiveFightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const counterFrames = state.resolutionFrames.filter(
+    (frame) => frame.type === "attack" && frame.stage === "awaiting-counter",
+  );
+  if (
+    (state.phase === "counter" && counterFrames.length === 0) ||
+    (state.phase !== "counter" && counterFrames.length > 0)
+  ) {
+    addViolation(
+      violations,
+      "invalid-resolution-frame",
+      "Counter phase must have an awaiting-counter attack frame, and those frames require counter phase.",
+    );
+  }
+
+  const defenseFrames = state.resolutionFrames.filter(
+    (frame) => frame.type === "attack" && frame.stage === "awaiting-defense",
+  );
+  const defensePending =
+    state.pendingDecision?.type === "defense-response" ? state.pendingDecision : undefined;
+  const defenseFrame = defenseFrames.at(0);
+  if (
+    (defensePending === undefined && defenseFrames.length > 0) ||
+    (defensePending !== undefined &&
+      (defenseFrames.length !== 1 ||
+        defenseFrame === undefined ||
+        defenseFrame.pendingDecisionId !== defensePending.id ||
+        defenseFrame.targetCombatantId !== defensePending.combatantId))
+  ) {
+    addViolation(
+      violations,
+      "invalid-resolution-frame",
+      "A defense response must have exactly one matching awaiting-defense attack frame.",
+    );
+  }
+
+  validatePostDefenseRollFrames(state, violations);
+};
+
+const validatePendingDecisionAndFrames = (
+  state: ActiveFightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  validatePendingDecision(state, violations);
+  validateAttackFrames(state, violations);
+};
+
+const validateActiveFight = (
+  state: ActiveFightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  if (!isActiveCombatant(state, state.activeCombatantId)) {
+    addViolation(
+      violations,
+      "invalid-active-combatant",
+      "An active fight must identify an active combatant.",
+      state.activeCombatantId,
+    );
+  }
+  if (
+    Object.values(state.combatants).filter((combatant) => combatant.status === "active").length !==
+    2
+  ) {
+    addViolation(
+      violations,
+      "invalid-active-combatant",
+      "An active fight in the initial 1v1 scope must have two active combatants.",
+    );
+  }
+  validatePendingDecisionAndFrames(state, violations);
+};
+
+const validateCompletedFight = (
+  state: CompletedFightState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const { completion } = state;
+  const { winnerCombatantId: winner } = completion;
+  const requiresWinner = completion.type === "defeat" || completion.type === "surrender";
+
+  if (
+    (requiresWinner && winner === undefined) ||
+    (winner !== undefined && combatantForId(state, winner) === undefined)
+  ) {
+    addViolation(
+      violations,
+      "invalid-completion",
+      "Completed defeat and surrender fights require an existing winner.",
+    );
+  }
+  if (state.activeEffects.length > 0 || state.resolutionFrames.length > 0) {
+    addViolation(
+      violations,
+      "invalid-completion",
+      "A completed fight must not retain unresolved active effects or resolution frames.",
+    );
+  }
+};
+
+/**
+ * Checks the invariants shared by all current initial 1v1 fight states. This
+ * remains internal so future transition functions cannot emit a corrupt state.
+ */
+export const validateFightState = (state: FightState): readonly FightStateInvariantViolation[] => {
+  const violations: FightStateInvariantViolation[] = [];
+  const combatantEntries = Object.entries(state.combatants);
+
+  validateFightMetadata(state, combatantEntries, violations);
 
   for (const [recordId, combatant] of combatantEntries) {
     validateCombatant(recordId, combatant, violations);
+    validateCombatantReferences(state, combatant, violations);
   }
-  const activeEffectIds = new Set<string>();
-  for (const effect of state.activeEffects) {
-    const source = state.combatants[effect.sourceCombatantId];
-    const target = state.combatants[effect.targetCombatantId];
-    const validEffect =
-      activeEffectIdSchema.safeParse(effect.id).success &&
-      !activeEffectIds.has(effect.id) &&
-      source?.status === "active" &&
-      target?.status === "active" &&
-      effect.type === "modify-ki-cost" &&
-      effect.scope === "next-eligible-action" &&
-      effect.selector.category === "advanced-attack" &&
-      Number.isFinite(effect.selector.baseKiCost) &&
-      effect.selector.baseKiCost >= 0 &&
-      Number.isFinite(effect.amount) &&
-      effect.sourceDefinitionId.length > 0;
-    if (!validEffect) {
-      addViolation(
-        violations,
-        "invalid-combatant-identity",
-        "Active effects must have unique valid IDs, active combatant references, and valid selectors.",
-        effect.id,
-      );
-    }
-    activeEffectIds.add(effect.id);
-  }
+  validateActiveEffects(state, violations);
+  validateActionHistory(state, violations);
+  validateResolutionFrames(state, violations);
 
   if (state.status === "active") {
-    const activeCombatant = state.combatants[state.activeCombatantId];
-    if (activeCombatant?.status !== "active") {
-      addViolation(
-        violations,
-        "invalid-active-combatant",
-        "An active fight must identify an active combatant.",
-        state.activeCombatantId,
-      );
-    }
-    if (
-      Object.values(state.combatants).filter((combatant) => combatant.status === "active")
-        .length !== 2
-    ) {
-      addViolation(
-        violations,
-        "invalid-active-combatant",
-        "An active fight in the initial 1v1 scope must have two active combatants.",
-      );
-    }
-
-    if (state.pendingDecision !== undefined) {
-      const pendingCombatant = state.combatants[state.pendingDecision.combatantId];
-      if (
-        state.pendingDecision.stateVersion !== state.version ||
-        pendingCombatant?.status !== "active" ||
-        state.pendingDecision.options.length === 0 ||
-        new Set(state.pendingDecision.options.map((option) => option.id)).size !==
-          state.pendingDecision.options.length
-      ) {
-        addViolation(
-          violations,
-          "invalid-pending-decision",
-          "A pending decision must target an active combatant, match the state version, and have unique options.",
-          state.pendingDecision.id,
-        );
-      }
-    }
+    validateActiveFight(state, violations);
   } else {
-    const { completion } = state;
-    const winner = completion.winnerCombatantId;
-    if (
-      ((completion.type === "defeat" || completion.type === "surrender") && winner === undefined) ||
-      (winner !== undefined && state.combatants[winner] === undefined)
-    ) {
-      addViolation(
-        violations,
-        "invalid-completion",
-        "Completed defeat and surrender fights require an existing winner.",
-      );
-    }
+    validateCompletedFight(state, violations);
   }
 
   return violations;

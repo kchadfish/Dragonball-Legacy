@@ -20,6 +20,7 @@ export type CombatDecisionId = CombatId<"decision">;
 export type CombatEventId = CombatId<"event">;
 export type PendingDecisionId = CombatId<"pending-decision">;
 export type ActiveEffectId = CombatId<"active-effect">;
+export type ResolutionFrameId = CombatId<"resolution-frame">;
 
 export const fightIdSchema = createCombatIdSchema("fight");
 export const combatantIdSchema = createCombatIdSchema("combatant");
@@ -27,3 +28,4 @@ export const combatDecisionIdSchema = createCombatIdSchema("decision");
 export const combatEventIdSchema = createCombatIdSchema("event");
 export const pendingDecisionIdSchema = createCombatIdSchema("pending-decision");
 export const activeEffectIdSchema = createCombatIdSchema("active-effect");
+export const resolutionFrameIdSchema = createCombatIdSchema("resolution-frame");

@@ -49,8 +49,6 @@ describe("saga and rule definitions", () => {
   it("rejects invalid source-derived saga and rule data", () => {
     const saga = SAGA_DEFINITIONS[0];
     const rule = RULE_SECTION_DEFINITIONS[0];
-    if (saga === undefined || rule === undefined)
-      throw new Error("Expected generated source data.");
 
     expect(validateSagaDefinitions([{ ...saga, id: "saga invalid" }])).toContain(
       "Invalid saga ID: saga invalid",

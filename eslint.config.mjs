@@ -92,24 +92,5 @@ export default tseslint.config(
     files: ["scripts/**/*.ts"],
     rules: staticDataRuleOverrides,
   },
-  {
-    // Game-data validation deliberately performs exhaustive, independent rule checks.
-    files: ["packages/game-data/src/validation.ts"],
-    rules: {
-      "sonarjs/cognitive-complexity": "off",
-    },
-  },
-  {
-    // These deterministic state-machine reducers are covered by transition tests;
-    // split them only when a distinct domain operation emerges.
-    files: [
-      "packages/combat-engine/src/invariants.ts",
-      "packages/combat-engine/src/progress-fight.ts",
-    ],
-    rules: {
-      "sonarjs/cognitive-complexity": "off",
-      "sonarjs/no-nested-conditional": "off",
-    },
-  },
   prettier,
 );

@@ -13,6 +13,8 @@ import {
   combatantIdSchema,
   combatEventIdSchema,
   fightIdSchema,
+  pendingDecisionIdSchema,
+  resolutionFrameIdSchema,
 } from "./ids.js";
 import { createTestCombatDependencies } from "./testing/index.js";
 
@@ -22,11 +24,10 @@ const deathBeamId = "move-afterlife-death-beam";
 
 const input: CreateFightInput = {
   mode: "spar",
-  activeCombatantIndex: 0,
   combatants: [
     {
       maximumHitPoints: 100,
-      stats: { power: 20, dexterity: 4, dexterityBonus: 0 },
+      stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
       moveIds: [deathBeamId],
     },
     {
@@ -42,9 +43,11 @@ const dependencies = (randomValues: readonly number[]) =>
     fightIds: [fightIdSchema.parse("fight:death-beam")],
     combatantIds: [attackerId, defenderId],
     activeEffectIds: [activeEffectIdSchema.parse("active-effect:death-beam-cost")],
-    eventIds: Array.from({ length: 24 }, (_, index) =>
+    eventIds: Array.from({ length: 48 }, (_, index) =>
       combatEventIdSchema.parse(`event:death-${index + 1}`),
     ),
+    pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:move-defense")],
+    resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:move-defense")],
   });
 
 const success = <T>(result: { readonly ok: boolean; readonly value?: T }): T => {
@@ -74,6 +77,250 @@ const deathBeamDecision = (actorId: typeof attackerId | typeof defenderId, versi
 });
 
 describe("Death Beam advanced-attack slice", () => {
+  it("enumerates and resolves another converted literal attack through the shared resolver", () => {
+    const deps = dependencies([20, 1]);
+    const genericFight = success(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            { ...input.combatants[0], moveIds: ["move-afterlife-light-grenade"] },
+            input.combatants[1],
+          ],
+        },
+        deps,
+      ),
+    );
+    const state = active(success(advanceFight(genericFight.state, deps)).state);
+
+    expect(enumerateLegalDecisions(state, attackerId)).toContainEqual({
+      type: "use-move",
+      actorId: attackerId,
+      moveId: "move-afterlife-light-grenade",
+      targetCombatantId: defenderId,
+    });
+    const transition = success(
+      submitCombatDecision(
+        state,
+        {
+          ...deathBeamDecision(attackerId, 1),
+          id: combatDecisionIdSchema.parse("decision:light-grenade"),
+          moveId: "move-afterlife-light-grenade",
+        },
+        deps,
+      ),
+    );
+
+    expect(transition.state).toMatchObject({ version: 2, phase: "end" });
+    expect(transition.state.combatants[attackerId].ki.current).toBe(3);
+    expect(transition.state.combatants[defenderId].hitPoints.current).toBe(91);
+    expect(transition.events.map((event) => event.type)).toEqual([
+      "move-used",
+      "ki-changed",
+      "attack-rolled",
+      "defense-rolled",
+      "attack-resolved",
+      "damage-applied",
+      "phase-changed",
+    ]);
+  });
+
+  it("pauses a converted attack for the defender to choose a defense response", () => {
+    const deps = dependencies([20, 1]);
+    const fight = success(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            { ...input.combatants[0], moveIds: ["move-afterlife-light-grenade"] },
+            { ...input.combatants[1], moveIds: ["move-aoyosumu-defiant-stance"] },
+          ],
+        },
+        deps,
+      ),
+    );
+    const actionState = active(success(advanceFight(fight.state, deps)).state);
+    const pending = success(
+      submitCombatDecision(
+        actionState,
+        {
+          ...deathBeamDecision(attackerId, 1),
+          id: combatDecisionIdSchema.parse("decision:light-grenade-defense"),
+          moveId: "move-afterlife-light-grenade",
+        },
+        deps,
+      ),
+    );
+    if (pending.state.status !== "active")
+      throw new Error("Expected active pending-defense state.");
+
+    expect(pending.state.pendingDecision).toMatchObject({
+      type: "defense-response",
+      combatantId: defenderId,
+      options: expect.arrayContaining([
+        { id: "roll-defense", type: "roll-defense" },
+        expect.objectContaining({
+          id: "use-block:move-aoyosumu-defiant-stance",
+          type: "use-block",
+        }),
+      ]),
+    });
+    const resolved = success(
+      submitCombatDecision(
+        pending.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:roll-move-defense"),
+          actorId: defenderId,
+          expectedStateVersion: 2,
+          pendingDecisionId: pendingDecisionIdSchema.parse("pending-decision:move-defense"),
+          optionId: "roll-defense",
+        },
+        deps,
+      ),
+    );
+
+    expect(resolved.state).toMatchObject({ version: 3, phase: "end" });
+    expect(resolved.state.combatants[defenderId].hitPoints.current).toBe(91);
+  });
+
+  it("applies a selected converted Block to a converted attack and charges its derived cost", () => {
+    const deps = dependencies([20]);
+    const fight = success(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            { ...input.combatants[0], moveIds: ["move-afterlife-light-grenade"] },
+            { ...input.combatants[1], moveIds: ["move-aoyosumu-defiant-stance"] },
+          ],
+        },
+        deps,
+      ),
+    );
+    const actionState = active(success(advanceFight(fight.state, deps)).state);
+    const pending = success(
+      submitCombatDecision(
+        actionState,
+        {
+          ...deathBeamDecision(attackerId, 1),
+          id: combatDecisionIdSchema.parse("decision:light-grenade-block"),
+          moveId: "move-afterlife-light-grenade",
+        },
+        deps,
+      ),
+    );
+    if (pending.state.status !== "active")
+      throw new Error("Expected active pending-defense state.");
+    const resolved = success(
+      submitCombatDecision(
+        pending.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:block-move-defense"),
+          actorId: defenderId,
+          expectedStateVersion: 2,
+          pendingDecisionId: pendingDecisionIdSchema.parse("pending-decision:move-defense"),
+          optionId: "use-block:move-aoyosumu-defiant-stance",
+        },
+        deps,
+      ),
+    );
+
+    expect(resolved.state).toMatchObject({ version: 3, phase: "end" });
+    expect(resolved.state.combatants[attackerId].ki.current).toBe(3);
+    expect(resolved.state.combatants[defenderId]).toMatchObject({
+      hitPoints: { current: 100 },
+      ki: { current: 4 },
+      moveUses: { "move-aoyosumu-defiant-stance": 1 },
+    });
+    expect(resolved.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "move-used", moveId: "move-aoyosumu-defiant-stance" }),
+        expect.objectContaining({ type: "attack-resolved", outcome: "stopped" }),
+      ]),
+    );
+  });
+
+  it("applies a converted successful status effect and enforces it at the affected turn's upkeep", () => {
+    const deps = dependencies([20, 1, 20, 1, 20, 1, 20, 1, 20, 1, 20, 1]);
+    const fight = success(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            { ...input.combatants[0], moveIds: ["move-afterlife-meteor-smash"] },
+            input.combatants[1],
+          ],
+        },
+        deps,
+      ),
+    );
+    const actionState = active(success(advanceFight(fight.state, deps)).state);
+    const attack = success(
+      submitCombatDecision(
+        actionState,
+        {
+          ...deathBeamDecision(attackerId, 1),
+          id: combatDecisionIdSchema.parse("decision:meteor-smash"),
+          moveId: "move-afterlife-meteor-smash",
+        },
+        deps,
+      ),
+    );
+    if (attack.state.status !== "active") throw new Error("Expected active post-attack state.");
+
+    expect(attack.state.combatants[defenderId]).toMatchObject({
+      hitPoints: { current: 94 },
+      activeStatuses: [expect.objectContaining({ statusId: "stun" })],
+    });
+    const defenderUpkeep = success(advanceFight(attack.state, deps));
+    const skipped = success(advanceFight(defenderUpkeep.state, deps));
+    expect(skipped.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "action-skipped", combatantId: defenderId }),
+      ]),
+    );
+  });
+
+  it("treats a turn-limited petrified status as an action blocker", () => {
+    const { state, deps } = actionState([]);
+    const petrified: ActiveFightState = {
+      ...state,
+      activeCombatantId: defenderId,
+      phase: "upkeep",
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          activeStatuses: [
+            {
+              statusId: "petrified",
+              sourceCombatantId: attackerId,
+              sourceDefinitionId: "move-afterlife-petrifying-spit",
+              stacks: 1,
+              duration: { type: "turns", ownerCombatantId: defenderId, remaining: 1 },
+            },
+          ],
+        },
+      },
+    };
+    const skipped = success(advanceFight(petrified, deps));
+    expect(skipped.state).toMatchObject({ phase: "end" });
+    expect(skipped.state.combatants[defenderId].activeStatuses).toHaveLength(1);
+    const afterTurn = success(advanceFight(skipped.state, deps));
+    expect(afterTurn.state.combatants[defenderId].activeStatuses).toEqual([]);
+    expect(skipped.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "action-skipped",
+          combatantId: defenderId,
+          reason: "status",
+        }),
+      ]),
+    );
+  });
+
   it("enumerates Death Beam only when its owner is the active combatant", () => {
     const { state } = actionState([]);
 
@@ -90,8 +337,9 @@ describe("Death Beam advanced-attack slice", () => {
     const transition = success(submitCombatDecision(state, deathBeamDecision(attackerId, 1), deps));
 
     expect(transition.state).toMatchObject({ version: 2, phase: "end", eventSequence: 11 });
-    expect(transition.state.combatants[attackerId]?.ki.current).toBe(4);
-    expect(transition.state.combatants[defenderId]?.hitPoints.current).toBe(93);
+    expect(transition.state.combatants[attackerId].ki.current).toBe(4);
+    expect(transition.state.combatants[attackerId].moveUses).toEqual({ [deathBeamId]: 1 });
+    expect(transition.state.combatants[defenderId].hitPoints.current).toBe(93);
     expect(transition.state.activeEffects).toEqual([
       {
         id: activeEffectIdSchema.parse("active-effect:death-beam-cost"),
@@ -104,6 +352,14 @@ describe("Death Beam advanced-attack slice", () => {
         scope: "next-eligible-action",
       },
     ]);
+    expect(transition.state.actionHistory).toEqual([
+      expect.objectContaining({
+        type: "use-move",
+        actorId: attackerId,
+        targetCombatantId: defenderId,
+        moveId: deathBeamId,
+      }),
+    ]);
     expect(transition.events.map((event) => event.type)).toEqual([
       "move-used",
       "ki-changed",
@@ -111,8 +367,8 @@ describe("Death Beam advanced-attack slice", () => {
       "defense-rolled",
       "attack-resolved",
       "damage-applied",
-      "effect-activated",
       "phase-changed",
+      "effect-activated",
     ]);
   });
 
@@ -127,7 +383,7 @@ describe("Death Beam advanced-attack slice", () => {
       submitCombatDecision(defenderAction.state, deathBeamDecision(defenderId, 4), deps),
     );
 
-    expect(transition.state.combatants[defenderId]?.ki.current).toBe(3);
+    expect(transition.state.combatants[defenderId].ki.current).toBe(3);
     expect(transition.state.activeEffects).toEqual([]);
     expect(transition.events).toEqual(
       expect.arrayContaining([

@@ -57,8 +57,6 @@ describe("quest and NPC definitions", () => {
   it("rejects broken NPC and encounter references", () => {
     const npc = NPC_DEFINITIONS[0];
     const encounter = QUEST_ENCOUNTER_DEFINITIONS[0];
-    if (npc === undefined || encounter === undefined)
-      throw new Error("Expected generated encounter data.");
 
     expect(validateNpcDefinitions([{ ...npc, id: "bad npc" }], MOVE_DEFINITIONS)).toEqual(
       expect.arrayContaining(["Invalid NPC ID: bad npc"]),

@@ -134,7 +134,6 @@ describe("item definitions", () => {
 
   it("rejects broken item data", () => {
     const item = ITEM_DEFINITIONS[0];
-    if (item === undefined) throw new Error("Expected a generated item definition.");
 
     expect(
       validateItemDefinitions([

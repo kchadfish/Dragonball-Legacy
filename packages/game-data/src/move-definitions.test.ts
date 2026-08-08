@@ -44,4 +44,23 @@ describe("typed move catalog", () => {
       value: 0,
     });
   });
+
+  it("converts Block eligibility, multi-die behavior, and X-based cost formulas", () => {
+    const defiantStance = MOVE_DEFINITIONS.find(
+      (move) => move.id === "move-aoyosumu-defiant-stance",
+    );
+    const dazzlingGymnastics = MOVE_DEFINITIONS.find(
+      (move) => move.id === "move-akaikaru-dazzling-gymnastics",
+    );
+
+    expect(defiantStance?.mechanics.block).toEqual({
+      allowedAttackTypes: ["physical", "energy"],
+      baseCostAdjustment: -1,
+    });
+    expect(dazzlingGymnastics?.mechanics.block).toEqual({
+      allowedAttackTypes: ["physical"],
+      stopsAllDice: true,
+      baseCostAdjustment: 0,
+    });
+  });
 });

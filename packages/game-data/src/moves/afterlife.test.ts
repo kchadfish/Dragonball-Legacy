@@ -200,9 +200,12 @@ describe("AFTERLIFE_MOVES", () => {
   });
 
   it("captures threshold-gated cost, lock, and resource effects from Hell", () => {
-    expect(AFTERLIFE_MOVES.find((move) => move.name === "Death Beam")?.effects).toEqual([
-      expect.objectContaining({ type: "modify-cost", amount: { type: "literal", value: 1 } }),
-    ]);
+    expect(AFTERLIFE_MOVES.find((move) => move.name === "Death Beam")?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
+        expect.objectContaining({ type: "modify-cost", amount: { type: "literal", value: 1 } }),
+      ]),
+    );
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Evil Impulse")?.effects).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: "lock", affectedType: "power-up" })]),
     );

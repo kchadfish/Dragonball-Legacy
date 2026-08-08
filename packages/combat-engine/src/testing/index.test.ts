@@ -7,6 +7,10 @@ import {
   combatantIdSchema,
   fightIdSchema,
   pendingDecisionIdSchema,
+  resolutionFrameIdSchema,
+  SystemCombatIdSource,
+  SystemRandomSource,
+  SeededRandomSource,
 } from "../index.js";
 import {
   createTestCombatDependencies,
@@ -33,6 +37,21 @@ describe("combat-engine testing dependencies", () => {
     expect(clock.now().toISOString()).toBe("2026-08-04T12:00:00.000Z");
   });
 
+  it("replays seeded randomness while system randomness respects requested bounds", () => {
+    const first = new SeededRandomSource(42);
+    const second = new SeededRandomSource(42);
+    const system = new SystemRandomSource();
+
+    expect([first.integer(1, 30), first.integer(1, 30), first.integer(1, 30)]).toEqual([
+      second.integer(1, 30),
+      second.integer(1, 30),
+      second.integer(1, 30),
+    ]);
+    expect(system.integer(4, 4)).toBe(4);
+    expect(() => new SeededRandomSource(-1)).toThrow(RangeError);
+    expect(() => first.integer(2, 1)).toThrow(RangeError);
+  });
+
   it("provides deterministic typed IDs and dependency bundles", () => {
     const ids = new SequenceCombatIdSource({
       activeEffectIds: [activeEffectIdSchema.parse("active-effect:burning")],
@@ -41,6 +60,7 @@ describe("combat-engine testing dependencies", () => {
       eventIds: [combatEventIdSchema.parse("event:turn-started")],
       fightIds: [fightIdSchema.parse("fight:opening-spar")],
       pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:reaction")],
+      resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:attack")],
     });
 
     expect(ids.nextFightId()).toBe("fight:opening-spar");
@@ -49,6 +69,7 @@ describe("combat-engine testing dependencies", () => {
     expect(ids.nextEventId()).toBe("event:turn-started");
     expect(ids.nextPendingDecisionId()).toBe("pending-decision:reaction");
     expect(ids.nextActiveEffectId()).toBe("active-effect:burning");
+    expect(ids.nextResolutionFrameId()).toBe("resolution-frame:attack");
     expect(() => ids.nextFightId()).toThrow("fightIds");
 
     const dependencies = createTestCombatDependencies([5], new Date("2026-08-04T12:00:00.000Z"), {
@@ -56,5 +77,17 @@ describe("combat-engine testing dependencies", () => {
     });
     expect(dependencies.random.integer(1, 6)).toBe(5);
     expect(dependencies.ids.nextFightId()).toBe("fight:second-spar");
+  });
+
+  it("creates valid namespaced production IDs", () => {
+    const ids = new SystemCombatIdSource();
+
+    expect(fightIdSchema.safeParse(ids.nextFightId()).success).toBe(true);
+    expect(combatantIdSchema.safeParse(ids.nextCombatantId()).success).toBe(true);
+    expect(combatDecisionIdSchema.safeParse(ids.nextDecisionId()).success).toBe(true);
+    expect(combatEventIdSchema.safeParse(ids.nextEventId()).success).toBe(true);
+    expect(pendingDecisionIdSchema.safeParse(ids.nextPendingDecisionId()).success).toBe(true);
+    expect(activeEffectIdSchema.safeParse(ids.nextActiveEffectId()).success).toBe(true);
+    expect(resolutionFrameIdSchema.safeParse(ids.nextResolutionFrameId()).success).toBe(true);
   });
 });

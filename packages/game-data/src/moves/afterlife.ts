@@ -1779,6 +1779,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
     "move-afterlife-death-beam",
     [
       {
+        trigger: "passive",
+        target: "self",
+        type: "prevent-resolution",
+        prevention: "block",
+        sourceText: "Your opponent cannot BLOCK this attack",
+      },
+      {
         trigger: "on-success",
         target: "opponent",
         type: "modify-cost",
