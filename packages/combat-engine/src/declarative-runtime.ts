@@ -17,6 +17,8 @@ export interface NumericExpressionContext {
   readonly turnNumber: number;
   readonly participantCount: number;
   readonly completedTurnCount: number;
+  /** Present only after the owning attack has persisted its roll results. */
+  readonly successfulHitCount?: number;
   readonly moves: ReadonlyMap<string, MoveDefinition>;
   readonly moveActivationCounts?: ReadonlyMap<string, number>;
 }
@@ -124,6 +126,10 @@ const durableExpressionHandlers: Partial<
   "move-activation-count": (expression, context) =>
     isType(expression, "move-activation-count")
       ? (context.moveActivationCounts?.get(expression.moveId) ?? 0) * expression.perActivation
+      : undefined,
+  "successful-hit-count": (expression, context) =>
+    isType(expression, "successful-hit-count") && context.successfulHitCount !== undefined
+      ? context.successfulHitCount * (expression.perHit ?? 1)
       : undefined,
   minimum: (expression, context) => {
     if (!isType(expression, "minimum")) return undefined;

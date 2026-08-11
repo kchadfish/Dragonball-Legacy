@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ActiveFightState, CreateFightInput, FightState } from "./index.js";
 import {
+  activeEffectIdSchema,
   advanceFight,
   createFight,
   enumerateLegalDecisions,
@@ -68,6 +69,66 @@ const createInitialState = (dependencies = createDependencies()) => {
 };
 
 describe("initial turn progression", () => {
+  it("persists a successful move's generic next-roll modifier with its selector", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 10, 1],
+      new Date("2026-08-08T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:sword-blast-next-roll")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:sword-blast-next-roll")],
+        eventIds: Array.from({ length: 20 }, (_, index) =>
+          combatEventIdSchema.parse(`event:sword-blast-next-roll-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-sword-blast"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const firstAction = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const swordBlast = requireTransition(
+      submitCombatDecision(
+        firstAction,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:sword-blast-next-roll"),
+          actorId: firstCombatantId,
+          expectedStateVersion: firstAction.version,
+          moveId: "move-afterlife-sword-blast",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    expect(swordBlast.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "modify-next-action",
+        targetCombatantId: firstCombatantId,
+        modifier: { type: "roll", roll: "attack", modifier: "sides", amount: 3 },
+        selector: expect.objectContaining({ category: "advanced-attack" }),
+      }),
+    );
+  });
+
   it("enforces persisted prevent-move-use selectors in legal actions and direct submissions", () => {
     const { state, dependencies } = createInitialState();
     const action = requireActiveFightState(
@@ -645,6 +706,205 @@ describe("initial turn progression", () => {
       expect.objectContaining({ type: "damage-applied", amount: 2 }),
     );
     expect(attack.state.activeEffects).toEqual([]);
+  });
+
+  it("applies a successful current-action damage modifier through the public transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [28, 1],
+      new Date("2026-08-09T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:current-action-damage")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 12 }, (_, index) =>
+          combatEventIdSchema.parse(`event:current-action-damage-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 2, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-kamehameha"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const attack = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:current-action-damage"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-afterlife-kamehameha",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(attack.state.version).toBe(action.version + 1);
+    expect(attack.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 13, remainingHitPoints: 87 }),
+    );
+    expect(attack.state.status).toBe("active");
+    expect(attack.state.combatants[secondCombatantId].hitPoints.current).toBe(87);
+  });
+
+  it("enforces a passive resolution threshold through the public move transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [1, 10],
+      new Date("2026-08-10T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:scatter-shot-threshold")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 12 }, (_, index) =>
+          combatEventIdSchema.parse(`event:scatter-shot-threshold-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 30, dexterity: 2, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-scatter-shot"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const attack = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:scatter-shot-threshold"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-afterlife-scatter-shot",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(attack.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "defense-rolled", naturalResult: 10, result: 10 }),
+        expect.objectContaining({ type: "attack-resolved", outcome: "successful" }),
+        expect.objectContaining({ type: "damage-applied", amount: 15 }),
+      ]),
+    );
+  });
+
+  it("persists a successful-hit-count roll modifier through the public transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [28, 1, 28, 1, 28, 1, 28, 1, 28, 1, 28, 1, 28, 1, 10, 1],
+      new Date("2026-08-09T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:successful-hit-count")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:successful-hit-count")],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:successful-hit-count-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 2, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-bakuretsu-ranma"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const firstAction = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const firstAttack = requireTransition(
+      submitCombatDecision(
+        firstAction,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:successful-hit-count-source"),
+          actorId: firstCombatantId,
+          expectedStateVersion: firstAction.version,
+          moveId: "move-afterlife-bakuretsu-ranma",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    expect(firstAttack.state.activeEffects).toEqual([
+      expect.objectContaining({
+        type: "modify-next-action",
+        targetCombatantId: secondCombatantId,
+        modifier: { type: "roll", roll: "attack", modifier: "result", amount: -7 },
+        scope: "next-roll",
+      }),
+    ]);
+
+    const opponentUpkeep = requireTransition(advanceFight(firstAttack.state, dependencies));
+    const opponentAction = requireTransition(advanceFight(opponentUpkeep.state, dependencies));
+    const secondAttack = requireTransition(
+      submitCombatDecision(
+        opponentAction.state,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:successful-hit-count-consumer"),
+          actorId: secondCombatantId,
+          expectedStateVersion: opponentAction.state.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: firstCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(secondAttack.events).toContainEqual(
+      expect.objectContaining({ type: "attack-rolled", naturalResult: 10, result: 3 }),
+    );
+    expect(secondAttack.state.activeEffects).toEqual([]);
   });
 
   it("progresses upkeep through a power-up, end, and the next combatant's action", () => {

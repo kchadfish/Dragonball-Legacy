@@ -4,10 +4,11 @@ import type {
   MoveSelectorCondition,
 } from "@dragonball-resurgence/game-data";
 
-import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
+import { evaluateDurableNumericExpression, matchesMoveSelector } from "./declarative-runtime.js";
+import { compileEffectPlan, executeCompiledEffect } from "./effect-executors.js";
 
 import type { ActiveStatus, CombatantState } from "./contracts.js";
-import type { AttackDieRoll } from "./attack-rolls.js";
+import type { AttackDieRoll, ResolutionThresholdRule } from "./attack-rolls.js";
 
 export interface MoveEffectRuntimeContext {
   readonly self: CombatantState;
@@ -51,6 +52,7 @@ export interface LockApplication {
   readonly duration:
     | { readonly type: "combat" }
     | { readonly type: "turns"; readonly remaining: number }
+    | { readonly type: "next-actions"; readonly remaining: number }
     | {
         readonly type: "until-roll-threshold";
         readonly roll: "attack" | "defense" | "transformation";
@@ -111,6 +113,22 @@ export interface RollModification {
   readonly roll: "attack" | "defense";
   readonly modifier: "result" | "sides";
   readonly amount: number;
+  readonly selector?: MoveSelectorCondition;
+  /** Retained so state mutation can distinguish immediate from durable roll changes. */
+  readonly scope?:
+    "combat" | "following-action" | "next-action" | "next-actions" | "next-roll" | "next-rolls";
+  /** Resolved count for next-actions/next-rolls scopes. */
+  readonly remaining?: number;
+}
+
+export interface DamageModification {
+  readonly target: "self" | "opponent";
+  readonly operation: "add" | "multiply" | "set";
+  /** Resolved damage amount, or the percentage for a multiplicative change. */
+  readonly amount: number;
+  readonly selector?: MoveSelectorCondition;
+  readonly scope?: "current-action" | "following-action" | "next-action" | "next-actions";
+  readonly remaining?: number;
 }
 
 export interface CostModification {
@@ -134,6 +152,20 @@ export interface RollResultOverride {
   readonly resultScope: "matching-die";
 }
 
+export interface ResolutionThresholdApplication extends ResolutionThresholdRule {
+  readonly target: "self" | "opponent";
+  readonly selector?: MoveSelectorCondition;
+  readonly scope?: "current-action" | "next-action";
+  readonly duration?:
+    | { readonly type: "combat" }
+    | {
+        readonly type: "until-roll-threshold";
+        readonly roll: "attack" | "defense";
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
+      };
+}
+
 /** A declared prohibition against a resolution outcome for the current action. */
 export interface ResolutionPreventionApplication {
   readonly target: "self" | "opponent";
@@ -152,6 +184,18 @@ export interface RollModificationPreventionApplication {
   readonly roll: "attack" | "defense";
   readonly modifier: "result" | "sides" | "any";
   readonly selector?: MoveSelectorCondition;
+  readonly exemptSourceEffect?: boolean;
+  readonly duration: LockApplication["duration"];
+}
+
+export interface MoveModificationPreventionApplication {
+  readonly target: "self" | "opponent";
+  readonly actor: "self" | "opponent" | "any";
+  readonly selector: MoveSelectorCondition;
+  readonly aspects: readonly ("cost" | "damage" | "dice-sides" | "effects" | "roll-results")[];
+  readonly effectSourceStyleExcludes?: string;
+  readonly exceptSourceMoveIds?: readonly string[];
+  readonly operations?: readonly "reduce"[];
   readonly duration: LockApplication["duration"];
 }
 
@@ -219,7 +263,10 @@ const statComparisonMatches = (
 ) => {
   const left = condition.left === "self" ? context.self.stats : context.opponent.stats;
   const right = condition.right === "self" ? context.self.stats : context.opponent.stats;
-  const key = condition.stat === "dexterity-bonus" ? "dexterityBonus" : "dexterity";
+  let key: keyof typeof left;
+  if (condition.stat === "power") key = "power";
+  else if (condition.stat === "dexterity-bonus") key = "dexterityBonus";
+  else key = "dexterity";
   if (condition.comparison === "higher-than") return left[key] > right[key];
   if (condition.comparison === "lower-than") return left[key] < right[key];
   return left[key] === right[key];
@@ -314,7 +361,7 @@ const conditionRollDieResultMatches = (
   condition: Extract<RuntimeCondition, { readonly type: "roll-die-result" }>,
   context: MoveEffectRuntimeContext,
 ) => {
-  const roll = context.rolls?.[condition.index];
+  const roll = context.rolls?.[condition.index - 1];
   if (roll === undefined) return false;
   const result = rollValue(roll, condition.roll, false);
   return result !== undefined && (condition.result === "successful" ? result >= 16 : result < 16);
@@ -324,7 +371,7 @@ const conditionRollDieThresholdMatches = (
   condition: Extract<RuntimeCondition, { readonly type: "roll-die-threshold" }>,
   context: MoveEffectRuntimeContext,
 ) => {
-  const roll = context.rolls?.[condition.index];
+  const roll = context.rolls?.[condition.index - 1];
   if (roll === undefined) return false;
   return numericComparison(
     condition.value,
@@ -430,9 +477,17 @@ const numeric = (
     turnNumber: context.turnNumber,
     participantCount: 2,
     completedTurnCount: context.completedTurnCount,
+    successfulHitCount: context.successfulHitCount,
     moves: context.moves,
     moveActivationCounts: context.moveActivationCounts,
   });
+
+const damageAmount = (
+  expression: NonNullable<Extract<EffectDefinition, { readonly type: "modify-damage" }>["percent"]>,
+  value: number,
+  context: MoveEffectRuntimeContext,
+) =>
+  expression.type === "stat-percent" ? value : Math.round((context.self.stats.power * value) / 100);
 
 export const adjustedMoveDamage = (
   move: MoveDefinition,
@@ -448,10 +503,59 @@ export const adjustedMoveDamage = (
       return damage;
     const value = effect.percent === undefined ? undefined : numeric(effect.percent, context);
     if (value === undefined) return damage;
-    if (effect.operation === "set") return Math.round((context.self.stats.power * value) / 100);
+    if (
+      effect.selector !== undefined &&
+      (context.triggeringMove === undefined ||
+        !matchesMoveSelector(context.triggeringMove, effect.selector))
+    )
+      return damage;
+    if (effect.operation === "set") return damageAmount(effect.percent!, value, context);
     if (effect.operation === "multiply") return Math.round((damage * value) / 100);
-    return damage + Math.round((context.self.stats.power * value) / 100);
+    return damage + damageAmount(effect.percent!, value, context);
   }, baseDamage);
+
+const damageModificationEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "modify-damage" }>,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+): EffectChanges => {
+  if (
+    effect.percent === undefined ||
+    effect.optional === true ||
+    effect.activationGroup !== undefined
+  )
+    return emptyEffectChanges();
+  const amount = numeric(effect.percent, context);
+  if (amount === undefined) return emptyEffectChanges();
+  const scope = effect.scope?.type;
+  if (
+    scope !== undefined &&
+    scope !== "current-action" &&
+    scope !== "following-action" &&
+    scope !== "next-action" &&
+    scope !== "next-actions"
+  )
+    return emptyEffectChanges();
+  const remaining =
+    scope === "next-actions" && effect.scope?.type === "next-actions"
+      ? numeric(effect.scope.count, context)
+      : undefined;
+  if (remaining !== undefined && remaining < 1) return emptyEffectChanges();
+  return {
+    ...emptyEffectChanges(),
+    damageModifications: [
+      {
+        target,
+        operation: effect.operation ?? "add",
+        amount:
+          effect.operation === "multiply" ? amount : damageAmount(effect.percent, amount, context),
+        ...(effect.selector === undefined ? {} : { selector: effect.selector }),
+        ...(scope === undefined ? {} : { scope }),
+        ...(remaining === undefined ? {} : { remaining }),
+      },
+    ],
+  };
+};
 
 const effectTargets = (effect: EffectDefinition): readonly ("self" | "opponent")[] => {
   if (effect.target === "self") return ["self"];
@@ -462,6 +566,7 @@ const effectTargets = (effect: EffectDefinition): readonly ("self" | "opponent")
 const emptyEffectChanges = () => ({
   resources: [] as ResourceChange[],
   statuses: [] as StatusApplication[],
+  damageModifications: [] as DamageModification[],
   forcedActions: [] as ForcedActionApplication[],
   locks: [] as LockApplication[],
   deactivations: [] as DeactivationApplication[],
@@ -470,9 +575,11 @@ const emptyEffectChanges = () => ({
   rollModifications: [] as RollModification[],
   rollDefinitions: [] as RollDefinitionOverride[],
   rollResultOverrides: [] as RollResultOverride[],
+  resolutionThresholds: [] as ResolutionThresholdApplication[],
   resolutionPreventions: [] as ResolutionPreventionApplication[],
   combatResultPreventions: [] as CombatResultPreventionApplication[],
   rollModificationPreventions: [] as RollModificationPreventionApplication[],
+  moveModificationPreventions: [] as MoveModificationPreventionApplication[],
   costModifications: [] as CostModification[],
 });
 
@@ -560,6 +667,7 @@ const statusEffectChanges = (
         },
       },
     ],
+    damageModifications: [],
     forcedActions: [],
     locks: [],
     deactivations: [],
@@ -568,9 +676,11 @@ const statusEffectChanges = (
     rollModifications: [],
     rollDefinitions: [],
     rollResultOverrides: [],
+    resolutionThresholds: [],
     resolutionPreventions: [],
     combatResultPreventions: [],
     rollModificationPreventions: [],
+    moveModificationPreventions: [],
     costModifications: [],
   };
 };
@@ -709,7 +819,14 @@ const rollModificationPreventionEffectChanges = (
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
 ): EffectChanges => {
-  const duration = lockDuration(effect.duration, context);
+  const scopeCount =
+    effect.duration === undefined && effect.scope?.type === "next-actions"
+      ? numeric(effect.scope.count, context)
+      : undefined;
+  const duration =
+    scopeCount === undefined
+      ? lockDuration(effect.duration, context)
+      : { type: "next-actions" as const, remaining: Math.max(1, scopeCount) };
   return duration === undefined
     ? emptyEffectChanges()
     : {
@@ -720,6 +837,35 @@ const rollModificationPreventionEffectChanges = (
             roll: effect.roll,
             modifier: effect.modifier,
             ...(effect.selector === undefined ? {} : { selector: effect.selector }),
+            duration,
+          },
+        ],
+      };
+};
+
+const moveModificationPreventionEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "prevent-move-modification" }>,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+): EffectChanges => {
+  const duration = lockDuration(effect.duration, context);
+  return duration === undefined
+    ? emptyEffectChanges()
+    : {
+        ...emptyEffectChanges(),
+        moveModificationPreventions: [
+          {
+            target,
+            actor: effect.actor,
+            selector: effect.selector,
+            aspects: effect.aspects,
+            ...(effect.effectSourceStyleExcludes === undefined
+              ? {}
+              : { effectSourceStyleExcludes: effect.effectSourceStyleExcludes }),
+            ...(effect.exceptSourceMoveIds === undefined
+              ? {}
+              : { exceptSourceMoveIds: effect.exceptSourceMoveIds }),
+            ...(effect.operations === undefined ? {} : { operations: effect.operations }),
             duration,
           },
         ],
@@ -739,11 +885,32 @@ const rollModificationEffectChanges = (
     return emptyEffectChanges();
   }
   const amount = numeric(effect.amount, context);
-  return amount === undefined
+  const countedScope =
+    effect.scope?.type === "next-actions" || effect.scope?.type === "next-rolls"
+      ? numeric(effect.scope.count, context)
+      : undefined;
+  return amount === undefined || (countedScope !== undefined && countedScope < 1)
     ? emptyEffectChanges()
     : {
         ...emptyEffectChanges(),
-        rollModifications: [{ target, roll: effect.roll, modifier: effect.modifier, amount }],
+        rollModifications: [
+          {
+            target,
+            roll: effect.roll,
+            modifier: effect.modifier,
+            amount,
+            ...(effect.selector === undefined ? {} : { selector: effect.selector }),
+            ...(effect.scope?.type === "combat" ||
+            effect.scope?.type === "following-action" ||
+            effect.scope?.type === "next-action" ||
+            effect.scope?.type === "next-actions" ||
+            effect.scope?.type === "next-roll" ||
+            effect.scope?.type === "next-rolls"
+              ? { scope: effect.scope.type }
+              : {}),
+            ...(countedScope === undefined ? {} : { remaining: countedScope }),
+          },
+        ],
       };
 };
 
@@ -778,6 +945,52 @@ const rollResultEffectChanges = (
       };
 };
 
+const resolutionThresholdDuration = (
+  effect: Extract<EffectDefinition, { readonly type: "set-resolution-threshold" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  if (effect.duration?.type === "combat") return { type: "combat" as const };
+  if (effect.duration?.type !== "until-roll-threshold") return undefined;
+  if (effect.duration.roll !== "attack" && effect.duration.roll !== "defense") return undefined;
+  const threshold = numeric(effect.duration.value, context);
+  if (threshold === undefined) return undefined;
+  return {
+    type: "until-roll-threshold" as const,
+    roll: effect.duration.roll,
+    comparison: effect.duration.comparison,
+    value: threshold,
+  };
+};
+
+const resolutionThresholdEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "set-resolution-threshold" }>,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+): EffectChanges => {
+  const value = numeric(effect.value, context);
+  const scope = effect.scope?.type;
+  const duration = resolutionThresholdDuration(effect, context);
+  return value === undefined ||
+    (scope !== undefined && scope !== "current-action" && scope !== "next-action")
+    ? emptyEffectChanges()
+    : {
+        ...emptyEffectChanges(),
+        resolutionThresholds: [
+          {
+            target,
+            outcome: effect.outcome === "stop" ? "stopped" : "successful",
+            roll: effect.roll,
+            comparison: effect.comparison,
+            value,
+            resultScope: effect.resultScope ?? "current-attack",
+            ...(effect.selector === undefined ? {} : { selector: effect.selector }),
+            ...(scope === undefined ? {} : { scope }),
+            ...(duration === undefined ? {} : { duration }),
+          },
+        ],
+      };
+};
+
 const resolutionPreventionEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "prevent-resolution" }>,
   target: "self" | "opponent",
@@ -808,6 +1021,12 @@ const combatResultPreventionEffectChanges = (
 };
 
 const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], TriggeredEffectHandler>> = {
+  "modify-damage": (effect, _move, context, target) =>
+    damageModificationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "modify-damage" }>,
+      context,
+      target,
+    ),
   "modify-cost": (effect, _move, context, target) =>
     costModificationEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "modify-cost" }>,
@@ -856,6 +1075,12 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
+  "prevent-move-modification": (effect, _move, context, target) =>
+    moveModificationPreventionEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "prevent-move-modification" }>,
+      context,
+      target,
+    ),
   "modify-roll": (effect, _move, context, target) =>
     rollModificationEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "modify-roll" }>,
@@ -870,6 +1095,12 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
   "set-roll-result": (effect, _move, context, target) =>
     rollResultEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "set-roll-result" }>,
+      context,
+      target,
+    ),
+  "set-resolution-threshold": (effect, _move, context, target) =>
+    resolutionThresholdEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "set-resolution-threshold" }>,
       context,
       target,
     ),
@@ -907,7 +1138,12 @@ const triggeredEffectChanges = (
     | "on-success",
   target: "self" | "opponent",
 ) => {
-  if (effect.trigger !== trigger || !effectMatches(effect, context)) {
+  if (
+    effect.trigger !== trigger ||
+    effect.optional === true ||
+    effect.activationGroup !== undefined ||
+    !effectMatches(effect, context)
+  ) {
     return emptyEffectChanges();
   }
   const handler = triggeredEffectHandlers[effect.type];
@@ -928,6 +1164,7 @@ export const moveEffectsForTrigger = (
 ): {
   readonly resources: readonly ResourceChange[];
   readonly statuses: readonly StatusApplication[];
+  readonly damageModifications: readonly DamageModification[];
   readonly forcedActions: readonly ForcedActionApplication[];
   readonly locks: readonly LockApplication[];
   readonly deactivations: readonly DeactivationApplication[];
@@ -936,13 +1173,16 @@ export const moveEffectsForTrigger = (
   readonly rollModifications: readonly RollModification[];
   readonly rollDefinitions: readonly RollDefinitionOverride[];
   readonly rollResultOverrides: readonly RollResultOverride[];
+  readonly resolutionThresholds: readonly ResolutionThresholdApplication[];
   readonly resolutionPreventions: readonly ResolutionPreventionApplication[];
   readonly combatResultPreventions: readonly CombatResultPreventionApplication[];
   readonly rollModificationPreventions: readonly RollModificationPreventionApplication[];
+  readonly moveModificationPreventions: readonly MoveModificationPreventionApplication[];
   readonly costModifications: readonly CostModification[];
 } => {
   const resources: ResourceChange[] = [];
   const statuses: StatusApplication[] = [];
+  const damageModifications: DamageModification[] = [];
   const forcedActions: ForcedActionApplication[] = [];
   const locks: LockApplication[] = [];
   const deactivations: DeactivationApplication[] = [];
@@ -951,15 +1191,25 @@ export const moveEffectsForTrigger = (
   const rollModifications: RollModification[] = [];
   const rollDefinitions: RollDefinitionOverride[] = [];
   const rollResultOverrides: RollResultOverride[] = [];
+  const resolutionThresholds: ResolutionThresholdApplication[] = [];
   const resolutionPreventions: ResolutionPreventionApplication[] = [];
   const combatResultPreventions: CombatResultPreventionApplication[] = [];
   const rollModificationPreventions: RollModificationPreventionApplication[] = [];
+  const moveModificationPreventions: MoveModificationPreventionApplication[] = [];
   const costModifications: CostModification[] = [];
-  for (const effect of move.effects ?? []) {
-    for (const target of effectTargets(effect)) {
-      const changes = triggeredEffectChanges(effect, move, context, trigger, target);
+  for (const [effectIndex, effect] of (move.effects ?? []).entries()) {
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex,
+      effect,
+    });
+    if (!compiled.ok) continue;
+    for (const target of effectTargets(compiled.value.definition)) {
+      const resolved = executeCompiledEffect(compiled.value, { move, target });
+      const changes = triggeredEffectChanges(resolved.effect, move, context, trigger, target);
       resources.push(...changes.resources);
       statuses.push(...changes.statuses);
+      damageModifications.push(...changes.damageModifications);
       forcedActions.push(...changes.forcedActions);
       locks.push(...changes.locks);
       deactivations.push(...changes.deactivations);
@@ -968,15 +1218,18 @@ export const moveEffectsForTrigger = (
       rollModifications.push(...changes.rollModifications);
       rollDefinitions.push(...changes.rollDefinitions);
       rollResultOverrides.push(...changes.rollResultOverrides);
+      resolutionThresholds.push(...changes.resolutionThresholds);
       resolutionPreventions.push(...changes.resolutionPreventions);
       combatResultPreventions.push(...changes.combatResultPreventions);
       rollModificationPreventions.push(...changes.rollModificationPreventions);
+      moveModificationPreventions.push(...changes.moveModificationPreventions);
       costModifications.push(...changes.costModifications);
     }
   }
   return {
     resources,
     statuses,
+    damageModifications,
     forcedActions,
     locks,
     deactivations,
@@ -985,9 +1238,11 @@ export const moveEffectsForTrigger = (
     rollModifications,
     rollDefinitions,
     rollResultOverrides,
+    resolutionThresholds,
     resolutionPreventions,
     combatResultPreventions,
     rollModificationPreventions,
+    moveModificationPreventions,
     costModifications,
   };
 };

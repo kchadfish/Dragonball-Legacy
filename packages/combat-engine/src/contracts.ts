@@ -187,11 +187,38 @@ export interface ActiveRollModifierEffect {
   readonly type: "modify-roll";
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
-  readonly sourceDefinitionId: ItemId;
+  readonly sourceDefinitionId: ItemId | MoveId;
   readonly roll: "attack" | "defense";
   readonly modifier: "result" | "sides";
   readonly amount: number;
+  readonly selector?: MoveSelectorCondition;
   readonly duration: "combat";
+}
+
+/** A durable constraint on the roll result required for an attack outcome. */
+export interface ActiveResolutionThresholdEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "set-resolution-threshold";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly outcome: "successful" | "stopped";
+  readonly roll: "attack" | "defense";
+  readonly comparison: "at-least" | "at-most";
+  readonly value: number;
+  readonly resultScope: "current-attack" | "matching-die";
+  readonly selector?: MoveSelectorCondition;
+  readonly appliesTo: "source" | "target";
+  readonly scope?: "next-action";
+  readonly duration:
+    | { readonly type: "combat" }
+    | {
+        readonly type: "until-roll-threshold";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack" | "defense";
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
+      };
 }
 
 /** A resolved move effect that modifies its owner's immediately following action. */
@@ -201,8 +228,20 @@ export interface ActiveNextActionModifierEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly selector?: MoveSelectorCondition;
+  /** The first matching action/roll at or after this scope becomes eligible. */
+  readonly scope?: "next-action" | "following-action" | "next-roll" | "next-actions" | "next-rolls";
+  /** Remaining actions or individual rolls for counted scopes. */
+  readonly remaining?: number;
+  /** Following-action modifiers become eligible only after this turn. */
+  readonly availableFromTurn?: number;
   readonly modifier:
-    | { readonly type: "damage"; readonly amount: number }
+    | {
+        readonly type: "damage";
+        readonly amount: number;
+        /** Omitted means additive damage, preserving the compact legacy form. */
+        readonly operation?: "add" | "multiply" | "set";
+      }
     | {
         readonly type: "roll";
         readonly roll: "attack" | "defense";
@@ -247,6 +286,11 @@ export interface ActiveActionLockEffect {
   readonly duration:
     | { readonly type: "combat" }
     | { readonly type: "turns"; readonly ownerCombatantId: CombatantId; readonly remaining: number }
+    | {
+        readonly type: "next-actions";
+        readonly ownerCombatantId: CombatantId;
+        readonly remaining: number;
+      }
     | {
         readonly type: "until-roll-threshold";
         readonly combatantId: CombatantId;
@@ -323,6 +367,24 @@ export interface ActiveRollModificationPreventionEffect {
   readonly roll: "attack" | "defense";
   readonly modifier: "result" | "sides" | "any";
   readonly selector?: MoveSelectorCondition;
+  /** Allows the effect that established this prevention to make its declared exception. */
+  readonly exemptSourceEffect?: boolean;
+  readonly duration: ActiveActionLockEffect["duration"];
+}
+
+/** Prevents selected cost modifiers from changing a matching move. */
+export interface ActiveMoveModificationPreventionEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "prevent-move-modification";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly actor: "self" | "opponent" | "any";
+  readonly aspects: readonly ("cost" | "damage" | "dice-sides" | "effects" | "roll-results")[];
+  readonly effectSourceStyleExcludes?: string;
+  readonly exceptSourceMoveIds?: readonly string[];
+  readonly operations?: readonly "reduce"[];
+  readonly selector: MoveSelectorCondition;
   readonly duration: ActiveActionLockEffect["duration"];
 }
 
@@ -343,6 +405,7 @@ export interface ActiveConstantEffect {
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
+  | ActiveResolutionThresholdEffect
   | ActiveNextActionModifierEffect
   | ActiveItemDamageModifierEffect
   | ActiveForcedActionEffect
@@ -351,6 +414,7 @@ export type ActiveCombatEffect =
   | ActiveStatusPreventionEffect
   | ActiveCombatResultPreventionEffect
   | ActiveRollModificationPreventionEffect
+  | ActiveMoveModificationPreventionEffect
   | ActiveConstantEffect;
 
 /**

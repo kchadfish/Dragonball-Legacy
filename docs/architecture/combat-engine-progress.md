@@ -7,11 +7,14 @@ This is the versioned handoff record for the in-progress
 state and the next executable work, rather than restating the intended
 architecture. The target architecture is in
 [ARCHITECTURE.md](../../ARCHITECTURE.md); the original data baseline is in
-[combat-engine-baseline.md](combat-engine-baseline.md).
+[combat-engine-baseline.md](combat-engine-baseline.md); and the dependency-
+ordered implementation queue is in
+[combat-engine-roadmap.md](combat-engine-roadmap.md).
 
 Update this record whenever an engine capability is added, removed, or found
-to be incomplete. A future generated capability matrix should replace the
-manual coverage table below as the authoritative per-definition record.
+to be incomplete. Once CE-100 is complete, the generated capability matrix
+should replace the manual coverage table below as the authoritative
+per-occurrence record.
 
 ## Active delivery scope
 
@@ -22,11 +25,12 @@ Bio-Androids. Do not widen transformation families without an explicit scope
 decision.
 
 The converted catalog is data-complete, but it is **not** equivalent to engine
-complete. The current inventory has 499 moves and 837 move effects across 46
+complete. The current inventory has 499 moves and 838 move effects across 46
 effect types. It also has 162 items, with 282 item effects; 102 item rules are
 explicitly non-executable narrative or administrator rules. Full catalog
-support therefore requires a validated executor-or-exception record for each
-in-scope definition, not merely a parsed definition.
+support therefore requires validated generic or named executor coverage for
+each in-scope occurrence, not merely a parsed definition. Approved out-of-scope
+occurrences require an explicit audited exclusion.
 
 ## Implemented foundations
 
@@ -89,42 +93,25 @@ following public behaviors:
 Run focused tests for the module being changed during development. Do not use a
 passing focused test as evidence that unsupported catalog definitions work.
 
-## Known incomplete work
+## Remaining roadmap
 
-The engine is not ready to be declared complete. These are the remaining
-categories to audit and implement through the generic executor where possible:
+The engine is not ready to be declared complete. The dependency-ordered queue
+is maintained in [combat-engine-roadmap.md](combat-engine-roadmap.md). Its major
+stages are precise catalog accounting and compilation, executable data
+normalization, trigger and condition coverage, targets and pending choices,
+active-effect lifecycle, calculation precedence, fight-flow scheduling, shared
+item execution, transformation and race closure, explicit scope classification,
+and final catalog closure.
 
-1. Compile converted definitions into validated typed execution plans, reject
-   unsupported in-scope definitions at load time, and generate the capability
-   matrix named in `ARCHITECTURE.md`.
-2. Complete trigger dispatch and condition support across all converted combat
-   triggers and condition forms; do not rely on source prose at runtime.
-3. Complete generic target and selection semantics, including optional, one,
-   up-to, and all eligible targets. Persist every candidate set before a player
-   makes a choice.
-4. Finish effect lifecycle semantics: stacking, use limits, cooldowns,
-   activation costs, scopes, all duration variants, suppression, negation,
-   replacement, reactivation, and expiry ordering.
-5. Complete calculation pipelines and declared precedence for roll, damage,
-   cost, resource, stat, result, threshold, dice-selection, reroll, and stored
-   roll effects.
-6. Complete fight-flow effects: extra and counter actions, skipped actions,
-   deferred/scheduled effects, defense responses, contests, and combat-result
-   changes.
-7. Implement remaining supported item combat effects through the same executor;
-   retain non-combat/narrative item rules as explicit audited exclusions.
-8. Audit transformations and race mechanics against the six-family scope;
-   add only structured, source-backed rules. Do not infer the 237
-   source-text-only transformation abilities.
-9. Audit multiplayer, remote-target, allies, interferers, body swaps, and
-   spaceship mechanics. Keep mechanics outside the approved scope rejected or
-   explicitly excepted rather than silently approximated.
-10. Add a representative focused regression test for every executor capability
-    and every audited named-rule exception, then run the required full gates.
+The roadmap distinguishes tested generic support, tested named support,
+unfinished in-scope mechanics, and approved out-of-scope exclusions. Do not use
+an audited exclusion to hide unfinished in-scope work, and do not treat an
+effect-type-level executor registration as proof that every variant is
+supported.
 
 ## Immediate resume point
 
-### Latest implementation slice (2026-08-07)
+### Latest implementation slice (2026-08-10)
 
 This work added the following verified, generic pieces. They are partial
 catalog coverage, not a completion claim.
@@ -146,54 +133,146 @@ catalog coverage, not a completion claim.
 - Before-attack roll support now extracts `modify-roll`,
   `set-roll-definition`, and `set-roll-result`. Numeric roll-result
   substitutions are serializable and survive post-defense reaction replay.
-- A contract, invariants, and runtime extraction accumulator have been added
-  for `prevent-roll-modification`. **Activation, duration lifecycle, and
-  enforcement are not yet implemented**; do not count it as supported.
+- `prevent-roll-modification` now has an explicit durable active-effect
+  contract, activation mapping, invariant validation, owner-turn,
+  roll-threshold, combat-result, turn-start-threshold, and counted
+  `next-actions` lifecycle handling. Enforcement runs before active and
+  same-action attack/defense result and side modifiers, current roll-definition
+  and numeric result replacements, and replayed post-defense rolls. Selectors,
+  passive CONSTANT-skill prevention, opponent-source filtering, and the
+  converted source-effect exemption are preserved. The catalog's upkeep-only
+  Speed Demon path remains an audited unsupported trigger because its paired
+  dice-definition and Dexterity mechanics are not executable yet.
+- The catalog audit (`npm run report:combat-mechanics`) identified
+  `modify-roll` as the highest-volume generic move effect (131 definitions).
+  This tranche extends the durable generic capability to successful-move and
+  action-triggered combat, `next-action`, `following-action`, counted
+  `next-actions`, `next-roll`, and counted `next-rolls` attack/defense result
+  and side modifiers, preserving selectors and consuming only matching rolls.
+  Active defense-side modifiers now share the injected roll pipeline. Other
+  roll kinds, dice selection, multipliers, caps, current-action and
+  turn/phase/resource-bound triggers remain explicitly unsupported.
+- `modify-damage` now has a generic `damage-modifier.v1` slice for durable
+  `next-action`, counted `next-actions`, and `following-action` effects, plus
+  durable-state `passive`/`current-action` and `before-attack-roll` damage
+  adjustments. It persists selector, operation, resolved amount, scope, and
+  remaining uses in invariant-checked active effects. Add, multiply, and set
+  operations are applied through the shared damage pipeline; only matching
+  selectors consume counted effects. Resolution-local, event-triggered,
+  capped, prior-action, level, and other unresolved variants remain explicitly
+  `unsupported-in-scope` in the occurrence matrix.
+- The generic `modify-damage` executor now resolves non-optional
+  `on-success` current-action changes after the persisted
+  attack rolls and before damage state mutation. It supports the existing
+  typed condition and numeric-expression pipeline without treating
+  source-text choices or activation groups as automatic effects. The
+  Kamehameha roll-threshold path is covered through the public decision
+  transition; optional Orange Burst damage remains unsupported pending a
+  serialized choice.
+- The typed damage executor now accounts for `roll-die-result` and
+  `roll-die-threshold` conditions against persisted attack-roll records.
+  Converted die indexes are explicitly one-based at the data boundary and
+  must be positive during compilation; runtime evaluation converts them to
+  authoritative zero-based record positions. This closes exact roll-die
+  damage variants without deriving behavior from source prose.
+- Resolution-local `successful-hit-count` expressions now resolve only from
+  the owning completed attack's persisted roll results. The generic numeric
+  primitive supports per-hit roll modifiers and damage modifiers, including
+  Bakuretsu Ranma, Tears of the Mystic, and Dragon Swipes; Dragon Swipes uses
+  a negative damage delta so its canonical prevention mechanic cannot be
+  inverted by the additive damage pipeline. The public Bakuretsu transition
+  verifies deterministic seven-hit resolution, version advancement, active
+  effect persistence, and consumption by the opponent's next attack.
+- Runtime trigger dispatch now refuses optional or activation-group effects
+  until their pending-choice contract exists. The occurrence matrix records
+  those rows as unfinished `generic pending-choice compilation and resolution`
+  work rather than treating them as automatically resolved effects.
+- The matrix is now occurrence-level rather than effect-type-level. Every
+  converted occurrence records its source definition, effect index, variant
+  dimensions, status, capability or executor, focused coverage, reason, and
+  prerequisite. Approved item exclusions carry an explicit exclusion reason;
+  unfinished in-scope rows remain visible and do not get relabeled as
+  exclusions.
+- `set-resolution-threshold` now has a generic `resolution-threshold.v1`
+  executor for exact direct attack/defense constraints on the current attack,
+  the next matching action, or a combat-duration effect. Thresholds are
+  evaluated from deterministic roll results, including canonical cannot-stop
+  ceiling semantics, and durable threshold effects carry source, selector,
+  scope, duration, and until-roll-threshold lifecycle data through
+  invariant-checked versioned transitions. Relative-roll, prior-roll,
+  level-bound, active-move-bound, and undispatched-trigger variants remain
+  rejected in the occurrence matrix rather than approximated.
+- The generic `damage-modifier.v1` capability now evaluates passive damage
+  effects emitted by active CONSTANT skills, including unscoped modifiers.
+  Relative self/opponent targeting, move selectors, additive/multiplicative/
+  replacement operations, and normal damage ordering flow through the shared
+  pipeline for basic, converted, and Death Beam attacks. Passive effects that
+  require prior actions, unresolved damage context, optional choices, or
+  undispatched triggers remain explicitly unsupported.
+- `prevent-move-modification.v1` now covers the exact generic cost-only slice.
+  It compiles selector-scoped prohibitions with actor filtering, reduce-only
+  operation filtering, source-style and source-move exceptions, and combat or
+  turn-bound durations into durable invariant-checked effects. Cost modifiers
+  are filtered before validation and consumption, including passive move rules
+  and active CONSTANT rules. Damage, dice-side, roll-result, and effect
+  prevention remain unsupported until their mutation pipelines retain source
+  identity.
 
 Focused evidence recorded during this slice:
 
-- `npm.cmd run build --workspace @dragonball-resurgence/combat-engine`
-  passed after the combat-result-prevention and roll-prevention extraction
-  changes.
-- Focused Vitest runs passed for `basic-attack.test.ts`,
-  `attack-rolls.test.ts`, `move-attacks.test.ts`,
-  `move-effects-runtime.test.ts`, `progress-fight.test.ts`,
-  `deactivation-flow.test.ts`, and `contracts.test.ts` at their respective
-  implementation milestones.
+- Combat-engine typecheck passed with `npx tsc --noEmit -p
+packages/combat-engine/tsconfig.json`.
+- Focused Vitest passed for the capability matrix, `basic-attack.test.ts`,
+  `move-effects-runtime.test.ts`, and `progress-fight.test.ts` (76 tests),
+  including operation application, selector non-matching, counted
+  consumption, and invariant-backed public transitions.
 - `git diff --check` found no whitespace errors. Its CRLF notices apply to
   pre-existing dirty files and are not errors.
+- The current-action damage slice focused test passes in
+  `progress-fight.test.ts` (23 tests across the capability-matrix and
+  progress-fight modules), including deterministic roll consumption, state
+  version advancement, damage events, and the invariant-checked result.
+- The typed executor, matrix, runtime, basic-attack, and progress focused
+  suite passes with 82 tests; the combat-engine workspace typecheck also
+  passes. The generated matrix now records 1,120 occurrences: 575 supported
+  generic, 416 unfinished in-scope, and 129 approved item exclusions. Its
+  unfinished prerequisites are 324 typed executor/accounting rows, 29 typed
+  damage-context rows, and 63 pending-choice rows.
 
-The full repository gates were intentionally deferred by the requester until
-the work is complete. They have not been run for this latest slice.
+Repository-wide verification before this tranche: `npm run check` passed on
+2026-08-09 (40 test files / 439 tests). The latest `npm run quality` attempt is
+recorded below.
 
 ### Next executable work
 
-Finish `prevent-roll-modification` end-to-end first: persist applications on
-the originating trigger, enforce them against both active and same-action roll
-modifiers, implement every declared duration expiry, and add public-behavior
-tests. Then use the capability matrix to choose the next high-volume generic
-executor rather than adding named-move branches.
+Resume at roadmap CE-110. The matrix now distinguishes generic support, named
+support, unfinished in-scope work, and approved out-of-scope exclusions at the
+individual occurrence level. Its accounting gate is intentionally not catalog
+closure: unsupported rows are required to identify their prerequisite, while
+out-of-scope rows identify their approved exclusion.
 
-Generate the capability matrix and typed plan validation. Use it to enumerate
-every converted non-spaceship effect and classify it as:
-
-- supported by a tested generic capability;
-- supported by a tested named exception; or
-- unsupported, with an explicit reason and next capability required.
-
-Use that output to choose the next highest-volume missing generic capability.
-Do not add move-name branches in `progress-fight` merely to make an individual
-move appear to work. Where a rule requires a player choice, add a versioned
-resolution frame and pending decision before applying it.
+CE-110 typed execution-plan validation and CE-120 exhaustive executor
+accounting are now in place for the current runtime-owned discriminants. The
+compiler rejects unsupported occurrences at runtime or load time while the
+development-time report continues to represent unfinished in-scope work. The
+next ready family remains `modify-damage`: event-triggered, resolution-local,
+capped, prior-action, and other unresolved variants still need explicit
+context and focused public-boundary coverage. Do not add move-name branches in
+`progress-fight`; persist versioned resolution frames and exact candidate sets
+before any player-owned choice.
 
 ## Verification record
 
-The combat-engine workspace build passed after the recent effect-runtime and
-lock/deactivation work. Focused move-effect tests have also passed. A full
-repository `npm run check` was started before the most recent lint refactor but
-was not rerun to a clean completion afterward; it must be rerun before any
-completion claim. Combat rule changes also require `npm run test:coverage` at
-meaningful milestones and before declaring the engine complete.
+The combat-engine workspace typecheck and focused tests passed for this slice.
+The wider workspace build remains blocked by pre-existing `game-data` test
+fixture type errors in `packages/game-data/src/validation.test.ts`; the exact
+errors concern widened fixture unions for attack types, NPC equipment, and
+quest rewards. The required `npm run quality` gate was rerun after this slice:
+formatting, lint (0 errors), reference validation, game-data validation,
+combat-boundary validation, and 471 tests passed; TypeScript build stopped on
+those same fixture errors. Coverage, duplication detection, and the production
+dependency audit did not run because the chained gate stopped at build. The
+unrelated untracked fixture was preserved.
 
 The inventory command to refresh catalog counts is:
 
@@ -201,13 +280,36 @@ The inventory command to refresh catalog counts is:
 npm run report:combat-mechanics
 ```
 
-Run the final gates only at meaningful milestones and before declaring this
-scope complete:
+The generated capability audit is:
 
 ```bash
-npm run check
-npm run test:coverage
+npm run report:combat-capabilities
 ```
+
+Its output is [combat-engine-capability-matrix.md](combat-engine-capability-matrix.md).
+It now classifies exact occurrences using the roadmap statuses and summarizes
+unfinished work by prerequisite and definition count. The current generated
+record contains 575 `supported-generic`, 416 `unsupported-in-scope`, and 129
+approved item-exclusion rows; those are accounting results, not a completion
+claim. Source-text-only transformation abilities remain excluded from
+executable effect counts; the active transformation families remain Humans,
+Saiyans, Hybrid-Saiyans, Namekians, Changelings, and Bio-Androids.
+
+The refined matrix identifies 29 `modify-damage` occurrences as unfinished
+in-scope after this slice. Remaining variants include upkeep/turn-bound and
+resource-event triggers, resolution-derived amounts, prior-action values,
+level comparisons, optional choices, caps, and other context that is not yet
+persisted or compiled. They remain rejected rather than inferred from source
+text.
+
+The repository gate for a handoff is:
+
+```bash
+npm run quality
+```
+
+Do not run `npm run check` separately first. `npm run quality` already invokes
+it before coverage, duplication detection, and the production dependency audit.
 
 ## Handoff prompt
 
@@ -221,8 +323,8 @@ npm run test:coverage
 > Saiyans, Hybrid-Saiyans, Namekians, Changelings, and Bio-Androids only. Do
 > not treat converted source text as executable semantics, silently approximate
 > unsupported mechanics, or add move-name branches where a generic primitive
-> fits. Run focused checks during work; run `npm run check` and
-> `npm run test:coverage` at meaningful milestones and before any completion
-> claim. Do not mark the goal complete until the capability matrix accounts for
-> every in-scope converted effect with an executor and focused coverage, or a
-> documented approved exception.
+> fits. Run focused checks during work and `npm run quality` as the single
+> repository gate before handoff; do not run `npm run check` separately first.
+> Do not mark the goal complete until the capability matrix accounts for every
+> in-scope converted effect with generic or named executor coverage and every
+> out-of-scope definition with a documented approved exclusion.

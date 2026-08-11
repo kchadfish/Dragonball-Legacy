@@ -94,6 +94,141 @@ describe("contested attack rolls", () => {
     ]);
   });
 
+  it("enforces stop thresholds at their exact boundary, including cannot-stop ceilings", () => {
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "stopped",
+              roll: "defense",
+              comparison: "at-least",
+              value: 11,
+              resultScope: "current-attack",
+            },
+          ],
+          naturalRolls: [{ attack: 1, defense: 10 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toEqual([
+      {
+        attackNaturalResult: 1,
+        attackResult: 1,
+        defenseNaturalResult: 10,
+        defenseResult: 10,
+        outcome: "successful",
+      },
+    ]);
+
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "stopped",
+              roll: "defense",
+              comparison: "at-most",
+              value: 12,
+              resultScope: "current-attack",
+            },
+          ],
+          naturalRolls: [{ attack: 10, defense: 12 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toMatchObject([{ outcome: "successful" }]);
+
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "stopped",
+              roll: "defense",
+              comparison: "at-most",
+              value: 12,
+              resultScope: "current-attack",
+            },
+          ],
+          naturalRolls: [{ attack: 10, defense: 13 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toMatchObject([{ outcome: "stopped" }]);
+  });
+
+  it("uses a declared defense die size for both random and persisted rolls", () => {
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          defenseSides: 3,
+        },
+        new SequenceRandomSource([10, 3]),
+      ),
+    ).toEqual([
+      {
+        attackNaturalResult: 10,
+        attackResult: 10,
+        defenseNaturalResult: 3,
+        defenseResult: 3,
+        outcome: "successful",
+      },
+    ]);
+
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          defenseSides: 3,
+          naturalRolls: [{ attack: 2, defense: 3 }],
+        },
+        new SequenceRandomSource([]),
+      )[0]?.defenseNaturalResult,
+    ).toBe(3);
+  });
+
+  it("rejects invalid custom defense sides and persisted values above that die", () => {
+    expect(() =>
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          defenseSides: 0,
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toThrow(RangeError);
+
+    expect(() =>
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          defenseSides: 3,
+          naturalRolls: [{ attack: 2, defense: 4 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toThrow(RangeError);
+  });
+
   it("applies validated numeric result substitutions after natural dice and bonuses", () => {
     const rolls = resolveContestedAttackRolls(
       {

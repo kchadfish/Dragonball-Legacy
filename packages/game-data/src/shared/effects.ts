@@ -238,6 +238,7 @@ export interface RollComparisonCondition {
 export interface RollDieResultCondition {
   readonly type: "roll-die-result";
   readonly roll: "attack" | "defense";
+  /** One-based die number as represented in the converted source definition. */
   readonly index: number;
   readonly result: "successful" | "stopped";
   readonly sourceText: string;
@@ -246,6 +247,7 @@ export interface RollDieResultCondition {
 export interface RollDieThresholdCondition {
   readonly type: "roll-die-threshold";
   readonly roll: "attack" | "defense";
+  /** One-based die number as represented in the converted source definition. */
   readonly index: number;
   readonly comparison: "at-least" | "at-most";
   readonly value: NumericExpression;

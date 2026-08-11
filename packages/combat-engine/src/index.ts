@@ -5,6 +5,7 @@ export * from "./combat-mechanics.js";
 export * from "./create-fight.js";
 export * from "./dependencies.js";
 export * from "./declarative-runtime.js";
+export * from "./effect-executors.js";
 export * from "./ids.js";
 export * from "./item-effects-runtime.js";
 export * from "./move-attacks.js";

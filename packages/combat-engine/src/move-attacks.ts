@@ -5,6 +5,7 @@ import {
   type AttackDieRoll,
   type AttackRollDefinition,
   type ContestedAttackNaturalRoll,
+  type ResolutionThresholdRule,
 } from "./attack-rolls.js";
 import { qualifiesForCounter, qualifiesForCritical } from "./combat-mechanics.js";
 
@@ -14,6 +15,7 @@ import type { RandomSource } from "./dependencies.js";
 export interface MoveAttackDefinition {
   readonly attack: AttackRollDefinition;
   readonly attackResultModifier?: number;
+  readonly defenseSides?: number;
   readonly defenseResultModifier?: number;
   readonly preventCritical?: boolean;
   readonly preventCounter?: boolean;
@@ -24,6 +26,7 @@ export interface MoveAttackDefinition {
   readonly numericResultOverrides?: readonly (
     { readonly attack?: number; readonly defense?: number } | undefined
   )[];
+  readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
   readonly baseDamage: number;
   /** A converted `damagePerHit` move deals its listed damage for every successful die. */
   readonly damagePerHit?: boolean;
@@ -64,10 +67,12 @@ export const resolveMoveAttack = (
       attackerDexterityBonus:
         attacker.stats.dexterityBonus + (definition.attackResultModifier ?? 0),
       defenderDexterityBonus: defender.stats.dexterityBonus,
+      defenseSides: definition.defenseSides,
       defenderResultModifier: definition.defenseResultModifier,
       naturalRolls: definition.naturalRolls,
       resultOverrides: definition.resultOverrides,
       numericResultOverrides: definition.numericResultOverrides,
+      resolutionThresholds: definition.resolutionThresholds,
     },
     random,
   );

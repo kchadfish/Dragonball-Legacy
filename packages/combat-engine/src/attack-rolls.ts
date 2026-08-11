@@ -13,6 +13,8 @@ export interface ContestedAttackRollInput {
   /** Number of leading attack dice stopped by a declared Block. */
   readonly blockedDice?: number;
   readonly defenderDexterityBonus: number;
+  /** Dice sides for each unblocked defense roll; defaults to the standard die. */
+  readonly defenseSides?: number;
   /** A declared modifier to the defender's roll result, applied before comparison. */
   readonly defenderResultModifier?: number;
   /** Replays a previously rolled contest while applying a later reaction modifier. */
@@ -23,6 +25,16 @@ export interface ContestedAttackRollInput {
   readonly numericResultOverrides?: readonly (
     { readonly attack?: number; readonly defense?: number } | undefined
   )[];
+  /** Declarative constraints on whether a die may count as successful or stopped. */
+  readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
+}
+
+export interface ResolutionThresholdRule {
+  readonly outcome: "successful" | "stopped";
+  readonly roll: "attack" | "defense";
+  readonly comparison: "at-least" | "at-most";
+  readonly value: number;
+  readonly resultScope: "current-attack" | "matching-die";
 }
 
 export interface AttackDieRoll {
@@ -47,6 +59,7 @@ const assertAttackDefinition = ({ dice, sides }: AttackRollDefinition) => {
 
 const assertNaturalRolls = (
   attack: AttackRollDefinition,
+  defenseSides: number,
   blockedDice: number,
   naturalRolls: readonly ContestedAttackNaturalRoll[] | undefined,
   resultOverrides: readonly ("stopped" | "successful" | undefined)[] | undefined,
@@ -65,7 +78,7 @@ const assertNaturalRolls = (
     );
   }
   assertNumericResultOverrides(numericResultOverrides);
-  assertPersistedDieValues(attack, blockedDice, naturalRolls);
+  assertPersistedDieValues(attack, defenseSides, blockedDice, naturalRolls);
 };
 
 const assertNumericResultOverrides = (
@@ -83,6 +96,7 @@ const assertNumericResultOverrides = (
 
 const assertPersistedDieValues = (
   attack: AttackRollDefinition,
+  defenseSides: number,
   blockedDice: number,
   naturalRolls: readonly ContestedAttackNaturalRoll[] | undefined,
 ) => {
@@ -96,7 +110,7 @@ const assertPersistedDieValues = (
       (!Number.isInteger(roll.defense) ||
         roll.defense === undefined ||
         roll.defense < 1 ||
-        roll.defense > GLOBAL_RULES.combat.standardDieSides)
+        roll.defense > defenseSides)
     ) {
       throw new RangeError("Each unblocked persisted attack roll requires a valid defense die.");
     }
@@ -115,19 +129,57 @@ const resolvedUnblockedDie = (
   random: RandomSource,
 ): AttackDieRoll => {
   const defenseNaturalResult =
-    persisted?.defense ?? random.integer(1, GLOBAL_RULES.combat.standardDieSides);
+    persisted?.defense ??
+    random.integer(1, input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides);
   const defenseResult =
     input.numericResultOverrides?.[index]?.defense ??
     defenseNaturalResult + input.defenderDexterityBonus + (input.defenderResultModifier ?? 0);
   const defaultOutcome =
     attackResult >= defenseResult ? ("successful" as const) : ("stopped" as const);
+  const outcome = resolutionThresholdOutcome(
+    defaultOutcome,
+    attackResult,
+    defenseResult,
+    input.resolutionThresholds,
+  );
   return {
     attackNaturalResult,
     attackResult,
     defenseNaturalResult,
     defenseResult,
-    outcome: input.resultOverrides?.[index] ?? defaultOutcome,
+    outcome: input.resultOverrides?.[index] ?? outcome,
   };
+};
+
+const resolutionThresholdOutcome = (
+  defaultOutcome: "successful" | "stopped",
+  attackResult: number,
+  defenseResult: number,
+  thresholds: readonly ResolutionThresholdRule[] | undefined,
+) => {
+  if (thresholds === undefined || thresholds.length === 0) return defaultOutcome;
+  const successfulThresholds = thresholds.filter((threshold) => threshold.outcome === "successful");
+  const stoppedThresholds = thresholds.filter((threshold) => threshold.outcome === "stopped");
+  const thresholdMatches = (threshold: ResolutionThresholdRule) => {
+    const result = threshold.roll === "attack" ? attackResult : defenseResult;
+    const comparisonMatches =
+      threshold.comparison === "at-least" ? result >= threshold.value : result <= threshold.value;
+    return threshold.outcome === "stopped" && threshold.comparison === "at-most"
+      ? !comparisonMatches
+      : comparisonMatches;
+  };
+
+  if (
+    defaultOutcome === "successful" &&
+    successfulThresholds.some((threshold) => !thresholdMatches(threshold))
+  )
+    return "stopped";
+  if (
+    defaultOutcome === "stopped" &&
+    stoppedThresholds.some((threshold) => !thresholdMatches(threshold))
+  )
+    return "successful";
+  return defaultOutcome;
 };
 
 const resolveContestedAttackDie = (
@@ -157,10 +209,12 @@ export const resolveContestedAttackRolls = (
     attackerDexterityBonus,
     blockedDice = 0,
     defenderDexterityBonus,
+    defenseSides = GLOBAL_RULES.combat.standardDieSides,
     defenderResultModifier = 0,
     naturalRolls,
     resultOverrides,
     numericResultOverrides,
+    resolutionThresholds,
   }: ContestedAttackRollInput,
   random: RandomSource,
 ): readonly AttackDieRoll[] => {
@@ -168,17 +222,29 @@ export const resolveContestedAttackRolls = (
   if (!Number.isInteger(blockedDice) || blockedDice < 0 || blockedDice > attack.dice) {
     throw new RangeError("Blocked dice must be an integer within the attack's dice count.");
   }
-  assertNaturalRolls(attack, blockedDice, naturalRolls, resultOverrides, numericResultOverrides);
+  if (!Number.isInteger(defenseSides) || defenseSides < 1) {
+    throw new RangeError("Defense rolls require positive integer sides.");
+  }
+  assertNaturalRolls(
+    attack,
+    defenseSides,
+    blockedDice,
+    naturalRolls,
+    resultOverrides,
+    numericResultOverrides,
+  );
 
   const input: ContestedAttackRollInput = {
     attack,
     attackerDexterityBonus,
     blockedDice,
     defenderDexterityBonus,
+    defenseSides,
     defenderResultModifier,
     naturalRolls,
     resultOverrides,
     numericResultOverrides,
+    resolutionThresholds,
   };
   return Array.from({ length: attack.dice }, (_, index) =>
     resolveContestedAttackDie(input, random, index),

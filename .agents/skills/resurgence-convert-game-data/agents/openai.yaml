@@ -1,0 +1,4 @@
+interface:
+  display_name: "Convert Resurgence Game Data"
+  short_description: "Convert Resurgence rules into typed game data"
+  default_prompt: "Use $resurgence-convert-game-data to convert or audit canonical rules as typed declarative game data."

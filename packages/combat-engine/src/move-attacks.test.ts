@@ -79,4 +79,15 @@ describe("resolveMoveAttack", () => {
     expect(result).toMatchObject({ successfulHitCount: 0, damage: 0 });
     expect(result.rolls.map((roll) => roll.defenseResult)).toEqual([13, 13]);
   });
+
+  it("passes a move's custom defense die size to each contested roll", () => {
+    const result = resolveMoveAttack(
+      attacker,
+      defender,
+      { attack: { dice: 1, sides: 30 }, defenseSides: 3, baseDamage: 20 },
+      new SequenceRandomSource([10, 3]),
+    );
+
+    expect(result.rolls[0]).toMatchObject({ defenseNaturalResult: 3, outcome: "successful" });
+  });
 });

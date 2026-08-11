@@ -1,17 +1,20 @@
 # Agent Instructions
 
-## Required Quality Gate
+# Required Quality Gate
+Format While Working: Treat repository formatting as part of the edit, not a final cleanup step. After each meaningful batch of edits, run the repository-configured Prettier formatter on only the files changed in that batch. Do not wait for npm run check or npm run quality to discover formatting failures.
+Incremental Verification: After every meaningful code or configuration change, run the smallest relevant checks early. Prefer focused package typechecks and focused Vitest modules over repository-wide checks during development.
+Final Check: Before finishing, run exactly one applicable repository-level gate from the repository root:
+Run npm run check for normal changes.
+Run npm run quality instead of npm run check when the Extended Quality Gate applies, because npm run quality already includes the routine check.
+Do not report work as complete if the applicable final gate fails. If it cannot run, state the exact reason and remaining manual action.
+Scope: npm run check validates formatting, ESLint, Vitest, and the TypeScript solution build.
+Coverage Trigger: Run npm run test:coverage when changing combat calculations, game rules, validation schemas, transformation logic, persistence behavior, Discord moderation or command logic, or API behavior.
 
-- **Incremental Verification:** After every meaningful code or configuration change, run the smallest relevant checks early.
-- **Final Check:** Before finishing your response, run `npm run check` from the repository root. Do not report work as complete if `npm run check` fails. If it cannot run, state the exact reason and the remaining manual action.
-- **Scope:** `npm run check` validates formatting, ESLint, Vitest, and the TypeScript solution build.
-- **Coverage Trigger:** Run `npm run test:coverage` when changing combat calculations, game rules, validation schemas, transformation logic, persistence behavior, Discord moderation or command logic, or API behavior.
-
-## Extended Quality Gate
-
-- Run `npm run quality` before completing changes that substantially affect multiple packages, change package or architecture boundaries, add or upgrade dependencies, modify CI or deployment behavior, or prepare a release.
-- `npm run quality` adds targeted coverage thresholds, duplication detection, and a production dependency audit to the routine `npm run check` gate.
-- Do not weaken quality rules merely to make a change pass. Narrow, documented exclusions are permitted only for generated output, fixtures, static declarative game data, or intentional patterns.
+# Extended Quality Gate
+Run npm run quality as the final repository gate for changes that substantially affect multiple packages, change package or architecture boundaries, add or upgrade dependencies, modify CI or deployment behavior, or prepare a release.
+Do not run npm run check immediately before npm run quality; npm run quality already invokes the routine check.
+npm run quality adds targeted coverage thresholds, duplication detection, and a production dependency audit to the routine gate.
+Do not weaken quality rules merely to make a change pass. Narrow, documented exclusions are permitted only for generated output, fixtures, static declarative game data, or intentional patterns.
 
 ## Test Standards
 

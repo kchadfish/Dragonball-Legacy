@@ -39,6 +39,31 @@ describe("converted move effects", () => {
     expect(adjustedMoveDamage(move, 20, context)).toBe(30);
   });
 
+  it("evaluates an unscoped passive damage modifier through the generic runtime", () => {
+    const energyGorged = moves.get("move-midorikatai-energy-gorged");
+    if (energyGorged === undefined) throw new Error("Expected Energy Gorged data.");
+
+    expect(adjustedMoveDamage(energyGorged, 13, context)).toBe(15);
+  });
+
+  it("compiles a cost-only move-modification prevention as a typed generic application", () => {
+    const spikedBall = moves.get("move-kurokonwaku-spiked-ball");
+    if (spikedBall === undefined) throw new Error("Expected Spiked Ball data.");
+
+    expect(
+      moveEffectsForTrigger(spikedBall, "passive", context).moveModificationPreventions,
+    ).toEqual([
+      expect.objectContaining({
+        target: "self",
+        actor: "any",
+        aspects: ["cost"],
+        selector: expect.objectContaining({ ids: ["move-kurokonwaku-spiked-ball"] }),
+        operations: ["reduce"],
+        duration: { type: "combat" },
+      }),
+    ]);
+  });
+
   it("emits converted successful resource and status changes when their condition matches", () => {
     const lightGrenade = moves.get("move-afterlife-light-grenade");
     const meteorSmash = moves.get("move-afterlife-meteor-smash");
@@ -118,6 +143,87 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("normalizes direct current and future resolution thresholds without approximating context-bound values", () => {
+    const scatterShot = moves.get("move-afterlife-scatter-shot");
+    const epitaphToWar = moves.get("move-aoyosumu-epitaph-to-war");
+    if (scatterShot === undefined || epitaphToWar === undefined)
+      throw new Error("Expected resolution-threshold move data.");
+
+    expect(
+      moveEffectsForTrigger(scatterShot, "passive", {
+        ...context,
+        self: { ...self, stats: { ...self.stats, power: 30 } },
+        opponent: { ...opponent, stats: { ...opponent.stats, power: 20 } },
+      }).resolutionThresholds,
+    ).toEqual([
+      {
+        target: "opponent",
+        outcome: "stopped",
+        roll: "defense",
+        comparison: "at-least",
+        value: 11,
+        resultScope: "current-attack",
+      },
+    ]);
+
+    expect(successfulMoveEffects(epitaphToWar, context).resolutionThresholds).toEqual([
+      {
+        target: "opponent",
+        outcome: "successful",
+        roll: "attack",
+        comparison: "at-least",
+        value: 25,
+        resultScope: "current-attack",
+        scope: "next-action",
+      },
+      {
+        target: "opponent",
+        outcome: "successful",
+        roll: "attack",
+        comparison: "at-least",
+        value: 13,
+        resultScope: "current-attack",
+        duration: { type: "combat" },
+      },
+    ]);
+  });
+
+  it("preserves counted scopes when normalizing generic roll modifiers", () => {
+    const baseMove = moves.get("move-afterlife-light-grenade");
+    if (baseMove === undefined) throw new Error("Expected Light Grenade data.");
+    const move = {
+      ...baseMove,
+      effects: [
+        {
+          trigger: "on-success",
+          target: "self",
+          type: "modify-roll",
+          roll: "attack",
+          modifier: "result",
+          amount: { type: "literal", value: 2 },
+          scope: {
+            type: "next-rolls",
+            roll: "attack",
+            count: { type: "literal", value: 3 },
+            sourceText: "the next three attack rolls",
+          },
+          sourceText: "Gain +2 to the next three attack rolls.",
+        },
+      ],
+    } as MoveDefinition;
+
+    expect(successfulMoveEffects(move, context).rollModifications).toEqual([
+      {
+        target: "self",
+        roll: "attack",
+        modifier: "result",
+        amount: 2,
+        scope: "next-rolls",
+        remaining: 3,
+      },
+    ]);
+  });
+
   it("extracts a declarative attack roll definition before random dice are consumed", () => {
     const baseMove = moves.get("move-afterlife-light-grenade");
     if (baseMove === undefined) throw new Error("Expected Light Grenade data.");
@@ -175,6 +281,20 @@ describe("converted move effects", () => {
         target: "self",
         statusId: "stun",
         duration: { type: "turns", remaining: 6 },
+      }),
+    ]);
+  });
+
+  it("normalizes next-actions roll-modification prevention without widening it to combat", () => {
+    const bigBangAttack = moves.get("move-afterlife-big-bang-attack");
+    if (bigBangAttack === undefined) throw new Error("Expected Big Bang Attack data.");
+
+    expect(successfulMoveEffects(bigBangAttack, context).rollModificationPreventions).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        roll: "attack",
+        modifier: "sides",
+        duration: { type: "next-actions", remaining: 2 },
       }),
     ]);
   });
@@ -259,6 +379,77 @@ describe("converted move effects", () => {
         ],
       }).statuses,
     ).toEqual([]);
+  });
+
+  it("evaluates one-based roll-die conditions against persisted attack-roll records", () => {
+    const burningSlash = moves.get("move-afterlife-burning-slash");
+    if (burningSlash === undefined) throw new Error("Expected Burning Slash data.");
+    const successfulRoll = {
+      attackNaturalResult: 28,
+      attackResult: 28,
+      defenseNaturalResult: 1,
+      defenseResult: 1,
+      outcome: "successful" as const,
+    };
+
+    expect(
+      successfulMoveEffects(burningSlash, {
+        ...context,
+        successfulHitCount: 6,
+        rolls: Array.from({ length: 6 }, () => successfulRoll),
+      }).damageModifications,
+    ).toEqual([expect.objectContaining({ target: "self", operation: "add", amount: 3 })]);
+    expect(
+      successfulMoveEffects(burningSlash, {
+        ...context,
+        successfulHitCount: 5,
+        rolls: [
+          ...Array.from({ length: 5 }, () => successfulRoll),
+          {
+            attackNaturalResult: 1,
+            attackResult: 1,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "stopped" as const,
+          },
+        ],
+      }).damageModifications,
+    ).toEqual([]);
+  });
+
+  it("resolves successful-hit-count expressions from the completed attack", () => {
+    const bakuretsuRanma = moves.get("move-afterlife-bakuretsu-ranma");
+    const dragonSwipes = moves.get("move-haokiru-dragon-swipes");
+    if (bakuretsuRanma === undefined || dragonSwipes === undefined)
+      throw new Error("Expected successful-hit-count move data.");
+
+    expect(
+      successfulMoveEffects(bakuretsuRanma, {
+        ...context,
+        successfulHitCount: 7,
+      }).rollModifications,
+    ).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        roll: "attack",
+        modifier: "result",
+        amount: -7,
+        scope: "next-roll",
+      }),
+    ]);
+    expect(
+      successfulMoveEffects(dragonSwipes, {
+        ...context,
+        successfulHitCount: 5,
+      }).damageModifications,
+    ).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        operation: "add",
+        amount: -5,
+        scope: "next-action",
+      }),
+    ]);
   });
 
   it("evaluates converted roll comparison, stat, paid-cost, and resource conditions", () => {

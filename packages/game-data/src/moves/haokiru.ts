@@ -858,7 +858,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "successful-hit-count", perHit: 5 },
+        percent: { type: "successful-hit-count", perHit: -5 },
         scope: { type: "next-action", sourceText: "your opponent's next attack" },
         stacking: "prevent",
         sourceText:

@@ -517,6 +517,32 @@ describe("validateFightState", () => {
     );
   });
 
+  it("rejects counted roll modifiers without a positive remaining count", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok || createdFight.value.state.status !== "active") {
+      throw new Error("Expected an active initial fight state.");
+    }
+    const invalidState: FightState = {
+      ...createdFight.value.state,
+      activeEffects: [
+        {
+          id: "active-effect:invalid-counted-roll" as never,
+          type: "modify-next-action",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-aoyosumu-bullwhip",
+          scope: "next-rolls",
+          remaining: 0,
+          modifier: { type: "roll", roll: "defense", modifier: "result", amount: 2 },
+        },
+      ],
+    };
+
+    expect(validateFightState(invalidState)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "invalid-active-effect" })]),
+    );
+  });
+
   it("keeps pending choices, counter phase, and fight completion structurally consistent", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");

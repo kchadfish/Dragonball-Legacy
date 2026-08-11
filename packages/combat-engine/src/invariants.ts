@@ -296,16 +296,105 @@ const hasValidCostEffectDetails = (effect: ActiveCostModifierEffect) => {
 };
 
 const hasValidRollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "modify-roll" }>) =>
+  (effect.roll === "attack" || effect.roll === "defense") &&
+  (effect.modifier === "result" || effect.modifier === "sides") &&
   Number.isFinite(effect.amount) &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0;
+
+const hasValidResolutionThresholdDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "set-resolution-threshold" }>,
+) =>
+  (effect.outcome === "successful" || effect.outcome === "stopped") &&
+  (effect.roll === "attack" || effect.roll === "defense") &&
+  (effect.comparison === "at-least" || effect.comparison === "at-most") &&
+  (effect.resultScope === "current-attack" || effect.resultScope === "matching-die") &&
+  (effect.appliesTo === "source" || effect.appliesTo === "target") &&
+  (effect.scope === undefined || effect.scope === "next-action") &&
+  Number.isFinite(effect.value) &&
+  (effect.duration.type === "combat" ||
+    (effect.duration.type === "until-roll-threshold" &&
+      (effect.duration.roll === "attack" || effect.duration.roll === "defense") &&
+      (effect.duration.comparison === "at-least" || effect.duration.comparison === "at-most") &&
+      Number.isFinite(effect.duration.value))) &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
 
 const hasValidNextActionModifierDetails = (
   effect: Extract<ActiveCombatEffect, { type: "modify-next-action" }>,
+) => {
+  const scope = effect.scope ?? "next-action";
+  const validScope =
+    scope === "next-action" ||
+    scope === "following-action" ||
+    scope === "next-roll" ||
+    scope === "next-actions" ||
+    scope === "next-rolls";
+  const validRemaining = effect.remaining === undefined || validCounter(effect.remaining, 1);
+  const validFollowingTurn =
+    effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1);
+  const validDamageOperation =
+    effect.modifier.type !== "damage" ||
+    effect.modifier.operation === undefined ||
+    effect.modifier.operation === "add" ||
+    effect.modifier.operation === "multiply" ||
+    effect.modifier.operation === "set";
+  return (
+    validDamageOperation &&
+    (effect.modifier.type === "damage" ||
+      (effect.modifier.type === "roll" &&
+        (effect.modifier.roll === "attack" || effect.modifier.roll === "defense") &&
+        (effect.modifier.modifier === "result" || effect.modifier.modifier === "sides"))) &&
+    Number.isFinite(effect.modifier.amount) &&
+    typeof effect.sourceDefinitionId === "string" &&
+    effect.sourceDefinitionId.length > 0 &&
+    validScope &&
+    validRemaining &&
+    validFollowingTurn &&
+    (scope === "next-actions" || scope === "next-rolls"
+      ? effect.remaining !== undefined
+      : effect.remaining === undefined) &&
+    (scope === "following-action"
+      ? effect.availableFromTurn !== undefined
+      : effect.availableFromTurn === undefined)
+  );
+};
+
+const hasValidRollModificationPreventionDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "prevent-roll-modification" }>,
 ) =>
-  Number.isFinite(effect.modifier.amount) &&
-  typeof effect.sourceDefinitionId === "string" &&
-  effect.sourceDefinitionId.length > 0;
+  (effect.roll === "attack" || effect.roll === "defense") &&
+  (effect.modifier === "result" || effect.modifier === "sides" || effect.modifier === "any") &&
+  (effect.exemptSourceEffect === undefined || typeof effect.exemptSourceEffect === "boolean");
+
+const validMoveModificationAspects = new Set<string>([
+  "cost",
+  "damage",
+  "dice-sides",
+  "effects",
+  "roll-results",
+]);
+
+const hasValidMoveModificationPreventionDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "prevent-move-modification" }>,
+) => {
+  const selector: unknown = effect.selector;
+  return (
+    (effect.actor === "self" || effect.actor === "opponent" || effect.actor === "any") &&
+    effect.aspects.length > 0 &&
+    effect.aspects.every((aspect) => validMoveModificationAspects.has(aspect)) &&
+    (effect.operations === undefined ||
+      effect.operations.every((operation) => operation === "reduce")) &&
+    typeof selector === "object" &&
+    selector !== null &&
+    "type" in selector &&
+    selector.type === "move-selector" &&
+    (effect.effectSourceStyleExcludes === undefined ||
+      typeof effect.effectSourceStyleExcludes === "string") &&
+    (effect.exceptSourceMoveIds === undefined ||
+      effect.exceptSourceMoveIds.every((moveId) => typeof moveId === "string"))
+  );
+};
 
 const hasValidConstantEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "active-constant" }>,
@@ -345,7 +434,9 @@ const hasValidActionLockEffectDetails = (
         | "prevent-move-use"
         | "prevent-status"
         | "prevent-combat-result"
-        | "prevent-roll-modification";
+        | "prevent-roll-modification"
+        | "prevent-move-modification"
+        | "set-resolution-threshold";
     }
   >,
 ) => {
@@ -353,6 +444,7 @@ const hasValidActionLockEffectDetails = (
   const validDuration =
     duration.type === "combat" ||
     (duration.type === "turns" && validCounter(duration.remaining, 1)) ||
+    (duration.type === "next-actions" && validCounter(duration.remaining, 1)) ||
     (duration.type === "until-roll-threshold" && Number.isFinite(duration.value)) ||
     (duration.type === "until-resource-threshold" && Number.isFinite(duration.value)) ||
     duration.type === "until-combat-result" ||
@@ -377,12 +469,15 @@ const hasValidActionLockCombatantReferences = (
         | "prevent-move-use"
         | "prevent-status"
         | "prevent-combat-result"
-        | "prevent-roll-modification";
+        | "prevent-roll-modification"
+        | "prevent-move-modification"
+        | "set-resolution-threshold";
     }
   >,
 ) => {
   const duration = effect.duration;
-  if (duration.type === "turns") return isActiveCombatant(state, duration.ownerCombatantId);
+  if (duration.type === "turns" || duration.type === "next-actions")
+    return isActiveCombatant(state, duration.ownerCombatantId);
   if (
     duration.type === "until-roll-threshold" ||
     duration.type === "until-resource-threshold" ||
@@ -396,6 +491,7 @@ const hasValidActionLockCombatantReferences = (
 const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
   if (effect.type === "modify-ki-cost") return hasValidCostEffectDetails(effect);
   if (effect.type === "modify-roll") return hasValidRollEffectDetails(effect);
+  if (effect.type === "set-resolution-threshold") return hasValidResolutionThresholdDetails(effect);
   if (effect.type === "active-constant") return hasValidConstantEffectDetails(effect);
   if (effect.type === "force-next-action") return hasValidForcedActionEffectDetails(effect);
   if (effect.type === "modify-item-next-attack-damage")
@@ -404,7 +500,14 @@ const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
   if (effect.type === "prevent-move-use") return hasValidActionLockEffectDetails(effect);
   if (effect.type === "prevent-status") return hasValidActionLockEffectDetails(effect);
   if (effect.type === "prevent-combat-result") return hasValidActionLockEffectDetails(effect);
-  if (effect.type === "prevent-roll-modification") return hasValidActionLockEffectDetails(effect);
+  if (effect.type === "prevent-roll-modification")
+    return (
+      hasValidActionLockEffectDetails(effect) && hasValidRollModificationPreventionDetails(effect)
+    );
+  if (effect.type === "prevent-move-modification")
+    return (
+      hasValidActionLockEffectDetails(effect) && hasValidMoveModificationPreventionDetails(effect)
+    );
   return hasValidNextActionModifierDetails(effect);
 };
 
@@ -421,7 +524,9 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
         effect.type !== "prevent-move-use" &&
         effect.type !== "prevent-status" &&
         effect.type !== "prevent-combat-result" &&
-        effect.type !== "prevent-roll-modification") ||
+        effect.type !== "prevent-roll-modification" &&
+        effect.type !== "prevent-move-modification" &&
+        effect.type !== "set-resolution-threshold") ||
         hasValidActionLockCombatantReferences(state, effect)) &&
       hasValidEffectDetails(effect);
     if (!validEffect) {
