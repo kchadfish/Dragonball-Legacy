@@ -1,11 +1,6 @@
 import { GLOBAL_RULES, type RulesVersion } from "@dragonball-resurgence/game-config";
-import type {
-  ItemId,
-  MoveId,
-  MoveSelectorCondition,
-  StatusId,
-  TransformationId,
-} from "@dragonball-resurgence/game-data";
+import type { EffectDefinition, MoveSelectorCondition } from "@dragonball-resurgence/game-data";
+import type { ItemId, MoveId, StatusId, TransformationId } from "@dragonball-resurgence/game-data";
 import { z } from "zod";
 
 import type {
@@ -192,6 +187,7 @@ export interface ActiveRollModifierEffect {
   readonly modifier: "result" | "sides";
   readonly amount: number;
   readonly selector?: MoveSelectorCondition;
+  readonly stacking?: "allow" | "prevent";
   readonly duration: "combat";
 }
 
@@ -233,12 +229,14 @@ export interface ActiveNextActionModifierEffect {
   readonly scope?: "next-action" | "following-action" | "next-roll" | "next-actions" | "next-rolls";
   /** Remaining actions or individual rolls for counted scopes. */
   readonly remaining?: number;
+  readonly stacking?: "allow" | "prevent";
   /** Following-action modifiers become eligible only after this turn. */
   readonly availableFromTurn?: number;
   readonly modifier:
     | {
         readonly type: "damage";
         readonly amount: number;
+        readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
         /** Omitted means additive damage, preserving the compact legacy form. */
         readonly operation?: "add" | "multiply" | "set";
       }
@@ -247,6 +245,32 @@ export interface ActiveNextActionModifierEffect {
         readonly roll: "attack" | "defense";
         readonly modifier: "result" | "sides";
         readonly amount: number;
+      };
+}
+
+/** A selector-scoped damage modifier with an explicit combat lifecycle. */
+export interface ActiveDamageModifierEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "modify-damage";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly selector?: MoveSelectorCondition;
+  readonly operation: "add" | "multiply" | "set";
+  /** Power-percent is resolved to damage points; damage-percent scales resolved damage. */
+  readonly basis: "power-percent" | "damage-percent";
+  readonly amount: number;
+  readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
+  readonly availableFromTurn?: number;
+  readonly duration:
+    | { readonly type: "combat" }
+    | { readonly type: "turns"; readonly ownerCombatantId: CombatantId; readonly remaining: number }
+    | {
+        readonly type: "until-roll-threshold";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack";
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
       };
 }
 
@@ -388,6 +412,20 @@ export interface ActiveMoveModificationPreventionEffect {
   readonly duration: ActiveActionLockEffect["duration"];
 }
 
+/** A durable prohibition against a matching HP or KI change. */
+export interface ActiveResourceModificationPreventionEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "prevent-resource-modification";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly resource: "hp" | "ki";
+  readonly operation: "gain" | "lose" | "set";
+  readonly sourceActor?: "opponent";
+  readonly exceptAction?: "power-up";
+  readonly duration: ActiveActionLockEffect["duration"];
+}
+
 /** A combat-local CONSTANT Skill that has been explicitly activated by its owner. */
 export interface ActiveConstantEffect {
   readonly id: ActiveEffectId;
@@ -397,9 +435,50 @@ export interface ActiveConstantEffect {
   readonly sourceDefinitionId: MoveId;
   readonly activatedOnTurn: number;
   readonly duration: "combat";
+  /** The literal KI cost paid when this CONSTANT Skill was activated. */
+  readonly paidActivationCost?: number;
   /** Omitted legacy values are active; deactivation remains durable for reactivation effects. */
   readonly lifecycle?: "active" | "deactivated";
   readonly deactivatedOnTurn?: number;
+}
+
+/** A typed declarative effect bundle that remains active until its scope or termination rule ends. */
+export interface ActiveFloatingEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "floating-effect";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly floatingEffectId: string;
+  readonly effects: readonly EffectDefinition[];
+  readonly termination: readonly {
+    readonly trigger: "on-power-up" | "on-stopped" | "on-success";
+    readonly actor: "self" | "opponent";
+    readonly selector?: MoveSelectorCondition;
+  }[];
+  readonly scope:
+    | { readonly type: "combat" }
+    | { readonly type: "next-action" }
+    | { readonly type: "next-turn"; readonly combatantId: CombatantId };
+  readonly createdOnTurn: number;
+}
+
+/** A durable allowance for one or more declaratively eligible extra actions. */
+export interface ActiveExtraActionEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "extra-action";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly phase: "action" | "upkeep";
+  readonly moveCategory?: "advanced-attack" | "item-use" | "skill" | "power-up";
+  readonly sourceMoveOnly: boolean;
+  readonly constant?: boolean;
+  readonly remainingActions: number;
+  readonly availableFromTurn: number;
+  readonly expiresAfterTurn: number;
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
 export type ActiveCombatEffect =
@@ -407,6 +486,7 @@ export type ActiveCombatEffect =
   | ActiveRollModifierEffect
   | ActiveResolutionThresholdEffect
   | ActiveNextActionModifierEffect
+  | ActiveDamageModifierEffect
   | ActiveItemDamageModifierEffect
   | ActiveForcedActionEffect
   | ActiveActionLockEffect
@@ -415,7 +495,10 @@ export type ActiveCombatEffect =
   | ActiveCombatResultPreventionEffect
   | ActiveRollModificationPreventionEffect
   | ActiveMoveModificationPreventionEffect
-  | ActiveConstantEffect;
+  | ActiveResourceModificationPreventionEffect
+  | ActiveConstantEffect
+  | ActiveFloatingEffect
+  | ActiveExtraActionEffect;
 
 /**
  * A completed player action, retained as minimal rule-relevant history rather
@@ -435,6 +518,13 @@ export type CombatActionRecord =
       readonly actorId: CombatantId;
       readonly targetCombatantId: CombatantId;
       readonly basicAttack: BasicAttackType;
+      readonly outcome?: "successful" | "stopped";
+      readonly critical?: boolean;
+      readonly counter?: boolean;
+      /** A single-die attack's resolved result, when the action produced one. */
+      readonly attackRollResult?: number;
+      /** A single-die defense roll's resolved result, when the action produced one. */
+      readonly defenseRollResult?: number;
       readonly turnNumber: number;
       readonly phase: "action" | "counter";
     }
@@ -444,6 +534,13 @@ export type CombatActionRecord =
       readonly actorId: CombatantId;
       readonly targetCombatantId: CombatantId;
       readonly moveId: MoveId;
+      readonly outcome?: "successful" | "stopped";
+      readonly critical?: boolean;
+      readonly counter?: boolean;
+      /** A single-die attack's resolved result, when the action produced one. */
+      readonly attackRollResult?: number;
+      /** A single-die defense roll's resolved result, when the action produced one. */
+      readonly defenseRollResult?: number;
       readonly turnNumber: number;
       readonly phase: "action" | "counter";
     }

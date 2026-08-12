@@ -67,8 +67,178 @@ describe("declarative move runtime", () => {
       ),
     ).toBe(6);
     expect(
+      evaluateDurableNumericExpression(
+        { type: "paid-activation-cost", resource: "ki" },
+        { ...context, paidActivationCost: 4 },
+      ),
+    ).toBe(4);
+    expect(
       evaluateDurableNumericExpression({ type: "prior-roll-result", roll: "attack" }, context),
     ).toBeUndefined();
+
+    expect(
+      evaluateDurableNumericExpression(
+        { type: "prior-roll-result", roll: "defense", multiplier: 2 },
+        {
+          ...context,
+          actionHistory: [
+            {
+              type: "use-move",
+              decisionId: "decision:prior-defense" as never,
+              actorId: opponentId,
+              targetCombatantId: selfId,
+              moveId: "move-akaikaru-firestorm" as never,
+              turnNumber: 3,
+              phase: "action",
+              attackRollResult: 18,
+              defenseRollResult: 27,
+            },
+          ],
+        },
+      ),
+    ).toBe(54);
+  });
+
+  it("evaluates active CONSTANT counts from durable effects", () => {
+    const self = combatant(selfId, 35, 3);
+    const opponent = combatant(opponentId, 20, -1);
+    const context = {
+      self,
+      opponent,
+      turnNumber: 4,
+      participantCount: 2,
+      completedTurnCount: 3,
+      moves: moveMap,
+      activeEffects: [
+        {
+          id: "active-effect:expert-swordplay" as never,
+          type: "active-constant" as const,
+          sourceCombatantId: selfId,
+          targetCombatantId: selfId,
+          sourceDefinitionId: "move-freestyle-expert-swordplay" as never,
+          activatedOnTurn: 2,
+          duration: "combat" as const,
+        },
+      ],
+    };
+
+    expect(
+      evaluateDurableNumericExpression(
+        {
+          type: "active-move-effect-text-count",
+          subject: "self",
+          category: "skill",
+          constant: true,
+          effectTextIncludes: "Swordplay",
+          perMove: 2,
+        },
+        context,
+      ),
+    ).toBe(2);
+    expect(
+      evaluateDurableNumericExpression(
+        {
+          type: "active-move-count",
+          subject: "self",
+          category: "skill",
+          constant: true,
+          perMove: 2,
+        },
+        context,
+      ),
+    ).toBe(2);
+  });
+
+  it("evaluates combat-result history without counting non-attack actions", () => {
+    const self = combatant(selfId, 35, 3);
+    const opponent = combatant(opponentId, 20, -1);
+    const history = [
+      {
+        type: "use-move" as const,
+        decisionId: "decision:successful-self" as never,
+        actorId: selfId,
+        targetCombatantId: opponentId,
+        moveId: "move-akaikaru-firestorm" as never,
+        outcome: "successful" as const,
+        critical: false,
+        counter: false,
+        turnNumber: 1,
+        phase: "action" as const,
+      },
+      {
+        type: "power-up" as const,
+        decisionId: "decision:power-up" as never,
+        actorId: selfId,
+        turnNumber: 2,
+        phase: "action" as const,
+      },
+      {
+        type: "use-move" as const,
+        decisionId: "decision:stopped-self-1" as never,
+        actorId: selfId,
+        targetCombatantId: opponentId,
+        moveId: "move-akaikaru-firestorm" as never,
+        outcome: "stopped" as const,
+        critical: false,
+        counter: false,
+        turnNumber: 3,
+        phase: "action" as const,
+      },
+      {
+        type: "use-move" as const,
+        decisionId: "decision:stopped-self-2" as never,
+        actorId: selfId,
+        targetCombatantId: opponentId,
+        moveId: "move-akaikaru-firestorm" as never,
+        outcome: "stopped" as const,
+        critical: false,
+        counter: true,
+        turnNumber: 4,
+        phase: "action" as const,
+      },
+    ];
+    const context = {
+      self,
+      opponent,
+      turnNumber: 5,
+      participantCount: 2,
+      completedTurnCount: 4,
+      moves: moveMap,
+      actionHistory: history,
+    };
+
+    expect(
+      evaluateDurableNumericExpression(
+        {
+          type: "consecutive-combat-results",
+          actor: "self",
+          result: "stopped",
+          resetBy: "successful",
+          perResult: 5,
+          maximum: 8,
+        },
+        context,
+      ),
+    ).toBe(8);
+    expect(
+      evaluateDurableNumericExpression(
+        { type: "combat-result-count", actor: "self", result: "counter", perResult: 1 },
+        context,
+      ),
+    ).toBe(1);
+    expect(
+      evaluateDurableNumericExpression(
+        {
+          type: "combat-result-count",
+          actor: "self",
+          result: "successful",
+          perResult: 5,
+          minimum: 5,
+          maximum: 15,
+        },
+        context,
+      ),
+    ).toBe(5);
   });
 
   it("matches converted selectors without using source text as executable behavior", () => {

@@ -14,6 +14,7 @@ import {
   combatEventIdSchema,
   fightIdSchema,
   pendingDecisionIdSchema,
+  resolutionFrameIdSchema,
 } from "./ids.js";
 import { createTestCombatDependencies } from "./testing/index.js";
 
@@ -311,6 +312,69 @@ describe("initial turn progression", () => {
       expect.objectContaining({
         type: "effect-activated",
         activeEffectId: "active-effect:dodon-lock",
+      }),
+    );
+  });
+
+  it("persists a converted floating bundle through a successful attack transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1, 30, 1],
+      new Date("2026-08-04T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:anger-floating")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 32 }, (_, index) =>
+          combatEventIdSchema.parse(`event:anger-floating-${index}`),
+        ),
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:anger-floating")],
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                moveIds: ["move-akaikaru-anger-management"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const resolved = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:anger-floating"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-akaikaru-anger-management",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(requireActiveFightState(resolved.state).activeEffects).toContainEqual(
+      expect.objectContaining({
+        id: "active-effect:anger-floating",
+        type: "floating-effect",
+        floatingEffectId: "anger-management-next-single-die-stun",
+        scope: { type: "combat" },
       }),
     );
   });
@@ -766,6 +830,167 @@ describe("initial turn progression", () => {
     expect(attack.state.combatants[secondCombatantId].hitPoints.current).toBe(87);
   });
 
+  it("uses resource comparisons for legal cost reduction and successful damage scheduling", () => {
+    const dependencies = createTestCombatDependencies(
+      [28, 1],
+      new Date("2026-08-11T13:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:resource-comparison")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:resource-comparison")],
+        eventIds: Array.from({ length: 20 }, (_, index) =>
+          combatEventIdSchema.parse(`event:resource-comparison-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 2, dexterityBonus: 0 },
+              moveIds: [],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const attackerId = action.activeCombatantId;
+    const targetId = attackerId === firstCombatantId ? secondCombatantId : firstCombatantId;
+    const actionState: ActiveFightState = {
+      ...action,
+      turnNumber: 10,
+      combatants: {
+        ...action.combatants,
+        [attackerId]: {
+          ...action.combatants[attackerId],
+          hitPoints: { current: 50, maximum: 100 },
+          moveIds: ["move-haokiru-focused-spirit-cutter"],
+        },
+        [targetId]: {
+          ...action.combatants[targetId],
+          hitPoints: { current: 100, maximum: 100 },
+          moveIds: [],
+        },
+      },
+    };
+
+    expect(enumerateLegalDecisions(actionState, attackerId)).toContainEqual({
+      type: "use-move",
+      actorId: attackerId,
+      moveId: "move-haokiru-focused-spirit-cutter",
+      targetCombatantId: targetId,
+    });
+    const attack = requireTransition(
+      submitCombatDecision(
+        actionState,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:resource-comparison"),
+          actorId: attackerId,
+          expectedStateVersion: actionState.version,
+          moveId: "move-haokiru-focused-spirit-cutter",
+          targetCombatantId: targetId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(attack.state.version).toBe(actionState.version + 1);
+    expect(attack.state.combatants[attackerId].ki.current).toBe(3);
+    expect(attack.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 8 }),
+    );
+    expect(attack.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "modify-next-action",
+        targetCombatantId: targetId,
+        modifier: { type: "damage", amount: -50 },
+      }),
+    );
+  });
+
+  it("clamps a converted current-action damage modifier at its declarative cap", () => {
+    const dependencies = createTestCombatDependencies(
+      Array.from({ length: 20 }, () => 1),
+      new Date("2026-08-11T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:damage-cap")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 12 }, (_, index) =>
+          combatEventIdSchema.parse(`event:damage-cap-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 6, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-slow-charge"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const initial = requireActiveFightState(created.state);
+    const activeId = initial.activeCombatantId;
+    const targetId = activeId === firstCombatantId ? secondCombatantId : firstCombatantId;
+    const actionState: ActiveFightState = {
+      ...initial,
+      turnNumber: 20,
+      phase: "action",
+      combatants: {
+        ...initial.combatants,
+        [activeId]: {
+          ...initial.combatants[activeId],
+          moveIds: ["move-aoyosumu-slow-charge"],
+          ki: { ...initial.combatants[activeId].ki, current: 5 },
+        },
+      },
+    };
+    const attack = requireTransition(
+      submitCombatDecision(
+        actionState,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:damage-cap"),
+          actorId: activeId,
+          expectedStateVersion: actionState.version,
+          moveId: "move-aoyosumu-slow-charge",
+          targetCombatantId: targetId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(attack.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 15 }),
+    );
+    expect(attack.state.combatants[targetId].hitPoints.current).toBe(85);
+    expect(attack.state.version).toBe(actionState.version + 1);
+  });
+
   it("enforces a passive resolution threshold through the public move transition", () => {
     const dependencies = createTestCombatDependencies(
       [1, 10],
@@ -1045,6 +1270,168 @@ describe("initial turn progression", () => {
     expect(transition.events[0]).toMatchObject({ type: "ki-changed", amount: 1, remainingKi: 10 });
   });
 
+  it("dispatches current resource gains to generic listeners without recursive retriggering", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 19],
+      new Date("2026-08-10T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:resource-event-power-up")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:resource-event-killer-gaze")],
+        eventIds: Array.from({ length: 8 }, (_, index) =>
+          combatEventIdSchema.parse(`event:resource-event-power-up-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: ["move-kiihakai-energy-gathering"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: ["move-kurokonwaku-killer-gaze"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const transition = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "power-up",
+          id: combatDecisionIdSchema.parse("decision:resource-event-power-up"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.combatants[firstCombatantId].ki.current).toBe(9);
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "ki-changed", amount: 4, remainingKi: 9 }),
+    );
+    expect(transition.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "modify-next-action",
+        sourceDefinitionId: "move-kurokonwaku-killer-gaze",
+        targetCombatantId: firstCombatantId,
+        modifier: { type: "roll", roll: "attack", modifier: "result", amount: -3 },
+        scope: "next-action",
+      }),
+    );
+  });
+
+  it("dispatches structured power-up effects into durable next-turn state", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 19],
+      new Date("2026-08-10T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:power-up-effects")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: Array.from({ length: 4 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:power-up-${index}`),
+        ),
+        eventIds: Array.from({ length: 16 }, (_, index) =>
+          combatEventIdSchema.parse(`event:power-up-effects-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: [
+                "move-aoyosumu-calming-mastery",
+                "move-kiihakai-overdrive-mastery",
+                "move-kiihakai-overload",
+              ],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const transition = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "power-up",
+          id: combatDecisionIdSchema.parse("decision:power-up-effects"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(action.version + 1);
+    expect(transition.state.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-next-action",
+          sourceDefinitionId: "move-aoyosumu-calming-mastery",
+          targetCombatantId: firstCombatantId,
+          modifier: { type: "roll", roll: "defense", modifier: "result", amount: 4 },
+          scope: "next-roll",
+        }),
+        expect.objectContaining({
+          type: "modify-damage",
+          sourceDefinitionId: "move-kiihakai-overdrive-mastery",
+          targetCombatantId: firstCombatantId,
+          amount: 3,
+          availableFromTurn: 2,
+          duration: { type: "turns", ownerCombatantId: firstCombatantId, remaining: 1 },
+        }),
+        expect.objectContaining({
+          type: "set-resolution-threshold",
+          sourceDefinitionId: "move-kiihakai-overload",
+          targetCombatantId: secondCombatantId,
+          scope: "next-action",
+          outcome: "stopped",
+          value: 15,
+        }),
+      ]),
+    );
+    expect(transition.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "ki-changed", amount: 3 }),
+        expect.objectContaining({
+          type: "effect-activated",
+          sourceDefinitionId: "move-kiihakai-overdrive-mastery",
+        }),
+        expect.objectContaining({
+          type: "effect-activated",
+          sourceDefinitionId: "move-kiihakai-overload",
+        }),
+      ]),
+    );
+  });
+
   it("skips a stunned combatant's action during Upkeep and expires it after that turn", () => {
     const { state: initialState, dependencies } = createInitialState();
     const activeInitialState = requireActiveFightState(initialState);
@@ -1321,6 +1708,220 @@ describe("initial turn progression", () => {
     expect(submitCombatDecision(completedState, passDecision, dependencies)).toMatchObject({
       ok: false,
       error: { type: "wrong-phase", actual: "completed" },
+    });
+  });
+
+  it("uses persisted combat-result history for a later move's damage and roll", () => {
+    const dependencies = createTestCombatDependencies(
+      [1, 20, 20, 1],
+      new Date("2026-08-11T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:combat-result-history")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 40 }, (_, index) =>
+          combatEventIdSchema.parse(`event:combat-result-history-${index}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 10 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:combat-result-history-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-letting-off-steam"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const firstAction = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const firstAttack = requireTransition(
+      submitCombatDecision(
+        firstAction,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:history-first-attack"),
+          actorId: firstCombatantId,
+          expectedStateVersion: firstAction.version,
+          moveId: "move-akaikaru-letting-off-steam",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    expect(firstAttack.events).toContainEqual(
+      expect.objectContaining({ type: "attack-resolved", outcome: "stopped" }),
+    );
+
+    const opponentAction = requireActiveFightState(
+      requireTransition(advanceFight(firstAttack.state, dependencies)).state,
+    );
+    const opponentTurn = requireActiveFightState(
+      requireTransition(advanceFight(opponentAction, dependencies)).state,
+    );
+    const opponentPass = requireTransition(
+      submitCombatDecision(
+        opponentTurn,
+        {
+          type: "pass",
+          id: combatDecisionIdSchema.parse("decision:history-opponent-pass"),
+          actorId: secondCombatantId,
+          expectedStateVersion: opponentTurn.version,
+        },
+        dependencies,
+      ),
+    );
+    const firstUpkeep = requireActiveFightState(
+      requireTransition(advanceFight(opponentPass.state, dependencies)).state,
+    );
+    const secondAction = requireActiveFightState(
+      requireTransition(advanceFight(firstUpkeep, dependencies)).state,
+    );
+
+    expect(enumerateLegalDecisions(secondAction, firstCombatantId)).toContainEqual(
+      expect.objectContaining({ type: "use-move", moveId: "move-akaikaru-letting-off-steam" }),
+    );
+    const secondAttack = requireTransition(
+      submitCombatDecision(
+        secondAction,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:history-second-attack"),
+          actorId: firstCombatantId,
+          expectedStateVersion: secondAction.version,
+          moveId: "move-akaikaru-letting-off-steam",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(secondAttack.state.version).toBe(secondAction.version + 1);
+    expect(secondAttack.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "attack-resolved", outcome: "successful" }),
+        expect.objectContaining({ type: "damage-applied", amount: 7 }),
+      ]),
+    );
+  });
+
+  it("continues a successful source move through a bounded same-turn extra action", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1, 30, 1],
+      new Date("2026-08-12T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:chained-strikes")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:chained-strikes-${index}`),
+        ),
+        eventIds: Array.from({ length: 40 }, (_, index) =>
+          combatEventIdSchema.parse(`event:chained-strikes-${index}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 8 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:chained-strikes-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-chained-strikes"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const firstAttack = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:chained-strikes-first"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-akaikaru-chained-strikes",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    const firstAttackState = requireActiveFightState(firstAttack.state);
+
+    expect(firstAttackState).toMatchObject({
+      phase: "action",
+      activeCombatantId: firstCombatantId,
+      activeEffects: [
+        expect.objectContaining({
+          type: "extra-action",
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-akaikaru-chained-strikes",
+          sourceEffectIndex: 0,
+          remainingActions: 1,
+          expiresAfterTurn: firstAttackState.turnNumber,
+          useLimit: expect.objectContaining({ scope: "turn", count: 1 }),
+        }),
+      ],
+    });
+    expect(enumerateLegalDecisions(firstAttackState, firstCombatantId)).toEqual([
+      {
+        type: "use-move",
+        actorId: firstCombatantId,
+        moveId: "move-akaikaru-chained-strikes",
+        targetCombatantId: secondCombatantId,
+      },
+    ]);
+
+    const secondAttack = requireTransition(
+      submitCombatDecision(
+        firstAttackState,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:chained-strikes-second"),
+          actorId: firstCombatantId,
+          expectedStateVersion: firstAttackState.version,
+          moveId: "move-akaikaru-chained-strikes",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    const secondAttackState = requireActiveFightState(secondAttack.state);
+    expect(secondAttackState.phase).toBe("end");
+    expect(secondAttackState.activeEffects).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "extra-action" })]),
+    );
+    expect(secondAttackState.combatants[firstCombatantId].moveUses).toMatchObject({
+      "move-akaikaru-chained-strikes": 2,
     });
   });
 });

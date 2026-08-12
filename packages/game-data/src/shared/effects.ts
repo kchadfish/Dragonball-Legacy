@@ -1059,10 +1059,15 @@ export interface ModifyRollEffect extends BaseEffectDefinition {
   readonly affectedDice?: "all" | "ceiling-half";
   readonly selector?: MoveSelectorCondition;
   readonly cap?:
-    | { readonly type: "allow-exceed"; readonly sourceText: string }
+    | {
+        readonly type: "allow-exceed";
+        readonly scope?: "amount" | "total" | "roll";
+        readonly sourceText: string;
+      }
     | {
         readonly type: "maximum" | "minimum";
         readonly value: NumericExpression;
+        readonly scope?: "amount" | "total" | "roll";
         readonly sourceText: string;
       };
 }

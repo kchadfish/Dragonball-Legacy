@@ -462,6 +462,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         amount: { type: "completed-combat-turn-count", perTurn: 1 },
         cap: {
           type: "maximum",
+          scope: "amount",
           value: { type: "literal", value: 5 },
           sourceText: "and +5 to the result",
         },

@@ -25,6 +25,11 @@ export interface ContestedAttackRollInput {
   readonly numericResultOverrides?: readonly (
     { readonly attack?: number; readonly defense?: number } | undefined
   )[];
+  /** Deterministic modifier evaluated immediately before each die resolves. */
+  readonly beforeDieResultModifier?: (
+    index: number,
+    priorRolls: readonly AttackDieRoll[],
+  ) => { readonly attack?: number; readonly defense?: number } | undefined;
   /** Declarative constraints on whether a die may count as successful or stopped. */
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
 }
@@ -127,13 +132,17 @@ const resolvedUnblockedDie = (
   index: number,
   input: ContestedAttackRollInput,
   random: RandomSource,
+  dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
 ): AttackDieRoll => {
   const defenseNaturalResult =
     persisted?.defense ??
     random.integer(1, input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides);
   const defenseResult =
     input.numericResultOverrides?.[index]?.defense ??
-    defenseNaturalResult + input.defenderDexterityBonus + (input.defenderResultModifier ?? 0);
+    defenseNaturalResult +
+      input.defenderDexterityBonus +
+      (input.defenderResultModifier ?? 0) +
+      (dynamicResultModifier?.defense ?? 0);
   const defaultOutcome =
     attackResult >= defenseResult ? ("successful" as const) : ("stopped" as const);
   const outcome = resolutionThresholdOutcome(
@@ -186,16 +195,25 @@ const resolveContestedAttackDie = (
   input: ContestedAttackRollInput,
   random: RandomSource,
   index: number,
+  dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
 ): AttackDieRoll => {
   const persisted = input.naturalRolls?.[index];
   const attackNaturalResult = persisted?.attack ?? random.integer(1, input.attack.sides);
   const attackResult =
     input.numericResultOverrides?.[index]?.attack ??
-    attackNaturalResult + input.attackerDexterityBonus;
+    attackNaturalResult + input.attackerDexterityBonus + (dynamicResultModifier?.attack ?? 0);
   if (index < (input.blockedDice ?? 0)) {
     return { attackNaturalResult, attackResult, outcome: "blocked" };
   }
-  return resolvedUnblockedDie(attackNaturalResult, attackResult, persisted, index, input, random);
+  return resolvedUnblockedDie(
+    attackNaturalResult,
+    attackResult,
+    persisted,
+    index,
+    input,
+    random,
+    dynamicResultModifier,
+  );
 };
 
 /**
@@ -214,6 +232,7 @@ export const resolveContestedAttackRolls = (
     naturalRolls,
     resultOverrides,
     numericResultOverrides,
+    beforeDieResultModifier,
     resolutionThresholds,
   }: ContestedAttackRollInput,
   random: RandomSource,
@@ -244,11 +263,21 @@ export const resolveContestedAttackRolls = (
     naturalRolls,
     resultOverrides,
     numericResultOverrides,
+    beforeDieResultModifier,
     resolutionThresholds,
   };
-  return Array.from({ length: attack.dice }, (_, index) =>
-    resolveContestedAttackDie(input, random, index),
-  );
+  const rolls: AttackDieRoll[] = [];
+  for (let index = 0; index < attack.dice; index += 1) {
+    rolls.push(
+      resolveContestedAttackDie(
+        input,
+        random,
+        index,
+        input.beforeDieResultModifier?.(index, rolls),
+      ),
+    );
+  }
+  return rolls;
 };
 
 /** The rules block the first half of a multi-die attack, rounded up. */

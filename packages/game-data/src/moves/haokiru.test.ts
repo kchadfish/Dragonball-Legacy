@@ -48,7 +48,9 @@ describe("HAOKIRU_MOVES", () => {
     expect(HAOKIRU_MOVES.find((move) => move.name === "Muscle Infusion")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-damage",
-        percent: { type: "literal", value: -50 },
+        trigger: "on-damage",
+        optional: true,
+        percent: { type: "damage-percent", subject: "current-action", percent: -50 },
         useLimit: { scope: "combat", count: 2, sourceText: "RESTRICTEDx2" },
       }),
     ]);
@@ -71,7 +73,11 @@ describe("HAOKIRU_MOVES", () => {
 
   it("reduces high-margin opposing attack damage through Advanced Behavior", () => {
     expect(HAOKIRU_MOVES.find((move) => move.name === "Advanced Behavior")?.effects).toEqual([
-      expect.objectContaining({ type: "modify-damage", percent: { type: "literal", value: -10 } }),
+      expect.objectContaining({
+        type: "modify-damage",
+        trigger: "on-damage",
+        percent: { type: "damage-percent", subject: "current-action", percent: -10 },
+      }),
     ]);
   });
 

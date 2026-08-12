@@ -111,17 +111,66 @@ describe("declarative effect executor registry", () => {
     );
   });
 
+  it("compiles a flat floating bundle and rejects lifecycle variants it cannot persist", () => {
+    const supported = effectAt("move-akaikaru-anger-management", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: supported.move.id,
+        effectIndex: 0,
+        effect: supported.effect,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const unsupported = effectAt("move-haokiru-dragon-dust", 0);
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: unsupported.move.id,
+      effectIndex: 0,
+      effect: unsupported.effect,
+    });
+    expect(rejected).toMatchObject({ ok: false });
+    if (rejected.ok) return;
+    expect(rejected.issues).toContainEqual(
+      expect.objectContaining({ code: "unsupported-variant" }),
+    );
+  });
+
+  it("compiles same-turn source-move extra actions and rejects scheduled variants", () => {
+    const supported = effectAt("move-akaikaru-chained-strikes", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: supported.move.id,
+        effectIndex: 0,
+        effect: supported.effect,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const scheduled = effectAt("move-afterlife-destructo-disc", 0);
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: scheduled.move.id,
+      effectIndex: 0,
+      effect: scheduled.effect,
+    });
+    expect(rejected).toMatchObject({ ok: false });
+    if (rejected.ok) return;
+    expect(rejected.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "unsupported-variant" })]),
+    );
+  });
+
   it("keeps the runtime registry exhaustively named", () => {
     expect(Object.keys(effectExecutorRegistry).sort()).toEqual([
       "apply-status",
+      "create-floating-effect",
       "deactivate",
       "force-action",
+      "grant-extra-action",
       "lock",
       "modify-cost",
       "modify-damage",
       "modify-resource",
       "modify-roll",
       "prevent-combat-result",
+      "prevent-move-modification",
       "prevent-move-use",
       "prevent-resolution",
       "prevent-roll-modification",

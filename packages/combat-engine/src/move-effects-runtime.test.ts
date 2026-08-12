@@ -32,6 +32,498 @@ const context = {
 };
 
 describe("converted move effects", () => {
+  it("dispatches a same-turn source-move extra action with its use limit", () => {
+    const chainedStrikes = moves.get("move-akaikaru-chained-strikes");
+    if (chainedStrikes === undefined) throw new Error("Expected Chained Strikes data.");
+
+    expect(moveEffectsForTrigger(chainedStrikes, "on-success", context).extraActions).toEqual([
+      {
+        target: "self",
+        phase: "action",
+        moveCategory: "advanced-attack",
+        sourceMoveOnly: true,
+        scope: "current-turn",
+        useLimit: expect.objectContaining({ scope: "turn", count: 1 }),
+        effectIndex: 0,
+      },
+    ]);
+  });
+
+  it("resolves prior single-die defense results and clamps a damage cap", () => {
+    const weepingWillow = moves.get("move-aoyosumu-weeping-willow");
+    if (weepingWillow === undefined) throw new Error("Expected Weeping Willow data.");
+
+    expect(
+      moveEffectsForTrigger(weepingWillow, "before-attack-roll", {
+        ...context,
+        actionHistory: [
+          {
+            type: "use-move",
+            decisionId: "decision:prior-defense-for-weeping-willow" as never,
+            actorId: opponent.id,
+            targetCombatantId: self.id,
+            moveId: "move-afterlife-masenko" as never,
+            turnNumber: 4,
+            phase: "action",
+            attackRollResult: 12,
+            defenseRollResult: 30,
+          },
+        ],
+      }).damageModifications,
+    ).toEqual([
+      expect.objectContaining({
+        operation: "set",
+        amount: 12,
+        cap: { type: "maximum", value: 10 },
+      }),
+    ]);
+  });
+
+  it("dispatches nested effects from a durable floating bundle without source-text interpretation", () => {
+    const backflipKick = moves.get("move-akaikaru-backflip-kick");
+    const nestedBundle = backflipKick?.effects?.[0];
+    if (backflipKick === undefined || nestedBundle?.type !== "create-floating-effect")
+      throw new Error("Expected Backflip Kick's floating bundle.");
+
+    const activeFloating = {
+      id: "active-effect:backflip-floating" as never,
+      type: "floating-effect" as const,
+      sourceCombatantId: self.id,
+      targetCombatantId: self.id,
+      sourceDefinitionId: backflipKick.id,
+      floatingEffectId: nestedBundle.floatingEffectId,
+      effects: nestedBundle.effects ?? [],
+      termination: (nestedBundle.termination ?? []).map(({ trigger, actor, selector }) => ({
+        trigger,
+        actor,
+        ...(selector === undefined ? {} : { selector }),
+      })),
+      scope: { type: "next-action" as const },
+      createdOnTurn: 4,
+    };
+
+    expect(
+      moveEffectsForTrigger(backflipKick, "passive", {
+        ...context,
+        includeActiveFloatingEffects: true,
+        activeEffects: [activeFloating],
+      }).resolutionPreventions,
+    ).toEqual([expect.objectContaining({ target: "self", prevention: "block" })]);
+    expect(
+      moveEffectsForTrigger(backflipKick, "passive", {
+        ...context,
+        turnNumber: 4,
+        includeActiveFloatingEffects: true,
+        activeEffects: [
+          {
+            ...activeFloating,
+            scope: { type: "next-turn" as const, combatantId: self.id },
+          },
+        ],
+      }).resolutionPreventions,
+    ).toEqual([]);
+  });
+
+  it("evaluates active and inactive move-effect conditions from durable effects", () => {
+    const x20 = moves.get("move-afterlife-x20-kaioken-kamehameha");
+    if (x20 === undefined) throw new Error("Expected move-effect condition test moves.");
+
+    const activeKaioKen = {
+      id: "active-effect:kaio-ken" as never,
+      type: "active-constant" as const,
+      sourceCombatantId: self.id,
+      targetCombatantId: self.id,
+      sourceDefinitionId: "move-afterlife-kaio-ken" as never,
+      activatedOnTurn: 5,
+      duration: "combat" as const,
+    };
+    const x20Effects = moveEffectsForTrigger(x20, "passive", {
+      ...context,
+      activeEffects: [activeKaioKen],
+    });
+    expect(x20Effects.damageModifications).toEqual([
+      expect.objectContaining({ amount: 5, basis: "power-percent" }),
+    ]);
+    expect(x20Effects.currentActionCostModifications).toEqual([
+      expect.objectContaining({ operation: "add", amount: -2 }),
+    ]);
+
+    const x20DamageEffect = x20.effects?.[0];
+    if (x20DamageEffect?.type !== "modify-damage" || x20DamageEffect.conditions?.[0] === undefined)
+      throw new Error("Expected X20 damage condition.");
+    const inactiveX20 = {
+      ...x20,
+      effects: [
+        {
+          ...x20DamageEffect,
+          conditions: [{ ...x20DamageEffect.conditions[0], type: "move-effect-inactive" as const }],
+        },
+      ],
+    } as MoveDefinition;
+    const inactiveX20Effects = moveEffectsForTrigger(inactiveX20, "passive", {
+      ...context,
+      activeEffects: [],
+    });
+    expect(inactiveX20Effects.damageModifications).toEqual([
+      expect.objectContaining({ amount: 5, basis: "power-percent" }),
+    ]);
+    const activeX20Effects = moveEffectsForTrigger(inactiveX20, "passive", {
+      ...context,
+      activeEffects: [
+        {
+          ...activeKaioKen,
+        },
+      ],
+    });
+    expect(activeX20Effects.damageModifications).toEqual([]);
+  });
+
+  it("resolves active-move, moveset, and current-use count conditions", () => {
+    const wolfFang = moves.get("move-afterlife-wolf-fang-fist");
+    const shoulderTackle = moves.get("move-akaikaru-accelerated-shoulder-tackle");
+    const tortureRack = moves.get("move-midorikatai-torture-rack");
+    const expertSwordplay = moves.get("move-freestyle-expert-swordplay");
+    if (
+      wolfFang === undefined ||
+      shoulderTackle === undefined ||
+      tortureRack === undefined ||
+      expertSwordplay === undefined
+    )
+      throw new Error("Expected count-condition test moves.");
+
+    const activeExpertSwordplay = {
+      id: "active-effect:expert-swordplay" as never,
+      type: "active-constant" as const,
+      sourceCombatantId: self.id,
+      targetCombatantId: self.id,
+      sourceDefinitionId: expertSwordplay.id,
+      activatedOnTurn: 5,
+      duration: "combat" as const,
+    };
+    expect(
+      moveEffectsForTrigger(wolfFang, "before-attack-roll", {
+        ...context,
+        activeEffects: [],
+      }).rollModifications,
+    ).toEqual([expect.objectContaining({ amount: 5 })]);
+    expect(
+      moveEffectsForTrigger(wolfFang, "before-attack-roll", {
+        ...context,
+        activeEffects: [activeExpertSwordplay, activeExpertSwordplay],
+      }).rollModifications,
+    ).toEqual([expect.objectContaining({ amount: 2 })]);
+
+    const physicalAdvancedAttackIds = MOVE_DEFINITIONS.filter(
+      (move) => move.category === "advanced-attack" && move.tags.includes("physical"),
+    )
+      .slice(0, 5)
+      .map((move) => move.id);
+    const fourMoveMovesetEffects = moveEffectsForTrigger(shoulderTackle, "on-success", {
+      ...context,
+      self: { ...self, moveIds: physicalAdvancedAttackIds.slice(0, 4) },
+    });
+    expect(fourMoveMovesetEffects.rollModifications).toEqual([
+      expect.objectContaining({ amount: 3 }),
+    ]);
+    const fiveMoveMovesetEffects = moveEffectsForTrigger(shoulderTackle, "on-success", {
+      ...context,
+      self: { ...self, moveIds: physicalAdvancedAttackIds },
+    });
+    expect(fiveMoveMovesetEffects.rollModifications).toEqual([
+      expect.objectContaining({ amount: 4 }),
+      expect.objectContaining({ amount: 4, scope: "next-action" }),
+    ]);
+
+    const currentAction = {
+      type: "use-move" as const,
+      decisionId: "decision:current-torture-rack" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: tortureRack.id,
+      turnNumber: 5,
+      phase: "action" as const,
+    };
+    const supportedTortureRack = {
+      ...tortureRack,
+      effects: [
+        {
+          ...tortureRack.effects?.[1],
+          roll: "attack" as const,
+        },
+      ],
+    } as MoveDefinition;
+    expect(
+      moveEffectsForTrigger(supportedTortureRack, "on-success", {
+        ...context,
+        currentAction,
+      }).rollModifications,
+    ).toEqual([expect.objectContaining({ amount: 2 })]);
+    expect(
+      moveEffectsForTrigger(supportedTortureRack, "on-success", {
+        ...context,
+        actionHistory: [currentAction],
+        currentAction: { ...currentAction, decisionId: "decision:second-torture-rack" as never },
+      }).rollModifications,
+    ).toEqual([]);
+  });
+
+  it("dispatches a resource-threshold effect only when the durable state crosses it", () => {
+    const eternalMastery = moves.get("move-haokiru-eternal-mastery");
+    if (eternalMastery === undefined) throw new Error("Expected Eternal Mastery data.");
+
+    const previous = { ...self, hitPoints: { ...self.hitPoints, current: 0 } };
+    const crossed = moveEffectsForTrigger(eternalMastery, "on-resource-threshold", {
+      ...context,
+      self: { ...self, hitPoints: { ...self.hitPoints, current: -1 } },
+      previousResourceState: { self: previous, opponent },
+    });
+    expect(crossed.resources).toEqual([
+      expect.objectContaining({ resource: "hp", operation: "gain", amount: 10, target: "self" }),
+    ]);
+
+    const alreadyBelow = moveEffectsForTrigger(eternalMastery, "on-resource-threshold", {
+      ...context,
+      self: { ...self, hitPoints: { ...self.hitPoints, current: -2 } },
+      previousResourceState: {
+        self: { ...self, hitPoints: { ...self.hitPoints, current: -1 } },
+        opponent,
+      },
+    });
+    expect(alreadyBelow.resources).toEqual([]);
+  });
+
+  it("dispatches Mass Genocide's next-die result modifier from prior resolved dice", () => {
+    const massGenocide = moves.get("move-afterlife-mass-genocide-attack");
+    if (massGenocide === undefined) throw new Error("Expected Mass Genocide Attack data.");
+
+    const firstDieSuccessful = moveEffectsForTrigger(massGenocide, "on-roll-result", {
+      ...context,
+      rolls: [
+        {
+          attackNaturalResult: 20,
+          attackResult: 20,
+          defenseNaturalResult: 1,
+          defenseResult: 1,
+          outcome: "successful" as const,
+        },
+      ],
+    });
+    expect(firstDieSuccessful.rollModifications).toEqual([
+      expect.objectContaining({ dieIndex: 2, amount: 2, roll: "attack", modifier: "result" }),
+    ]);
+
+    const firstDieStopped = moveEffectsForTrigger(massGenocide, "on-roll-result", {
+      ...context,
+      rolls: [
+        {
+          attackNaturalResult: 10,
+          attackResult: 10,
+          defenseNaturalResult: 20,
+          defenseResult: 20,
+          outcome: "stopped" as const,
+        },
+      ],
+    });
+    expect(firstDieStopped.rollModifications).toEqual([]);
+  });
+
+  it("evaluates prior-action conditions from the latest structured action record", () => {
+    const smackdown = moves.get("move-midorikatai-smackdown");
+    const masenko = moves.get("move-afterlife-masenko");
+    if (smackdown === undefined || masenko === undefined)
+      throw new Error("Expected prior-action test moves.");
+
+    const priorAdvancedAttack = {
+      type: "use-move" as const,
+      decisionId: "decision:prior-advanced-attack" as never,
+      actorId: opponent.id,
+      targetCombatantId: self.id,
+      moveId: "move-midorikatai-rocket-fire" as never,
+      turnNumber: 4,
+      phase: "action" as const,
+      outcome: "successful" as const,
+      critical: false,
+      counter: false,
+    };
+
+    expect(
+      moveEffectsForTrigger(smackdown, "passive", {
+        ...context,
+        actionHistory: [priorAdvancedAttack],
+      }).damageModifications,
+    ).toEqual([expect.objectContaining({ amount: 3, basis: "power-percent" })]);
+
+    expect(
+      moveEffectsForTrigger(smackdown, "passive", {
+        ...context,
+        actionHistory: [
+          priorAdvancedAttack,
+          {
+            type: "power-up" as const,
+            decisionId: "decision:power-up" as never,
+            actorId: opponent.id,
+            turnNumber: 5,
+            phase: "action" as const,
+          },
+        ],
+      }).damageModifications,
+    ).toEqual([]);
+
+    expect(
+      moveEffectsForTrigger(masenko, "on-success", {
+        ...context,
+        actionHistory: [priorAdvancedAttack],
+      }).rollModifications,
+    ).toEqual([]);
+    expect(
+      moveEffectsForTrigger(masenko, "on-success", {
+        ...context,
+        actionHistory: [],
+      }).rollModifications,
+    ).toEqual([expect.objectContaining({ amount: -5 })]);
+  });
+
+  it("resolves combat-result history for passive damage and roll modifiers", () => {
+    const lettingOffSteam = moves.get("move-akaikaru-letting-off-steam");
+    if (lettingOffSteam === undefined) throw new Error("Expected Letting Off Steam data.");
+
+    const priorStoppedAttack = {
+      type: "use-move" as const,
+      decisionId: "decision:prior-stopped-attack" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: "move-akaikaru-firestorm" as never,
+      outcome: "stopped" as const,
+      critical: false,
+      counter: false,
+      turnNumber: 4,
+      phase: "action" as const,
+    };
+    const resolved = moveEffectsForTrigger(lettingOffSteam, "passive", {
+      ...context,
+      actionHistory: [priorStoppedAttack, { ...priorStoppedAttack, turnNumber: 5 }],
+    });
+
+    expect(resolved.damageModifications).toEqual([
+      expect.objectContaining({ amount: 2, basis: "power-percent" }),
+    ]);
+    expect(resolved.rollModifications).toEqual([
+      expect.objectContaining({ amount: 2, roll: "attack", modifier: "result" }),
+    ]);
+  });
+
+  it("evaluates action sequences with the current attack and ignores non-attack actions", () => {
+    const skyDance = moves.get("move-aoyosumu-sky-dance-technique");
+    if (skyDance === undefined) throw new Error("Expected Sky Dance Technique data.");
+
+    const stoppedAction = (turnNumber: number) => ({
+      type: "use-move" as const,
+      decisionId: `decision:stopped-${turnNumber}` as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: skyDance.id,
+      turnNumber,
+      phase: "action" as const,
+      outcome: "stopped" as const,
+      critical: false,
+      counter: false,
+    });
+    const currentAction = stoppedAction(5);
+
+    expect(
+      moveEffectsForTrigger(skyDance, "on-stopped", {
+        ...context,
+        actionHistory: [
+          stoppedAction(3),
+          {
+            type: "power-up" as const,
+            decisionId: "decision:power-up-sequence" as never,
+            actorId: self.id,
+            turnNumber: 4,
+            phase: "action" as const,
+          },
+          stoppedAction(4),
+        ],
+        currentAction,
+      }).resources,
+    ).toEqual([
+      {
+        resource: "ki",
+        target: "self",
+        operation: "lose",
+        amount: 1,
+        cause: "non-damage-effect",
+        sourceStyleId: "style-aoyosumu",
+      },
+    ]);
+
+    expect(
+      moveEffectsForTrigger(skyDance, "on-stopped", {
+        ...context,
+        actionHistory: [stoppedAction(3), { ...stoppedAction(4), outcome: "successful" }],
+        currentAction,
+      }).resources,
+    ).toEqual([]);
+  });
+
+  it("resolves deterministic on-damage modifiers from the current attack context", () => {
+    const advancedBehavior = moves.get("move-haokiru-advanced-behavior");
+    const criticalMass = moves.get("move-midorikatai-critical-mass-mastery");
+    const muscleInfusion = moves.get("move-haokiru-muscle-infusion");
+    const currentAction = {
+      type: "use-move" as const,
+      decisionId: "decision:on-damage" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: "move-afterlife-masenko" as never,
+      turnNumber: context.turnNumber,
+      phase: "action" as const,
+      outcome: "successful" as const,
+      critical: true,
+      counter: false,
+    };
+    const responseContext = {
+      ...context,
+      self: opponent,
+      opponent: self,
+      currentAction,
+      rolls: [
+        {
+          attackNaturalResult: 20,
+          attackResult: 20,
+          defenseNaturalResult: 15,
+          defenseResult: 15,
+          outcome: "successful" as const,
+        },
+      ],
+      incomingDamage: 40,
+      triggeringMove: moves.get("move-afterlife-masenko"),
+    };
+    if (
+      advancedBehavior === undefined ||
+      criticalMass === undefined ||
+      muscleInfusion === undefined
+    )
+      throw new Error("Expected on-damage test moves.");
+
+    expect(
+      moveEffectsForTrigger(advancedBehavior, "on-damage", responseContext).damageModifications,
+    ).toEqual([
+      expect.objectContaining({
+        operation: "add",
+        amount: -10,
+        basis: "damage-percent",
+        target: "opponent",
+      }),
+    ]);
+    expect(
+      moveEffectsForTrigger(criticalMass, "on-damage", responseContext).damageModifications,
+    ).toEqual([]);
+    expect(
+      moveEffectsForTrigger(muscleInfusion, "on-damage", responseContext).damageModifications,
+    ).toEqual([]);
+  });
+
   it("applies a converted passive damage expression using durable activation history", () => {
     const move = moves.get("move-afterlife-spirit-bomb");
     if (move === undefined) throw new Error("Expected Spirit Bomb data.");
@@ -39,11 +531,250 @@ describe("converted move effects", () => {
     expect(adjustedMoveDamage(move, 20, context)).toBe(30);
   });
 
+  it("compiles durable damage lifecycles with their declared basis and availability", () => {
+    const ankleBuster = moves.get("move-midorikatai-ankle-buster");
+    const monsterMash = moves.get("move-midorikatai-monster-mash");
+    const oneTwoPunch = moves.get("move-midorikatai-one-two-punch");
+    const swiftNeckChop = moves.get("move-aoyosumu-swift-neck-chop");
+    if (
+      ankleBuster === undefined ||
+      monsterMash === undefined ||
+      oneTwoPunch === undefined ||
+      swiftNeckChop === undefined
+    )
+      throw new Error("Expected durable damage modifier move data.");
+
+    const ankleEffects = successfulMoveEffects(ankleBuster, {
+      ...context,
+      opponent: { ...opponent, stats: { ...opponent.stats, power: 10 } },
+    }).damageModifications;
+    expect(ankleEffects).toHaveLength(2);
+    expect(ankleEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          amount: -10,
+          basis: "damage-percent",
+          duration: { type: "turns", ownerCombatantId: opponent.id, remaining: 2 },
+        }),
+      ]),
+    );
+
+    expect(successfulMoveEffects(monsterMash, context).damageModifications).toEqual([
+      expect.objectContaining({
+        amount: -4,
+        basis: "power-percent",
+        duration: { type: "combat" },
+      }),
+    ]);
+
+    expect(successfulMoveEffects(oneTwoPunch, context).damageModifications).toEqual([
+      expect.objectContaining({
+        amount: -2,
+        basis: "power-percent",
+        availableFromTurn: context.turnNumber + 1,
+        duration: { type: "turns", ownerCombatantId: opponent.id, remaining: 1 },
+      }),
+    ]);
+
+    expect(
+      moveEffectsForTrigger(swiftNeckChop, "before-attack-roll", {
+        ...context,
+        self: { ...self, stats: { ...self.stats, dexterity: 6 } },
+      }).damageModifications,
+    ).toEqual([expect.objectContaining({ amount: 1, basis: "power-percent" })]);
+
+    const thresholdMove = {
+      ...swiftNeckChop,
+      effects: [
+        {
+          trigger: "on-success",
+          target: "opponent",
+          type: "modify-damage",
+          operation: "add",
+          percent: { type: "literal", value: -10 },
+          duration: {
+            type: "until-roll-threshold",
+            roll: "attack",
+            comparison: "at-least",
+            value: { type: "literal", value: 25 },
+            sourceText: "until an attack result of 25",
+          },
+          sourceText: "damage threshold test",
+        },
+      ],
+    } as MoveDefinition;
+    expect(successfulMoveEffects(thresholdMove, context).damageModifications).toEqual([
+      expect.objectContaining({
+        duration: {
+          type: "until-roll-threshold",
+          combatantId: opponent.id,
+          roll: "attack",
+          comparison: "at-least",
+          value: 25,
+        },
+      }),
+    ]);
+
+    const operationMove = {
+      ...swiftNeckChop,
+      effects: [
+        {
+          trigger: "on-success",
+          target: "self",
+          type: "modify-damage",
+          operation: "multiply",
+          percent: { type: "damage-percent", percent: 50 },
+          duration: {
+            type: "turns",
+            turns: { type: "literal", value: 0 },
+            sourceText: "for zero turns",
+          },
+          sourceText: "damage operation test",
+        },
+        {
+          trigger: "on-success",
+          target: "self",
+          type: "modify-damage",
+          operation: "set",
+          percent: { type: "literal", value: 3 },
+          duration: { type: "combat", sourceText: "for combat" },
+          sourceText: "damage replacement test",
+        },
+        {
+          trigger: "on-success",
+          target: "self",
+          type: "modify-damage",
+          operation: "add",
+          percent: { type: "literal", value: 1 },
+          scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
+          sourceText: "next-turn damage test",
+        },
+        {
+          trigger: "on-success",
+          target: "self",
+          type: "modify-damage",
+          operation: "set",
+          percent: { type: "literal", value: 4 },
+          duration: {
+            type: "turns",
+            turns: { type: "literal", value: 2 },
+            sourceText: "for two turns",
+          },
+          sourceText: "self duration test",
+        },
+        {
+          trigger: "on-success",
+          target: "self",
+          type: "modify-damage",
+          operation: "add",
+          percent: { type: "literal", value: 2 },
+          duration: {
+            type: "until-roll-threshold",
+            roll: "attack",
+            comparison: "at-most",
+            value: { type: "literal", value: 10 },
+            sourceText: "until an attack result of 10",
+          },
+          sourceText: "self threshold test",
+        },
+      ],
+    } as MoveDefinition;
+    expect(successfulMoveEffects(operationMove, context).damageModifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: "set",
+          amount: 1,
+          basis: "power-percent",
+          duration: { type: "combat" },
+        }),
+        expect.objectContaining({
+          availableFromTurn: context.turnNumber + 1,
+          duration: {
+            type: "turns",
+            ownerCombatantId: self.id,
+            remaining: 1,
+          },
+        }),
+        expect.objectContaining({
+          amount: 1,
+          duration: { type: "turns", ownerCombatantId: self.id, remaining: 2 },
+        }),
+        expect.objectContaining({
+          duration: {
+            type: "until-roll-threshold",
+            combatantId: self.id,
+            roll: "attack",
+            comparison: "at-most",
+            value: 10,
+          },
+        }),
+      ]),
+    );
+  });
+
   it("evaluates an unscoped passive damage modifier through the generic runtime", () => {
     const energyGorged = moves.get("move-midorikatai-energy-gorged");
     if (energyGorged === undefined) throw new Error("Expected Energy Gorged data.");
 
     expect(adjustedMoveDamage(energyGorged, 13, context)).toBe(15);
+  });
+
+  it("applies passive replacement and multiplicative damage operations only to matching moves", () => {
+    const baseMove = moves.get("move-afterlife-light-grenade");
+    const triggeringMove = moves.get("move-afterlife-spirit-bomb");
+    if (baseMove === undefined || triggeringMove === undefined)
+      throw new Error("Expected passive damage test moves.");
+
+    const move = {
+      ...baseMove,
+      effects: [
+        {
+          trigger: "passive",
+          target: "self",
+          type: "modify-damage",
+          operation: "set",
+          percent: { type: "literal", value: 8 },
+          sourceText: "set passive damage",
+        },
+        {
+          trigger: "passive",
+          target: "self",
+          type: "modify-damage",
+          operation: "multiply",
+          percent: { type: "literal", value: 50 },
+          sourceText: "multiply passive damage",
+        },
+        {
+          trigger: "passive",
+          target: "self",
+          type: "modify-damage",
+          operation: "add",
+          percent: { type: "literal", value: 100 },
+          selector: {
+            type: "move-selector",
+            subject: "source",
+            ids: ["move-afterlife-spirit-bomb"],
+            sourceText: "Spirit Bomb only",
+          },
+          sourceText: "selector passive damage",
+        },
+        {
+          trigger: "passive",
+          target: "self",
+          type: "modify-damage",
+          operation: "add",
+          percent: {
+            type: "move-activation-count",
+            moveId: "move-missing-for-coverage",
+            perActivation: 1,
+          },
+          sourceText: "unresolved passive damage",
+        },
+      ],
+    } as MoveDefinition;
+
+    expect(adjustedMoveDamage(move, 20, context)).toBe(1);
+    expect(adjustedMoveDamage(move, 20, { ...context, triggeringMove })).toBe(21);
   });
 
   it("compiles a cost-only move-modification prevention as a typed generic application", () => {
@@ -71,7 +802,13 @@ describe("converted move effects", () => {
       throw new Error("Expected move data.");
 
     expect(successfulMoveEffects(lightGrenade, context).resources).toEqual([
-      { resource: "hp", target: "self", operation: "gain", amount: 5 },
+      {
+        resource: "hp",
+        target: "self",
+        operation: "gain",
+        amount: 5,
+        cause: "non-damage-effect",
+      },
     ]);
     expect(successfulMoveEffects(meteorSmash, context).statuses).toEqual([
       expect.objectContaining({
@@ -492,6 +1229,27 @@ describe("converted move effects", () => {
     ).toHaveLength(1);
   });
 
+  it("evaluates current and total resource comparisons without source-text inference", () => {
+    const focusedSpiritCutter = moves.get("move-haokiru-focused-spirit-cutter");
+    if (focusedSpiritCutter === undefined) throw new Error("Expected Focused Spirit Cutter data.");
+
+    const lowerCurrentHp = {
+      ...context,
+      self: { ...self, hitPoints: { current: 40, maximum: 100 } },
+      opponent: { ...opponent, hitPoints: { current: 50, maximum: 100 } },
+    };
+    expect(
+      moveEffectsForTrigger(focusedSpiritCutter, "passive", lowerCurrentHp)
+        .currentActionCostModifications,
+    ).toEqual([expect.objectContaining({ operation: "add", amount: -1, target: "self" })]);
+    expect(
+      moveEffectsForTrigger(focusedSpiritCutter, "passive", {
+        ...lowerCurrentHp,
+        self: { ...lowerCurrentHp.self, hitPoints: { current: 60, maximum: 100 } },
+      }).currentActionCostModifications,
+    ).toEqual([]);
+  });
+
   it("evaluates a passive mastery after-defense effect against its triggering attack", () => {
     const afterImage = moves.get("move-kurokonwaku-after-image-mastery");
     const eggsplosives = moves.get("move-kurokonwaku-eggsplosives");
@@ -513,8 +1271,22 @@ describe("converted move effects", () => {
         ],
       }).resources,
     ).toEqual([
-      { resource: "ki", target: "opponent", operation: "drain", amount: 1 },
-      { resource: "ki", target: "opponent", operation: "drain", amount: 1 },
+      {
+        resource: "ki",
+        target: "opponent",
+        operation: "drain",
+        amount: 1,
+        cause: "non-damage-effect",
+        sourceStyleId: "style-kurokonwaku",
+      },
+      {
+        resource: "ki",
+        target: "opponent",
+        operation: "drain",
+        amount: 1,
+        cause: "non-damage-effect",
+        sourceStyleId: "style-kurokonwaku",
+      },
     ]);
   });
 
@@ -523,7 +1295,14 @@ describe("converted move effects", () => {
     if (firewall === undefined) throw new Error("Expected Firewall data.");
 
     expect(stoppedMoveEffects(firewall, { ...context, successfulHitCount: 0 }).resources).toEqual([
-      { resource: "ki", target: "self", operation: "gain", amount: 1 },
+      {
+        resource: "ki",
+        target: "self",
+        operation: "gain",
+        amount: 1,
+        cause: "non-damage-effect",
+        sourceStyleId: "style-akaikaru",
+      },
     ]);
   });
 

@@ -2425,6 +2425,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         amount: { type: "literal", value: 0 },
         cap: {
           type: "maximum",
+          scope: "roll",
           value: { type: "literal", value: 35 },
           sourceText: "Your dice sides cannot exceed 1d35 with this attack",
         },
@@ -2439,6 +2440,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         amount: { type: "literal", value: 0 },
         cap: {
           type: "maximum",
+          scope: "total",
           value: { type: "literal", value: 3 },
           sourceText: "The results of this attack cannot gain more than +3 from any effects",
         },

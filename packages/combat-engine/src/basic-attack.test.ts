@@ -45,7 +45,7 @@ const createDependencies = (
   createTestCombatDependencies(randomValues, new Date("2026-08-04T12:00:00.000Z"), {
     fightIds: [fightIdSchema.parse("fight:basic-attack")],
     combatantIds: [attackerId, defenderId],
-    eventIds: Array.from({ length: 24 }, (_, index) =>
+    eventIds: Array.from({ length: 64 }, (_, index) =>
       combatEventIdSchema.parse(`event:basic-${index + 1}`),
     ),
     resolutionFrameIds: Array.from({ length: 4 }, (_, index) =>
@@ -79,6 +79,531 @@ const createActionState = (
 };
 
 describe("basic attacks", () => {
+  it("applies the converted active-CONSTANT count bonus at the public move boundary", () => {
+    const randomValues = Array.from({ length: 20 }, (_, index) => (index % 2 === 0 ? 20 : 1));
+    const { state, dependencies } = createActionState(randomValues);
+    const armed: ActiveFightState = {
+      ...state,
+      turnNumber: 10,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-afterlife-wolf-fang-fist"],
+          ki: { ...state.combatants[attackerId].ki, current: 10 },
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:wolf-fang-active-count"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-afterlife-wolf-fang-fist",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "attack-rolled", naturalResult: 20, result: 26 }),
+    );
+  });
+
+  it("enforces a converted current-action roll-result cap at the public move boundary", () => {
+    const { state, dependencies } = createActionState([20, 1]);
+    const armed: ActiveFightState = {
+      ...state,
+      turnNumber: 10,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-aoyosumu-slow-charge"],
+          ki: { ...state.combatants[attackerId].ki, current: 10 },
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:slow-charge-cap"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-aoyosumu-slow-charge",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "attack-rolled", naturalResult: 20, result: 26 }),
+    );
+  });
+
+  it("applies a converted total-result cap after active and immediate modifiers", () => {
+    const activeModifierId = activeEffectIdSchema.parse("active-effect:vanishing-result-cap");
+    const { state, dependencies } = createActionState([20, 1], [activeModifierId]);
+    const armed: ActiveFightState = {
+      ...state,
+      turnNumber: 10,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-afterlife-vanishing-ball"],
+          ki: { ...state.combatants[attackerId].ki, current: 10 },
+        },
+      },
+      activeEffects: [
+        {
+          id: activeModifierId,
+          type: "modify-roll",
+          sourceCombatantId: attackerId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-afterlife-final-spirit-cannon",
+          roll: "attack",
+          modifier: "result",
+          amount: 10,
+          duration: "combat",
+        },
+      ],
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:vanishing-result-cap"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-afterlife-vanishing-ball",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "attack-rolled", naturalResult: 20, result: 24 }),
+    );
+  });
+
+  it("passes a converted final dice-sides cap to the deterministic random boundary", () => {
+    const activeModifierId = activeEffectIdSchema.parse("active-effect:vanishing-sides-cap");
+    const { state, dependencies } = createActionState([20, 1], [activeModifierId]);
+    const requestedMaximums: number[] = [];
+    const tracedDependencies: typeof dependencies = {
+      ...dependencies,
+      random: {
+        integer: (minimum: number, maximum: number) => {
+          requestedMaximums.push(maximum);
+          return maximum === 35 ? 35 : minimum;
+        },
+      },
+    };
+    const armed: ActiveFightState = {
+      ...state,
+      turnNumber: 10,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-afterlife-vanishing-ball"],
+          ki: { ...state.combatants[attackerId].ki, current: 10 },
+        },
+      },
+      activeEffects: [
+        {
+          id: activeModifierId,
+          type: "modify-roll",
+          sourceCombatantId: attackerId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-afterlife-final-spirit-cannon",
+          roll: "attack",
+          modifier: "sides",
+          amount: 10,
+          duration: "combat",
+        },
+      ],
+    };
+
+    requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:vanishing-sides-cap"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-afterlife-vanishing-ball",
+          targetCombatantId: defenderId,
+        },
+        tracedDependencies,
+      ),
+    );
+
+    expect(requestedMaximums).toEqual([35, 30]);
+  });
+
+  it("applies Mass Genocide's escalating result modifiers during the public move transition", () => {
+    const dependencies = createDependencies([20, 1, 20, 1, 20, 1, 20, 1, 20, 1]);
+    const fight = requireTransition(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            {
+              ...input.combatants[0],
+              moveIds: ["move-afterlife-mass-genocide-attack"],
+            },
+            input.combatants[1],
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveState(
+      requireTransition(advanceFight(fight.state, dependencies)).state,
+    );
+    const armed: ActiveFightState = {
+      ...action,
+      turnNumber: 10,
+      combatants: {
+        ...action.combatants,
+        [attackerId]: {
+          ...action.combatants[attackerId],
+          ki: { ...action.combatants[attackerId].ki, current: 10, maximum: 10 },
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:mass-genocide"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-afterlife-mass-genocide-attack",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const attackRolls = transition.events.filter((event) => event.type === "attack-rolled");
+
+    expect(attackRolls.map((event) => event.result)).toEqual([21, 23, 24, 25, 26]);
+    expect(attackRolls.every((event) => event.naturalResult === 20)).toBe(true);
+    expect(transition.state.actionHistory).toContainEqual(
+      expect.objectContaining({
+        moveId: "move-afterlife-mass-genocide-attack",
+        outcome: "successful",
+      }),
+    );
+    expect(transition.state.version).toBe(armed.version + 1);
+  });
+
+  it("applies a prior-action selector through the public converted move transition", () => {
+    const { state, dependencies } = createActionState([10, 1]);
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-midorikatai-smackdown"],
+        },
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-midorikatai-rocket-fire"],
+        },
+      },
+      actionHistory: [
+        {
+          type: "use-move",
+          decisionId: combatDecisionIdSchema.parse("decision:prior-rocket-fire"),
+          actorId: defenderId,
+          targetCombatantId: attackerId,
+          moveId: "move-midorikatai-rocket-fire",
+          turnNumber: state.turnNumber,
+          phase: "action",
+          outcome: "successful",
+          critical: false,
+          counter: false,
+        },
+      ],
+    };
+
+    const declared = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:smackdown"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-midorikatai-smackdown",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const resolved = declared;
+
+    expect(resolved.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 17 }),
+    );
+    expect(resolved.state.actionHistory).toContainEqual(
+      expect.objectContaining({
+        type: "use-move",
+        moveId: "move-midorikatai-smackdown",
+        outcome: "successful",
+        critical: false,
+        counter: false,
+      }),
+    );
+  });
+
+  it("counts the current stopped converted attack in a persisted action sequence", () => {
+    const { state, dependencies } = createActionState([5, 10, 5, 10, 5, 10, 5, 10]);
+    const stoppedHistory = (turnNumber: number) => ({
+      type: "use-move" as const,
+      decisionId: combatDecisionIdSchema.parse(`decision:prior-stopped-${turnNumber}`),
+      actorId: attackerId,
+      targetCombatantId: defenderId,
+      moveId: "move-aoyosumu-sky-dance-technique" as const,
+      turnNumber,
+      phase: "action" as const,
+      outcome: "stopped" as const,
+      critical: false,
+      counter: false,
+    });
+    const armed: ActiveFightState = {
+      ...state,
+      turnNumber: 4,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-aoyosumu-sky-dance-technique"],
+        },
+      },
+      actionHistory: [stoppedHistory(2), stoppedHistory(3)],
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:sky-dance-sequence"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-aoyosumu-sky-dance-technique",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    expect(transition.state.combatants[attackerId].ki.current).toBe(1);
+    expect(transition.state.actionHistory).toContainEqual(
+      expect.objectContaining({
+        moveId: "move-aoyosumu-sky-dance-technique",
+        outcome: "stopped",
+      }),
+    );
+  });
+
+  it("applies a durable damage-percent modifier through the public attack transition", () => {
+    const effectId = activeEffectIdSchema.parse("active-effect:damage-percent");
+    const { state, dependencies } = createActionState([10, 1], [effectId]);
+    const armed: ActiveFightState = {
+      ...state,
+      activeEffects: [
+        {
+          id: effectId,
+          type: "modify-damage",
+          sourceCombatantId: defenderId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-midorikatai-monster-mash",
+          operation: "add",
+          basis: "damage-percent",
+          amount: -50,
+          duration: { type: "combat" },
+        },
+      ],
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:damage-percent"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(armed.version + 1);
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 2 }),
+    );
+    expect(transition.state.activeEffects).toContainEqual(
+      expect.objectContaining({ id: effectId, type: "modify-damage", basis: "damage-percent" }),
+    );
+  });
+
+  it("applies a deterministic on-damage response from the defender's mastery", () => {
+    const effectId = activeEffectIdSchema.parse("active-effect:advanced-behavior");
+    const { state, dependencies } = createActionState([10, 1], [effectId]);
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          stats: { ...state.combatants[attackerId].stats, power: 100 },
+        },
+        [defenderId]: {
+          ...state.combatants[defenderId],
+        },
+      },
+      activeEffects: [
+        {
+          id: effectId,
+          type: "active-constant",
+          sourceCombatantId: defenderId,
+          targetCombatantId: defenderId,
+          sourceDefinitionId: "move-haokiru-advanced-behavior",
+          activatedOnTurn: state.turnNumber,
+          duration: "combat",
+        },
+      ],
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:on-damage-basic"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(armed.version + 1);
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 9 }),
+    );
+    expect(transition.state.combatants[defenderId].hitPoints.current).toBe(91);
+  });
+
+  it("does not approximate an unsupported critical on-damage replacement", () => {
+    const { state, dependencies } = createActionState([30, 1]);
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          stats: { ...state.combatants[attackerId].stats, power: 100 },
+        },
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-midorikatai-critical-mass-mastery"],
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:on-damage-critical"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "attack-resolved", critical: true }),
+    );
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 20 }),
+    );
+  });
+
+  it("expires a damage modifier after its declared attack threshold", () => {
+    const effectId = activeEffectIdSchema.parse("active-effect:damage-threshold");
+    const { state, dependencies } = createActionState([30, 1], [effectId]);
+    const armed: ActiveFightState = {
+      ...state,
+      activeEffects: [
+        {
+          id: effectId,
+          type: "modify-damage",
+          sourceCombatantId: defenderId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-aoyosumu-lights-out-strike",
+          operation: "set",
+          basis: "power-percent",
+          amount: 0,
+          duration: {
+            type: "until-roll-threshold",
+            combatantId: attackerId,
+            roll: "attack",
+            comparison: "at-least",
+            value: 30,
+          },
+        },
+      ],
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:damage-threshold"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.activeEffects).toEqual([]);
+  });
+
   it("applies and consumes each remaining item attack-damage bonus", () => {
     const { state, dependencies } = createActionState([10, 1]);
     const armed: ActiveFightState = {
@@ -243,6 +768,122 @@ describe("basic attacks", () => {
       expect.objectContaining({ type: "damage-applied", amount: 3 }),
     );
     expect(unchanged.state.activeEffects).toHaveLength(1);
+  });
+
+  it("resolves move-effect-active conditions from durable active effects", () => {
+    const kaioKenEffectId = activeEffectIdSchema.parse("active-effect:kaio-ken");
+    const dependencies = createDependencies([10, 1], [kaioKenEffectId]);
+    const fight = requireTransition(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            {
+              ...input.combatants[0],
+              moveIds: ["move-afterlife-x20-kaioken-kamehameha", "move-afterlife-kaio-ken"],
+            },
+            input.combatants[1],
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveState(
+      requireTransition(advanceFight(fight.state, dependencies)).state,
+    );
+    const armed: ActiveFightState = {
+      ...action,
+      turnNumber: 10,
+      combatants: {
+        ...action.combatants,
+        [attackerId]: {
+          ...action.combatants[attackerId],
+          ki: { ...action.combatants[attackerId].ki, current: 10 },
+        },
+      },
+      activeEffects: [
+        {
+          id: kaioKenEffectId,
+          type: "modify-next-action",
+          sourceCombatantId: attackerId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-afterlife-kaio-ken",
+          modifier: { type: "damage", amount: 0 },
+        },
+      ],
+    };
+
+    const result = submitCombatDecision(
+      armed,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:x20-kaio-ken-kamehameha"),
+        actorId: attackerId,
+        expectedStateVersion: armed.version,
+        moveId: "move-afterlife-x20-kaioken-kamehameha",
+        targetCombatantId: defenderId,
+      },
+      dependencies,
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    const transition = result.value;
+
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "ki-changed", combatantId: attackerId, amount: -4 }),
+    );
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 29 }),
+    );
+    expect(transition.state.version).toBe(armed.version + 1);
+  });
+
+  it("dispatches threshold-crossing effects before clamping HP", () => {
+    const dependencies = createDependencies([20, 1]);
+    const fight = requireTransition(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            {
+              ...input.combatants[0],
+              stats: { ...input.combatants[0].stats, power: 100 },
+              moveIds: ["move-afterlife-kamehameha"],
+            },
+            {
+              ...input.combatants[1],
+              maximumHitPoints: 10,
+              moveIds: ["move-haokiru-eternal-mastery"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = {
+      ...requireTransition(advanceFight(fight.state, dependencies)).state,
+      turnNumber: 10,
+    };
+    const result = submitCombatDecision(
+      action,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:threshold-crossing"),
+        actorId: attackerId,
+        expectedStateVersion: action.version,
+        moveId: "move-afterlife-kamehameha",
+        targetCombatantId: defenderId,
+      },
+      dependencies,
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    const transition = result.value;
+
+    expect(transition.state.status).toBe("active");
+    expect(transition.state.combatants[defenderId].hitPoints.current).toBe(1);
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 10 }),
+    );
+    expect(transition.state.version).toBe(action.version + 1);
   });
 
   it("enforces and consumes a serialized forced next-action constraint", () => {
@@ -416,6 +1057,11 @@ describe("basic attacks", () => {
         basicAttack: "basic-punch",
         turnNumber: 1,
         phase: "action",
+        outcome: "successful",
+        critical: false,
+        counter: false,
+        attackRollResult: 11,
+        defenseRollResult: 11,
       },
     ]);
   });
@@ -1192,7 +1838,10 @@ describe("basic attacks", () => {
   });
 
   it("enforces passive constant-skill prevention against an opponent modifier", () => {
-    const { state, dependencies } = createActionState([10, 1, 1]);
+    const { state, dependencies } = createActionState(
+      [10, 1, 1],
+      [activeEffectIdSchema.parse("active-effect:monkey-sweep-floating")],
+    );
     const passive: ActiveFightState = {
       ...state,
       combatants: {

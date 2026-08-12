@@ -19,6 +19,7 @@ interface SourceEffect {
   readonly selector?: unknown;
   readonly activationGroup?: unknown;
   readonly optional?: unknown;
+  readonly cap?: { readonly type?: unknown; readonly scope?: unknown };
   readonly conditions?: readonly { readonly type?: unknown }[];
 }
 
@@ -49,7 +50,7 @@ export interface CombatCapabilityMatrixRow {
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-09";
+  readonly generatedAt: "2026-08-12";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -66,8 +67,13 @@ const activeTransformationRaceIds = new Set([
 
 const genericExecutors: Readonly<Record<string, { executor: string; test: string }>> = {
   "apply-status": { executor: "status-lifecycle", test: "move-effects-runtime.test.ts" },
+  "create-floating-effect": {
+    executor: "floating-effect-lifecycle",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
   deactivate: { executor: "constant-lifecycle", test: "deactivation-flow.test.ts" },
   "force-action": { executor: "forced-action", test: "progress-fight.test.ts" },
+  "grant-extra-action": { executor: "extra-action-scheduler", test: "progress-fight.test.ts" },
   lock: { executor: "action-lock", test: "progress-fight.test.ts" },
   "modify-cost": { executor: "cost-modifier", test: "move-effects-runtime.test.ts" },
   "modify-resource": { executor: "resource-change", test: "move-effects-runtime.test.ts" },
@@ -127,6 +133,7 @@ const variantFor = (effect: SourceEffect) =>
     `duration=${stringValue(effect.duration?.type) ?? "none"}`,
     `operation=${stringValue(effect.operation) ?? "none"}`,
     `numeric=${stringValue(effect.percent?.type) ?? "none"}`,
+    `cap=${effect.cap === undefined ? "none" : `${stringValue(effect.cap.type) ?? "unknown"}:${stringValue(effect.cap.scope) ?? "none"}`}`,
     `selector=${effect.selector === undefined ? "none" : "present"}`,
     `conditions=${(effect.conditions ?? []).map((condition) => stringValue(condition.type) ?? "unknown").join(",") || "none"}`,
   ].join(";");
@@ -135,10 +142,16 @@ const supportedNumericTypes = new Set([
   "literal",
   "stat-percent",
   "move-activation-count",
+  "consecutive-combat-results",
+  "combat-result-count",
   "turns-after-turn",
   "resource-percent",
   "successful-hit-count",
+  "prior-roll-result",
   "completed-combat-turn-count",
+  "damage-percent",
+  "active-move-count",
+  "active-move-effect-text-count",
 ]);
 
 const supportedDamageConditions = new Set([
@@ -146,9 +159,13 @@ const supportedDamageConditions = new Set([
   "combat-context",
   "combat-state",
   "move-selector",
+  "prior-action",
+  "no-prior-action",
+  "action-sequence",
   "paid-ki-cost",
   "perfect-roll",
   "resource-threshold",
+  "resource-comparison",
   "roll-comparison",
   "roll-die-result",
   "roll-die-threshold",
@@ -156,6 +173,12 @@ const supportedDamageConditions = new Set([
   "stat-comparison",
   "status",
   "successful-hit-count",
+  "resource-change",
+  "move-effect-active",
+  "move-effect-inactive",
+  "active-move-count",
+  "moveset-move-count",
+  "move-use-count",
 ]);
 
 const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
@@ -194,7 +217,64 @@ const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
       effect.trigger === "before-attack-roll")
   )
     return true;
+  if (
+    effect.scope?.type === "next-action" &&
+    (effect.trigger === "on-resource-gain" || effect.trigger === "on-resource-drain") &&
+    (effect.target === "self" || effect.target === "opponent")
+  )
+    return true;
+  if (
+    effect.scope?.type === "following-action" &&
+    effect.trigger === "on-success" &&
+    effect.target === "opponent"
+  )
+    return true;
+  if (
+    effect.scope?.type === "next-turn" &&
+    effect.trigger === "on-success" &&
+    effect.target === "opponent"
+  )
+    return true;
+  if (
+    effect.scope?.type === "next-turn" &&
+    effect.trigger === "on-power-up" &&
+    effect.target === "self"
+  )
+    return true;
+  if (
+    effect.scope === undefined &&
+    effect.trigger === "before-attack-roll" &&
+    effect.target === "self"
+  )
+    return true;
+  if (
+    effect.scope === undefined &&
+    effect.trigger === "on-success" &&
+    effect.target === "opponent" &&
+    (effect.duration?.type === "combat" || effect.duration?.type === "turns")
+  )
+    return true;
+  if (effect.scope === undefined && effect.trigger === "on-damage" && effect.target === "opponent")
+    return true;
   return effect.trigger === "before-attack-roll" && effect.scope?.type === "current-action";
+};
+
+const isSupportedExtraActionOccurrence = (occurrence: Occurrence) => {
+  const effect = occurrence.effect;
+  return (
+    effect.type === "grant-extra-action" &&
+    effect.target === "self" &&
+    (effect.trigger === "on-success" || effect.trigger === "on-stopped") &&
+    effect.phase === "action-phase" &&
+    (effect.scope === undefined || effect.scope.type === "current-action") &&
+    effect.duration === undefined &&
+    effect.activationGroup === undefined &&
+    effect.optional !== true &&
+    effect.activationCost === undefined &&
+    effect.cooldown === undefined &&
+    effect.selectionLimit === undefined &&
+    effect.stacking === undefined
+  );
 };
 
 const classify = (occurrence: Occurrence) => {
@@ -256,6 +336,18 @@ const classify = (occurrence: Occurrence) => {
       approvedExclusion: null,
     };
   }
+  if (effectType === "grant-extra-action" && !isSupportedExtraActionOccurrence(occurrence)) {
+    return {
+      status: "unsupported-in-scope" as const,
+      capabilityId: null,
+      executor: null,
+      focusedCoverage: null,
+      reason:
+        "This extra-action variant requires an unsupported phase, deferred scope, optional choice, activation cost, or scheduling policy.",
+      prerequisite: "typed executor accounting and compiled effect-plan validation",
+      approvedExclusion: null,
+    };
+  }
   const executor =
     occurrence.origin === "item" ? itemExecutors[effectType] : genericExecutors[effectType];
   return executor === undefined || (compilation !== undefined && !compilation.ok)
@@ -276,7 +368,12 @@ const classify = (occurrence: Occurrence) => {
         status: "supported-generic" as const,
         capabilityId: `${effectType}.v1`,
         executor: executor.executor,
-        focusedCoverage: executor.test,
+        focusedCoverage:
+          occurrence.effect.trigger === "on-power-up" ||
+          occurrence.effect.trigger === "on-resource-gain" ||
+          occurrence.effect.trigger === "on-resource-drain"
+            ? "progress-fight.test.ts"
+            : executor.test,
         reason:
           "A registered generic executor covers this converted effect family; variant limits remain visible in the occurrence record.",
         prerequisite: null,
@@ -323,7 +420,7 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-10",
+    generatedAt: "2026-08-12",
     activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
       raceId.slice(5, -1),
     ),
@@ -382,4 +479,4 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
 };
 
 if (process.argv[1]?.endsWith("combat-capability-matrix.ts"))
-  console.log(renderCombatCapabilityMatrix());
+  process.stdout.write(renderCombatCapabilityMatrix());

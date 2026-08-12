@@ -360,6 +360,39 @@ const hasValidNextActionModifierDetails = (
   );
 };
 
+const hasValidDamageModifierDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "modify-damage" }>,
+) => {
+  const duration = effect.duration;
+  const validDuration =
+    duration.type === "combat" ||
+    (duration.type === "turns" && validCounter(duration.remaining, 1)) ||
+    (duration.type === "until-roll-threshold" &&
+      duration.roll === "attack" &&
+      (duration.comparison === "at-least" || duration.comparison === "at-most") &&
+      Number.isFinite(duration.value));
+  return (
+    (effect.operation === "add" || effect.operation === "multiply" || effect.operation === "set") &&
+    (effect.basis === "power-percent" || effect.basis === "damage-percent") &&
+    Number.isFinite(effect.amount) &&
+    validDuration &&
+    (effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1)) &&
+    typeof effect.sourceDefinitionId === "string" &&
+    effect.sourceDefinitionId.length > 0
+  );
+};
+
+const hasValidDamageModifierCombatantReferences = (
+  state: FightState,
+  effect: Extract<ActiveCombatEffect, { type: "modify-damage" }>,
+) => {
+  if (effect.duration.type === "turns")
+    return isActiveCombatant(state, effect.duration.ownerCombatantId);
+  if (effect.duration.type === "until-roll-threshold")
+    return isActiveCombatant(state, effect.duration.combatantId);
+  return true;
+};
+
 const hasValidRollModificationPreventionDetails = (
   effect: Extract<ActiveCombatEffect, { type: "prevent-roll-modification" }>,
 ) =>
@@ -396,6 +429,14 @@ const hasValidMoveModificationPreventionDetails = (
   );
 };
 
+const hasValidResourceModificationPreventionDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "prevent-resource-modification" }>,
+) =>
+  (effect.resource === "hp" || effect.resource === "ki") &&
+  (effect.operation === "gain" || effect.operation === "lose" || effect.operation === "set") &&
+  (effect.sourceActor === undefined || effect.sourceActor === "opponent") &&
+  (effect.exceptAction === undefined || effect.exceptAction === "power-up");
+
 const hasValidConstantEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "active-constant" }>,
 ) =>
@@ -403,6 +444,7 @@ const hasValidConstantEffectDetails = (
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0 &&
   validCounter(effect.activatedOnTurn, 1) &&
+  (effect.paidActivationCost === undefined || validNonnegativeNumber(effect.paidActivationCost)) &&
   (effect.lifecycle === undefined ||
     effect.lifecycle === "active" ||
     (effect.lifecycle === "deactivated" && validCounter(effect.deactivatedOnTurn ?? 0, 1)));
@@ -425,6 +467,38 @@ const hasValidItemDamageModifierEffectDetails = (
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
 
+const hasValidFloatingEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "floating-effect" }>,
+) =>
+  effect.floatingEffectId.length > 0 &&
+  effect.sourceDefinitionId.length > 0 &&
+  validCounter(effect.createdOnTurn, 1) &&
+  (effect.scope.type === "combat" ||
+    effect.scope.type === "next-action" ||
+    (effect.scope.type === "next-turn" && typeof effect.scope.combatantId === "string")) &&
+  effect.effects.every((nestedEffect) => nestedEffect.type !== "create-floating-effect") &&
+  effect.termination.every(
+    (termination) =>
+      (termination.trigger === "on-power-up" ||
+        termination.trigger === "on-stopped" ||
+        termination.trigger === "on-success") &&
+      (termination.actor === "self" || termination.actor === "opponent"),
+  );
+
+const hasValidExtraActionEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "extra-action" }>,
+) =>
+  effect.sourceDefinitionId.length > 0 &&
+  Number.isInteger(effect.sourceEffectIndex) &&
+  effect.sourceEffectIndex >= 0 &&
+  (effect.phase === "action" || effect.phase === "upkeep") &&
+  validCounter(effect.remainingActions, 1) &&
+  validCounter(effect.availableFromTurn, 1) &&
+  validCounter(effect.expiresAfterTurn, effect.availableFromTurn) &&
+  (effect.useLimit === undefined ||
+    (validCounter(effect.useLimit.count, 1) &&
+      (effect.useLimit.scope === "combat" || effect.useLimit.scope === "turn")));
+
 const hasValidActionLockEffectDetails = (
   effect: Extract<
     ActiveCombatEffect,
@@ -436,6 +510,7 @@ const hasValidActionLockEffectDetails = (
         | "prevent-combat-result"
         | "prevent-roll-modification"
         | "prevent-move-modification"
+        | "prevent-resource-modification"
         | "set-resolution-threshold";
     }
   >,
@@ -471,6 +546,7 @@ const hasValidActionLockCombatantReferences = (
         | "prevent-combat-result"
         | "prevent-roll-modification"
         | "prevent-move-modification"
+        | "prevent-resource-modification"
         | "set-resolution-threshold";
     }
   >,
@@ -488,10 +564,13 @@ const hasValidActionLockCombatantReferences = (
   return true;
 };
 
-const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
+const hasValidNonFloatingEffectDetails = (
+  effect: Exclude<ActiveCombatEffect, { type: "floating-effect" | "extra-action" }>,
+) => {
   if (effect.type === "modify-ki-cost") return hasValidCostEffectDetails(effect);
   if (effect.type === "modify-roll") return hasValidRollEffectDetails(effect);
   if (effect.type === "set-resolution-threshold") return hasValidResolutionThresholdDetails(effect);
+  if (effect.type === "modify-damage") return hasValidDamageModifierDetails(effect);
   if (effect.type === "active-constant") return hasValidConstantEffectDetails(effect);
   if (effect.type === "force-next-action") return hasValidForcedActionEffectDetails(effect);
   if (effect.type === "modify-item-next-attack-damage")
@@ -508,7 +587,18 @@ const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
     return (
       hasValidActionLockEffectDetails(effect) && hasValidMoveModificationPreventionDetails(effect)
     );
+  if (effect.type === "prevent-resource-modification")
+    return (
+      hasValidActionLockEffectDetails(effect) &&
+      hasValidResourceModificationPreventionDetails(effect)
+    );
   return hasValidNextActionModifierDetails(effect);
+};
+
+const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
+  if (effect.type === "floating-effect") return hasValidFloatingEffectDetails(effect);
+  if (effect.type === "extra-action") return hasValidExtraActionEffectDetails(effect);
+  return hasValidNonFloatingEffectDetails(effect);
 };
 
 const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
@@ -520,14 +610,20 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
       !activeEffectIds.has(effect.id) &&
       isActiveCombatant(state, effect.sourceCombatantId) &&
       isActiveCombatant(state, effect.targetCombatantId) &&
+      (effect.type !== "floating-effect" ||
+        effect.scope.type !== "next-turn" ||
+        isActiveCombatant(state, effect.scope.combatantId)) &&
       ((effect.type !== "action-lock" &&
         effect.type !== "prevent-move-use" &&
         effect.type !== "prevent-status" &&
         effect.type !== "prevent-combat-result" &&
         effect.type !== "prevent-roll-modification" &&
         effect.type !== "prevent-move-modification" &&
+        effect.type !== "modify-damage" &&
         effect.type !== "set-resolution-threshold") ||
-        hasValidActionLockCombatantReferences(state, effect)) &&
+        (effect.type === "modify-damage"
+          ? hasValidDamageModifierCombatantReferences(state, effect)
+          : hasValidActionLockCombatantReferences(state, effect))) &&
       hasValidEffectDetails(effect);
     if (!validEffect) {
       addViolation(
@@ -556,13 +652,29 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
         action.turnNumber >= previousTurnNumber;
       if (!baseValid) return false;
       if (action.type === "basic-attack") {
-        return combatantForId(state, action.targetCombatantId) !== undefined;
+        return (
+          combatantForId(state, action.targetCombatantId) !== undefined &&
+          (action.outcome === undefined ||
+            action.outcome === "successful" ||
+            action.outcome === "stopped") &&
+          (action.critical === undefined || typeof action.critical === "boolean") &&
+          (action.counter === undefined || typeof action.counter === "boolean") &&
+          (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
+          (action.defenseRollResult === undefined || Number.isFinite(action.defenseRollResult))
+        );
       }
       if (action.type === "use-move") {
         return (
           combatantForId(state, action.targetCombatantId) !== undefined &&
           typeof action.moveId === "string" &&
-          action.moveId.length > 0
+          action.moveId.length > 0 &&
+          (action.outcome === undefined ||
+            action.outcome === "successful" ||
+            action.outcome === "stopped") &&
+          (action.critical === undefined || typeof action.critical === "boolean") &&
+          (action.counter === undefined || typeof action.counter === "boolean") &&
+          (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
+          (action.defenseRollResult === undefined || Number.isFinite(action.defenseRollResult))
         );
       }
       if (action.type === "use-item") {

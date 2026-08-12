@@ -35,6 +35,8 @@ describe("game-data validation boundaries", () => {
         candidate.mechanics.attack.baseDamagePercent?.type === "literal",
     );
     if (move === undefined) throw new Error("Expected a literal attack move fixture.");
+    const attack = move.mechanics.attack;
+    if (attack === undefined) throw new Error("Expected attack mechanics on the move fixture.");
 
     expect(
       validateGameDataDocuments([
@@ -62,7 +64,7 @@ describe("game-data validation boundaries", () => {
         kiCost: { type: "literal" as const, value: -1 },
         restrictedUses: { type: "literal" as const, value: -1 },
         attack: {
-          ...move.mechanics.attack,
+          ...attack,
           baseDamagePercent: { type: "literal" as const, value: -1 },
           attackRoll: { dice: 0, sides: 0 },
         },
@@ -166,6 +168,10 @@ describe("game-data validation boundaries", () => {
     ) {
       throw new Error("Expected canonical validation fixtures.");
     }
+    const combatProfile = npc.combatProfile;
+    if (combatProfile === undefined) throw new Error("Expected combat profile fixture.");
+    const reward = quest.rewards[0];
+    if (reward === undefined) throw new Error("Expected quest reward fixture.");
 
     expect(
       validateLocationDefinitions([
@@ -218,7 +224,7 @@ describe("game-data validation boundaries", () => {
             moveIds: ["move-missing"],
             source: { ...npc.source, path: "bad" },
             combatProfile: {
-              ...npc.combatProfile,
+              ...combatProfile,
               levelText: "",
               hitPoints: { sourceText: "" },
             },
@@ -246,13 +252,26 @@ describe("game-data validation boundaries", () => {
             source: { ...quest.source, path: "bad" },
             rewards: [
               {
-                ...quest.rewards[0],
                 sourceText: "missing",
                 type: "grant-zenni" as const,
                 amount: -1,
+                executable: true as const,
               },
-              { ...quest.rewards[0], type: "grant-item" as const, itemId: "item-missing" },
-              { ...quest.rewards[0], type: "grant-move" as const, moveId: "move-missing" },
+              {
+                sourceText: reward.sourceText,
+                type: "grant-item" as const,
+                itemName: "Missing Item",
+                quantity: 1,
+                itemId: "item-missing",
+                executable: true,
+              },
+              {
+                sourceText: reward.sourceText,
+                type: "grant-move" as const,
+                moveName: "Missing Move",
+                moveId: "move-missing",
+                executable: true,
+              },
             ],
           },
         ],

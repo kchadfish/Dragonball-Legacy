@@ -617,7 +617,8 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "literal", value: -50 },
+        percent: { type: "damage-percent", subject: "current-action", percent: -50 },
+        optional: true,
         conditions: [
           {
             type: "combat-result",
@@ -728,7 +729,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "add",
-        percent: { type: "literal", value: -10 },
+        percent: { type: "damage-percent", subject: "current-action", percent: -10 },
         conditions: [
           {
             type: "roll-comparison",

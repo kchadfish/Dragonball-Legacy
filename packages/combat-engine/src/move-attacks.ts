@@ -26,6 +26,10 @@ export interface MoveAttackDefinition {
   readonly numericResultOverrides?: readonly (
     { readonly attack?: number; readonly defense?: number } | undefined
   )[];
+  readonly beforeDieResultModifier?: (
+    index: number,
+    priorRolls: readonly AttackDieRoll[],
+  ) => { readonly attack?: number; readonly defense?: number } | undefined;
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
   readonly baseDamage: number;
   /** A converted `damagePerHit` move deals its listed damage for every successful die. */
@@ -72,6 +76,7 @@ export const resolveMoveAttack = (
       naturalRolls: definition.naturalRolls,
       resultOverrides: definition.resultOverrides,
       numericResultOverrides: definition.numericResultOverrides,
+      beforeDieResultModifier: definition.beforeDieResultModifier,
       resolutionThresholds: definition.resolutionThresholds,
     },
     random,

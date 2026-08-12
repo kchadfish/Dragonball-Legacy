@@ -381,7 +381,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "modify-damage",
         operation: "multiply",
-        percent: { type: "literal", value: 1.5 },
+        percent: { type: "damage-percent", subject: "current-action", percent: 150 },
         conditions: [
           {
             type: "combat-result",
