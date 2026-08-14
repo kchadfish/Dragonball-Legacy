@@ -1356,6 +1356,23 @@ all 528 tests at 75.34% global branch coverage (3,520/4,672). The single
 repository-wide formatting check: 135 unchanged baseline files are reported by
 Prettier. No unrelated files were reformatted.
 
+## 2026-08-14 master merge reconciliation
+
+The reroll slice was merged into the local `master` branch after preserving the
+intervening CE130 work already present on that branch. The capability report was
+regenerated from the merged source after build output refresh and now records
+740 `supported-generic`, 251 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. The reroll executor and its public
+transition coverage remain present; the changed totals reflect the master-side
+catalog and executor accounting rather than a scope reclassification.
+
+Regression validation on the merged tree passed lint, reference and game-data
+validation, combat-boundary validation, 43 test files and 612 tests, the
+TypeScript build, 77.04% global branch coverage, duplication detection, and the
+production dependency audit with zero vulnerabilities. The repository quality
+script remains blocked only by the pre-existing 135-file repository-wide
+Prettier baseline; all merged implementation and test files are formatted.
+
 ## Handoff prompt
 
 > Resume the combat-engine goal from the current worktree. Read
