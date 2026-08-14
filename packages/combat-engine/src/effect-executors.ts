@@ -206,6 +206,7 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "stat-difference-percent",
   "triggering-move-base-damage",
   "triggering-move-base-damage-percent",
+  "stat-offset",
 ]);
 
 const issue = (
@@ -1146,7 +1147,10 @@ const extraActionCountIssues = (
   }
   if (
     effect.useLimit !== undefined &&
-    (!Number.isInteger(effect.useLimit.count) || effect.useLimit.count < 1)
+    typeof effect.useLimit.count !== "number" &&
+    (effect.useLimit.count.type !== "literal" ||
+      !Number.isInteger(effect.useLimit.count.value) ||
+      effect.useLimit.count.value < 1)
   )
     issues.push(
       issue(
@@ -1417,6 +1421,7 @@ const rerollIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "reroll" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex).filter(
     (candidate) =>
@@ -1432,7 +1437,9 @@ const rerollIssues = (
     effectIndex,
     "resultModifier",
   );
+  const bonusIssue = numericIssue(effect.bonus, sourceDefinitionId, effectIndex, "bonus");
   if (modifierIssue !== undefined) issues.push(modifierIssue);
+  if (bonusIssue !== undefined) issues.push(bonusIssue);
   for (const condition of effect.conditions ?? []) {
     if (condition.type !== "roll-threshold" || condition.roll !== effect.roll) {
       issues.push(
@@ -1529,7 +1536,6 @@ const rerollIssues = (
       ),
     );
   if (
-    effect.activationCost !== undefined ||
     effect.cooldown !== undefined ||
     effect.stacking !== undefined ||
     effect.selectionLimit !== undefined ||

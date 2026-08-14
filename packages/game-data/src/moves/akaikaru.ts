@@ -915,6 +915,22 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         optional: true,
         roll: "attack",
         rerollScope: "entire-attack",
+        useLimit: {
+          scope: "combat",
+          count: {
+            type: "stat-offset",
+            subject: "self",
+            stat: "dexterity-bonus",
+            offset: -2,
+            minimum: 1,
+          },
+          sourceText: "RESTRICTEDxY, where Y is your Dexterity Bonus minus 2 to a minimum of 1",
+        },
+        activationCost: {
+          resource: "ki",
+          operation: "lose",
+          amount: { type: "literal", value: 1 },
+        },
         selector: {
           type: "move-selector",
           subject: "source",

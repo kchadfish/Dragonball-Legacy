@@ -378,6 +378,24 @@ const hasValidRollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
 
+const hasValidRerollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "reroll" }>) =>
+  (effect.roll === "attack" || effect.roll === "defense") &&
+  (effect.rerollScope === "single-result" || effect.rerollScope === "entire-attack") &&
+  Number.isFinite(effect.bonus) &&
+  (effect.activationCost === undefined || effect.activationResource === "ki") &&
+  (effect.activationCost === undefined || validNonnegativeNumber(effect.activationCost)) &&
+  (effect.useLimit === undefined ||
+    (validCounter(effect.useLimit.remaining, 0) &&
+      (effect.useLimit.scope === "combat" || effect.useLimit.scope === "turn"))) &&
+  (effect.duration.type === "combat" ||
+    (effect.duration.type === "next-action" && typeof effect.duration.combatantId === "string") ||
+    (effect.duration.type === "next-roll" &&
+      typeof effect.duration.combatantId === "string" &&
+      effect.duration.roll === effect.roll)) &&
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0 &&
+  validCounter(effect.sourceEffectIndex, 0);
+
 const hasValidResolutionThresholdDetails = (
   effect: Extract<ActiveCombatEffect, { type: "set-resolution-threshold" }>,
 ) =>
@@ -777,6 +795,8 @@ const hasValidNonFloatingEffectDetails = (
       return hasValidCostEffectDetails(effect);
     case "modify-roll":
       return hasValidRollEffectDetails(effect);
+    case "reroll":
+      return hasValidRerollEffectDetails(effect);
     case "set-resolution-threshold":
       return hasValidResolutionThresholdDetails(effect);
     case "modify-damage":

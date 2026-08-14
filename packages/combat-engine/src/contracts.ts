@@ -215,6 +215,32 @@ export interface ActiveRollModifierEffect {
   readonly duration: "combat";
 }
 
+/** A durable reaction that replaces one or more persisted attack dice. */
+export interface ActiveRerollEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "reroll";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly roll: "attack" | "defense";
+  readonly rerollScope: "single-result" | "entire-attack";
+  readonly selector?: MoveSelectorCondition;
+  readonly bonus: number;
+  readonly conditions: EffectDefinition["conditions"];
+  readonly activationResource?: "ki";
+  readonly activationCost?: number;
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly remaining: number };
+  readonly duration:
+    | { readonly type: "combat" }
+    | { readonly type: "next-action"; readonly combatantId: CombatantId }
+    | {
+        readonly type: "next-roll";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack" | "defense";
+      };
+}
+
 /** A durable constraint on the roll result required for an attack outcome. */
 export interface ActiveResolutionThresholdEffect {
   readonly id: ActiveEffectId;
@@ -623,6 +649,7 @@ export interface ActiveScheduledResourceEffect {
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
+  | ActiveRerollEffect
   | ActiveResolutionThresholdEffect
   | ActiveNextActionModifierEffect
   | ActiveDamageModifierEffect

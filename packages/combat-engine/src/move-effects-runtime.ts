@@ -98,8 +98,13 @@ export interface RerollApplication {
   readonly roll: "attack" | "defense";
   readonly rerollScope: "single-result" | "entire-attack";
   readonly resultModifier: number;
+  readonly bonus?: number;
   readonly selector?: MoveSelectorCondition;
-  readonly useLimit?: { readonly scope: "combat"; readonly count: number };
+  readonly conditions: EffectDefinition["conditions"];
+  readonly duration?: "combat";
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
+  readonly activationResource?: "ki" | "hp";
+  readonly activationCost?: number;
   readonly requiresPriorSourceResult?: "successful";
 }
 
@@ -1377,6 +1382,7 @@ const emptyEffectChanges = () => ({
   resourceModificationPreventions: [] as ResourceModificationPreventionApplication[],
   costModifications: [] as CostModification[],
   currentActionCostModifications: [] as CurrentActionCostModification[],
+  rerolls: [] as RerollApplication[],
 });
 
 const lockDuration = (
@@ -1490,6 +1496,7 @@ const statusEffectChanges = (
     resourceModificationPreventions: [],
     costModifications: [],
     currentActionCostModifications: [],
+    rerolls: [],
   };
 };
 
@@ -1554,8 +1561,15 @@ const extraActionEffectChanges = (
 ): EffectChanges => {
   const maximumActions =
     effect.maximumActions === undefined ? undefined : numeric(effect.maximumActions, context);
+  let useLimitCount: number | undefined;
+  if (effect.useLimit !== undefined)
+    useLimitCount =
+      typeof effect.useLimit.count === "number"
+        ? effect.useLimit.count
+        : numeric(effect.useLimit.count, context);
   if (effect.maximumActions !== undefined && maximumActions === undefined)
     return emptyEffectChanges();
+  if (effect.useLimit !== undefined && useLimitCount === undefined) return emptyEffectChanges();
   return {
     ...emptyEffectChanges(),
     extraActions: [
@@ -1567,7 +1581,9 @@ const extraActionEffectChanges = (
         ...(effect.constant === undefined ? {} : { constant: effect.constant }),
         ...(maximumActions === undefined ? {} : { maximumActions }),
         scope: effect.scope?.type === "next-turn" ? "next-turn" : "current-turn",
-        ...(effect.useLimit === undefined ? {} : { useLimit: effect.useLimit }),
+        ...(effect.useLimit === undefined
+          ? {}
+          : { useLimit: { scope: effect.useLimit.scope, count: useLimitCount! } }),
         effectIndex,
       },
     ],
@@ -1703,9 +1719,7 @@ const resourceEffectChanges = (
               operation: effect.operation,
               amount,
               ...(cap === undefined ? {} : { cap }),
-              ...(context.activeEffects === undefined
-                ? {}
-                : { sourceCombatantId: context.self.id }),
+              sourceCombatantId: context.self.id,
               cause: "non-damage-effect" as const,
               ...(move.styleId === undefined ? {} : { sourceStyleId: move.styleId }),
             },
@@ -2197,6 +2211,61 @@ const criticalThresholdEffectChanges = (
       };
 };
 
+const rerollEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "reroll" }>,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+  move: MoveDefinition,
+  effectIndex: number,
+): EffectChanges => {
+  if (target !== "self") return emptyEffectChanges();
+  const bonusExpression = effect.bonus ?? effect.resultModifier;
+  const bonus = bonusExpression === undefined ? 0 : numeric(bonusExpression, context);
+  let useLimitCount: number | undefined;
+  if (effect.useLimit !== undefined)
+    useLimitCount =
+      typeof effect.useLimit.count === "number"
+        ? effect.useLimit.count
+        : numeric(effect.useLimit.count, context);
+  const activationCost =
+    effect.activationCost === undefined
+      ? undefined
+      : numeric(effect.activationCost.amount, context);
+  const resolvedUseLimit =
+    effect.useLimit === undefined || useLimitCount === undefined
+      ? undefined
+      : { scope: effect.useLimit.scope, count: useLimitCount };
+  if (
+    bonus === undefined ||
+    (effect.useLimit !== undefined && useLimitCount === undefined) ||
+    (resolvedUseLimit !== undefined && resolvedUseLimit.count < 1) ||
+    (activationCost === undefined && effect.activationCost !== undefined)
+  )
+    return emptyEffectChanges();
+  return {
+    ...emptyEffectChanges(),
+    rerolls: [
+      {
+        sourceDefinitionId: move.id,
+        effectIndex,
+        target,
+        roll: effect.roll,
+        rerollScope: effect.rerollScope ?? "single-result",
+        ...(effect.selector === undefined ? {} : { selector: effect.selector }),
+        resultModifier: bonus,
+        bonus,
+        conditions: effect.conditions,
+        ...(effect.activationCost === undefined
+          ? {}
+          : { activationResource: effect.activationCost.resource }),
+        duration: "combat",
+        ...(resolvedUseLimit === undefined ? {} : { useLimit: resolvedUseLimit }),
+        ...(activationCost === undefined ? {} : { activationCost }),
+      },
+    ],
+  };
+};
+
 const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], TriggeredEffectHandler>> = {
   "roll-and-store": (effect, move, context, target, _trigger, effectIndex) =>
     rollAndStoreEffectChanges(
@@ -2364,6 +2433,14 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
+  reroll: (effect, move, context, target, _trigger, effectIndex) =>
+    rerollEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "reroll" }>,
+      context,
+      target,
+      move,
+      effectIndex,
+    ),
   "apply-status": (effect, move, context, target) =>
     statusEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "apply-status" }>,
@@ -2399,7 +2476,7 @@ const triggeredEffectChanges = (
 ) => {
   if (
     effect.trigger !== trigger ||
-    effect.optional === true ||
+    (effect.optional === true && effect.type !== "reroll") ||
     effect.activationGroup !== undefined ||
     ((trigger === "on-resource-gain" || trigger === "on-resource-drain") &&
       !effect.conditions?.some((condition) => condition.type === "resource-change") &&
@@ -2461,11 +2538,17 @@ export const rerollEffectsAfterDefense = (
       !effectMatches(resolved.effect, context)
     )
       return [];
+    const resultModifierExpression = resolved.effect.resultModifier ?? resolved.effect.bonus;
     const resultModifier =
-      resolved.effect.resultModifier === undefined
-        ? 0
-        : numeric(resolved.effect.resultModifier, context);
+      resultModifierExpression === undefined ? 0 : numeric(resultModifierExpression, context);
     if (resultModifier === undefined) return [];
+    let useLimitCount: number | undefined;
+    if (resolved.effect.useLimit !== undefined)
+      useLimitCount =
+        typeof resolved.effect.useLimit.count === "number"
+          ? resolved.effect.useLimit.count
+          : numeric(resolved.effect.useLimit.count, context);
+    if (resolved.effect.useLimit !== undefined && useLimitCount === undefined) return [];
     return [
       {
         target: "self" as const,
@@ -2474,12 +2557,13 @@ export const rerollEffectsAfterDefense = (
         roll: resolved.effect.roll,
         rerollScope: resolved.effect.rerollScope ?? "single-result",
         resultModifier,
+        conditions: resolved.effect.conditions,
         ...(resolved.effect.selector === undefined ? {} : { selector: resolved.effect.selector }),
-        ...(resolved.effect.useLimit?.scope === "combat"
+        ...(resolved.effect.useLimit?.scope === "combat" && useLimitCount !== undefined
           ? {
               useLimit: {
                 scope: "combat" as const,
-                count: resolved.effect.useLimit.count,
+                count: useLimitCount,
               },
             }
           : {}),
@@ -2577,6 +2661,8 @@ const moveEffectsForTriggerInternal = (
   readonly resourceModificationPreventions: readonly ResourceModificationPreventionApplication[];
   readonly costModifications: readonly CostModification[];
   readonly currentActionCostModifications: readonly CurrentActionCostModification[];
+  readonly rerolls: readonly RerollApplication[];
+  // eslint-disable-next-line sonarjs/cognitive-complexity
 } => {
   if (moveEffectsSuppressed(move, trigger, context)) return emptyEffectChanges();
   const resources: ResourceChange[] = [];
@@ -2608,6 +2694,7 @@ const moveEffectsForTriggerInternal = (
   const resourceModificationPreventions: ResourceModificationPreventionApplication[] = [];
   const costModifications: CostModification[] = [];
   const currentActionCostModifications: CurrentActionCostModification[] = [];
+  const rerolls: RerollApplication[] = [];
   for (const [effectIndex, effect] of (move.effects ?? []).entries()) {
     const compiled = compileEffectPlan({
       sourceDefinitionId: move.id,
@@ -2617,6 +2704,7 @@ const moveEffectsForTriggerInternal = (
     if (!compiled.ok) continue;
     for (const target of effectTargets(compiled.value.definition)) {
       const resolved = executeCompiledEffect(compiled.value, { move, target });
+      if (!effectMatches(effect, context)) continue;
       const changes = triggeredEffectChanges(
         resolved.effect,
         move,
@@ -2654,6 +2742,7 @@ const moveEffectsForTriggerInternal = (
       resourceModificationPreventions.push(...changes.resourceModificationPreventions);
       costModifications.push(...changes.costModifications);
       currentActionCostModifications.push(...changes.currentActionCostModifications);
+      rerolls.push(...changes.rerolls);
     }
   }
   if (includeActiveFloatingEffects) {
@@ -2704,6 +2793,7 @@ const moveEffectsForTriggerInternal = (
       resourceModificationPreventions.push(...nested.resourceModificationPreventions);
       costModifications.push(...nested.costModifications);
       currentActionCostModifications.push(...nested.currentActionCostModifications);
+      rerolls.push(...nested.rerolls);
     }
   }
   return {
@@ -2736,6 +2826,7 @@ const moveEffectsForTriggerInternal = (
     resourceModificationPreventions,
     costModifications,
     currentActionCostModifications,
+    rerolls,
   };
 };
 

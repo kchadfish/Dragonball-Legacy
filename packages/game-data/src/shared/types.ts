@@ -124,6 +124,14 @@ export type NumericExpression =
       readonly maximum?: number;
     }
   | {
+      readonly type: "stat-offset";
+      readonly subject: "self" | "opponent";
+      readonly stat: "dexterity-bonus";
+      readonly offset: number;
+      readonly minimum?: number;
+      readonly maximum?: number;
+    }
+  | {
       readonly type: "resource-percent";
       readonly subject: "self" | "opponent";
       readonly resource: "hp" | "ki";

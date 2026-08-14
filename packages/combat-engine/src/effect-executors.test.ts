@@ -21,6 +21,13 @@ const effectAt = (moveId: string, effectIndex: number) => {
   return { move, effect };
 };
 
+const firstEffectOfType = (moveId: string, type: string) => {
+  const move = moveWithId(moveId);
+  const effectIndex = move.effects?.findIndex((effect) => effect.type === type) ?? -1;
+  if (effectIndex < 0) throw new Error(`Missing ${type} effect on ${moveId}.`);
+  return effectAt(moveId, effectIndex);
+};
+
 describe("declarative effect executor registry", () => {
   it("compiles exact stored rolls and only their faithfully executable immediate consumers", () => {
     for (const moveId of [
@@ -573,6 +580,25 @@ describe("declarative effect executor registry", () => {
           type: "modify-roll",
           definition: { cap: { type: "allow-exceed" } },
         },
+      });
+    }
+  });
+
+  it("compiles the exact initial reroll variants and retains their source identity", () => {
+    for (const moveId of [
+      "move-akaikaru-swift-reaction",
+      "move-kurokonwaku-second-chance",
+      "move-aoyosumu-zen-explosion",
+    ]) {
+      const { move, effect } = firstEffectOfType(moveId, "reroll");
+      const compiled = compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: move.effects?.indexOf(effect) ?? 0,
+        effect,
+      });
+      expect(compiled).toMatchObject({
+        ok: true,
+        value: { type: "reroll", sourceDefinitionId: move.id },
       });
     }
   });

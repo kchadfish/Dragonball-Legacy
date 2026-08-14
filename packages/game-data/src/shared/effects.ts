@@ -522,7 +522,7 @@ export interface BaseEffectDefinition {
   readonly stacking?: "allow" | "prevent";
   readonly useLimit?: {
     readonly scope: "combat" | "turn";
-    readonly count: number;
+    readonly count: number | NumericExpression;
     readonly sourceText: string;
   };
   readonly activationCost?: {
@@ -1193,6 +1193,7 @@ export interface RerollEffect extends BaseEffectDefinition {
   readonly rerollScope?: "single-result" | "entire-attack";
   /** A modifier applied only to the replacement roll, never the original roll. */
   readonly resultModifier?: NumericExpression;
+  readonly bonus?: NumericExpression;
   readonly selector?: MoveSelectorCondition;
   /** A durable reroll is unavailable until its source move records this result. */
   readonly requiresPriorSourceResult?: "successful";
