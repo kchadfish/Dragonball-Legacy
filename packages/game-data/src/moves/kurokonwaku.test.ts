@@ -44,10 +44,7 @@ describe("KUROKONWAKU_MOVES", () => {
 
   it("represents rerolls, threshold branches, and result-gated locks", () => {
     expect(KUROKONWAKU_MOVES.find((move) => move.name === "Second Chance")?.effects).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: "reroll", roll: "defense" }),
-        expect.objectContaining({ type: "modify-roll", amount: { type: "literal", value: 5 } }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ type: "reroll", roll: "defense" })]),
     );
     expect(KUROKONWAKU_MOVES.find((move) => move.name === "Firebreath")?.effects).toEqual(
       expect.arrayContaining([

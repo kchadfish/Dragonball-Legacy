@@ -21,6 +21,13 @@ const effectAt = (moveId: string, effectIndex: number) => {
   return { move, effect };
 };
 
+const firstEffectOfType = (moveId: string, type: string) => {
+  const move = moveWithId(moveId);
+  const effectIndex = move.effects?.findIndex((effect) => effect.type === type) ?? -1;
+  if (effectIndex < 0) throw new Error(`Missing ${type} effect on ${moveId}.`);
+  return effectAt(moveId, effectIndex);
+};
+
 describe("declarative effect executor registry", () => {
   it("compiles and executes a supported damage effect with durable provenance", () => {
     const { move, effect } = effectAt("move-afterlife-kamehameha", 0);
@@ -157,6 +164,25 @@ describe("declarative effect executor registry", () => {
     );
   });
 
+  it("compiles the exact initial reroll variants and retains their source identity", () => {
+    for (const moveId of [
+      "move-akaikaru-swift-reaction",
+      "move-kurokonwaku-second-chance",
+      "move-aoyosumu-zen-explosion",
+    ]) {
+      const { move, effect } = firstEffectOfType(moveId, "reroll");
+      const compiled = compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: move.effects?.indexOf(effect) ?? 0,
+        effect,
+      });
+      expect(compiled).toMatchObject({
+        ok: true,
+        value: { type: "reroll", sourceDefinitionId: move.id },
+      });
+    }
+  });
+
   it("keeps the runtime registry exhaustively named", () => {
     expect(Object.keys(effectExecutorRegistry).sort()).toEqual([
       "apply-status",
@@ -173,8 +199,10 @@ describe("declarative effect executor registry", () => {
       "prevent-move-modification",
       "prevent-move-use",
       "prevent-resolution",
+      "prevent-resource-modification",
       "prevent-roll-modification",
       "prevent-status",
+      "reroll",
       "set-resolution-threshold",
       "set-roll-definition",
       "set-roll-result",

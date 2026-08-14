@@ -520,7 +520,7 @@ export interface BaseEffectDefinition {
   readonly stacking?: "allow" | "prevent";
   readonly useLimit?: {
     readonly scope: "combat" | "turn";
-    readonly count: number;
+    readonly count: number | NumericExpression;
     readonly sourceText: string;
   };
   readonly activationCost?: {
@@ -1187,6 +1187,7 @@ export interface RerollEffect extends BaseEffectDefinition {
   readonly type: "reroll";
   readonly roll: "attack" | "defense";
   readonly rerollScope?: "single-result" | "entire-attack";
+  readonly bonus?: NumericExpression;
   readonly selector?: MoveSelectorCondition;
 }
 

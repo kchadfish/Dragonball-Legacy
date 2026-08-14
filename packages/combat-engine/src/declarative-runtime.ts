@@ -183,6 +183,13 @@ const durableExpressionHandlers: Partial<
     const value = combatantForSubject(context, expression.subject).stats.dexterityBonus;
     return Math.min(expression.maximum, Math.max(expression.minimum, value));
   },
+  "stat-offset": (expression, context) => {
+    if (!isType(expression, "stat-offset")) return undefined;
+    const value =
+      combatantForSubject(context, expression.subject).stats.dexterityBonus + expression.offset;
+    const minimum = expression.minimum === undefined ? value : Math.max(expression.minimum, value);
+    return expression.maximum === undefined ? minimum : Math.min(expression.maximum, minimum);
+  },
   "resource-percent": (expression, context) =>
     isType(expression, "resource-percent")
       ? Math.round(

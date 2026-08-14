@@ -2521,6 +2521,7 @@ describe("basic attacks", () => {
           resolutionFrameIdSchema.parse("resolution-frame:second-chance-post-roll"),
           resolutionFrameIdSchema.parse("resolution-frame:second-chance-counter"),
         ],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:second-chance")],
       },
     );
     const fight = requireTransition(
@@ -2570,10 +2571,10 @@ describe("basic attacks", () => {
     );
     const post = requireActiveState(rolled.state).pendingDecision;
     if (post === undefined) throw new Error("Expected post-defense decision.");
-    expect(post.options).toContainEqual({
-      id: "activate-move:move-kurokonwaku-second-chance:0",
+    const rerollOption = post.options.find((option) => option.id.startsWith("activate-reroll:"));
+    if (rerollOption === undefined) throw new Error("Expected generic reroll option.");
+    expect(rerollOption).toMatchObject({
       type: "activate-effect",
-      moveId: "move-kurokonwaku-second-chance",
     });
     const resolved = requireTransition(
       submitCombatDecision(
@@ -2584,21 +2585,274 @@ describe("basic attacks", () => {
           actorId: defenderId,
           expectedStateVersion: rolled.state.version,
           pendingDecisionId: post.id,
-          optionId: "activate-move:move-kurokonwaku-second-chance:0",
+          optionId: rerollOption.id,
         },
         dependencies,
       ),
     );
     expect(resolved.state.combatants[defenderId]).toMatchObject({
       hitPoints: { current: 100 },
-      moveUses: { "move-kurokonwaku-second-chance": 1 },
+      moveUses: {},
     });
+    expect(
+      requireActiveState(resolved.state).activeEffects.find((effect) => effect.type === "reroll"),
+    ).toMatchObject({ useLimit: { remaining: 0 } });
     expect(resolved.events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "move-used", moveId: "move-kurokonwaku-second-chance" }),
         expect.objectContaining({ type: "defense-rolled", naturalResult: 30, result: 34 }),
         expect.objectContaining({ type: "attack-resolved", outcome: "stopped" }),
       ]),
+    );
+  });
+
+  it("offers Zen Explosion only when the current defense result is at most 7", () => {
+    const resolveDefense = (defenseRoll: number, suffix: string) => {
+      const dependencies = createTestCombatDependencies(
+        [10, defenseRoll, 10, defenseRoll],
+        new Date("2026-08-06T12:00:00.000Z"),
+        {
+          fightIds: [fightIdSchema.parse(`fight:zen-${suffix}`)],
+          combatantIds: [attackerId, defenderId],
+          eventIds: Array.from({ length: 20 }, (_, index) =>
+            combatEventIdSchema.parse(`event:zen-${suffix}-${index + 1}`),
+          ),
+          pendingDecisionIds: [
+            pendingDecisionIdSchema.parse(`pending-decision:zen-${suffix}-defense`),
+            pendingDecisionIdSchema.parse(`pending-decision:zen-${suffix}-post-roll`),
+          ],
+          resolutionFrameIds: [
+            resolutionFrameIdSchema.parse(`resolution-frame:zen-${suffix}-defense`),
+            resolutionFrameIdSchema.parse(`resolution-frame:zen-${suffix}-post-roll`),
+          ],
+          activeEffectIds: [activeEffectIdSchema.parse(`active-effect:zen-${suffix}`)],
+        },
+      );
+      const fight = requireTransition(
+        createFight(
+          {
+            ...input,
+            combatants: [
+              input.combatants[0],
+              { ...input.combatants[1], moveIds: ["move-aoyosumu-zen-explosion"] },
+            ],
+          },
+          dependencies,
+        ),
+      );
+      const action = requireActiveState(
+        requireTransition(advanceFight(fight.state, dependencies)).state,
+      );
+      const declared = requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "basic-attack",
+            id: combatDecisionIdSchema.parse(`decision:zen-${suffix}-attack`),
+            actorId: attackerId,
+            expectedStateVersion: action.version,
+            basicAttack: "basic-punch",
+            targetCombatantId: defenderId,
+          },
+          dependencies,
+        ),
+      );
+      const defense = requireActiveState(declared.state).pendingDecision;
+      if (defense === undefined) throw new Error("Expected Zen Explosion defense response.");
+      return {
+        ...requireTransition(
+          submitCombatDecision(
+            declared.state,
+            {
+              type: "respond-to-pending-decision",
+              id: combatDecisionIdSchema.parse(`decision:zen-${suffix}-roll`),
+              actorId: defenderId,
+              expectedStateVersion: declared.state.version,
+              pendingDecisionId: defense.id,
+              optionId: "roll-defense",
+            },
+            dependencies,
+          ),
+        ),
+        dependencies,
+      };
+    };
+
+    const eligible = resolveDefense(1, "eligible");
+    expect(requireActiveState(eligible.state).activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sourceDefinitionId: "move-aoyosumu-zen-explosion" }),
+      ]),
+    );
+    const eligiblePending = requireActiveState(eligible.state).pendingDecision;
+    if (eligiblePending === undefined)
+      throw new Error("Expected Zen Explosion post-defense choice.");
+    const zenOption = eligiblePending.options.find((option) =>
+      option.id.startsWith("activate-reroll:"),
+    );
+    expect(zenOption).toBeDefined();
+    expect(requireActiveState(eligible.state).activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "reroll",
+        sourceDefinitionId: "move-aoyosumu-zen-explosion",
+        conditions: [
+          expect.objectContaining({
+            type: "roll-threshold",
+            comparison: "at-most",
+            value: { type: "literal", value: 7 },
+          }),
+        ],
+      }),
+    );
+    const rerolled = requireTransition(
+      submitCombatDecision(
+        eligible.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:zen-eligible-reroll"),
+          actorId: defenderId,
+          expectedStateVersion: eligible.state.version,
+          pendingDecisionId: eligiblePending.id,
+          optionId: zenOption!.id,
+        },
+        eligible.dependencies,
+      ),
+    );
+    expect(rerolled.events).toContainEqual(
+      expect.objectContaining({ type: "defense-rolled", naturalResult: 10, result: 9 }),
+    );
+
+    const ineligible = resolveDefense(10, "ineligible");
+    expect(requireActiveState(ineligible.state).pendingDecision).toBeUndefined();
+    expect(requireActiveState(ineligible.state).activeEffects).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sourceDefinitionId: "move-aoyosumu-zen-explosion" }),
+      ]),
+    );
+  });
+
+  it("offers Swift Reaction to the attacker and enforces its KI activation cost", () => {
+    const resolve = (ki: number, suffix: string) => {
+      const dependencies = createTestCombatDependencies(
+        [10, 10, 20, 1],
+        new Date("2026-08-06T12:00:00.000Z"),
+        {
+          fightIds: [fightIdSchema.parse(`fight:swift-${suffix}`)],
+          combatantIds: [attackerId, defenderId],
+          eventIds: Array.from({ length: 20 }, (_, index) =>
+            combatEventIdSchema.parse(`event:swift-${suffix}-${index + 1}`),
+          ),
+          pendingDecisionIds: [
+            pendingDecisionIdSchema.parse(`pending-decision:swift-${suffix}-defense`),
+            pendingDecisionIdSchema.parse(`pending-decision:swift-${suffix}-post-roll`),
+          ],
+          resolutionFrameIds: [
+            resolutionFrameIdSchema.parse(`resolution-frame:swift-${suffix}-defense`),
+            resolutionFrameIdSchema.parse(`resolution-frame:swift-${suffix}-post-roll`),
+          ],
+          activeEffectIds: [activeEffectIdSchema.parse(`active-effect:swift-${suffix}`)],
+        },
+      );
+      const created = createFight(
+        {
+          ...input,
+          combatants: [
+            {
+              ...input.combatants[0],
+              moveIds: ["move-akaikaru-swift-reaction", "move-akaikaru-backflip-kick"],
+            },
+            {
+              ...input.combatants[1],
+              moveIds: ["move-aoyosumu-zen-explosion"],
+            },
+          ],
+        },
+        dependencies,
+      );
+      const fight = requireTransition(created);
+      const setup = requireActiveState(fight.state);
+      const action = requireActiveState(
+        requireTransition(
+          advanceFight(
+            {
+              ...setup,
+              combatants: {
+                ...setup.combatants,
+                [attackerId]: {
+                  ...setup.combatants[attackerId],
+                  ki: { current: ki, maximum: 10 },
+                },
+              },
+            },
+            dependencies,
+          ),
+        ).state,
+      );
+      const declared = requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse(`decision:swift-${suffix}-attack`),
+            actorId: attackerId,
+            expectedStateVersion: action.version,
+            moveId: "move-akaikaru-backflip-kick",
+            targetCombatantId: defenderId,
+          },
+          dependencies,
+        ),
+      );
+      const defense = requireActiveState(declared.state).pendingDecision;
+      if (defense === undefined) throw new Error("Expected Swift Reaction defense response.");
+      return {
+        ...requireTransition(
+          submitCombatDecision(
+            declared.state,
+            {
+              type: "respond-to-pending-decision",
+              id: combatDecisionIdSchema.parse(`decision:swift-${suffix}-roll`),
+              actorId: defenderId,
+              expectedStateVersion: declared.state.version,
+              pendingDecisionId: defense.id,
+              optionId: "roll-defense",
+            },
+            dependencies,
+          ),
+        ),
+        dependencies,
+      };
+    };
+
+    const affordable = resolve(3, "affordable");
+    const affordablePending = requireActiveState(affordable.state).pendingDecision;
+    if (affordablePending === undefined)
+      throw new Error(
+        JSON.stringify({
+          effects: affordable.state.activeEffects,
+          events: affordable.events,
+        }),
+      );
+    const swiftOption = affordablePending.options.find((option) =>
+      option.id.startsWith("activate-reroll:"),
+    );
+    expect(swiftOption).toBeDefined();
+    const resolved = requireTransition(
+      submitCombatDecision(
+        affordable.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:swift-affordable-reroll"),
+          actorId: attackerId,
+          expectedStateVersion: affordable.state.version,
+          pendingDecisionId: affordablePending.id,
+          optionId: swiftOption!.id,
+        },
+        affordable.dependencies,
+      ),
+    );
+    expect(resolved.state.combatants[attackerId].ki.current).toBe(0);
+    expect(resolved.events).toContainEqual(
+      expect.objectContaining({ type: "attack-rolled", naturalResult: 20 }),
     );
   });
 

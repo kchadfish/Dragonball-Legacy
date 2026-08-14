@@ -27,6 +27,7 @@ export const registeredEffectTypes = [
   "set-roll-definition",
   "set-roll-result",
   "skip-action",
+  "reroll",
 ] as const satisfies readonly EffectDefinition["type"][];
 
 export type RegisteredEffectType = (typeof registeredEffectTypes)[number];
@@ -162,6 +163,7 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "completed-combat-turn-count",
   "active-move-count",
   "active-move-effect-text-count",
+  "stat-offset",
 ]);
 
 const issue = (
@@ -707,7 +709,10 @@ const extraActionCountIssues = (
   }
   if (
     effect.useLimit !== undefined &&
-    (!Number.isInteger(effect.useLimit.count) || effect.useLimit.count < 1)
+    typeof effect.useLimit.count !== "number" &&
+    (effect.useLimit.count.type !== "literal" ||
+      !Number.isInteger(effect.useLimit.count.value) ||
+      effect.useLimit.count.value < 1)
   )
     issues.push(
       issue(
@@ -746,6 +751,105 @@ const setRollResultIssues = (
         "On-roll-result set substitutions require a persisted roll frame and replay-safe resolution context.",
       ),
     );
+  return issues;
+};
+
+const rerollIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "reroll" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger !== "after-defense-roll" && effect.trigger !== "on-success") {
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Rerolls currently require an after-defense-roll or on-success trigger.",
+      ),
+    );
+  }
+  if (
+    effect.rerollScope !== undefined &&
+    !["single-result", "entire-attack"].includes(effect.rerollScope)
+  ) {
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Reroll scope ${effect.rerollScope} is not supported by the current transition boundary.`,
+      ),
+    );
+  }
+  const bonusIssue = numericIssue(effect.bonus, sourceDefinitionId, effectIndex, "bonus");
+  if (bonusIssue !== undefined) issues.push(bonusIssue);
+  if (
+    effect.useLimit !== undefined &&
+    typeof effect.useLimit.count === "number" &&
+    (!Number.isInteger(effect.useLimit.count) || effect.useLimit.count < 1)
+  ) {
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Reroll use limits require a positive integer count.",
+      ),
+    );
+  }
+  const useLimitIssue =
+    typeof effect.useLimit?.count === "object"
+      ? numericIssue(effect.useLimit.count, sourceDefinitionId, effectIndex, "useLimit.count")
+      : undefined;
+  if (useLimitIssue !== undefined) issues.push(useLimitIssue);
+  if (effect.target !== undefined && effect.target !== "self") {
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Reroll capabilities currently target their owning combatant only.",
+      ),
+    );
+  }
+  if (
+    effect.scope !== undefined ||
+    (effect.duration !== undefined && effect.duration.type !== "combat")
+  ) {
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Reroll lifecycle is currently combat-long; scoped or expiring rerolls remain unsupported.",
+      ),
+    );
+  }
+  if (
+    effect.activationCost !== undefined &&
+    (effect.activationCost.resource !== "ki" || effect.activationCost.operation !== "lose")
+  ) {
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Reroll activation costs currently support KI loss only.",
+      ),
+    );
+  }
+  if (effect.optional === true || effect.activationGroup !== undefined) {
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Optional or grouped reroll choices require a serialized choice bundle.",
+      ),
+    );
+  }
   return issues;
 };
 
@@ -1126,6 +1230,7 @@ export const effectExecutorRegistry = {
   "set-roll-definition": createExecutor("set-roll-definition"),
   "set-roll-result": createExecutor("set-roll-result", setRollResultIssues),
   "skip-action": createExecutor("skip-action"),
+  reroll: createExecutor("reroll", rerollIssues),
 } satisfies EffectExecutorRegistry;
 
 export const compileEffectPlan = ({

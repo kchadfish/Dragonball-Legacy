@@ -713,6 +713,33 @@ the TypeScript build, coverage at 75.77% global branch coverage, duplication
 detection, and the production dependency audit with 0 vulnerabilities. No
 separate `npm run check` invocation was made.
 
+The 2026-08-12 declarative reroll slice adds the generic `reroll.v1` reaction
+executor. Swift Reaction, Second Chance, and Zen Explosion now preserve their
+typed roll, scope, selector, bonus, activation, use-limit, duration, and
+condition data through public post-defense transitions. Reroll choices use
+persisted natural rolls, consume injected randomness only for selected dice,
+charge KI where declared, decrement durable use limits, and emit replayable
+events. Zen Explosion's defensive threshold is evaluated at the current
+post-defense boundary rather than inferred from source text.
+
+Attacker-owned rerolls now also create the post-defense reaction boundary when
+the defender has no eligible reaction, so selector-compatible Swift Reaction
+uses are reachable through the public transition API. Reroll option filtering
+is source-effect-specific, including active-effect IDs containing colons.
+
+Tiger Strikes, Braced Energy Beam, Willing Sacrifice, and Ki Trap remain
+explicitly unsupported because they require next-roll or next-action lifecycles,
+stored-roll coupling, optional choices, opponent targeting, or multi-roll
+selection that this tranche does not persist. The regenerated matrix accounts
+for seven reroll occurrences: three supported generically and four
+unsupported-in-scope. It records 661 `supported-generic`, 329
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Focused
+compiler, runtime, public-transition, and matrix tests pass. Coverage passes
+all 528 tests at 75.34% global branch coverage (3,520/4,672). The single
+`npm run quality` gate was attempted but is blocked at its pre-existing
+repository-wide formatting check: 135 unchanged baseline files are reported by
+Prettier. No unrelated files were reformatted.
+
 ## Handoff prompt
 
 > Resume the combat-engine goal from the current worktree. Read

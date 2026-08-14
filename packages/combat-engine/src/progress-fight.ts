@@ -51,6 +51,7 @@ import {
   type ResourceModificationPreventionApplication,
   type ResolutionThresholdApplication,
   type CurrentActionCostModification,
+  type RerollApplication,
 } from "./move-effects-runtime.js";
 import { resolveItemResources } from "./item-effects-runtime.js";
 import { applyTransformation } from "./transformation-runtime.js";
@@ -59,6 +60,7 @@ import type {
   ActiveCombatEffect,
   ActiveCostModifierEffect,
   ActiveFightState,
+  ActiveRerollEffect,
   ActiveStatus,
   BasicAttackDecision,
   BasicAttackType,
@@ -212,11 +214,10 @@ const moveAttackDetails = (move: MoveDefinition): BlockableAttack | undefined =>
 };
 
 const simpleActionMoveUseLimit = (move: MoveDefinition) => {
-  const limits = (move.effects ?? []).flatMap((effect) =>
-    effect.trigger === "action-phase" && effect.useLimit?.scope === "combat"
-      ? [effect.useLimit.count]
-      : [],
-  );
+  const limits = (move.effects ?? []).flatMap((effect) => {
+    if (effect.trigger !== "action-phase" || effect.useLimit?.scope !== "combat") return [];
+    return typeof effect.useLimit.count === "number" ? [effect.useLimit.count] : [];
+  });
   return limits.length === 0 ? undefined : Math.min(...limits);
 };
 
@@ -292,11 +293,23 @@ const hasActiveConstant = (
       effect.sourceDefinitionId === moveId,
   );
 
+const hasRerollDefinition = (combatant: CombatantState) =>
+  combatant.moveIds.some((moveId) =>
+    MOVE_DEFINITIONS.find((move) => move.id === moveId)?.effects?.some(
+      (effect) => effect.type === "reroll" && effect.trigger === "after-defense-roll",
+    ),
+  );
+
 const hasPostDefenseReaction = (state: ActiveFightState, combatantId: CombatantId) =>
   availablePostRollDefenseItems(state.combatants[combatantId]).length > 0 ||
   hasActiveConstant(state, combatantId, "move-aoyosumu-close-shave") ||
-  (state.combatants[combatantId].moveIds.includes("move-kurokonwaku-second-chance") &&
-    (state.combatants[combatantId].moveUses["move-kurokonwaku-second-chance"] ?? 0) === 0);
+  hasRerollDefinition(state.combatants[combatantId]) ||
+  state.activeEffects.some(
+    (effect) =>
+      effect.type === "reroll" &&
+      effect.targetCombatantId === combatantId &&
+      (effect.useLimit === undefined || effect.useLimit.remaining > 0),
+  );
 
 /** Close Shave is a converted CONSTANT whose after-defense equality changes
  * the matching die's combat result.  The resolved results are persisted on
@@ -2482,7 +2495,9 @@ const resourceAfterChanges = (
   action?: CombatActionRecord,
 ) => {
   const preventions = resourcePreventions.filter(
-    (effect): effect is Extract<ActiveCombatEffect, { readonly type: "prevent-resource-modification" }> =>
+    (
+      effect,
+    ): effect is Extract<ActiveCombatEffect, { readonly type: "prevent-resource-modification" }> =>
       effect.type === "prevent-resource-modification" && effect.targetCombatantId === combatant.id,
   );
   const relevant = changes.filter(
@@ -3821,6 +3836,12 @@ const convertedAttackActivatedEffects = ({
     createdOnTurn,
     dependencies,
   );
+  const rerolls = activeRerollsFromApplications(
+    effects.rerolls,
+    attacker.id,
+    target.id,
+    dependencies,
+  );
   const damageModifiers = activeDamageModifiersFromApplications(
     effects.damageModifications,
     attacker.id,
@@ -3887,6 +3908,7 @@ const convertedAttackActivatedEffects = ({
     ...resourceModificationPreventions,
     ...resolutionThresholds,
     ...rollModifiers,
+    ...rerolls,
     ...damageModifiers,
     ...costModifiers,
     ...floatingEffects,
@@ -4051,6 +4073,7 @@ const effectsRelativeToActionActor = (
     resourceModificationPreventions: remap(effects.resourceModificationPreventions),
     costModifications: remap(effects.costModifications),
     currentActionCostModifications: remap(effects.currentActionCostModifications),
+    rerolls: remap(effects.rerolls),
   };
 };
 
@@ -4233,6 +4256,7 @@ const mergeMoveEffects = (
     (effects) => effects.currentActionCostModifications,
   ),
   floatingEffects: effectSets.flatMap((effects) => effects.floatingEffects),
+  rerolls: effectSets.flatMap((effects) => effects.rerolls),
 });
 
 const powerUpActiveEffects = (
@@ -4306,6 +4330,8 @@ interface PostDefenseReactionSelection {
   readonly closeShaveKiLoss: number | undefined;
   readonly energyRedirectionDie: number | undefined;
   readonly secondChanceDie: number | undefined;
+  readonly rerollEffect: ActiveRerollEffect | undefined;
+  readonly rerollDieIndex: number | undefined;
 }
 
 const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
@@ -5272,6 +5298,7 @@ const simpleActionActivatedEffects = (
     createdOnTurn,
     dependencies,
   );
+  const rerolls = activeRerollsFromApplications(effects.rerolls, actor.id, target.id, dependencies);
   return [
     ...forcedActions,
     ...locks,
@@ -5282,6 +5309,7 @@ const simpleActionActivatedEffects = (
     ...moveModificationPreventions,
     ...floatingEffects,
     ...extraActions,
+    ...rerolls,
   ];
 };
 
@@ -6165,7 +6193,11 @@ const hasPostDefenseReactionPotential = (
   return (
     availablePostRollDefenseItems(defender).length > 0 ||
     hasActiveConstant(state, defender.id, "move-aoyosumu-close-shave") ||
-    secondChanceOptions(state, defender.id, 1).length > 0 ||
+    hasRerollDefinition(defender) ||
+    hasRerollDefinition(attacker) ||
+    eligibleRerollsForPostDefense(state, frame).some(
+      (effect) => effect.sourceCombatantId === defender.id,
+    ) ||
     (move !== undefined && hasEnergyRedirectionPotential(state, attacker.id, move))
   );
 };
@@ -6249,6 +6281,129 @@ const postDefenseMoveRolls = (
   ).rolls;
 };
 
+const moveForPostDefenseFrame = (
+  frame:
+    | Extract<ActiveFightState["resolutionFrames"][number], { readonly stage: "awaiting-defense" }>
+    | PostDefenseReactionFrame,
+) => {
+  const moveId = "moveId" in frame.attack ? frame.attack.moveId : undefined;
+  return moveId === undefined ? undefined : MOVE_DEFINITIONS.find((move) => move.id === moveId);
+};
+
+const rerollConditionsMatch = (
+  state: ActiveFightState,
+  frame:
+    | Extract<ActiveFightState["resolutionFrames"][number], { readonly stage: "awaiting-defense" }>
+    | PostDefenseReactionFrame,
+  effect: ActiveRerollEffect,
+  rolls: readonly PostDefenseReactionRoll[],
+) => {
+  if (effect.conditions === undefined || effect.conditions.length === 0) return true;
+  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === effect.sourceDefinitionId);
+  const source = state.combatants[effect.sourceCombatantId];
+  const opponent = Object.values(state.combatants).find(
+    (combatant) => combatant.id !== source.id && combatant.status === "active",
+  );
+  if (sourceMove === undefined || opponent === undefined) return false;
+  const triggeringMove = moveForPostDefenseFrame(frame);
+  const resolved = moveEffectsForTrigger(sourceMove, "after-defense-roll", {
+    self: source,
+    opponent,
+    turnNumber: state.turnNumber,
+    completedTurnCount: state.turnNumber - 1,
+    moves: new Map(MOVE_DEFINITIONS.map((move) => [move.id, move])),
+    moveActivationCounts: moveActivationCounts(state),
+    successfulHitCount: 0,
+    actionHistory: state.actionHistory,
+    activeEffects: state.activeEffects,
+    ...(triggeringMove === undefined ? {} : { triggeringMove }),
+    rolls: rolls.map((roll) => ({
+      attackNaturalResult: roll.attackNaturalResult,
+      attackResult: roll.attackResult,
+      defenseNaturalResult: roll.defenseNaturalResult,
+      defenseResult: roll.defenseResult,
+      outcome: roll.attackResult >= roll.defenseResult ? "successful" : "stopped",
+    })),
+  });
+  return resolved.rerolls.some((candidate) => candidate.effectIndex === effect.sourceEffectIndex);
+};
+
+const eligibleRerollsForPostDefense = (
+  state: ActiveFightState,
+  frame:
+    | Extract<ActiveFightState["resolutionFrames"][number], { readonly stage: "awaiting-defense" }>
+    | PostDefenseReactionFrame,
+  rolls?: readonly PostDefenseReactionRoll[],
+) => {
+  const move = moveForPostDefenseFrame(frame);
+  return state.activeEffects.filter((effect): effect is ActiveRerollEffect => {
+    if (
+      effect.type !== "reroll" ||
+      effect.useLimit?.remaining === 0 ||
+      (effect.selector !== undefined &&
+        (move === undefined || !selectorMatchesMove(effect.selector, move)))
+    )
+      return false;
+    const ownerId = effect.roll === "attack" ? frame.attackerId : frame.targetCombatantId;
+    return (
+      effect.sourceCombatantId === ownerId &&
+      effect.targetCombatantId === ownerId &&
+      (rolls === undefined || rerollConditionsMatch(state, frame, effect, rolls))
+    );
+  });
+};
+
+const rerollOptionsForEffect = (
+  state: ActiveFightState,
+  effect: ActiveRerollEffect,
+  rolls: readonly PostDefenseReactionRoll[],
+) => {
+  if (
+    effect.activationCost !== undefined &&
+    state.combatants[effect.sourceCombatantId].ki.current < effect.activationCost
+  )
+    return [];
+  if (effect.rerollScope === "entire-attack")
+    return [{ id: `activate-reroll:${effect.id}:all`, type: "activate-effect" as const }];
+  return rolls.map((_, index) => ({
+    id: `activate-reroll:${effect.id}:${index}`,
+    type: "activate-effect" as const,
+  }));
+};
+
+const rerollOptionsForPostDefense = (
+  state: ActiveFightState,
+  frame:
+    | Extract<ActiveFightState["resolutionFrames"][number], { readonly stage: "awaiting-defense" }>
+    | PostDefenseReactionFrame,
+  rolls: readonly PostDefenseReactionRoll[],
+) =>
+  eligibleRerollsForPostDefense(state, frame, rolls).flatMap((effect) =>
+    rerollOptionsForEffect(state, effect, rolls),
+  );
+
+const rerollEffectForOption = (state: ActiveFightState, optionId: string) => {
+  if (!optionId.startsWith("activate-reroll:")) return undefined;
+  const suffixIndex = optionId.lastIndexOf(":");
+  if (suffixIndex < 0) return undefined;
+  const effectId = optionId.slice("activate-reroll:".length, suffixIndex);
+  return state.activeEffects.find(
+    (effect): effect is ActiveRerollEffect => effect.type === "reroll" && effect.id === effectId,
+  );
+};
+
+const rerollOptionsForCombatant = (
+  state: ActiveFightState,
+  frame:
+    | Extract<ActiveFightState["resolutionFrames"][number], { readonly stage: "awaiting-defense" }>
+    | PostDefenseReactionFrame,
+  rolls: readonly PostDefenseReactionRoll[],
+  combatantId: CombatantId,
+) =>
+  rerollOptionsForPostDefense(state, frame, rolls).filter(
+    (option) => rerollEffectForOption(state, option.id)?.sourceCombatantId === combatantId,
+  );
+
 const postDefenseReaction = (
   state: ActiveFightState,
   frame: Extract<
@@ -6262,7 +6417,7 @@ const postDefenseReaction = (
   const closeShaveActive = hasActiveConstant(state, defender.id, "move-aoyosumu-close-shave");
   const defenderOptions = [
     ...closeShaveReactionOptions(state, defender.id),
-    ...secondChanceOptions(state, defender.id, rolls.length),
+    ...rerollOptionsForCombatant(state, frame, rolls, defender.id),
     ...availablePostRollDefenseItems(defender).map(({ item }) => ({
       id: `activate-item:${item.id}`,
       type: "activate-effect" as const,
@@ -6279,8 +6434,12 @@ const postDefenseReaction = (
         roll.attackResult >= roll.defenseResult ? ("successful" as const) : ("stopped" as const),
     })),
   );
+  const genericAttackerOptions = rerollOptionsForCombatant(state, frame, rolls, attacker.id);
   const reactionCombatantId = defenderOptions.length > 0 ? defender.id : attacker.id;
-  const options = reactionCombatantId === defender.id ? defenderOptions : attackerOptions;
+  const options =
+    reactionCombatantId === defender.id
+      ? defenderOptions
+      : [...attackerOptions, ...genericAttackerOptions];
   return options.length === 0 && !closeShaveActive
     ? undefined
     : { closeShaveActive, combatantId: reactionCombatantId, options };
@@ -6329,6 +6488,55 @@ const postDefenseReactionEvents = (
   });
 };
 
+const materializeInitialRerolls = (
+  state: ActiveFightState,
+  dependencies: CombatDependencies,
+  rolls: readonly PostDefenseReactionRoll[],
+): readonly ActiveCombatEffect[] => {
+  const moves = new Map(MOVE_DEFINITIONS.map((move) => [move.id, move]));
+  const activationCounts = moveActivationCounts(state);
+  const additions: ActiveCombatEffect[] = [];
+  for (const source of Object.values(state.combatants)) {
+    const opponent = Object.values(state.combatants).find(
+      (candidate) => candidate.id !== source.id && candidate.status === "active",
+    );
+    if (opponent === undefined) continue;
+    for (const moveId of source.moveIds) {
+      const move = moves.get(moveId);
+      if (move === undefined) continue;
+      const existing = state.activeEffects.some(
+        (effect) =>
+          effect.type === "reroll" &&
+          effect.sourceCombatantId === source.id &&
+          effect.sourceDefinitionId === move.id,
+      );
+      if (existing) continue;
+      const effects = moveEffectsForTrigger(move, "after-defense-roll", {
+        self: source,
+        opponent,
+        turnNumber: state.turnNumber,
+        completedTurnCount: state.turnNumber - 1,
+        moves,
+        moveActivationCounts: activationCounts,
+        successfulHitCount: 0,
+        actionHistory: state.actionHistory,
+        activeEffects: [...state.activeEffects, ...additions],
+        rolls: rolls.map((roll) => ({
+          attackNaturalResult: roll.attackNaturalResult,
+          attackResult: roll.attackResult,
+          defenseNaturalResult: roll.defenseNaturalResult,
+          defenseResult: roll.defenseResult,
+          outcome: roll.attackResult >= roll.defenseResult ? "successful" : "stopped",
+        })),
+      });
+      additions.push(
+        ...activeRerollsFromApplications(effects.rerolls, source.id, opponent.id, dependencies),
+      );
+    }
+  }
+  return additions;
+};
+
 const requestPostDefenseReaction = (
   state: ActiveFightState,
   frame: Extract<
@@ -6337,15 +6545,20 @@ const requestPostDefenseReaction = (
   >,
   dependencies: CombatDependencies,
 ): CombatResult<CombatTransition> | undefined => {
-  const attacker = state.combatants[frame.attackerId];
-  const defender = state.combatants[frame.targetCombatantId];
   if (!hasPostDefenseReactionPotential(state, frame)) return undefined;
   const rolls = postDefenseReactionRolls(state, frame, dependencies);
   if (rolls === undefined) return { ok: false, error: invalidFightState(state) };
-  const reaction = postDefenseReaction(state, frame, rolls);
+  const initialRerolls = materializeInitialRerolls(state, dependencies, rolls);
+  const preparedState =
+    initialRerolls.length === 0
+      ? state
+      : { ...state, activeEffects: [...state.activeEffects, ...initialRerolls] };
+  const attacker = preparedState.combatants[frame.attackerId];
+  const defender = preparedState.combatants[frame.targetCombatantId];
+  const reaction = postDefenseReaction(preparedState, frame, rolls);
   if (reaction === undefined) return undefined;
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
-  const baseState = withoutPendingResolution(state);
+  const baseState = withoutPendingResolution(preparedState);
   const nextState: ActiveFightState = {
     ...baseState,
     version: state.version + 1,
@@ -6385,7 +6598,10 @@ const requestPostDefenseReaction = (
     ],
     eventSequence: state.eventSequence + rolls.length * 2,
   };
-  return transitionFrom(nextState, postDefenseReactionEvents(state, frame, dependencies, rolls));
+  return transitionFrom(
+    nextState,
+    postDefenseReactionEvents(preparedState, frame, dependencies, rolls),
+  );
 };
 
 const postDefenseReactionSelection = (
@@ -6400,6 +6616,8 @@ const postDefenseReactionSelection = (
       closeShaveKiLoss: undefined,
       energyRedirectionDie: undefined,
       secondChanceDie: undefined,
+      rerollEffect: undefined,
+      rerollDieIndex: undefined,
     };
   }
   const itemUse =
@@ -6411,6 +6629,16 @@ const postDefenseReactionSelection = (
   const closeShaveKiLoss = closeShaveKiLossForOption(option);
   const energyRedirectionDie = energyRedirectionDieForOption(option);
   const secondChanceDie = secondChanceDieForOption(option);
+  const rerollMatch = /^activate-reroll:(.+):(all|\d+)$/.exec(option.id);
+  const rerollEffect =
+    rerollMatch === null
+      ? undefined
+      : state.activeEffects.find(
+          (effect): effect is ActiveRerollEffect =>
+            effect.type === "reroll" && effect.id === rerollMatch[1],
+        );
+  const rerollDieIndex =
+    rerollMatch === null || rerollMatch[2] === "all" ? undefined : Number(rerollMatch[2]);
   const actor = state.combatants[decision.actorId];
   const canUseCloseShave =
     closeShaveKiLoss !== undefined &&
@@ -6452,20 +6680,47 @@ const postDefenseReactionSelection = (
     secondChanceOptions(state, decision.actorId, frame.naturalRolls.length).some(
       (candidate) => candidate.id === option.id,
     );
-  if (itemUse === undefined && !canUseCloseShave && !canUseEnergyRedirection && !canUseSecondChance)
+  const canUseReroll =
+    rerollEffect !== undefined &&
+    rerollOptionsForPostDefense(
+      state,
+      frame,
+      frame.naturalRolls.map((roll) => ({
+        attackNaturalResult: roll.attack,
+        attackResult: roll.attack,
+        defenseNaturalResult: roll.defense,
+        defenseResult: roll.defense,
+      })),
+    ).some((candidate) => candidate.id === option.id);
+  if (
+    itemUse === undefined &&
+    !canUseCloseShave &&
+    !canUseEnergyRedirection &&
+    !canUseSecondChance &&
+    !canUseReroll
+  )
     return undefined;
-  return { itemUse, closeShaveKiLoss, energyRedirectionDie, secondChanceDie };
+  return {
+    itemUse,
+    closeShaveKiLoss,
+    energyRedirectionDie,
+    secondChanceDie,
+    rerollEffect: canUseReroll ? rerollEffect : undefined,
+    rerollDieIndex: canUseReroll ? rerollDieIndex : undefined,
+  };
 };
 
 const postDefenseReactionEventCount = (
   reactionKiCost: number | undefined,
   energyRedirectionDie: number | undefined,
   secondChanceDie: number | undefined,
+  rerollEventCount: number,
 ) => {
   let count = 0;
   if (reactionKiCost !== undefined) count += 1;
   if (energyRedirectionDie !== undefined) count += 1;
   if (secondChanceDie !== undefined) count += 2;
+  count += rerollEventCount;
   return count;
 };
 
@@ -6475,8 +6730,11 @@ const postDefenseReactionState = (
   reactionKiCost: number | undefined,
   energyRedirectionDie: number | undefined,
   secondChanceDie: number | undefined,
+  rerollEffect: ActiveRerollEffect | undefined,
+  rerollEventCount: number,
 ): ActiveFightState => {
-  if (reactionKiCost === undefined && secondChanceDie === undefined) return baseState;
+  if (reactionKiCost === undefined && secondChanceDie === undefined && rerollEffect === undefined)
+    return baseState;
   const actor = baseState.combatants[actorId];
   const moveUses = { ...actor.moveUses };
   if (energyRedirectionDie !== undefined) {
@@ -6487,11 +6745,29 @@ const postDefenseReactionState = (
     moveUses["move-kurokonwaku-second-chance"] =
       (moveUses["move-kurokonwaku-second-chance"] ?? 0) + 1;
   }
+  const activeEffects = baseState.activeEffects.map((effect) => {
+    if (
+      rerollEffect === undefined ||
+      effect.type !== "reroll" ||
+      effect.id !== rerollEffect.id ||
+      effect.useLimit === undefined
+    )
+      return effect;
+    return {
+      ...effect,
+      useLimit: { ...effect.useLimit, remaining: effect.useLimit.remaining - 1 },
+    };
+  });
   return {
     ...baseState,
     eventSequence:
       baseState.eventSequence +
-      postDefenseReactionEventCount(reactionKiCost, energyRedirectionDie, secondChanceDie),
+      postDefenseReactionEventCount(
+        reactionKiCost,
+        energyRedirectionDie,
+        secondChanceDie,
+        rerollEventCount,
+      ),
     combatants: {
       ...baseState.combatants,
       [actorId]: {
@@ -6500,6 +6776,7 @@ const postDefenseReactionState = (
         moveUses,
       },
     },
+    activeEffects,
   };
 };
 
@@ -6652,6 +6929,23 @@ const attackerReactionAfterDefenderDecline = (
     ? requestAttackerEnergyRedirection(state, frame, dependencies)
     : undefined;
 
+const rerollIndexesForSelection = (
+  effect: ActiveRerollEffect | undefined,
+  naturalRollCount: number,
+  dieIndex: number | undefined,
+) => {
+  if (effect === undefined) return [];
+  if (effect.rerollScope === "entire-attack")
+    return Array.from({ length: naturalRollCount }, (_, index) => index);
+  return dieIndex === undefined ? [] : [dieIndex];
+};
+
+const rerollEventCount = (
+  effect: ActiveRerollEffect | undefined,
+  naturalRollCount: number,
+  dieIndex: number | undefined,
+) => rerollIndexesForSelection(effect, naturalRollCount, dieIndex).length;
+
 const postDefenseReactionResolution = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
@@ -6659,38 +6953,68 @@ const postDefenseReactionResolution = (
   selection: PostDefenseReactionSelection,
   dependencies: CombatDependencies,
 ) => {
-  const { closeShaveKiLoss, energyRedirectionDie, itemUse, secondChanceDie } = selection;
+  const {
+    closeShaveKiLoss,
+    energyRedirectionDie,
+    itemUse,
+    secondChanceDie,
+    rerollEffect,
+    rerollDieIndex,
+  } = selection;
   const defenseItemUse = itemUse === undefined ? undefined : { ...itemUse, response: decision };
   const defenseResultModifier = (defenseItemUse?.modifier.amount ?? 0) + (closeShaveKiLoss ?? 0);
-  const naturalRolls = frame.naturalRolls.map((roll, index) =>
-    secondChanceDie === index
-      ? { ...roll, defense: dependencies.random.integer(1, GLOBAL_RULES.combat.standardDieSides) }
-      : roll,
+  const rerollIndexes = rerollIndexesForSelection(
+    rerollEffect,
+    frame.naturalRolls.length,
+    rerollDieIndex,
   );
+  const rerolledNaturalRolls = frame.naturalRolls.map((roll, index) => {
+    if (secondChanceDie === index) {
+      return {
+        ...roll,
+        defense: dependencies.random.integer(1, GLOBAL_RULES.combat.standardDieSides),
+      };
+    }
+    if (!rerollIndexes.includes(index)) return roll;
+    return rerollEffect?.roll === "attack"
+      ? { ...roll, attack: dependencies.random.integer(1, GLOBAL_RULES.combat.standardDieSides) }
+      : { ...roll, defense: dependencies.random.integer(1, GLOBAL_RULES.combat.standardDieSides) };
+  });
   const numericResultOverrides = frame.numericResultOverrides.map((override, index) =>
-    secondChanceDie !== index
+    !rerollIndexes.includes(index) && secondChanceDie !== index
       ? override
       : {
           ...override,
-          defense:
-            naturalRolls[index].defense +
-            state.combatants[frame.targetCombatantId].stats.dexterityBonus +
-            5,
+          ...(rerollEffect?.roll === "attack"
+            ? {
+                attack:
+                  rerolledNaturalRolls[index].attack +
+                  state.combatants[frame.attackerId].stats.dexterityBonus +
+                  rerollEffect.bonus,
+              }
+            : {
+                defense:
+                  rerolledNaturalRolls[index].defense +
+                  state.combatants[frame.targetCombatantId].stats.dexterityBonus +
+                  (rerollEffect?.bonus ?? 5),
+              }),
         },
   );
   return {
     defenseItemUse,
     defenseResultModifier,
-    naturalRolls,
+    naturalRolls: rerolledNaturalRolls,
     resultOverrides: postDefenseResultOverrides(
       state,
       frame,
-      naturalRolls,
+      rerolledNaturalRolls,
       defenseResultModifier,
       selection,
     ),
     numericResultOverrides,
-    reactionKiCost: closeShaveKiLoss ?? (energyRedirectionDie === undefined ? undefined : 1),
+    reactionKiCost:
+      closeShaveKiLoss ??
+      (energyRedirectionDie !== undefined ? 1 : (rerollEffect?.activationCost ?? undefined)),
   };
 };
 
@@ -6703,6 +7027,64 @@ interface ResolvedPostDefenseReactionEventsInput {
   readonly selection: PostDefenseReactionSelection;
   readonly reactionState: ActiveFightState;
 }
+
+const resolvedRerollEvents = (
+  state: ActiveFightState,
+  decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
+  frame: PostDefenseReactionFrame,
+  dependencies: CombatDependencies,
+  resolution: ReturnType<typeof postDefenseReactionResolution>,
+  selection: PostDefenseReactionSelection,
+  startingSequence: number,
+) => {
+  if (selection.rerollEffect === undefined) return [];
+  const events: CombatEvent[] = [];
+  const indexes = rerollIndexesForSelection(
+    selection.rerollEffect,
+    resolution.naturalRolls.length,
+    selection.rerollDieIndex,
+  );
+  for (const index of indexes) {
+    const rerolled = resolution.naturalRolls[index];
+    const result =
+      selection.rerollEffect.roll === "attack"
+        ? rerolled.attack +
+          state.combatants[frame.attackerId].stats.dexterityBonus +
+          selection.rerollEffect.bonus
+        : rerolled.defense +
+          state.combatants[frame.targetCombatantId].stats.dexterityBonus +
+          selection.rerollEffect.bonus;
+    events.push(
+      selection.rerollEffect.roll === "attack"
+        ? {
+            id: dependencies.ids.nextEventId(),
+            sequence: startingSequence + events.length + 1,
+            fightId: state.id,
+            causedByDecisionId: decision.id,
+            type: "attack-rolled" as const,
+            combatantId: frame.attackerId,
+            targetCombatantId: frame.targetCombatantId,
+            ...(frame.attack.type === "basic-attack"
+              ? { basicAttack: frame.attack.basicAttack }
+              : { moveId: frame.attack.moveId }),
+            naturalResult: rerolled.attack,
+            result,
+          }
+        : {
+            id: dependencies.ids.nextEventId(),
+            sequence: startingSequence + events.length + 1,
+            fightId: state.id,
+            causedByDecisionId: decision.id,
+            type: "defense-rolled" as const,
+            combatantId: frame.targetCombatantId,
+            sourceCombatantId: frame.attackerId,
+            naturalResult: rerolled.defense,
+            result,
+          },
+    );
+  }
+  return events;
+};
 
 const resolvedPostDefenseReactionEvents = ({
   state,
@@ -6719,6 +7101,8 @@ const resolvedPostDefenseReactionEvents = ({
     reactionMoveId = "move-freestyle-energy-redirection";
   } else if (selection.secondChanceDie !== undefined) {
     reactionMoveId = "move-kurokonwaku-second-chance";
+  } else if (selection.rerollEffect !== undefined) {
+    reactionMoveId = selection.rerollEffect.sourceDefinitionId;
   }
   if (reactionMoveId !== undefined) {
     events.push({
@@ -6746,6 +7130,17 @@ const resolvedPostDefenseReactionEvents = ({
       result: rerolled.defense + state.combatants[frame.targetCombatantId].stats.dexterityBonus + 5,
     });
   }
+  events.push(
+    ...resolvedRerollEvents(
+      state,
+      decision,
+      frame,
+      dependencies,
+      resolution,
+      selection,
+      reactionState.eventSequence + events.length,
+    ),
+  );
   if (resolution.reactionKiCost !== undefined) {
     events.push({
       id: dependencies.ids.nextEventId(),
@@ -6834,6 +7229,9 @@ const resolvePostDefenseReaction = (
     resolution.reactionKiCost,
     selection.energyRedirectionDie,
     selection.secondChanceDie,
+    selection.rerollEffect,
+    rerollEventCount(selection.rerollEffect, frame.naturalRolls.length, selection.rerollDieIndex) +
+      1,
   );
   const modifiers = postDefenseReactionModifiers({
     defenseItemUse: resolution.defenseItemUse,
@@ -7540,6 +7938,59 @@ const activeRollModifiersFromApplications = (
       ];
     }
     return [];
+  });
+
+const activeRerollFromApplication = (
+  application: RerollApplication,
+  sourceCombatantId: CombatantId,
+  opponentCombatantId: CombatantId,
+  dependencies: CombatDependencies,
+): Extract<ActiveCombatEffect, { readonly type: "reroll" }> | undefined => {
+  if (application.activationResource === "hp") return undefined;
+  return {
+    id: dependencies.ids.nextActiveEffectId(),
+    type: "reroll",
+    sourceCombatantId,
+    targetCombatantId: application.target === "self" ? sourceCombatantId : opponentCombatantId,
+    sourceDefinitionId: application.sourceDefinitionId,
+    sourceEffectIndex: application.effectIndex,
+    roll: application.roll,
+    rerollScope: application.rerollScope,
+    ...(application.selector === undefined ? {} : { selector: application.selector }),
+    bonus: application.bonus,
+    ...(application.conditions === undefined ? {} : { conditions: application.conditions }),
+    ...(application.activationResource === undefined
+      ? {}
+      : { activationResource: application.activationResource }),
+    ...(application.activationCost === undefined
+      ? {}
+      : { activationCost: application.activationCost }),
+    duration: { type: "combat" },
+    ...(application.useLimit === undefined
+      ? {}
+      : {
+          useLimit: {
+            scope: application.useLimit.scope,
+            remaining: application.useLimit.count,
+          },
+        }),
+  };
+};
+
+const activeRerollsFromApplications = (
+  applications: readonly RerollApplication[],
+  sourceCombatantId: CombatantId,
+  opponentCombatantId: CombatantId,
+  dependencies: CombatDependencies,
+) =>
+  applications.flatMap((application) => {
+    const active = activeRerollFromApplication(
+      application,
+      sourceCombatantId,
+      opponentCombatantId,
+      dependencies,
+    );
+    return active === undefined ? [] : [active];
   });
 
 const activeResolutionThresholdsFromApplications = (

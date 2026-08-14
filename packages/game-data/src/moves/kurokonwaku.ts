@@ -967,20 +967,10 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "reroll",
         roll: "defense",
         rerollScope: "single-result",
+        bonus: { type: "literal", value: 5 },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         sourceText:
           "RESTRICTEDx1. Use after you roll your defensive roll. You may re-roll your defensive roll",
-      },
-      {
-        trigger: "after-defense-roll",
-        target: "self",
-        type: "modify-roll",
-        roll: "defense",
-        modifier: "result",
-        amount: { type: "literal", value: 5 },
-        scope: { type: "next-roll", roll: "defense", sourceText: "the second roll" },
-        sourceText:
-          "You may re-roll your defensive roll, gaining +5 to the result of the second roll",
       },
       {
         trigger: "passive",

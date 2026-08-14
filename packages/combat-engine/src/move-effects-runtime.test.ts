@@ -32,6 +32,65 @@ const context = {
 };
 
 describe("converted move effects", () => {
+  it("resolves reroll applications with dynamic limits and typed bonuses", () => {
+    const swiftReaction = moves.get("move-akaikaru-swift-reaction");
+    const secondChance = moves.get("move-kurokonwaku-second-chance");
+    if (swiftReaction === undefined || secondChance === undefined)
+      throw new Error("Expected reroll definitions.");
+
+    expect(moveEffectsForTrigger(swiftReaction, "after-defense-roll", context).rerolls).toEqual([
+      expect.objectContaining({
+        roll: "attack",
+        rerollScope: "entire-attack",
+        useLimit: { scope: "combat", count: 1 },
+        activationResource: "ki",
+        activationCost: 1,
+      }),
+    ]);
+    expect(moveEffectsForTrigger(secondChance, "after-defense-roll", context).rerolls).toEqual([
+      expect.objectContaining({
+        roll: "defense",
+        rerollScope: "single-result",
+        bonus: 5,
+        useLimit: { scope: "combat", count: 1 },
+      }),
+    ]);
+  });
+
+  it("evaluates Zen Explosion's defense threshold at the reaction roll", () => {
+    const zenExplosion = moves.get("move-aoyosumu-zen-explosion");
+    if (zenExplosion === undefined) throw new Error("Expected Zen Explosion data.");
+
+    expect(
+      moveEffectsForTrigger(zenExplosion, "after-defense-roll", {
+        ...context,
+        rolls: [
+          {
+            attackNaturalResult: 10,
+            attackResult: 11,
+            defenseNaturalResult: 1,
+            defenseResult: 0,
+            outcome: "successful",
+          },
+        ],
+      }).rerolls,
+    ).toEqual([expect.objectContaining({ roll: "defense" })]);
+    expect(
+      moveEffectsForTrigger(zenExplosion, "after-defense-roll", {
+        ...context,
+        rolls: [
+          {
+            attackNaturalResult: 10,
+            attackResult: 11,
+            defenseNaturalResult: 10,
+            defenseResult: 9,
+            outcome: "successful",
+          },
+        ],
+      }).rerolls,
+    ).toEqual([]);
+  });
+
   it("dispatches a same-turn source-move extra action with its use limit", () => {
     const chainedStrikes = moves.get("move-akaikaru-chained-strikes");
     if (chainedStrikes === undefined) throw new Error("Expected Chained Strikes data.");
@@ -453,6 +512,7 @@ describe("converted move effects", () => {
         operation: "lose",
         amount: 1,
         cause: "non-damage-effect",
+        sourceCombatantId: self.id,
         sourceStyleId: "style-aoyosumu",
       },
     ]);
@@ -808,6 +868,7 @@ describe("converted move effects", () => {
         operation: "gain",
         amount: 5,
         cause: "non-damage-effect",
+        sourceCombatantId: self.id,
       },
     ]);
     expect(successfulMoveEffects(meteorSmash, context).statuses).toEqual([
@@ -1277,6 +1338,7 @@ describe("converted move effects", () => {
         operation: "drain",
         amount: 1,
         cause: "non-damage-effect",
+        sourceCombatantId: self.id,
         sourceStyleId: "style-kurokonwaku",
       },
       {
@@ -1285,6 +1347,7 @@ describe("converted move effects", () => {
         operation: "drain",
         amount: 1,
         cause: "non-damage-effect",
+        sourceCombatantId: self.id,
         sourceStyleId: "style-kurokonwaku",
       },
     ]);
@@ -1301,6 +1364,7 @@ describe("converted move effects", () => {
         operation: "gain",
         amount: 1,
         cause: "non-damage-effect",
+        sourceCombatantId: self.id,
         sourceStyleId: "style-akaikaru",
       },
     ]);

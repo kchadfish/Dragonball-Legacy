@@ -78,6 +78,10 @@ const genericExecutors: Readonly<Record<string, { executor: string; test: string
   "modify-cost": { executor: "cost-modifier", test: "move-effects-runtime.test.ts" },
   "modify-resource": { executor: "resource-change", test: "move-effects-runtime.test.ts" },
   "modify-roll": { executor: "roll-modifier", test: "attack-rolls.test.ts" },
+  reroll: {
+    executor: "reroll-reaction",
+    test: "basic-attack.test.ts, move-effects-runtime.test.ts",
+  },
   "prevent-combat-result": {
     executor: "combat-result-prevention",
     test: "basic-attack.test.ts",
@@ -152,6 +156,7 @@ const supportedNumericTypes = new Set([
   "damage-percent",
   "active-move-count",
   "active-move-effect-text-count",
+  "stat-offset",
 ]);
 
 const supportedDamageConditions = new Set([
@@ -277,6 +282,19 @@ const isSupportedExtraActionOccurrence = (occurrence: Occurrence) => {
   );
 };
 
+const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
+  const effect = occurrence.effect;
+  return (
+    effect.type === "reroll" &&
+    (effect.trigger === "after-defense-roll" || effect.trigger === "on-success") &&
+    (effect.target === undefined || effect.target === "self") &&
+    effect.scope === undefined &&
+    (effect.duration === undefined || effect.duration.type === "combat") &&
+    effect.activationGroup === undefined &&
+    effect.optional !== true
+  );
+};
+
 const classify = (occurrence: Occurrence) => {
   const effectType = stringValue(occurrence.effect.type) ?? "unknown";
   if (occurrence.origin === "item" && approvedItemExclusions[effectType] !== undefined) {
@@ -345,6 +363,18 @@ const classify = (occurrence: Occurrence) => {
       reason:
         "This extra-action variant requires an unsupported phase, deferred scope, optional choice, activation cost, or scheduling policy.",
       prerequisite: "typed executor accounting and compiled effect-plan validation",
+      approvedExclusion: null,
+    };
+  }
+  if (effectType === "reroll" && !isSupportedRerollOccurrence(occurrence)) {
+    return {
+      status: "unsupported-in-scope" as const,
+      capabilityId: null,
+      executor: null,
+      focusedCoverage: null,
+      reason:
+        "This reroll variant requires unsupported scope, lifecycle, target, optionality, or activation semantics.",
+      prerequisite: "typed reroll reaction lifecycle and serialized choice context",
       approvedExclusion: null,
     };
   }
