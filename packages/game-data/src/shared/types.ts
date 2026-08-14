@@ -119,8 +119,9 @@ export type NumericExpression =
       readonly type: "bounded-stat";
       readonly subject: "self" | "opponent";
       readonly stat: "dexterity-bonus";
+      readonly offset?: number;
       readonly minimum: number;
-      readonly maximum: number;
+      readonly maximum?: number;
     }
   | {
       readonly type: "resource-percent";

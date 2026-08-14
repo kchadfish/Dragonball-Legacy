@@ -19,6 +19,8 @@ interface SourceEffect {
   readonly selector?: unknown;
   readonly activationGroup?: unknown;
   readonly optional?: unknown;
+  readonly relativeTo?: unknown;
+  readonly relativeOperation?: unknown;
   readonly cap?: { readonly type?: unknown; readonly scope?: unknown };
   readonly conditions?: readonly { readonly type?: unknown }[];
 }
@@ -50,7 +52,7 @@ export interface CombatCapabilityMatrixRow {
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-12";
+  readonly generatedAt: "2026-08-13";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -65,7 +67,9 @@ const activeTransformationRaceIds = new Set([
   "race-bio-androids",
 ]);
 
-const genericExecutors: Readonly<Record<string, { executor: string; test: string }>> = {
+const genericExecutors: Readonly<
+  Record<string, { executor: string; test: string; capabilityId?: string }>
+> = {
   "apply-status": { executor: "status-lifecycle", test: "move-effects-runtime.test.ts" },
   "create-floating-effect": {
     executor: "floating-effect-lifecycle",
@@ -76,8 +80,24 @@ const genericExecutors: Readonly<Record<string, { executor: string; test: string
   "grant-extra-action": { executor: "extra-action-scheduler", test: "progress-fight.test.ts" },
   lock: { executor: "action-lock", test: "progress-fight.test.ts" },
   "modify-cost": { executor: "cost-modifier", test: "move-effects-runtime.test.ts" },
+  "modify-critical-threshold": {
+    executor: "critical-threshold",
+    test: "move-attacks.test.ts, progress-fight.test.ts",
+    capabilityId: "modify-critical-threshold.v1",
+  },
+  "modify-move-classification": {
+    executor: "current-action-move-classification",
+    test: "death-beam.test.ts, progress-fight.test.ts",
+    capabilityId: "modify-move-classification.v1",
+  },
+  "modify-remaining-uses": {
+    executor: "restricted-use-limit",
+    test: "basic-attack.test.ts, progress-fight.test.ts",
+    capabilityId: "modify-remaining-uses.v1",
+  },
   "modify-resource": { executor: "resource-change", test: "move-effects-runtime.test.ts" },
   "modify-roll": { executor: "roll-modifier", test: "attack-rolls.test.ts" },
+  "modify-stat": { executor: "stat-modifier", test: "progress-fight.test.ts" },
   "prevent-combat-result": {
     executor: "combat-result-prevention",
     test: "basic-attack.test.ts",
@@ -85,26 +105,50 @@ const genericExecutors: Readonly<Record<string, { executor: string; test: string
   "prevent-move-modification": {
     executor: "move-modification-prevention",
     test: "move-effects-runtime.test.ts, progress-fight.test.ts",
+    capabilityId: "prevent-move-modification.v2",
   },
   "prevent-move-use": { executor: "move-use-prevention", test: "move-effects-runtime.test.ts" },
+  "prevent-resource-modification": {
+    executor: "resource-modification-prevention",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
   "prevent-resolution": { executor: "resolution-prevention", test: "basic-attack.test.ts" },
   "prevent-roll-modification": {
     executor: "roll-modification-prevention",
     test: "basic-attack.test.ts",
   },
   "prevent-status": { executor: "status-prevention", test: "move-effects-runtime.test.ts" },
+  "roll-and-store": {
+    executor: "stored-roll-state",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    capabilityId: "roll-and-store.v1",
+  },
+  "set-combat-result": { executor: "combat-result-override", test: "progress-fight.test.ts" },
   "set-resolution-threshold": {
     executor: "resolution-threshold",
     test: "progress-fight.test.ts",
   },
   "set-roll-definition": { executor: "roll-definition", test: "attack-rolls.test.ts" },
   "set-roll-result": { executor: "roll-result-override", test: "attack-rolls.test.ts" },
-  "skip-action": { executor: "status-and-action-flow", test: "progress-fight.test.ts" },
+  "schedule-effect": {
+    executor: "scheduled-resource",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
+  "skip-action": {
+    executor: "action-restriction",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    capabilityId: "skip-action.v1",
+  },
+  suppress: {
+    executor: "suppression-lifecycle",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
 };
 
 const itemExecutors: Readonly<Record<string, { executor: string; test: string }>> = {
   "item-modify-damage": { executor: "item-damage", test: "basic-attack.test.ts" },
   "item-modify-resource": { executor: "item-resource", test: "item-effects-runtime.test.ts" },
+  "modify-resource": { executor: "item-resource", test: "item-effects-runtime.test.ts" },
   "item-modify-roll": { executor: "item-roll", test: "item-effects-runtime.test.ts" },
   "item-modify-stat-percent": {
     executor: "item-stat-passive",
@@ -136,6 +180,11 @@ const variantFor = (effect: SourceEffect) =>
     `cap=${effect.cap === undefined ? "none" : `${stringValue(effect.cap.type) ?? "unknown"}:${stringValue(effect.cap.scope) ?? "none"}`}`,
     `selector=${effect.selector === undefined ? "none" : "present"}`,
     `conditions=${(effect.conditions ?? []).map((condition) => stringValue(condition.type) ?? "unknown").join(",") || "none"}`,
+    ...(effect.relativeTo === undefined
+      ? []
+      : [
+          `relative=${stringValue(effect.relativeTo) ?? "unknown"}:${stringValue(effect.relativeOperation) ?? "unknown"}`,
+        ]),
   ].join(";");
 
 const supportedNumericTypes = new Set([
@@ -146,6 +195,7 @@ const supportedNumericTypes = new Set([
   "combat-result-count",
   "turns-after-turn",
   "resource-percent",
+  "resource-from-threshold",
   "successful-hit-count",
   "prior-roll-result",
   "completed-combat-turn-count",
@@ -266,7 +316,9 @@ const isSupportedExtraActionOccurrence = (occurrence: Occurrence) => {
     effect.target === "self" &&
     (effect.trigger === "on-success" || effect.trigger === "on-stopped") &&
     effect.phase === "action-phase" &&
-    (effect.scope === undefined || effect.scope.type === "current-action") &&
+    (effect.scope === undefined ||
+      effect.scope.type === "current-action" ||
+      effect.scope.type === "next-turn") &&
     effect.duration === undefined &&
     effect.activationGroup === undefined &&
     effect.optional !== true &&
@@ -366,7 +418,7 @@ const classify = (occurrence: Occurrence) => {
       }
     : {
         status: "supported-generic" as const,
-        capabilityId: `${effectType}.v1`,
+        capabilityId: executor.capabilityId ?? `${effectType}.v1`,
         executor: executor.executor,
         focusedCoverage:
           occurrence.effect.trigger === "on-power-up" ||
@@ -420,7 +472,7 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-12",
+    generatedAt: "2026-08-13",
     activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
       raceId.slice(5, -1),
     ),

@@ -1,5 +1,9 @@
 import { GLOBAL_RULES, type RulesVersion } from "@dragonball-resurgence/game-config";
-import type { EffectDefinition, MoveSelectorCondition } from "@dragonball-resurgence/game-data";
+import type {
+  EffectDefinition,
+  MoveSelectorCondition,
+  NumericExpression,
+} from "@dragonball-resurgence/game-data";
 import type { ItemId, MoveId, StatusId, TransformationId } from "@dragonball-resurgence/game-data";
 import { z } from "zod";
 
@@ -55,6 +59,15 @@ export interface ActiveTransformation {
   };
 }
 
+/** A natural die result retained by a declarative move for later combat resolution. */
+export interface StoredRoll {
+  readonly sourceDefinitionId: MoveId;
+  readonly storageKey: string;
+  readonly naturalResults: readonly number[];
+  readonly sides: number;
+  readonly storedOnTurn: number;
+}
+
 export interface CombatantState {
   readonly id: CombatantId;
   readonly hitPoints: CombatResources;
@@ -64,6 +77,10 @@ export interface CombatantState {
   readonly itemIds?: readonly ItemId[];
   readonly transformationIds?: readonly TransformationId[];
   readonly moveUses: Readonly<Record<MoveId, number>>;
+  /** Combat-local positive increases to a move's canonical restricted-use limit. */
+  readonly moveUseLimitModifiers?: Readonly<Record<MoveId, number>>;
+  /** Combat-local named rolls; a later roll with the same key replaces the prior value. */
+  readonly storedRolls?: Readonly<Record<string, StoredRoll>>;
   /** Per-fight consumption counts for combat-usable inventory items. */
   readonly itemUses?: Readonly<Record<ItemId, number>>;
   readonly activeStatuses: readonly ActiveStatus[];
@@ -164,6 +181,12 @@ export interface AdvancedAttackCostSelector {
   readonly baseKiCost: number;
 }
 
+/** A durable permission to bypass the standard dice-side/result limit. */
+export interface ActiveRollModificationCap {
+  readonly type: "allow-exceed";
+  readonly scope: "amount" | "total" | "roll";
+}
+
 /** A serializable temporary modifier that expires after one matching action. */
 export interface ActiveCostModifierEffect {
   readonly id: ActiveEffectId;
@@ -186,6 +209,7 @@ export interface ActiveRollModifierEffect {
   readonly roll: "attack" | "defense";
   readonly modifier: "result" | "sides";
   readonly amount: number;
+  readonly cap?: ActiveRollModificationCap;
   readonly selector?: MoveSelectorCondition;
   readonly stacking?: "allow" | "prevent";
   readonly duration: "combat";
@@ -202,6 +226,8 @@ export interface ActiveResolutionThresholdEffect {
   readonly roll: "attack" | "defense";
   readonly comparison: "at-least" | "at-most";
   readonly value: number;
+  readonly relativeTo?: "attack-roll" | "defense-roll";
+  readonly relativeOperation?: "add" | "multiply";
   readonly resultScope: "current-attack" | "matching-die";
   readonly selector?: MoveSelectorCondition;
   readonly appliesTo: "source" | "target";
@@ -216,6 +242,29 @@ export interface ActiveResolutionThresholdEffect {
         readonly value: number;
       };
 }
+
+type ActiveNextActionModifier =
+  | {
+      readonly type: "damage";
+      readonly amount: number;
+      readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
+      /** Omitted means additive damage, preserving the compact legacy form. */
+      readonly operation?: "add" | "multiply" | "set";
+    }
+  | {
+      readonly type: "roll";
+      readonly roll: "attack" | "defense";
+      readonly modifier: "result" | "sides";
+      readonly amount: number;
+      readonly cap?: ActiveRollModificationCap;
+    }
+  | {
+      readonly type: "stat";
+      readonly stat: "dexterity" | "dexterity-bonus";
+      readonly operation: "add" | "set" | "multiply";
+      readonly amount: number;
+      readonly roll?: "attack" | "defense";
+    };
 
 /** A resolved move effect that modifies its owner's immediately following action. */
 export interface ActiveNextActionModifierEffect {
@@ -232,19 +281,50 @@ export interface ActiveNextActionModifierEffect {
   readonly stacking?: "allow" | "prevent";
   /** Following-action modifiers become eligible only after this turn. */
   readonly availableFromTurn?: number;
-  readonly modifier:
+  readonly modifier: ActiveNextActionModifier;
+}
+
+/** A turn-limited stat modifier whose resolved value remains in fight state. */
+export interface ActiveStatModifierEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "modify-stat";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly stat: "dexterity" | "dexterity-bonus";
+  readonly operation: "add" | "set" | "multiply";
+  readonly amount: number;
+  readonly selector?: MoveSelectorCondition;
+  readonly duration: {
+    readonly type: "turns";
+    readonly ownerCombatantId: CombatantId;
+    readonly remaining: number;
+  };
+}
+
+/** A durable suppression of selected future effects from a target move. */
+export interface ActiveSuppressionEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "suppress";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly selector?: MoveSelectorCondition;
+  readonly aspects: readonly ("all-effects" | "successful-effects")[];
+  readonly duration:
+    | { readonly type: "combat" }
+    | { readonly type: "turns"; readonly ownerCombatantId: CombatantId; readonly remaining: number }
     | {
-        readonly type: "damage";
-        readonly amount: number;
-        readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
-        /** Omitted means additive damage, preserving the compact legacy form. */
-        readonly operation?: "add" | "multiply" | "set";
+        readonly type: "next-actions";
+        readonly ownerCombatantId: CombatantId;
+        readonly remaining: number;
       }
     | {
-        readonly type: "roll";
-        readonly roll: "attack" | "defense";
-        readonly modifier: "result" | "sides";
-        readonly amount: number;
+        readonly type: "until-roll-threshold";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack";
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
       };
 }
 
@@ -298,6 +378,20 @@ export interface ActiveForcedActionEffect {
   readonly fallback?: "basic-attack";
 }
 
+/** A durable restriction on the target's choices during one or more future turns. */
+export interface ActiveActionRestrictionEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "action-restriction";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  /** Omitted means the target's entire action is skipped. */
+  readonly blockedCategories?: readonly ("basic-attack" | "advanced-attack" | "signature")[];
+  readonly availableFromTurn: number;
+  readonly remainingTurns: number;
+}
+
 /** A serialized, target-local prohibition created by a converted LOCK effect. */
 export interface ActiveActionLockEffect {
   readonly id: ActiveEffectId;
@@ -318,7 +412,7 @@ export interface ActiveActionLockEffect {
     | {
         readonly type: "until-roll-threshold";
         readonly combatantId: CombatantId;
-        readonly roll: "attack" | "defense" | "transformation";
+        readonly roll: CombatRollType;
         readonly comparison: "at-least" | "at-most";
         readonly value: number;
       }
@@ -345,6 +439,8 @@ export interface ActiveActionLockEffect {
         readonly remainingIgnoredChecks: number;
       };
 }
+
+export type CombatRollType = "attack" | "defense" | "transformation";
 
 /** A selector-scoped prevention retained independently from ordinary action locks. */
 export interface ActiveMoveUsePreventionEffect {
@@ -407,6 +503,7 @@ export interface ActiveMoveModificationPreventionEffect {
   readonly aspects: readonly ("cost" | "damage" | "dice-sides" | "effects" | "roll-results")[];
   readonly effectSourceStyleExcludes?: string;
   readonly exceptSourceMoveIds?: readonly string[];
+  readonly exceptSourceStatusIds?: readonly StatusId[];
   readonly operations?: readonly "reduce"[];
   readonly selector: MoveSelectorCondition;
   readonly duration: ActiveActionLockEffect["duration"];
@@ -481,14 +578,59 @@ export interface ActiveExtraActionEffect {
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
+/** Serializable future resource work owned by the generic combat scheduler. */
+export interface ActiveScheduledResourceEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "scheduled-resource";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly timing: {
+    readonly type: "turn-start" | "turn-end" | "phase-start";
+    readonly combatantId: CombatantId;
+    readonly phase?: "upkeep" | "action" | "end";
+  };
+  readonly remainingBoundaries: number;
+  readonly repeat: "once" | "each-turn";
+  readonly resource: "hp" | "ki";
+  readonly operation: "damage" | "drain" | "gain" | "lose" | "set";
+  readonly amount: NumericExpression;
+  readonly stacking?: "prevent";
+  readonly duration?:
+    | { readonly type: "turns"; readonly remaining: number }
+    | {
+        readonly type: "until-roll-threshold";
+        readonly combatantId: CombatantId;
+        readonly roll: CombatRollType;
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
+        readonly moveSelector?: MoveSelectorCondition;
+      };
+  readonly cancellation?: {
+    readonly actorCombatantId: CombatantId;
+    readonly result: "successful" | "stopped";
+    readonly moveSelector: MoveSelectorCondition;
+    readonly target: "source" | "other-than-source";
+    readonly rollThreshold?: {
+      readonly roll: CombatRollType;
+      readonly comparison: "at-least" | "at-most";
+      readonly value: number;
+    };
+  };
+}
+
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
   | ActiveResolutionThresholdEffect
   | ActiveNextActionModifierEffect
   | ActiveDamageModifierEffect
+  | ActiveStatModifierEffect
+  | ActiveSuppressionEffect
   | ActiveItemDamageModifierEffect
   | ActiveForcedActionEffect
+  | ActiveActionRestrictionEffect
   | ActiveActionLockEffect
   | ActiveMoveUsePreventionEffect
   | ActiveStatusPreventionEffect
@@ -498,7 +640,8 @@ export type ActiveCombatEffect =
   | ActiveResourceModificationPreventionEffect
   | ActiveConstantEffect
   | ActiveFloatingEffect
-  | ActiveExtraActionEffect;
+  | ActiveExtraActionEffect
+  | ActiveScheduledResourceEffect;
 
 /**
  * A completed player action, retained as minimal rule-relevant history rather
@@ -836,6 +979,16 @@ export interface MoveUsedEvent extends CombatEventBase {
   readonly targetCombatantId: CombatantId;
 }
 
+export interface MoveUseLimitChangedEvent extends CombatEventBase {
+  readonly type: "move-use-limit-changed";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly moveId: MoveId;
+  readonly amount: number;
+  readonly newUseLimit: number;
+}
+
 export interface ItemUsedEvent extends CombatEventBase {
   readonly type: "item-used";
   readonly combatantId: CombatantId;
@@ -874,7 +1027,7 @@ export interface AttackResolvedEvent extends CombatEventBase {
   readonly basicAttack?: BasicAttackType;
   readonly moveId?: MoveId;
   readonly outcome: "successful" | "stopped";
-  /** Whether the natural attack roll qualified for the shared critical rule. */
+  /** Whether the attack qualified for a critical result under shared or declarative rules. */
   readonly critical: boolean;
   /** Whether the stopped defense qualified to hand off to the Counter phase. */
   readonly counter: boolean;
@@ -912,6 +1065,16 @@ export interface EffectRolledEvent extends CombatEventBase {
   readonly result: number;
 }
 
+/** A declarative roll retained in combat state for exact later condition evaluation. */
+export interface RollStoredEvent extends CombatEventBase {
+  readonly type: "roll-stored";
+  readonly combatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly storageKey: string;
+  readonly naturalResults: readonly number[];
+  readonly sides: number;
+}
+
 export interface StatusAppliedEvent extends CombatEventBase {
   readonly type: "status-applied";
   readonly sourceCombatantId: CombatantId;
@@ -943,6 +1106,15 @@ export interface KiChangedEvent extends CombatEventBase {
   readonly combatantId: CombatantId;
   readonly amount: number;
   readonly remainingKi: number;
+}
+
+export interface HpChangedEvent extends CombatEventBase {
+  readonly type: "hp-changed";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly amount: number;
+  readonly remainingHitPoints: number;
+  readonly activeEffectId?: ActiveEffectId;
 }
 
 export interface DamageAppliedEvent extends CombatEventBase {
@@ -985,6 +1157,7 @@ export type CombatEvent =
   | InitiativeRolledEvent
   | PhaseChangedEvent
   | MoveUsedEvent
+  | MoveUseLimitChangedEvent
   | ItemUsedEvent
   | AttackRolledEvent
   | DefenseRolledEvent
@@ -994,11 +1167,13 @@ export type CombatEvent =
   | EffectExpiredEvent
   | EffectDeactivatedEvent
   | EffectRolledEvent
+  | RollStoredEvent
   | StatusAppliedEvent
   | StatusRemovedEvent
   | TransformationActivatedEvent
   | TransformationDeactivatedEvent
   | KiChangedEvent
+  | HpChangedEvent
   | DamageAppliedEvent
   | CombatantDefeatedEvent
   | ActionSkippedEvent

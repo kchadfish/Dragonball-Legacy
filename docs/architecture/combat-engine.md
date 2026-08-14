@@ -150,15 +150,23 @@ participant or action owner, active and scheduled effects, use counters,
 transformation state, action history needed by rules, and completion state.
 
 The current contract now carries these temporary-state foundations directly:
-each combatant has move-use counts, active statuses with explicit duration
-clocks, and an optional active transformation. The fight records completed
-actions separately from presentation events and has a serializable stack of
-resolution frames for suspended attack or effect work. Creation initializes all
-of these collections empty; accepted current actions append their history and
-advanced moves increment their use count. A turn-based Stun now consumes the
-affected combatant's action during Upkeep; transformation and broader status
-semantics remain unsupported until their dedicated resolution slices define the
-transition.
+each combatant has move-use counts, keyed natural rolls retained by declarative
+effects, active statuses with explicit duration clocks, and an optional active
+transformation. Stored rolls retain their source move, stable storage key, die
+sides, natural results, and combat turn; a later write to the same key replaces
+the prior value and emits a factual `roll-stored` event. Durable action
+restrictions retain their source effect index, target, first eligible turn,
+remaining target turns, and optional blocked attack categories. A restriction
+without categories skips the complete eligible action and emits
+`action-skipped`; a category-scoped restriction filters only those attacks and
+leaves unrelated legal choices available. The fight records
+completed actions separately from presentation events and has a serializable
+stack of resolution frames for suspended attack or effect work. Creation
+initializes all of these collections empty; accepted current actions append
+their history and advanced moves increment their use count. A turn-based Stun
+now consumes the affected combatant's action during Upkeep; transformation and
+broader status semantics remain unsupported until their dedicated resolution
+slices define the transition.
 
 Some rules require a choice after an action or roll. Such a pause is a
 first-class pending decision with a stable ID, the combatant permitted to make

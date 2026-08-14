@@ -1,8 +1,9 @@
-import type {
-  EffectCondition,
-  EffectDefinition,
-  MoveDefinition,
-  NumericExpression,
+import {
+  ATTACK_TAG,
+  type EffectCondition,
+  type EffectDefinition,
+  type MoveDefinition,
+  type NumericExpression,
 } from "@dragonball-resurgence/game-data";
 
 export const registeredEffectTypes = [
@@ -13,9 +14,13 @@ export const registeredEffectTypes = [
   "grant-extra-action",
   "lock",
   "modify-cost",
+  "modify-critical-threshold",
   "modify-damage",
+  "modify-move-classification",
+  "modify-remaining-uses",
   "modify-resource",
   "modify-roll",
+  "modify-stat",
   "prevent-combat-result",
   "prevent-move-modification",
   "prevent-move-use",
@@ -23,10 +28,15 @@ export const registeredEffectTypes = [
   "prevent-resolution",
   "prevent-roll-modification",
   "prevent-status",
+  "reroll",
+  "roll-and-store",
+  "schedule-effect",
+  "set-combat-result",
   "set-resolution-threshold",
   "set-roll-definition",
   "set-roll-result",
   "skip-action",
+  "suppress",
 ] as const satisfies readonly EffectDefinition["type"][];
 
 export type RegisteredEffectType = (typeof registeredEffectTypes)[number];
@@ -105,11 +115,35 @@ const supportedTriggers = new Set([
   "on-stopped",
   "on-success",
   "on-damage",
+  "on-move-use",
   "on-power-up",
   "on-resource-gain",
   "on-resource-drain",
   "on-resource-threshold",
   "on-roll-result",
+  "start-combat",
+  "upkeep-phase",
+]);
+
+const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
+  "apply-status",
+  "create-floating-effect",
+  "grant-extra-action",
+  "lock",
+  "modify-cost",
+  "modify-damage",
+  "modify-resource",
+  "modify-roll",
+  "modify-stat",
+  "prevent-combat-result",
+  "prevent-move-modification",
+  "prevent-move-use",
+  "prevent-resource-modification",
+  "prevent-roll-modification",
+  "prevent-status",
+  "roll-and-store",
+  "set-resolution-threshold",
+  "suppress",
 ]);
 
 const supportedTargets = new Set(["self", "opponent", "participants"]);
@@ -140,6 +174,8 @@ const supportedConditions = new Set<EffectCondition["type"]>([
   "active-move-count",
   "moveset-move-count",
   "move-use-count",
+  "moveset",
+  "stored-roll-threshold",
 ]);
 
 const supportedNumericExpressions = new Set<NumericExpression["type"]>([
@@ -153,6 +189,7 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "stat-quotient",
   "moveset-tag-count",
   "current-resource",
+  "resource-from-threshold",
   "consecutive-combat-results",
   "combat-result-count",
   "move-activation-count",
@@ -162,6 +199,13 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "completed-combat-turn-count",
   "active-move-count",
   "active-move-effect-text-count",
+  "damage-percent",
+  "triggering-move-base-ki-cost",
+  "resource-percent-per-successful-hit",
+  "resource-percent-per-successful-roll-threshold",
+  "stat-difference-percent",
+  "triggering-move-base-damage",
+  "triggering-move-base-damage-percent",
 ]);
 
 const issue = (
@@ -186,39 +230,23 @@ const numericIssue = (
         `${field} uses unsupported numeric expression ${expression.type}.`,
       );
 
-const commonIssues = <T extends RegisteredEffectDefinition>(
-  effect: T,
+const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(effect: T) =>
+  effect.trigger === "on-move-use" &&
+  !(
+    (effect.type === "create-floating-effect" &&
+      effect.target === "self" &&
+      effect.scope?.type === "next-turn") ||
+    (effect.type === "modify-cost" &&
+      effect.target === "self" &&
+      effect.scope?.type === "current-action")
+  );
+
+const conditionIssues = (
+  effect: RegisteredEffectDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
-): EffectCompilationIssue[] => {
+) => {
   const issues: EffectCompilationIssue[] = [];
-  if (!supportedTriggers.has(effect.trigger))
-    issues.push(
-      issue(
-        "unsupported-trigger",
-        sourceDefinitionId,
-        effectIndex,
-        `Trigger ${effect.trigger} is not dispatched by the current combat transition runtime.`,
-      ),
-    );
-  if (effect.target === undefined || !supportedTargets.has(effect.target))
-    issues.push(
-      issue(
-        "unsupported-target",
-        sourceDefinitionId,
-        effectIndex,
-        "Executable effects require a self, opponent, or participants target.",
-      ),
-    );
-  if (effect.optional === true || effect.activationGroup !== undefined)
-    issues.push(
-      issue(
-        "requires-pending-choice",
-        sourceDefinitionId,
-        effectIndex,
-        "Optional or activation-group effects require a serialized pending choice.",
-      ),
-    );
   for (const condition of effect.conditions ?? []) {
     if (!supportedConditions.has(condition.type))
       issues.push(
@@ -251,17 +279,154 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
         ),
       );
   }
-  for (const requirement of effect.requirements ?? []) {
-    if (requirement.type !== "moveset-excludes")
-      issues.push(
-        issue(
-          "unsupported-variant",
-          sourceDefinitionId,
-          effectIndex,
-          `Requirement ${requirement.type} is not available in the current combatant context.`,
-        ),
-      );
-  }
+  return issues;
+};
+
+const requirementIssues = (
+  effect: RegisteredEffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  (effect.requirements ?? []).flatMap((requirement) =>
+    requirement.type === "moveset-excludes"
+      ? []
+      : [
+          issue(
+            "unsupported-variant",
+            sourceDefinitionId,
+            effectIndex,
+            `Requirement ${requirement.type} is not available in the current combatant context.`,
+          ),
+        ],
+  );
+
+const commonIssues = <T extends RegisteredEffectDefinition>(
+  effect: T,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): EffectCompilationIssue[] => {
+  const issues: EffectCompilationIssue[] = [];
+  if (!supportedTriggers.has(effect.trigger))
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        `Trigger ${effect.trigger} is not dispatched by the current combat transition runtime.`,
+      ),
+    );
+  if (isUnsupportedOnMoveUseVariant(effect))
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "On-move-use currently dispatches only durable self follow-ups and current-action self cost modifiers.",
+      ),
+    );
+  if (
+    effect.trigger === "start-combat" &&
+    effect.type !== "lock" &&
+    effect.type !== "modify-resource" &&
+    effect.type !== "modify-remaining-uses"
+  )
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Start-combat currently dispatches only representable lock and resource effects.",
+      ),
+    );
+  if (effect.trigger === "upkeep-phase" && !supportedUpkeepEffectTypes.has(effect.type))
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Upkeep-phase effect type ${effect.type} has no immediate or durable upkeep executor.`,
+      ),
+    );
+  if (effect.target === undefined || !supportedTargets.has(effect.target))
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Executable effects require a self, opponent, or participants target.",
+      ),
+    );
+  if (effect.optional === true || effect.activationGroup !== undefined)
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Optional or activation-group effects require a serialized pending choice.",
+      ),
+    );
+  issues.push(...conditionIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...requirementIssues(effect, sourceDefinitionId, effectIndex));
+  return issues;
+};
+
+const modifyCriticalThresholdIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-critical-threshold" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const thresholdIssue = numericIssue(
+    effect.threshold,
+    sourceDefinitionId,
+    effectIndex,
+    "threshold",
+  );
+  if (thresholdIssue !== undefined) issues.push(thresholdIssue);
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Critical-threshold modifiers must target the attacking combatant.",
+      ),
+    );
+  if (effect.trigger !== "passive" && effect.trigger !== "before-attack-roll")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Critical-threshold modifiers resolve only from passive or before-attack-roll effects.",
+      ),
+    );
+  if (effect.scope !== undefined && effect.scope.type !== "current-action")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Critical-threshold modifiers support only the current attack.",
+      ),
+    );
+  if (
+    effect.duration !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Critical-threshold modifiers are immediate calculation inputs without a separate lifecycle.",
+      ),
+    );
   return issues;
 };
 
@@ -401,24 +566,6 @@ const modifyRollCapIssues = (
 ) => {
   if (effect.cap === undefined) return [];
   const issues = [] as ReturnType<typeof issue>[];
-  if (effect.cap.type === "allow-exceed")
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Allow-exceed roll caps require the standard roll-cap rule to be applied at resolution.",
-      ),
-    );
-  if (effect.cap.scope === undefined)
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Roll caps require an explicit amount, total, or roll scope.",
-      ),
-    );
   if (effect.cap.type !== "allow-exceed") {
     const capNumeric = numericIssue(effect.cap.value, sourceDefinitionId, effectIndex, "cap.value");
     if (capNumeric !== undefined) issues.push(capNumeric);
@@ -441,13 +588,18 @@ const modifyRollCapIssues = (
         "Total-scope caps are supported only for dice results.",
       ),
     );
-  if (effect.scope !== undefined && effect.scope.type !== "current-action")
+  if (
+    effect.scope !== undefined &&
+    effect.scope.type !== "current-action" &&
+    effect.cap?.scope !== undefined &&
+    effect.cap.scope !== "amount"
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Roll caps currently require an immediate or current-action modifier.",
+        "Deferred roll modifiers support amount caps only.",
       ),
     );
   return issues;
@@ -561,13 +713,65 @@ const modifyResourceIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const amountIssue = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
+  const capValueIssue = numericIssue(
+    effect.cap?.value,
+    sourceDefinitionId,
+    effectIndex,
+    "cap.value",
+  );
+  if (amountIssue !== undefined) issues.push(amountIssue);
+  if (capValueIssue !== undefined) issues.push(capValueIssue);
+  if (
+    effect.amount?.type === "damage-percent" &&
+    effect.scope !== undefined &&
+    effect.scope.type !== "current-action"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Damage-based resource changes require an immediate current-action damage context.",
+      ),
+    );
+  if (
+    effect.trigger === "start-combat" &&
+    (effect.scope !== undefined ||
+      effect.duration !== undefined ||
+      effect.activationCost !== undefined ||
+      effect.useLimit !== undefined)
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Start-combat resource changes must resolve immediately without deferred scope, caps, costs, or limits.",
+      ),
+    );
+  if (
+    effect.trigger === "start-combat" &&
+    effect.conditions?.some(
+      (condition) =>
+        condition.type === "stat-comparison" &&
+        (condition.stat === "sp" || condition.rightStat === "sp"),
+    )
+  )
+    issues.push(
+      issue(
+        "unsupported-condition",
+        sourceDefinitionId,
+        effectIndex,
+        "Start-combat SP comparisons require a persisted SP combat context.",
+      ),
+    );
   if (
     (effect.trigger === "on-power-up" ||
       effect.trigger === "on-resource-gain" ||
       effect.trigger === "on-resource-drain") &&
-    (effect.scope !== undefined ||
+    ((effect.scope !== undefined && effect.scope.type !== "current-action") ||
       effect.duration !== undefined ||
-      effect.cap !== undefined ||
       effect.activationCost !== undefined ||
       effect.useLimit !== undefined)
   )
@@ -581,6 +785,237 @@ const modifyResourceIssues = (
     );
   return issues;
 };
+
+const lockIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "lock" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (
+    effect.trigger === "start-combat" &&
+    effect.duration !== undefined &&
+    effect.duration.type !== "combat"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Start-combat locks require a combat duration.",
+      ),
+    );
+  if (
+    effect.trigger === "start-combat" &&
+    (effect.selector?.costModification !== undefined ||
+      effect.selector?.styleProvenance !== undefined ||
+      effect.selector?.selectionKey !== undefined ||
+      effect.selector?.effectKinds !== undefined)
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Start-combat lock selectors cannot depend on a later cost-modification result.",
+      ),
+    );
+  return issues;
+};
+
+const modifyStatIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-stat" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const amountIssue = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
+  if (amountIssue !== undefined) issues.push(amountIssue);
+  if (effect.scope !== undefined && !["next-action", "next-roll"].includes(effect.scope.type))
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Stat scope ${effect.scope.type} is not supported by this executor slice.`,
+      ),
+    );
+  if (
+    effect.scope?.type === "next-roll" &&
+    effect.scope.roll !== "attack" &&
+    effect.scope.roll !== "defense"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Stat roll scope ${effect.scope.roll} is not supported by this executor slice.`,
+      ),
+    );
+  if (effect.duration !== undefined && effect.duration.type !== "turns")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Stat duration ${effect.duration.type} is not supported by this executor slice.`,
+      ),
+    );
+  if (effect.scope === undefined && effect.duration === undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Stat modifiers require a durable turn or next-roll/action scope.",
+      ),
+    );
+  return issues;
+};
+
+type SuppressDefinition = Extract<RegisteredEffectDefinition, { readonly type: "suppress" }>;
+
+const suppressAspectIssues = (
+  effect: SuppressDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.aspects === undefined || effect.aspects.length === 0)
+    return [
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Suppress effects require an explicit all-effects or successful-effects aspect.",
+      ),
+    ];
+  return effect.aspects.some(
+    (aspect) => aspect !== "all-effects" && aspect !== "successful-effects",
+  )
+    ? [
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Suppress aspects must be all-effects or successful-effects.",
+        ),
+      ]
+    : [];
+};
+
+const suppressLifecycleIssues = (
+  effect: SuppressDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.scope !== undefined && effect.scope.type !== "next-action")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Suppress scope ${effect.scope.type} requires a resolution-local or multi-action scheduler.`,
+      ),
+    );
+  if (effect.scope !== undefined && effect.duration !== undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Suppress effects cannot combine a next-action scope with a separate duration.",
+      ),
+    );
+  if (effect.scope === undefined && effect.duration === undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Suppress effects require a durable duration or next-action scope; current-resolution suppression is not approximated.",
+      ),
+    );
+  return issues;
+};
+
+const suppressDurationIssues = (
+  effect: SuppressDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.duration === undefined) return [];
+  const issues: EffectCompilationIssue[] = [];
+  if (!["combat", "turns", "until-roll-threshold"].includes(effect.duration.type))
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Suppress duration ${effect.duration.type} is not supported by this executor slice.`,
+      ),
+    );
+  if (effect.duration.type === "turns") {
+    const durationIssue = numericIssue(
+      effect.duration.turns,
+      sourceDefinitionId,
+      effectIndex,
+      "duration.turns",
+    );
+    if (durationIssue !== undefined) issues.push(durationIssue);
+  }
+  if (effect.duration.type === "until-roll-threshold") {
+    if (effect.duration.roll !== "attack")
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Suppress duration thresholds support attack rolls only.",
+        ),
+      );
+    const thresholdIssue = numericIssue(
+      effect.duration.value,
+      sourceDefinitionId,
+      effectIndex,
+      "duration.value",
+    );
+    if (thresholdIssue !== undefined) issues.push(thresholdIssue);
+  }
+  return issues;
+};
+
+const suppressChoiceIssues = (
+  effect: SuppressDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  effect.activationCost !== undefined ||
+  effect.useLimit !== undefined ||
+  effect.cooldown !== undefined ||
+  effect.selectionLimit !== undefined
+    ? [
+        issue(
+          "requires-pending-choice",
+          sourceDefinitionId,
+          effectIndex,
+          "Suppress activation costs, limits, cooldowns, and selection limits require a serialized lifecycle decision.",
+        ),
+      ]
+    : [];
+
+const suppressIssues = (
+  effect: SuppressDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => [
+  ...commonIssues(effect, sourceDefinitionId, effectIndex),
+  ...suppressAspectIssues(effect, sourceDefinitionId, effectIndex),
+  ...suppressLifecycleIssues(effect, sourceDefinitionId, effectIndex),
+  ...suppressDurationIssues(effect, sourceDefinitionId, effectIndex),
+  ...suppressChoiceIssues(effect, sourceDefinitionId, effectIndex),
+];
 
 const extraActionTargetIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "grant-extra-action" }>,
@@ -655,7 +1090,11 @@ const extraActionSchedulingIssues = (
         "Upkeep extra actions require an explicit upkeep decision boundary.",
       ),
     );
-  if (effect.scope !== undefined && effect.scope.type !== "current-action")
+  if (
+    effect.scope !== undefined &&
+    effect.scope.type !== "current-action" &&
+    effect.scope.type !== "next-turn"
+  )
     issues.push(
       issue(
         "unsupported-variant",
@@ -749,19 +1188,74 @@ const setRollResultIssues = (
   return issues;
 };
 
+const setCombatResultIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "set-combat-result" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.resultScope !== "current-attack")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Combat-result overrides currently apply only to the current attack.",
+      ),
+    );
+  if (effect.result === "successful" && effect.trigger !== "passive")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Current-attack success overrides require a passive trigger so the result is known before resolution.",
+      ),
+    );
+  if (effect.result === "critical" && effect.trigger !== "on-success")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Current-attack critical overrides require an on-success trigger.",
+      ),
+    );
+  if (effect.result === "stopped")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Stopped result overrides require a persisted defense or per-die reaction frame.",
+      ),
+    );
+  if (effect.result === "critical" && effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Current-attack critical overrides must target the acting combatant.",
+      ),
+    );
+  return issues;
+};
+
 const preventMoveModificationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "prevent-move-modification" }>,
   sourceDefinitionId: string,
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  if (effect.aspects.length !== 1 || effect.aspects[0] !== "cost")
+  const supportedAspects = new Set(["cost", "damage", "dice-sides", "roll-results"]);
+  if (effect.aspects.length === 0 || effect.aspects.some((aspect) => !supportedAspects.has(aspect)))
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "This executor slice prevents KI cost modifications only.",
+        "Move-modification prevention supports cost, damage, dice-side, and roll-result aspects only.",
       ),
     );
   if (effect.scope !== undefined)
@@ -770,7 +1264,7 @@ const preventMoveModificationIssues = (
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Cost prevention scope is not yet part of the durable cost pipeline.",
+        "Move-modification prevention scope is not yet part of the durable pipeline.",
       ),
     );
   if (
@@ -782,7 +1276,7 @@ const preventMoveModificationIssues = (
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        `Cost prevention duration ${effect.duration.type} is not supported by this executor slice.`,
+        `Move-modification prevention duration ${effect.duration.type} is not supported by this executor slice.`,
       ),
     );
   if (!["self", "opponent", "any"].includes(effect.actor))
@@ -791,7 +1285,7 @@ const preventMoveModificationIssues = (
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        `Cost prevention actor ${effect.actor} is not supported.`,
+        `Move-modification prevention actor ${effect.actor} is not supported.`,
       ),
     );
   if (effect.operations?.some((operation) => operation !== "reduce"))
@@ -800,7 +1294,7 @@ const preventMoveModificationIssues = (
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Cost prevention supports only the declared reduce operation filter.",
+        "Move-modification prevention supports only the declared reduce operation filter.",
       ),
     );
   return issues;
@@ -846,10 +1340,20 @@ const resolutionThresholdContextIssues = (
   effectIndex: number,
 ) => [
   ...resolutionThresholdIssue(
-    effect.relativeTo === undefined,
+    effect.relativeTo === undefined
+      ? effect.relativeOperation === undefined
+      : effect.relativeOperation !== undefined,
     sourceDefinitionId,
     effectIndex,
-    "Relative roll thresholds require the resolution-local comparison context.",
+    "Relative roll thresholds require an explicit add or multiply operation.",
+  ),
+  ...resolutionThresholdIssue(
+    effect.relativeTo === undefined ||
+      (effect.relativeTo === "attack-roll" && effect.roll === "defense") ||
+      (effect.relativeTo === "defense-roll" && effect.roll === "attack"),
+    sourceDefinitionId,
+    effectIndex,
+    "Relative roll thresholds must compare opposite attack and defense results.",
   ),
   ...resolutionThresholdIssue(
     effect.resultScope === undefined ||
@@ -908,6 +1412,495 @@ const genericIssues = <T extends RegisteredEffectDefinition>(
   sourceDefinitionId: string,
   effectIndex: number,
 ) => commonIssues(effect, sourceDefinitionId, effectIndex);
+
+const rerollIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "reroll" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex).filter(
+    (candidate) =>
+      !(
+        candidate.code === "requires-pending-choice" &&
+        effect.optional === true &&
+        effect.activationGroup === undefined
+      ),
+  );
+  const modifierIssue = numericIssue(
+    effect.resultModifier,
+    sourceDefinitionId,
+    effectIndex,
+    "resultModifier",
+  );
+  if (modifierIssue !== undefined) issues.push(modifierIssue);
+  for (const condition of effect.conditions ?? []) {
+    if (condition.type !== "roll-threshold" || condition.roll !== effect.roll) {
+      issues.push(
+        issue(
+          "unsupported-condition",
+          sourceDefinitionId,
+          effectIndex,
+          "After-defense rerolls support only thresholds on the roll being rerolled.",
+        ),
+      );
+      continue;
+    }
+    const thresholdIssue = numericIssue(
+      condition.value,
+      sourceDefinitionId,
+      effectIndex,
+      "conditions.roll-threshold.value",
+    );
+    if (thresholdIssue !== undefined) issues.push(thresholdIssue);
+  }
+  if (effect.trigger !== "after-defense-roll")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "This reroll executor resolves only after both attack and defense dice are persisted.",
+      ),
+    );
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "After-defense rerolls must target the combatant who owns the effect.",
+      ),
+    );
+  if (effect.scope !== undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Consumable future-roll rerolls require a durable active-effect lifecycle.",
+      ),
+    );
+  if (
+    effect.duration !== undefined &&
+    (effect.duration.type !== "combat" || effect.requiresPriorSourceResult !== "successful")
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Durable rerolls require combat duration and an explicit successful source-move prerequisite.",
+      ),
+    );
+  if (effect.requiresPriorSourceResult !== undefined && effect.duration?.type !== "combat")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "A prior-source-result reroll must declare combat duration.",
+      ),
+    );
+  if (effect.roll === "attack" && effect.rerollScope !== "entire-attack")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Attack rerolls must explicitly replace the entire persisted attack.",
+      ),
+    );
+  if (effect.roll === "defense" && effect.rerollScope === "entire-attack")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Defense rerolls replace one persisted defense result at a time.",
+      ),
+    );
+  if (effect.useLimit !== undefined && effect.useLimit.scope !== "combat")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Immediate reroll reactions support combat use limits only.",
+      ),
+    );
+  if (
+    effect.activationCost !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "This reroll slice does not approximate activation costs, cooldowns, stacking, or grouped selections.",
+      ),
+    );
+  return issues;
+};
+
+const rollAndStoreIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "roll-and-store" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Stored rolls are owned by the source combatant.",
+      ),
+    );
+  if (effect.trigger !== "action-phase" && effect.trigger !== "upkeep-phase")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Stored rolls currently resolve during action or upkeep phases.",
+      ),
+    );
+  if (!Number.isInteger(effect.dice) || effect.dice < 1)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Stored rolls require a positive integer die count.",
+      ),
+    );
+  if (
+    typeof effect.sides === "number"
+      ? !Number.isInteger(effect.sides) || effect.sides < 1
+      : effect.sides.type !== "moveset-move-count"
+  )
+    issues.push(
+      issue(
+        "unsupported-numeric-expression",
+        sourceDefinitionId,
+        effectIndex,
+        "Stored-roll sides require a positive integer or moveset move-count expression.",
+      ),
+    );
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(effect.storageKey))
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Stored rolls require a stable lowercase hyphenated storage key.",
+      ),
+    );
+  if (
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.stacking !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Stored rolls are immediate keyed state writes without a separate lifecycle.",
+      ),
+    );
+  return issues;
+};
+
+const applyStatusIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "apply-status" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (
+    effect.duration !== undefined &&
+    effect.duration.type !== "combat" &&
+    effect.duration.type !== "turns"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Status duration ${effect.duration.type} has no active-status lifecycle executor.`,
+      ),
+    );
+  return issues;
+};
+
+type SkipActionDefinition = Extract<RegisteredEffectDefinition, { readonly type: "skip-action" }>;
+
+const skipActionTriggerTargetIssues = (
+  effect: SkipActionDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  if (
+    effect.trigger !== "on-success" &&
+    effect.trigger !== "before-attack-roll" &&
+    effect.trigger !== "on-roll-result"
+  )
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        `Action restrictions do not support trigger ${effect.trigger}.`,
+      ),
+    );
+  if (effect.target !== "self" && effect.target !== "opponent")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Action restrictions require one self or opponent target.",
+      ),
+    );
+  return issues;
+};
+
+const skipActionLifecycleIssues = (
+  effect: SkipActionDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  const nextTurnScope = effect.scope?.type === "next-turn";
+  const turnsDuration = effect.duration?.type === "turns";
+  if (nextTurnScope === turnsDuration)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Action restrictions require exactly one next-turn scope or turns duration.",
+      ),
+    );
+  if (effect.scope !== undefined && !nextTurnScope)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Action restriction scope ${effect.scope.type} is not supported.`,
+      ),
+    );
+  if (nextTurnScope && effect.scope.subject !== effect.target)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Action restriction next-turn subject must match its target.",
+      ),
+    );
+  if (effect.duration !== undefined && !turnsDuration)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Action restriction duration ${effect.duration.type} is not supported.`,
+      ),
+    );
+  if (turnsDuration) {
+    const turns = effect.duration.turns;
+    if (turns.type !== "literal" || !Number.isInteger(turns.value) || turns.value < 1)
+      issues.push(
+        issue(
+          "unsupported-numeric-expression",
+          sourceDefinitionId,
+          effectIndex,
+          "Action restriction turn durations require a positive literal integer.",
+        ),
+      );
+  }
+  return issues;
+};
+
+const skipActionCategoryIssues = (
+  effect: SkipActionDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const categories = effect.blockedCategories;
+  if (categories === undefined) return [];
+  const allowedCategories = new Set(["basic-attack", "advanced-attack", "signature"]);
+  return categories.length > 0 &&
+    new Set(categories).size === categories.length &&
+    categories.every((category) => allowedCategories.has(category))
+    ? []
+    : [
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Action restriction categories must be unique recognized attack categories.",
+        ),
+      ];
+};
+
+const skipActionIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "skip-action" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => [
+  ...commonIssues(effect, sourceDefinitionId, effectIndex),
+  ...skipActionTriggerTargetIssues(effect, sourceDefinitionId, effectIndex),
+  ...skipActionLifecycleIssues(effect, sourceDefinitionId, effectIndex),
+  ...skipActionCategoryIssues(effect, sourceDefinitionId, effectIndex),
+];
+
+const modifyRemainingUsesIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-remaining-uses" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Restricted-use limit changes currently target the owning combatant only.",
+      ),
+    );
+  if (
+    effect.amount.type !== "literal" ||
+    !Number.isInteger(effect.amount.value) ||
+    effect.amount.value < 1
+  )
+    issues.push(
+      issue(
+        "unsupported-numeric-expression",
+        sourceDefinitionId,
+        effectIndex,
+        "Restricted-use limit changes require a positive literal integer amount.",
+      ),
+    );
+  if (effect.scope !== undefined || effect.duration !== undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Restricted-use limit changes are combat-local and cannot declare a separate scope or duration.",
+      ),
+    );
+  if (effect.selector.ids?.length !== 1)
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Restricted-use limit changes require one exact move ID; broader selectors require a serialized move choice.",
+      ),
+    );
+  return issues;
+};
+
+const supportedClassificationTags = new Set(
+  Object.values(ATTACK_TAG).map((tag) => tag.toUpperCase()),
+);
+
+const modifyMoveClassificationIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-move-classification" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger !== "passive")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Current-action classification requires a passive trigger.",
+      ),
+    );
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Current-action classification applies to the source move only.",
+      ),
+    );
+  if (effect.scope?.type !== "current-action" || effect.duration !== undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "This classification executor supports current-action scope without a separate duration.",
+      ),
+    );
+  if (
+    effect.addTags === undefined ||
+    effect.addTags.length === 0 ||
+    effect.addTags.some((tag) => !supportedClassificationTags.has(tag.toUpperCase()))
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Current-action classification requires one or more recognized additive attack tags.",
+      ),
+    );
+  if (
+    effect.setStyleId !== undefined ||
+    effect.replaceStyle !== undefined ||
+    effect.selector !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Style replacement and selected-move classification require a durable selection lifecycle.",
+      ),
+    );
+  if (
+    effect.conditions !== undefined ||
+    effect.requirements !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Conditional, limited, paid, or exclusive classification requires additional lifecycle state.",
+      ),
+    );
+  return issues;
+};
 
 const preventResourceModificationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "prevent-resource-modification" }>,
@@ -1077,6 +2070,168 @@ function createFloatingIssues(
   return issues;
 }
 
+type ScheduleEffectDefinition = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "schedule-effect" }
+>;
+
+const scheduleNumericIssues = (
+  effect: ScheduleEffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  const candidates: readonly [NumericExpression | undefined, string][] = [
+    [effect.effect.amount, "amount"],
+    [effect.duration?.type === "turns" ? effect.duration.turns : undefined, "duration.turns"],
+    [
+      effect.duration?.type === "until-roll-threshold" ? effect.duration.value : undefined,
+      "duration.value",
+    ],
+    [effect.cancellation?.rollThreshold?.value, "cancellation.rollThreshold.value"],
+  ];
+  for (const [expression, path] of candidates) {
+    const numeric = numericIssue(expression, sourceDefinitionId, effectIndex, path);
+    if (numeric !== undefined) issues.push(numeric);
+  }
+  return issues;
+};
+
+const scheduleAmountIssues = (
+  effect: ScheduleEffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const { amount } = effect.effect;
+  if (!isDurableScheduledAmount(amount))
+    return [
+      issue(
+        "unsupported-numeric-expression",
+        sourceDefinitionId,
+        effectIndex,
+        `Scheduled amount uses non-durable numeric expression ${amount.type}.`,
+      ),
+    ];
+  const value = amount.type === "literal" ? amount.value : amount.percent;
+  return value >= 0
+    ? []
+    : [
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Scheduled resource amounts must be nonnegative.",
+        ),
+      ];
+};
+
+const isDurableScheduledAmount = (
+  amount: NumericExpression,
+): amount is Extract<
+  NumericExpression,
+  { readonly type: "literal" | "resource-percent" | "stat-percent" }
+> =>
+  amount.type === "literal" || amount.type === "resource-percent" || amount.type === "stat-percent";
+
+const scheduleTimingIssues = (
+  effect: ScheduleEffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  if (!Number.isInteger(effect.timing.turnsAfter) || effect.timing.turnsAfter < 0)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Scheduled timing requires a nonnegative integer turnsAfter value.",
+      ),
+    );
+  const phaseShapeIsInvalid =
+    (effect.timing.type === "phase-start") !== (effect.timing.phase !== undefined);
+  if (phaseShapeIsInvalid)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Scheduled phase timing must declare a phase only for phase-start work.",
+      ),
+    );
+  if (effect.timing.type === "phase-start" && effect.timing.phase !== "upkeep")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "The generic scheduler currently supports upkeep phase-start work only.",
+      ),
+    );
+  return issues;
+};
+
+const scheduleLifecycleIssues = (
+  effect: ScheduleEffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.effect.operation === "damage" && effect.effect.resource !== "hp")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Scheduled damage must target HP.",
+      ),
+    );
+  if (
+    effect.duration !== undefined &&
+    effect.duration.type !== "turns" &&
+    effect.duration.type !== "until-roll-threshold"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Scheduled duration ${effect.duration.type} is not represented by the scheduler.`,
+      ),
+    );
+  if (effect.duration?.type === "until-roll-threshold" && effect.duration.roll === "transformation")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Transformation-roll schedule expiry requires a transformation-roll transition.",
+      ),
+    );
+  if (effect.cancellation?.rollThreshold?.roll === "transformation")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Transformation-roll schedule cancellation requires a transformation-roll transition.",
+      ),
+    );
+  return issues;
+};
+
+const scheduleEffectIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "schedule-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => [
+  ...commonIssues(effect, sourceDefinitionId, effectIndex),
+  ...scheduleNumericIssues(effect, sourceDefinitionId, effectIndex),
+  ...scheduleAmountIssues(effect, sourceDefinitionId, effectIndex),
+  ...scheduleTimingIssues(effect, sourceDefinitionId, effectIndex),
+  ...scheduleLifecycleIssues(effect, sourceDefinitionId, effectIndex),
+];
+
 const createExecutor = <T extends RegisteredEffectDefinition>(
   type: T["type"],
   validate: EffectExecutor<T>["validate"] = genericIssues,
@@ -1099,16 +2254,26 @@ const createExecutor = <T extends RegisteredEffectDefinition>(
 });
 
 export const effectExecutorRegistry = {
-  "apply-status": createExecutor("apply-status"),
+  "apply-status": createExecutor("apply-status", applyStatusIssues),
   "create-floating-effect": createExecutor("create-floating-effect", createFloatingIssues),
   deactivate: createExecutor("deactivate"),
   "force-action": createExecutor("force-action"),
-  lock: createExecutor("lock"),
+  lock: createExecutor("lock", lockIssues),
   "modify-cost": createExecutor("modify-cost"),
+  "modify-critical-threshold": createExecutor(
+    "modify-critical-threshold",
+    modifyCriticalThresholdIssues,
+  ),
   "modify-damage": createExecutor("modify-damage", modifyDamageIssues),
+  "modify-move-classification": createExecutor(
+    "modify-move-classification",
+    modifyMoveClassificationIssues,
+  ),
+  "modify-remaining-uses": createExecutor("modify-remaining-uses", modifyRemainingUsesIssues),
   "modify-resource": createExecutor("modify-resource", modifyResourceIssues),
   "grant-extra-action": createExecutor("grant-extra-action", grantExtraActionIssues),
   "modify-roll": createExecutor("modify-roll", modifyRollIssues),
+  "modify-stat": createExecutor("modify-stat", modifyStatIssues),
   "prevent-combat-result": createExecutor("prevent-combat-result"),
   "prevent-move-modification": createExecutor(
     "prevent-move-modification",
@@ -1122,10 +2287,15 @@ export const effectExecutorRegistry = {
   "prevent-resolution": createExecutor("prevent-resolution"),
   "prevent-roll-modification": createExecutor("prevent-roll-modification"),
   "prevent-status": createExecutor("prevent-status"),
+  reroll: createExecutor("reroll", rerollIssues),
+  "roll-and-store": createExecutor("roll-and-store", rollAndStoreIssues),
+  "schedule-effect": createExecutor("schedule-effect", scheduleEffectIssues),
+  "set-combat-result": createExecutor("set-combat-result", setCombatResultIssues),
   "set-resolution-threshold": createExecutor("set-resolution-threshold", resolutionThresholdIssues),
   "set-roll-definition": createExecutor("set-roll-definition"),
   "set-roll-result": createExecutor("set-roll-result", setRollResultIssues),
-  "skip-action": createExecutor("skip-action"),
+  "skip-action": createExecutor("skip-action", skipActionIssues),
+  suppress: createExecutor("suppress", suppressIssues),
 } satisfies EffectExecutorRegistry;
 
 export const compileEffectPlan = ({

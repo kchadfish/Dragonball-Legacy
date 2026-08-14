@@ -330,6 +330,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "opponent",
         type: "suppress",
+        aspects: ["all-effects"],
         conditions: [
           {
             type: "combat-result",
@@ -619,7 +620,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         effect: {
           type: "modify-resource",
           resource: "hp",
-          operation: "lose",
+          operation: "damage",
           amount: { type: "stat-percent", subject: "self", stat: "power", percent: 35 },
         },
         cancellation: {
@@ -983,6 +984,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "opponent",
         type: "skip-action",
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         scope: { type: "next-turn", subject: "opponent", sourceText: "on their next turn" },
         sourceText: "SUCCESSFUL - Your opponent cannot attack on their next turn",
       },
@@ -990,6 +992,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "self",
         type: "skip-action",
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
         sourceText:
           "SUCCESSFUL - Your opponent cannot attack on their next turn. You cannot attack on your next turn",
@@ -1008,6 +1011,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         comparison: "at-least",
         value: { type: "literal", value: 5 },
         relativeTo: "attack-roll",
+        relativeOperation: "add",
         resultScope: "current-attack",
         sourceText:
           "Your opponent's defensive roll result must be +5 or more your attack roll result to STOP this attack",
@@ -1021,17 +1025,9 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "self",
         type: "reroll",
+        optional: true,
         roll: "defense",
-        scope: { type: "next-roll", roll: "defense", sourceText: "your next defensive roll" },
-        sourceText: "SUCCESSFUL - You may re-roll your next defensive roll with +3 to the result",
-      },
-      {
-        trigger: "on-success",
-        target: "self",
-        type: "modify-roll",
-        roll: "defense",
-        modifier: "result",
-        amount: { type: "literal", value: 3 },
+        resultModifier: { type: "literal", value: 3 },
         scope: { type: "next-roll", roll: "defense", sourceText: "your next defensive roll" },
         sourceText: "SUCCESSFUL - You may re-roll your next defensive roll with +3 to the result",
       },
@@ -1181,7 +1177,9 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "after-defense-roll",
         target: "self",
         type: "reroll",
+        optional: true,
         roll: "defense",
+        requiresPriorSourceResult: "successful",
         conditions: [
           {
             type: "roll-threshold",
@@ -1245,7 +1243,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "opponent",
         type: "skip-action",
-        blockedCategories: ["advanced-attack", "signature"],
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         scope: { type: "next-turn", subject: "opponent", sourceText: "on their next turn" },
         sourceText: "SUCCESSFUL - Your opponent cannot attack you on their next turn",
       },
@@ -1278,6 +1276,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         comparison: "at-least",
         value: { type: "literal", value: 5 },
         relativeTo: "defense-roll",
+        relativeOperation: "add",
         resultScope: "current-attack",
         duration: { type: "combat", sourceText: "For the rest of combat" },
         sourceText:
@@ -1595,15 +1594,21 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          category: "advanced-attack",
+          ids: ["move-aoyosumu-super-arm-bar-takedown"],
           sourceText: "this attack",
         },
         conditions: [
           {
-            type: "action-sequence",
-            actor: "self",
-            result: "stopped",
-            count: 1,
+            type: "move-use-count",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              ids: ["move-aoyosumu-super-arm-bar-takedown"],
+              sourceText: "this attack",
+            },
+            comparison: "exactly",
+            value: 1,
+            timing: "including-current-use",
             sourceText: "If this attack is STOPPED the first time you perform it during the match",
           },
         ],

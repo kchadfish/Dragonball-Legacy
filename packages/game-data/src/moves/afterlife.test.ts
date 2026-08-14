@@ -175,6 +175,18 @@ describe("AFTERLIFE_MOVES", () => {
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Heat Dome Attack")?.effects).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
+        expect.objectContaining({
+          type: "prevent-move-modification",
+          target: "self",
+          actor: "opponent",
+          aspects: ["damage"],
+          operations: ["reduce"],
+          exceptSourceStatusIds: ["break", "sever"],
+          selector: expect.objectContaining({
+            subject: "source",
+            categories: ["advanced-attack", "signature"],
+          }),
+        }),
       ]),
     );
     expect(AFTERLIFE_MOVES.find((move) => move.name === "Destructo Disc")?.effects).toEqual([

@@ -15,6 +15,10 @@ import type { RandomSource } from "./dependencies.js";
 export interface MoveAttackDefinition {
   readonly attack: AttackRollDefinition;
   readonly attackResultModifier?: number;
+  readonly criticalThresholds?: readonly {
+    readonly threshold: number;
+    readonly basis: "natural-result" | "final-result";
+  }[];
   readonly defenseSides?: number;
   readonly defenseResultModifier?: number;
   readonly preventCritical?: boolean;
@@ -64,6 +68,9 @@ export const resolveMoveAttack = (
   random: RandomSource,
   blockedDice = 0,
 ): MoveAttackResolution => {
+  if (definition.criticalThresholds?.some(({ threshold }) => !Number.isFinite(threshold))) {
+    throw new RangeError("Critical thresholds must be finite numbers.");
+  }
   const rolls = resolveContestedAttackRolls(
     {
       attack: definition.attack,
@@ -87,7 +94,7 @@ export const resolveMoveAttack = (
     definition.preventCritical !== true &&
     rolls.length === 1 &&
     firstRoll !== undefined &&
-    qualifiesForCritical({
+    (qualifiesForCritical({
       attackerDexterity: attacker.stats.dexterity,
       defenderDexterity: defender.stats.dexterity,
       diceCount: definition.attack.dice,
@@ -95,7 +102,12 @@ export const resolveMoveAttack = (
       naturalAttackResult: firstRoll.attackNaturalResult,
       naturalDefenseResult: firstRoll.defenseNaturalResult ?? 0,
       outcome: firstRoll.outcome === "successful" ? "successful" : "stopped",
-    });
+    }) ||
+      (definition.criticalThresholds ?? []).some(({ basis, threshold }) =>
+        basis === "natural-result"
+          ? firstRoll.attackNaturalResult >= threshold
+          : firstRoll.attackResult >= threshold,
+      ));
   const counter =
     definition.preventCounter !== true &&
     successful.length === 0 &&

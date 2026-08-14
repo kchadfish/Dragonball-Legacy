@@ -3,6 +3,7 @@ import type {
   MoveSelectorCondition,
   NumericExpression,
 } from "@dragonball-resurgence/game-data";
+import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 
 import type { ActiveCombatEffect, CombatActionRecord, CombatantState } from "./contracts.js";
 
@@ -21,11 +22,25 @@ export interface NumericExpressionContext {
   readonly successfulHitCount?: number;
   /** Ordered actions are used for expressions that explicitly reference a prior roll. */
   readonly actionHistory?: readonly CombatActionRecord[];
+  /** The completed single-die action currently being resolved, when available. */
+  readonly currentAction?: Extract<
+    CombatActionRecord,
+    { readonly type: "basic-attack" | "use-move" }
+  >;
   /** Durable active effects used by active-move numeric expressions. */
   readonly activeEffects?: readonly ActiveCombatEffect[];
   readonly moves: ReadonlyMap<string, MoveDefinition>;
   readonly moveActivationCounts?: ReadonlyMap<string, number>;
   readonly paidActivationCost?: number;
+  /** Dice and move context for expressions owned by the current resolution phase. */
+  readonly rolls?: readonly {
+    readonly attackResult: number;
+    readonly outcome: "blocked" | "stopped" | "successful";
+  }[];
+  readonly triggeringMove?: MoveDefinition;
+  readonly triggeringMoveOwner?: "self" | "opponent";
+  /** Final damage dealt by the current attack when a resource effect consumes it. */
+  readonly currentDamage?: number;
 }
 
 const combatantForSubject = (context: NumericExpressionContext, subject: "self" | "opponent") =>
@@ -64,6 +79,26 @@ const activeConstantMovesForCombatant = (
     seenMoveIds.add(effect.sourceDefinitionId);
     return [move];
   });
+};
+
+const triggeringMoveContext = (context: NumericExpressionContext) => {
+  if (context.triggeringMove === undefined || context.triggeringMoveOwner === undefined)
+    return undefined;
+  const self = context.triggeringMoveOwner === "self" ? context.self : context.opponent;
+  const opponent = context.triggeringMoveOwner === "self" ? context.opponent : context.self;
+  return { ...context, self, opponent };
+};
+
+const triggeringMoveBaseDamage = (context: NumericExpressionContext) => {
+  const moveContext = triggeringMoveContext(context);
+  const attack = moveContext?.triggeringMove?.mechanics.attack;
+  if (moveContext === undefined || attack?.baseDamagePercent === undefined) return undefined;
+  const baseDamagePercent = evaluateDurableNumericExpression(attack.baseDamagePercent, moveContext);
+  if (baseDamagePercent === undefined) return undefined;
+  const baseDamage = Math.round((moveContext.self.stats.power * baseDamagePercent) / 100);
+  return attack.damagePerHit === true
+    ? baseDamage * Math.max(1, context.successfulHitCount ?? 0)
+    : baseDamage;
 };
 
 type AttackActionRecord = Extract<
@@ -180,8 +215,11 @@ const durableExpressionHandlers: Partial<
   },
   "bounded-stat": (expression, context) => {
     if (!isType(expression, "bounded-stat")) return undefined;
-    const value = combatantForSubject(context, expression.subject).stats.dexterityBonus;
-    return Math.min(expression.maximum, Math.max(expression.minimum, value));
+    const value =
+      combatantForSubject(context, expression.subject).stats.dexterityBonus +
+      (expression.offset ?? 0);
+    const minimum = Math.max(expression.minimum, value);
+    return expression.maximum === undefined ? minimum : Math.min(expression.maximum, minimum);
   },
   "resource-percent": (expression, context) =>
     isType(expression, "resource-percent")
@@ -220,6 +258,11 @@ const durableExpressionHandlers: Partial<
     isType(expression, "current-resource")
       ? combatantForSubject(context, expression.subject).ki.current
       : undefined,
+  "resource-from-threshold": (expression, context) =>
+    isType(expression, "resource-from-threshold")
+      ? expression.sign *
+        (expression.threshold - combatantForSubject(context, expression.subject).ki.current)
+      : undefined,
   "paid-activation-cost": (expression, context) =>
     isType(expression, "paid-activation-cost") && expression.resource === "ki"
       ? context.paidActivationCost
@@ -239,23 +282,34 @@ const durableExpressionHandlers: Partial<
   "combat-result-count": (expression, context) =>
     isType(expression, "combat-result-count") ? combatResultCount(expression, context) : undefined,
   "prior-roll-result": (expression, context) => {
-    if (!isType(expression, "prior-roll-result") || context.actionHistory === undefined)
-      return undefined;
-    const priorAttack = [...context.actionHistory]
-      .reverse()
-      .find(
-        (action) =>
-          (action.type === "basic-attack" || action.type === "use-move") &&
-          (expression.roll === "attack"
-            ? action.actorId === context.self.id && action.attackRollResult !== undefined
-            : action.targetCombatantId === context.self.id &&
-              action.defenseRollResult !== undefined),
-      );
-    if (
-      priorAttack === undefined ||
-      (priorAttack.type !== "basic-attack" && priorAttack.type !== "use-move")
-    )
-      return undefined;
+    if (!isType(expression, "prior-roll-result")) return undefined;
+    const currentAction = context.currentAction;
+    const currentActionMatches =
+      currentAction !== undefined &&
+      (expression.roll === "attack"
+        ? currentAction.actorId === context.self.id && currentAction.attackRollResult !== undefined
+        : currentAction.targetCombatantId === context.self.id &&
+          currentAction.defenseRollResult !== undefined);
+    let priorAttack:
+      Extract<CombatActionRecord, { readonly type: "basic-attack" | "use-move" }> | undefined =
+      currentActionMatches ? currentAction : undefined;
+    if (priorAttack === undefined && context.actionHistory !== undefined)
+      priorAttack = [...context.actionHistory]
+        .reverse()
+        .find(
+          (
+            action,
+          ): action is Extract<
+            CombatActionRecord,
+            { readonly type: "basic-attack" | "use-move" }
+          > =>
+            (action.type === "basic-attack" || action.type === "use-move") &&
+            (expression.roll === "attack"
+              ? action.actorId === context.self.id && action.attackRollResult !== undefined
+              : action.targetCombatantId === context.self.id &&
+                action.defenseRollResult !== undefined),
+        );
+    if (priorAttack === undefined) return undefined;
     const result =
       expression.roll === "attack" ? priorAttack.attackRollResult : priorAttack.defenseRollResult;
     return result === undefined
@@ -275,6 +329,82 @@ const durableExpressionHandlers: Partial<
     isType(expression, "completed-combat-turn-count")
       ? context.completedTurnCount * expression.perTurn
       : undefined,
+  "triggering-move-base-ki-cost": (expression, context) => {
+    if (!isType(expression, "triggering-move-base-ki-cost")) return undefined;
+    const moveContext = triggeringMoveContext(context);
+    const cost = moveContext?.triggeringMove?.mechanics.kiCost;
+    return moveContext === undefined || cost === undefined
+      ? undefined
+      : evaluateDurableNumericExpression(cost, moveContext);
+  },
+  "resource-percent-per-successful-hit": (expression, context) => {
+    if (!isType(expression, "resource-percent-per-successful-hit")) return undefined;
+    if (context.successfulHitCount === undefined) return undefined;
+    return Math.round(
+      (resourceValue(
+        combatantForSubject(context, expression.subject),
+        expression.resource,
+        expression.basis,
+      ) *
+        expression.percentPerHit *
+        context.successfulHitCount) /
+        100,
+    );
+  },
+  "resource-percent-per-successful-roll-threshold": (expression, context) => {
+    if (!isType(expression, "resource-percent-per-successful-roll-threshold")) return undefined;
+    if (
+      expression.roll !== "attack" ||
+      expression.comparison !== "above" ||
+      context.rolls === undefined
+    )
+      return undefined;
+    const qualifyingRolls = context.rolls.filter(
+      (roll) => roll.outcome === "successful" && roll.attackResult > expression.value,
+    ).length;
+    return Math.round(
+      (resourceValue(
+        combatantForSubject(context, expression.subject),
+        expression.resource,
+        expression.basis,
+      ) *
+        expression.percentPerRoll *
+        qualifyingRolls) /
+        100,
+    );
+  },
+  "damage-percent": (expression) =>
+    isType(expression, "damage-percent") ? expression.percent : undefined,
+  "stat-difference-percent": (expression, context) => {
+    if (!isType(expression, "stat-difference-percent")) return undefined;
+    if (expression.stat !== "dexterity-bonus") return undefined;
+    const difference =
+      combatantForSubject(context, expression.left).stats.dexterityBonus -
+      combatantForSubject(context, expression.right).stats.dexterityBonus;
+    const value = Math.max(0, difference) * expression.percentPerPoint;
+    return expression.maximum === undefined ? value : Math.min(value, expression.maximum);
+  },
+  "triggering-move-base-damage": (expression, context) =>
+    isType(expression, "triggering-move-base-damage")
+      ? (() => {
+          const baseDamage = triggeringMoveBaseDamage(context);
+          return baseDamage === undefined
+            ? undefined
+            : Math.round(baseDamage * expression.multiplier);
+        })()
+      : undefined,
+  "triggering-move-base-damage-percent": (expression, context) => {
+    if (!isType(expression, "triggering-move-base-damage-percent")) return undefined;
+    const moveContext = triggeringMoveContext(context);
+    const baseDamagePercent =
+      moveContext?.triggeringMove?.mechanics.attack?.baseDamagePercent === undefined
+        ? undefined
+        : evaluateDurableNumericExpression(
+            moveContext.triggeringMove.mechanics.attack.baseDamagePercent,
+            moveContext,
+          );
+    return baseDamagePercent === undefined ? undefined : baseDamagePercent / expression.divisor;
+  },
 };
 
 export const evaluateDurableNumericExpression = (
@@ -360,11 +490,15 @@ const matchesMoveRequirements = (move: MoveDefinition, selector: MoveSelectorCon
 const matchesMoveAttackRoll = (move: MoveDefinition, selector: MoveSelectorCondition) => {
   const requested = selector.attackRoll;
   if (requested === undefined) return true;
-  const actual = move.mechanics.attack?.attackRoll;
+  if (move.mechanics.attack === undefined) return false;
+  const actual = move.mechanics.attack.attackRoll;
+  const dice = actual?.dice ?? 1;
+  const sides = actual?.sides ?? GLOBAL_RULES.combat.standardDieSides;
   return (
-    actual?.dice === requested.dice &&
-    (requested.minimumDice === undefined || (actual?.dice ?? 0) >= requested.minimumDice) &&
-    actual?.sides === requested.sides
+    (requested.dice === undefined || dice === requested.dice) &&
+    (requested.minimumDice === undefined || dice >= requested.minimumDice) &&
+    (requested.sides === undefined || sides === requested.sides) &&
+    (requested.maximumSides === undefined || sides <= requested.maximumSides)
   );
 };
 

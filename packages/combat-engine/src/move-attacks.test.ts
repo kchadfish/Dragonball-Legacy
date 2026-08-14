@@ -42,6 +42,65 @@ describe("resolveMoveAttack", () => {
     expect(result).toMatchObject({ successfulHitCount: 1, critical: true, damage: 80 });
   });
 
+  it("applies a declared final-result critical threshold at its exact boundary", () => {
+    const result = resolveMoveAttack(
+      attacker,
+      defender,
+      {
+        attack: { dice: 1, sides: 30 },
+        attackResultModifier: 2,
+        criticalThresholds: [{ threshold: 30, basis: "final-result" }],
+        baseDamage: 40,
+      },
+      new SequenceRandomSource([28, 1]),
+    );
+
+    expect(result.rolls[0]).toMatchObject({ attackNaturalResult: 28, attackResult: 30 });
+    expect(result).toMatchObject({ successfulHitCount: 1, critical: true, damage: 80 });
+  });
+
+  it("does not approximate critical thresholds below the boundary or for multi-die attacks", () => {
+    const belowThreshold = resolveMoveAttack(
+      attacker,
+      defender,
+      {
+        attack: { dice: 1, sides: 30 },
+        attackResultModifier: 1,
+        criticalThresholds: [{ threshold: 30, basis: "final-result" }],
+        baseDamage: 40,
+      },
+      new SequenceRandomSource([28, 1]),
+    );
+    const multiDie = resolveMoveAttack(
+      attacker,
+      defender,
+      {
+        attack: { dice: 2, sides: 30 },
+        criticalThresholds: [{ threshold: 20, basis: "final-result" }],
+        baseDamage: 40,
+      },
+      new SequenceRandomSource([20, 1, 20, 1]),
+    );
+
+    expect(belowThreshold).toMatchObject({ critical: false, damage: 40 });
+    expect(multiDie).toMatchObject({ successfulHitCount: 2, critical: false, damage: 40 });
+  });
+
+  it("rejects non-finite critical thresholds before consuming randomness", () => {
+    expect(() =>
+      resolveMoveAttack(
+        attacker,
+        defender,
+        {
+          attack: { dice: 1, sides: 30 },
+          criticalThresholds: [{ threshold: Number.NaN, basis: "final-result" }],
+          baseDamage: 40,
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toThrowError("Critical thresholds must be finite numbers.");
+  });
+
   it("uses the full listed damage for every successful die on a damage-per-hit move", () => {
     const result = resolveMoveAttack(
       attacker,

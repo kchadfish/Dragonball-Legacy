@@ -1290,6 +1290,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "opponent",
         type: "suppress",
+        aspects: ["successful-effects"],
         scope: {
           type: "following-action",
           offset: 2,

@@ -31,6 +31,8 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "start-combat",
         target: "self",
         type: "modify-move-classification",
+        optional: true,
+        selectionLimit: 1,
         setStyleId: "style-akaikaru",
         selector: {
           type: "move-selector",
@@ -910,6 +912,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "after-defense-roll",
         target: "self",
         type: "reroll",
+        optional: true,
         roll: "attack",
         rerollScope: "entire-attack",
         selector: {
@@ -2263,6 +2266,20 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
 export const AKAIKARU_MOVES: readonly MoveDefinition[] = createStyleMoves(AKAIKARU_STYLE).map(
   (move) => ({
     ...move,
+    ...(move.id === "move-akaikaru-swift-reaction"
+      ? {
+          mechanics: {
+            ...move.mechanics,
+            restrictedUses: {
+              type: "bounded-stat" as const,
+              subject: "self" as const,
+              stat: "dexterity-bonus" as const,
+              offset: -2,
+              minimum: 1,
+            },
+          },
+        }
+      : {}),
     ...(structuredEffectsByMoveId.has(move.id)
       ? { effects: structuredEffectsByMoveId.get(move.id) }
       : {}),

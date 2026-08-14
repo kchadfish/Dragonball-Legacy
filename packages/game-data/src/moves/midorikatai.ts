@@ -1,4 +1,5 @@
 import type { EffectDefinition } from "../shared/effects.js";
+import { FREESTYLE_STYLE } from "../styles/freestyle.js";
 import { MIDORIKATAI_STYLE } from "../styles/midorikatai.js";
 import { createStyleMoves } from "./create-style-moves.js";
 
@@ -373,6 +374,30 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-critical-threshold",
         threshold: { type: "literal", value: 29 },
         basis: "final-result",
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          styleId: MIDORIKATAI_STYLE.id,
+          attackRoll: { dice: 1, maximumSides: 32 },
+          sourceText: "Midorikatai attacks with a base roll of 1d32 or lower",
+        },
+        sourceText:
+          "All of your Midorikatai or non-Custom Freestyle attacks with a base roll of 1d32 or lower can CRITICAL with an attack roll result of 29 or higher",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-critical-threshold",
+        threshold: { type: "literal", value: 29 },
+        basis: "final-result",
+        selector: {
+          type: "move-selector",
+          subject: "target",
+          styleId: FREESTYLE_STYLE.id,
+          custom: false,
+          attackRoll: { dice: 1, maximumSides: 32 },
+          sourceText: "non-Custom Freestyle attacks with a base roll of 1d32 or lower",
+        },
         sourceText:
           "All of your Midorikatai or non-Custom Freestyle attacks with a base roll of 1d32 or lower can CRITICAL with an attack roll result of 29 or higher",
       },

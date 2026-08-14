@@ -1631,16 +1631,18 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
       },
       {
         trigger: "on-success",
-        target: "opponent",
+        target: "self",
         type: "prevent-move-modification",
         actor: "opponent",
         aspects: ["damage"],
         selector: {
           type: "move-selector",
-          subject: "target",
-          category: "advanced-attack",
+          subject: "source",
+          categories: ["advanced-attack", "signature"],
           sourceText: "your attacks",
         },
+        operations: ["reduce"],
+        exceptSourceStatusIds: ["break", "sever"],
         duration: { type: "combat", sourceText: "for the remainder of combat" },
         sourceText:
           "SUCCESSFUL - Your opponent cannot prevent damage or reduce the damage of your attacks for the remainder of combat, unless by BREAK or SEVER",
@@ -2239,6 +2241,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         comparison: "at-least",
         value: { type: "literal", value: 5 },
         relativeTo: "attack-roll",
+        relativeOperation: "add",
         resultScope: "current-attack",
         sourceText:
           "Your opponent's defensive roll must be at least +5 your attack roll to stop this attack",

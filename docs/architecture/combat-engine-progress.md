@@ -217,14 +217,14 @@ catalog coverage, not a completion claim.
   pipeline for basic, converted, and Death Beam attacks. Passive effects that
   require prior actions, unresolved damage context, optional choices, or
   undispatched triggers remain explicitly unsupported.
-- `prevent-move-modification.v1` now covers the exact generic cost-only slice.
+- `prevent-move-modification.v1` established the exact generic cost-only slice.
   It compiles selector-scoped prohibitions with actor filtering, reduce-only
   operation filtering, source-style and source-move exceptions, and combat or
   turn-bound durations into durable invariant-checked effects. Cost modifiers
   are filtered before validation and consumption, including passive move rules
-  and active CONSTANT rules. Damage, dice-side, roll-result, and effect
-  prevention remain unsupported until their mutation pipelines retain source
-  identity.
+  and active CONSTANT rules. The later v2 slice below extends the same typed
+  primitive to damage and roll mutation pipelines while effect rewriting
+  remains unsupported.
 - `modify-damage` now has a durable `damage-modifier.v1` lifecycle for
   selector-scoped combat, turn, next-turn, and attack-roll-threshold effects.
   It preserves the distinction between damage derived from Power and
@@ -712,6 +712,623 @@ reference and game-data validation, combat-boundary validation, all 523 tests,
 the TypeScript build, coverage at 75.77% global branch coverage, duplication
 detection, and the production dependency audit with 0 vulnerabilities. No
 separate `npm run check` invocation was made.
+
+The 2026-08-12 resource-modification-prevention slice completes the generic
+`prevent-resource-modification.v1` executor for six exact converted variants.
+It persists a versioned, invariant-checked prevention effect with source and
+target provenance, filters matching HP/KI gain, loss, drain, and set changes at
+the transition boundary before resource-trigger and threshold reactions, and
+preserves declared opponent-effect and power-up exceptions. Focused runtime
+and public transition tests verify the typed conversion, blocked KI gain,
+source filtering, and invariant-safe version increment without a false
+resource-change event.
+
+Two remaining prevention occurrences are explicitly unsupported because their
+`next-turn` scope requires turn-scheduling semantics that this lifecycle does
+not yet persist. They remain represented in the matrix as unfinished in-scope
+work; no duration or scope is inferred from source text. All eight converted
+`prevent-resource-modification` occurrences are now accounted for, with six
+generic-supported and two unsupported rows. The regenerated matrix records
+666 `supported-generic`, 327 `unsupported-in-scope`, and 130
+`audited-out-of-scope` occurrences. Focused public, runtime, capability-matrix,
+and combat-engine typecheck checks passed. The independent coverage run passed
+all 527 tests at 75.56% global branch coverage (3,352/4,436), and the sole
+final `npm run quality` gate passed all 527 tests, the TypeScript build,
+coverage at 75.62% global branch coverage (3,336/4,411), duplication
+detection, and the production dependency audit with 0 high-severity
+vulnerabilities. No separate `npm run check` invocation was made.
+
+The 2026-08-12 resource-derived roll slice adds the generic
+`resource-from-threshold` numeric executor. It evaluates the declared
+`sign * (threshold - current KI)` expression from durable combatant state,
+supports the passive current-action Energy Lob bonus, and carries the exact
+maximum-penalty amount cap through deferred Cursed Spheres roll modifiers as
+clamped durable state. No source text is interpreted at runtime and no move
+name is used for dispatch.
+
+The focused public Energy Lob transition test verifies the opponent-KI-derived
+attack result at a legal signature turn, while runtime tests verify both
+threshold values and the Cursed Spheres maximum penalty. The capability matrix
+now records all five newly covered rows (three resource-derived variants and
+two exact omitted-scope amount-cap variants) as generic-supported. Its current
+totals are 670 `supported-generic`, 321 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. Remaining unsupported rows are unchanged
+and remain explicit; no scope or duration is inferred for them. The final
+repository gate for this slice remains `npm run quality`.
+
+The 2026-08-12 relative-resolution-threshold slice adds the generic
+`set-resolution-threshold.v1` relation primitive for converted attack/defense
+constraints. Declarative threshold definitions now carry an explicit `add` or
+`multiply` operation and the opposite roll reference; the runtime evaluates
+those relations from resolved die results, preserves them through immediate
+and durable active-effect paths, and rejects incomplete or same-roll relations
+at the typed executor and roll invariant boundaries. This covers six exact
+in-scope occurrences: S.S. Deadly Bomb, Crushing Kick, The Secret of the
+Universe, both Ki Shield variants, and Shooting Star. Midorikatai's relative
+threshold remains outside this slice because its activation-group choice and
+next-action resolution are still pending-choice work.
+
+Focused attack-roll, executor-compilation, and public transition tests pass,
+including additive and multiplicative boundary behavior, invalid relation
+rejection, and a version-incrementing public Crushing Kick transition. The
+regenerated matrix now records 676 `supported-generic`, 315
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+unsupported rows are unchanged and remain explicit; no relation, operation,
+scope, or duration is inferred from source text. The independent coverage run
+and the sole final `npm run quality` gate remain required before handoff.
+
+The 2026-08-12 combat-result override slice registers the generic
+`set-combat-result.v1` executor for exact current-attack variants. Passive
+SUCCESSFUL overrides are converted into the existing deterministic per-die
+result frame, while on-success CRITICAL overrides are resolved from the typed
+attack-roll context before damage and action-history effects are applied. The
+transition remains immutable, advances its state version, and carries no
+source prose into runtime evaluation.
+
+The slice covers Back Suplex, Super Kamehameha, and Galactic Punisher as
+generic current-attack variants. Post-defense matching-die changes, optional
+activation groups, and next-action result changes remain explicitly
+unsupported because they require persisted reaction choices or deferred
+result state. The regenerated matrix now records 679 `supported-generic`,
+312 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences; its
+remaining unsupported summary is 64 pending-choice occurrences, 11 typed
+compiled-damage/resolution-context occurrences, and 237 typed executor/
+compiled-plan occurrences. Focused executor, runtime, and public transition
+tests pass; coverage and the single final `npm run quality` gate remain
+required before handoff.
+
+The 2026-08-12 stat-modifier slice registers the generic `modify-stat.v1`
+executor for typed Dexterity and Dexterity Bonus changes. Literal and durable
+numeric expressions are resolved from combat state, turn durations are stored
+as invariant-checked active effects, and next-action/next-roll changes are
+stored as versioned resolution-local modifiers. Attack and defense roll
+construction applies additive, replacement, and multiplicative stat changes
+from typed state; no source prose is consulted.
+
+This covers six exact in-scope occurrences from Blitzkrieg, Naginata, Dazzling
+Gymnastics, and Rocket Fire. Kaio-Ken's upkeep trigger and Leg Vice's
+on-move-use trigger remain explicitly unsupported because those phase/event
+dispatch boundaries are not implemented in this slice. The regenerated matrix
+now records 685 `supported-generic`, 306 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences; its remaining unsupported summary is 64
+pending-choice occurrences, 11 typed compiled-damage/resolution-context
+occurrences, and 231 typed executor/compiled-plan occurrences. Focused
+executor, runtime, and public transition tests pass, as does the required
+coverage run (539 tests; 75.02% branch coverage). The single final
+`npm run quality` gate passes with 0 lint errors, 539 tests, 75.04% branch
+coverage, 15 duplication findings below threshold, and zero production audit
+vulnerabilities.
+
+The 2026-08-12 suppression slice registers the generic `suppress.v1`
+executor for durable, selector-scoped suppression of future move effects. The
+runtime persists source and target provenance with an invariant-checked
+`suppress` active effect, filters matching all-effects or successful-effects
+through typed move-effect and active-effect paths, and expires combat, turn,
+next-action, and attack-roll-threshold lifecycles in immutable, versioned
+transitions. The approved normalization rule remains intact: suppression
+covers floating effects, stat gains, and not-yet-triggered effects without
+undoing effects already resolved.
+
+Five exact occurrences are now generic-supported: Dismissive Kick, both
+Dimension Scream branches, Big Bopper, and Power Drill. Seven suppressions
+remain explicitly unsupported: Breakout and Mimicry Mastery require
+resolution-local suppression, Soul Breaker requires a following-action offset,
+and Showdown, Against the Odds, and Breaking the Cycle require upkeep or
+serialized optional-choice scheduling. Their matrix rows retain the specific
+prerequisite and no source text is executed or approximated. The regenerated
+matrix records 690 `supported-generic`, 301 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences; the suppression family is fully accounted
+for as five supported and seven unsupported rows.
+
+Focused executor, runtime, public-transition, matrix, and combat-engine
+typecheck checks pass. The independent coverage run and the single final
+`npm run quality` gate pass.
+
+The 2026-08-12 on-move-use dispatch slice adds the generic trigger boundary
+for exact, durable self follow-ups and current-action self cost modifiers.
+Used moves and active CONSTANT sources are dispatched through the typed
+`on-move-use` runtime context, while suppression, lifecycle, target
+provenance, and state-version invariants remain enforced by the existing
+transition path. Chained Mastery's next-turn floating follow-up is covered
+through the public attack transition; Relentless and Impulsive current-action
+cost effects use the same generic cost primitive. No move-name dispatch or
+source-text evaluation was added.
+
+The matrix accounts for all 18 converted `on-move-use` occurrences: four are
+now `supported-generic`. The remaining occurrences stay explicitly
+unsupported: optional Channeling and Grapple choices, Cancellation's
+opponent deactivation/negation, Test of Strength's contest, Leg Vice's
+opponent stat/prevention effects, and item resource effects outside this
+move-effect executor boundary. The generated matrix now records 694
+`supported-generic`, 297 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences, with 64 pending-choice, 11 typed
+compiled-damage/resolution-context, and 222 typed executor/compiled-plan
+prerequisite rows remaining.
+
+The 2026-08-12 roll-cap slice adds the generic rules-backed standard roll
+modification limit and the durable `allow-exceed` permission. Advanced Attacks
+use the configured +/-10 limit and Signature Techniques use the configured
++/-5 limit; matching typed bypass effects are preserved on active roll
+modifiers and next-action roll modifiers. Current-action and active CONSTANT
+passive roll modifiers are aggregated once, capped deterministically, and then
+passed into the existing immutable, version-incrementing attack transition.
+Invariant validation covers the new cap discriminant and scope, and no move
+name or source prose is consulted at runtime.
+
+The exact Aoyosumu Opportunist and Midorikatai Flawless Execution bypass
+occurrences are now `supported-generic`. Optional Multi-Form and Super Galick
+Gun choices, location-dependent Death Ball, roll-modifier reaction triggers,
+and other deferred-context variants remain explicitly unsupported with their
+existing matrix prerequisites. The regenerated matrix records 696
+`supported-generic`, 295 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences, with 64 pending-choice, 11 typed
+compiled-damage/resolution-context, and 220 typed executor/compiled-plan
+prerequisite rows remaining.
+
+Focused executor, public attack-transition, matrix, and combat-engine
+typecheck checks pass. The required independent coverage run and the single
+final `npm run quality` gate remain pending before handoff.
+
+The 2026-08-12 `start-combat` dispatch slice adds the generic initial-match
+boundary for immediate resource changes and selector-scoped combat locks.
+These effects are collected from typed move definitions during the first
+upkeep-to-action transition, converted into durable active effects or bounded
+resource state, and emitted as deterministic structured events. The transition
+increments the state version once and revalidates the resulting state; no
+source prose or move-name branch participates in resolution.
+
+Three exact occurrences are now `supported-generic`: Conservation Mastery's
+opening KI gain and the two static lock selectors from Focused Mastery. The
+remaining start-combat rows stay explicit: Dragon's Pride requires SP and an
+activation-cost context, Control Mastery requires a later cost-modification
+result and status selector semantics, Sense Power Level requires initiative,
+level, and escape-roll context, and the other rows use unsupported move
+classification, temporary-move, mastery, or optional-choice mechanics. The
+regenerated matrix records 699 `supported-generic`, 292
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences, with 64
+pending-choice, 11 typed compiled-damage/resolution-context, and 217 typed
+executor/compiled-plan prerequisite rows remaining.
+
+Focused public transition, executor, matrix, and combat-engine typecheck
+checks pass. The independent coverage run passed 43 files and 551 tests,
+and the single final `npm run quality` gate passed.
+
+The 2026-08-12 shared item-resource slice closes the converted consumable
+boundary for common `modify-resource` effects triggered by `on-move-use`.
+The item runtime now validates the typed self-targeted gain/lose shape,
+resolves literal and resource-percent amounts against the immutable combatant
+snapshot, applies the existing resource caps, records one item use, and keeps
+the action phase open. Legacy `item-modify-resource` definitions remain
+supported through the same public resolver; no item name or source prose is
+consulted.
+
+Five converted consumable occurrences are now `supported-generic`: First Aid
+Kit, 1/3 Senzu Bean, 1/2 Senzu Bean, Senzu Bean, and Bag of Senzu Beans. Their
+separate `item-state-rule` loss-recovery and healing-limit definitions remain
+`audited-out-of-scope` because they require post-combat or administrator
+mediated lifecycle state, not an in-fight resource transition. The regenerated
+matrix records 704 `supported-generic`, 287 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences, with 64 pending-choice, 11 typed
+compiled-damage/resolution-context, and 212 typed executor/compiled-plan
+prerequisite rows remaining.
+
+Focused item-runtime public-transition, matrix, and combat-engine typecheck
+checks pass. The independent coverage run passed 43 files and 553 tests, and
+the single final `npm run quality` gate passed.
+
+The 2026-08-12 `upkeep-phase` dispatch slice adds the generic phase-boundary
+executor for immediate resource/status changes and durable modifiers. It
+evaluates each combatant's typed move effects against the active combatant,
+preserves participant-relative targeting, allocates injected active-effect and
+event IDs deterministically, increments the state version once, and validates
+the transition through the existing invariants. Resolution-only effect types
+such as roll-definition replacement remain rejected by the executor registry;
+no source prose or move-name branch participates in dispatch.
+
+Seven upkeep occurrences are now `supported-generic`, including Kaio-Ken's
+damage/stat/prevention effects, Future Sight's lock, Solar Flare's durable
+floating-effect and lock, and Speed Demon's roll-modification prevention. The
+remaining upkeep rows stay explicit: resolution-only roll definitions, stored
+roll and selection lifecycles, unsupported nested conditions, and pending
+choices still require their own serialized state or executor boundary. The
+regenerated matrix records 711 `supported-generic`, 282
+`unsupported-in-scope`, and 130 `audited-out-of-scope` occurrences, with 64
+pending-choice, 11 typed compiled-damage/resolution-context, and 206 typed
+executor/compiled-plan prerequisite rows remaining.
+
+Focused upkeep public-transition, matrix, and combat-engine typecheck checks
+pass. The independent coverage run passed 43 files and 554 tests, and the
+single final `npm run quality` gate passed.
+
+The 2026-08-12 resource-cap slice adds the generic numeric cap primitive to
+resource changes. The typed runtime resolves `maximum` and `minimum` cap
+expressions from the immutable transition context, applies the cap to each
+resource change before the universal resource floor and ceiling, and carries
+the resulting change through the existing versioned transition and invariant
+boundary. This closes the exact Power Surge Mastery `on-power-up` occurrence
+without executing its source wording or adding a move-specific branch.
+
+Power Surge Master's capped KI gain is now `supported-generic` through
+`modify-resource.v1`; compiler coverage and a public power-up transition test
+verify the cap, emitted actual-gain event, deterministic state-version
+increment, and valid resulting state. The regenerated matrix records 701
+`supported-generic`, 290 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. Remaining prerequisite buckets are 64
+pending-choice, 11 typed compiled-damage/resolution-context, and 215 typed
+executor/compiled-plan rows; these remain explicit rather than approximated.
+
+Focused resource-runtime, public combat-transition, matrix, and
+combat-engine typecheck checks pass. The independent coverage run passed 43
+files and 557 tests, and the single final `npm run quality` gate passed.
+
+## 2026-08-12 phase-local resource-expression slice
+
+The next high-volume generic capability adds deterministic numeric resolution for
+typed expressions whose inputs are already present in the owning combat phase:
+triggering-move base KI cost, triggering-move base damage and base-damage
+percentage, HP-per-successful-hit, HP-per-successful-roll-threshold, and
+dexterity-bonus differences. The runtime receives explicit triggering-move
+ownership and persisted attack-roll context; it does not infer semantics from
+source prose or branch on move names. Multi-hit base damage uses the declared
+`damagePerHit` mechanic and the persisted successful-hit count.
+
+The transition path now carries this context through the immutable converted
+attack resolution. The new resource effects remain generic `modify-resource.v1`
+changes, are applied through the existing cap/floor/ceiling resource boundary,
+and retain the existing version increment and invariant validation. Focused
+tests cover each expression and a public Double Arm Cannon transition verifies
+the multi-hit HP gain and exact state-version increment.
+
+The regenerated matrix now records 707 `supported-generic`, 284
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 64 pending-choice, 11 typed compiled-damage or
+resolution-context, and 209 typed executor or compiled-plan rows. Rapture's
+`HEAL (25% Damage)` remains in the typed compiled-damage bucket because the
+approved normalization requires final damage after all modifiers; this slice
+does not substitute pre-cap or pre-modifier damage. All 129 out-of-scope rows
+remain explicitly classified with approved exclusions in the generated matrix.
+
+Focused declarative-runtime, move-effect-runtime, public fight-transition,
+matrix, and combat-engine typecheck checks pass. Repository coverage and the
+single final `npm run quality` gate remain required before handoff.
+
+## 2026-08-12 final-damage resource slice
+
+The next generic resource-expression capability resolves `damage-percent` at
+the resource-consumer boundary. Damage modifiers continue to retain their
+declared percentage basis, while a resource effect such as Rapture resolves
+the percentage against the final damage actually dealt after damage modifiers
+and target HP capping. The transition supplies that immutable final-damage
+value only after the attack roll and damage pipeline complete; no pre-cap
+damage is substituted.
+
+The capability is covered by declarative and move-runtime tests plus a public
+Rapture transition where a 20-damage attack is capped at 15 target HP and the
+attacker heals exactly 25% of 15. The transition remains deterministic,
+increments the state version once, and passes the existing invariant boundary.
+Psycho Driver remains unsupported because its `next-action` damage resource
+effect requires a persisted deferred-resource lifecycle; the compiler now
+records that generic limitation instead of silently resolving it immediately.
+
+The regenerated matrix now records 708 `supported-generic`, 283
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 64 pending-choice, 11 typed compiled-damage or
+resolution-context, and 208 typed executor or compiled-plan rows. The goal
+therefore remains active; these counts are not a completion claim.
+
+## 2026-08-13 scheduled-resource executor slice
+
+The next high-volume generic executor capability completes the durable
+`schedule-effect` resource lifecycle. Converted schedules now compile into
+invariant-checked `scheduled-resource` effects and execute at their declared
+target turn-start, turn-end, or phase-start boundary. The scheduler resolves
+literal, stat-percent, and resource-percent amounts from the immutable source
+and target combatants, applies existing resource-prevention and cap/floor
+rules for direct resource changes, and routes delayed Damage through the
+shared damage modifiers and structured `damage-applied` event instead of
+silently treating it as HP loss. It emits structured KI/HP and expiry events,
+repeats only when the declarative repeat and duration permit it, and preserves
+selector-aware until-roll-threshold and cancellation expiry through the normal
+attack-resolution transition, including eligible basic attacks.
+
+The public transition tests cover a one-shot upkeep HP change, a recurring KI
+drain across two target turns, Bomb Tag waiting until the opponent's second
+turn before dealing damage, and cancellation by a successful single-die basic
+attack. Focused invariant and move-runtime tests cover malformed durable state
+and retention of unresolved numeric work until its boundary. Poison Mist's
+converted duration now explicitly carries its source-required single-die move
+selector; source prose is not consulted to recover that rule at runtime. The
+optional Straining Bodyslam schedule remains pending-choice work because its
+activation cost must be selected and persisted before the schedule can exist;
+it is not treated as automatically paid. No schedule-specific move branch was
+added.
+
+The regenerated matrix now records 716 `supported-generic`, 275
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 64 pending-choice, 11 typed compiled-damage or
+resolution-context, and 200 typed executor or compiled-plan rows. All 129
+out-of-scope occurrences remain explicitly classified with approved
+exclusions. Focused scheduler, executor-registry, public-transition,
+capability-matrix, combat-engine typecheck, and boundary checks pass. The
+independent coverage run and final `npm run quality` gate both pass 43 test
+files and 568 tests; the quality gate also passes the solution build,
+duplication threshold, and production dependency audit.
+
+## 2026-08-13 next-turn action allowance slice
+
+The generic `grant-extra-action` scheduler now supports non-optional,
+action-phase allowances with `next-turn` scope. The durable effect records its
+declared availability and expiry turn, remains targeted to its owning
+combatant through the intervening opponent turn, and is consumed through the
+same shared decision filter used by current-action allowances. Because the
+combat turn counter advances once per combatant turn, expiry remains valid
+through the owner's following action. Power Up consumption now participates in
+that shared path, so a successful versioned transition cannot leave stale
+allowance state behind.
+
+Kienzan is covered through public turn progression at its signature-available
+turn: the allowance is unavailable during the source attack, persists across
+the opponent's turn, restricts the next source action to Power Up, and is
+removed after that action. No move-name runtime branch was added. Upkeep-phase
+allowances such as Destructo Disc and Sky Dance, optional variants, and
+activation-cost variants remain unsupported until their explicit phase or
+pending-choice lifecycle is available; they remain visible as unsupported
+rows rather than being silently approximated.
+
+The regenerated matrix now records 717 `supported-generic`, 274
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 64 pending-choice, 11 typed compiled-damage or
+resolution-context, and 199 typed executor or compiled-plan rows. Every
+out-of-scope occurrence remains explicitly classified with a documented
+approved exclusion. Focused executor, matrix, public-transition, and
+combat-engine typecheck checks pass; coverage and the single final
+`npm run quality` gate remain required before handoff.
+
+## 2026-08-13 move-modification prevention v2 slice
+
+The generic `prevent-move-modification.v2` executor now preserves source
+identity through damage, dice-side, and roll-result mutation pipelines in
+addition to its existing KI-cost coverage. Durable preventions enforce their
+typed target, move selector, modifier actor, reduce-only operation filter,
+source-move and source-style exclusions, duration, and explicit status-source
+exceptions before a matching mutation is applied. Actor matching is relative
+to the prevention source, so a self-targeted prohibition against opponent
+effects no longer mistakes the protected combatant for the prohibited actor.
+
+Heat Dome Attack's converted definition was repaired against its canonical
+source: it protects the user's Advanced Attacks and Signature Techniques from
+opponent damage reductions, while explicitly allowing BREAK and SEVER status
+penalties. The exception is represented by typed status IDs and evaluated from
+persisted status provenance; runtime code does not inspect source prose or the
+move name. Five Finger Shot, Neutralization, Knee Stomp, and Energy Breaker use
+the same executor without named branches. State of Zen and Static Shot remain
+unsupported because their `effects` aspect requires an effect-rewriting
+lifecycle, and Healing Ray remains blocked on stored-roll resolution; none is
+partially declared supported.
+
+Focused public-transition tests prove that a protected attacker ignores
+matching active damage and result modifiers, that reduce-only protection still
+allows the declared BREAK exception, and that accepted transitions advance the
+state version. Focused data-fidelity, effect-runtime, compiler-registry,
+capability-matrix, and combat-engine type checks pass.
+
+The regenerated matrix now records 722 `supported-generic`, 269
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 64 pending-choice, 11 typed compiled-damage or
+resolution-context, and 194 typed executor or compiled-plan rows. Every
+out-of-scope occurrence remains explicitly classified with a documented
+approved exclusion. The independent coverage run passes 43 test files and 573
+tests. The final `npm run quality` gate also passes the routine checks, targeted
+coverage thresholds, duplication threshold, and production dependency audit.
+
+## 2026-08-13 restricted-use limit v1 slice
+
+The generic `modify-remaining-uses.v1` executor now accepts positive literal
+increases targeting one exact move ID. The increase is represented in
+combat-owned `moveUseLimitModifiers`, validated as a positive integer for an
+owned move with a canonical restricted-use limit, and consumed uniformly by
+attack, simple-action, CONSTANT Skill, and Block legality and submission. A
+successful transition increments the fight version and emits a
+`move-use-limit-changed` event with source, target, selected move, delta, and
+the resulting effective limit. Runtime code does not inspect source prose or
+branch on move names.
+
+Four exact converted occurrences are now `supported-generic`: x20 Kaioken
+Kamehameha's successful +2 Kaio-Ken increase, Super Arm Bar Takedown's
+first-stopped-use increase, and the conditional passive increases for Breaking
+The Cycle and Neuron Disruptor. The two Kurokonwaku moves now retain their
+canonical base `RESTRICTEDx1`; a generator repair ignores leading parenthetical
+conditional clauses when deriving base mechanics, and typed `moveset`
+conditions supply the conditional second use. Neuron Disruptor's previously
+missing structured conditional effect was added, while Super Arm Bar
+Takedown's "this attack" selector and first-use condition were narrowed to the
+exact move and including-current-use count.
+
+Three occurrences remain explicitly unsupported. Ceasefire Mastery needs a
+serialized move selection at start combat, Halting Stance needs durable
+opponent-caused Ki-loss history over ten turns, and Spiked Ball retains its
+optional activation-group choice. None is automatically selected or partially
+approximated.
+
+The regenerated matrix now records 726 `supported-generic`, 266
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 64 pending-choice, 11 typed compiled-damage or
+resolution-context, and 191 typed executor or compiled-plan rows. Every
+out-of-scope occurrence remains explicitly classified with a documented
+approved exclusion. Focused game-data, compiler, runtime, invariant,
+public-transition, matrix, and combat-engine type checks pass. The independent
+coverage run passes 43 test files and 578 tests.
+
+## 2026-08-13 current-action move classification v1 slice
+
+The generic `modify-move-classification.v1` executor now accepts exact,
+non-optional passive tag additions scoped to the current action. The runtime
+compiles the typed effect, respects existing effect suppression, normalizes the
+declared tag through the attack-tag vocabulary, and builds an immutable
+resolution-local move view. No classification is persisted beyond the action.
+That view is used by generic move-selector listeners, while an added Physical
+or Energy tag also becomes an alternate Block attack type. The public decision
+gateway still owns the version increment and validates both the pending-defense
+and completed-action states through the existing invariant boundary.
+
+Four converted occurrences are now `supported-generic`: Shock Fist,
+Blitzkrieg, and Turn Up The Heat add Energy classification to their physical
+attacks, and No Shadow Kick adds Punch classification. Public tests prove that
+an Energy-only Block is offered against Shock Fist and that No Shadow Kick's
+added Punch tag activates Chained Mastery's generic on-move-use listener. The
+runtime contains no move-name or source-text branch.
+
+The other four classification occurrences remain explicit. Intensity Mastery
+is now faithfully marked optional with a one-move selection limit and requires
+a serialized start-combat choice. Ki Color Cascade needs a durable declared
+Martial Arts Style and four-turn replacement lifecycle. Karmic Chameleon
+Mastery's two rows depend on its serialized opponent-move selections and
+combat-duration copied-technique lifecycle. None is automatically selected or
+approximated.
+
+The regenerated matrix now records 730 `supported-generic`, 262
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 65 pending-choice, 11 typed compiled-damage or
+resolution-context, and 186 typed executor or compiled-plan rows. Every
+out-of-scope occurrence remains explicitly classified with a documented
+approved exclusion. Focused data-fidelity, compiler, Block, public-transition,
+matrix, and combat-engine type checks pass. The goal remains active because the
+262 in-scope unsupported occurrences are not yet closed. The independent
+coverage run passes 43 test files and 581 tests.
+
+## 2026-08-13 stored-roll state v1 slice
+
+The generic `roll-and-store.v1` executor now resolves all five converted stored
+writes during their declared ACTION or UPKEEP phase. The combat-owned record
+retains the source move, stable key, natural results, resolved die sides, and
+turn number; another write to the same key replaces it immutably. Literal sides
+cover Solar Flare, Petrifying Spit, Healing Ray, and Ki Trap, while Impulsive
+uses the existing typed `moveset-move-count` expression. Randomness remains an
+injected dependency, each accepted action advances the fight version exactly
+once, and every emitted state passes the invariant boundary. A factual
+`roll-stored` event makes each natural result and its die definition explicit.
+
+The same generic state now supplies the `stored-roll-threshold` condition for
+single-result consumers. Solar Flare applies its immediate Stun at 15 or higher,
+and Healing Ray grants exactly 1 KI on 9 or lower after paying its action cost.
+The optional Healing Ray target choice, its unsupported effect-rewrite
+prohibition, Ki Trap's future natural-roll listeners and optional rerolls,
+Impulsive's ordered move selection, and Petrifying Spit's later turn-start
+status lifecycle remain rejected. No source text, move name, or guessed duration
+is used to fill those gaps.
+
+This slice also corrected seven previous capability overclaims. Six
+`skip-action` occurrences had a registered compiler entry but no durable
+action-flow handler, and Petrifying Spit's turn-start-roll status duration was
+being accepted even though `ActiveStatus` cannot represent it. Those rows are
+now explicitly unsupported. The five stored writes and two exact immediate
+threshold consumers replace those seven claims, so the regenerated matrix
+remains at 730 `supported-generic`, 262 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. Remaining prerequisite buckets remain 65
+pending-choice, 11 typed compiled-damage or resolution-context, and 186 typed
+executor or compiled-plan rows. Every out-of-scope occurrence retains its
+documented approved exclusion, and the goal remains active.
+
+Focused compiler, runtime, invariant, public-transition, capability-matrix, and
+combat-engine type checks pass. The independent coverage run passes 43 test
+files and 588 tests at 76.33% global branch coverage. The single final
+`npm run quality` gate remains required before handoff.
+
+## 2026-08-13 action restriction v1 slice
+
+The generic `skip-action.v1` executor now compiles and persists exact future-turn
+action restrictions. Combat-owned state records the source effect index, target,
+first eligible global turn, remaining target turns, and optional blocked attack
+categories. This distinguishes a complete skipped action from the canonical
+“cannot attack” wording: category-scoped restrictions remove Basic Attacks,
+Advanced Attacks, and Signature Techniques while preserving unrelated choices
+such as Power Up, Pass, Items, and Skills. A category-free restriction advances
+Upkeep directly to End and emits a factual `action-skipped` event with reason
+`effect`. Restrictions decrement only after an eligible target turn, so
+self-targeted next-turn effects cannot accidentally affect a same-turn extra
+action. All accepted transitions remain versioned and invariant checked.
+
+Eight converted occurrences are now `supported-generic`: Petrifying Spit's
+initial successful next-turn skip; both Serenity Wave restrictions; Sonic
+Whisper; both Focus Buster restrictions; Heat Seeking Blast's before-roll
+attack restriction; and Shadow Realm's two-turn restriction. The Aoyosumu,
+Kiihakai, and Kurokonwaku definitions were repaired against their canonical
+text so every “cannot attack” row explicitly includes Basic Attacks instead of
+silently treating only Advanced Attacks and Signature Techniques as attacks.
+Runtime execution uses only these typed fields and contains no source-text or
+move-name branch.
+
+Two `skip-action` occurrences remain explicit and unsupported. Power Boost is
+optional during the ACTION phase and requires a serialized pending choice.
+Petrifying Spit's repeated pass-until-success behavior requires turn-end
+dispatch plus its turn-start roll/status lifecycle; it is not approximated by
+the one-turn executor.
+
+The regenerated matrix now records 738 `supported-generic`, 254
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 65 pending-choice, 11 typed compiled-damage or
+resolution-context, and 178 typed executor or compiled-plan rows. Every
+out-of-scope occurrence retains its documented approved exclusion, and the
+goal remains active. Focused game-data validation, compiler, effect-runtime,
+invariant, public-transition, capability-matrix, and combat-engine type checks
+pass. The independent coverage run passes 43 test files and 594 tests at
+76.53% global branch coverage. The final `npm run quality` gate passes the
+routine checks, coverage thresholds, 1.04% duplicated-token result, and
+production dependency audit with zero vulnerabilities.
+
+## 2026-08-13 critical-threshold v1 slice
+
+The generic `modify-critical-threshold.v1` executor now applies typed natural-
+or final-result thresholds inside the existing single-die attack resolution
+pipeline. Threshold expressions are evaluated from authoritative combat state,
+must resolve to finite values before randomness is consumed, and remain subject
+to the shared single-die eligibility rule and explicit critical prevention.
+The executor does not inspect source prose, persist resolution-local state, or
+branch on move names. Accepted public decisions still advance the fight version
+exactly once and pass through the existing transition invariant boundary.
+
+All four converted occurrences are now `supported-generic`. Volcanic Smash
+criticals at a final attack result of 30 or higher. Crescent Kick uses the same
+threshold only when its typed prior-action condition confirms that the user
+stopped the opponent's latest action. Critical Mass Mastery applies a final
+result threshold of 29 to matching Midorikatai and non-Custom Freestyle attacks
+whose typed base attack roll is exactly one die with at most 32 sides. Its
+previously selector-free conversion was split into two declarative effects so
+the style alternatives, non-Custom restriction, die count, and maximum die size
+are explicit executable data rather than inferred from text.
+
+Focused compiler-registry, selector, attack-resolution, data-fidelity, and
+public-transition tests cover the exact threshold boundary, below-threshold and
+multi-die exclusions, non-finite input rejection, the prior-action condition,
+both mastery selector branches, critical damage, deterministic rolls, and state
+versioning. The regenerated matrix now records 742 `supported-generic`, 251
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 65 pending-choice, 11 typed compiled-damage or
+resolution-context, and 175 typed executor or compiled-plan rows. Every
+out-of-scope occurrence retains its documented approved exclusion, and the goal
+remains active because the 251 in-scope unsupported occurrences are not yet
+closed. The independent coverage run passes 43 test files and 604 tests at
+76.75% global branch coverage.
 
 ## Handoff prompt
 

@@ -184,6 +184,50 @@ describe("Death Beam advanced-attack slice", () => {
     expect(resolved.state.combatants[defenderId].hitPoints.current).toBe(91);
   });
 
+  it("offers an energy-only Block against a physical attack with additive Energy classification", () => {
+    const deps = dependencies([]);
+    const fight = success(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            { ...input.combatants[0], moveIds: ["move-akaikaru-shock-fist"] },
+            { ...input.combatants[1], moveIds: ["move-aoyosumu-blast-shield"] },
+          ],
+        },
+        deps,
+      ),
+    );
+    const actionState = active(success(advanceFight(fight.state, deps)).state);
+    const transition = success(
+      submitCombatDecision(
+        actionState,
+        {
+          ...deathBeamDecision(attackerId, actionState.version),
+          id: combatDecisionIdSchema.parse("decision:shock-fist-defense"),
+          moveId: "move-akaikaru-shock-fist",
+        },
+        deps,
+      ),
+    );
+
+    expect(transition.state).toMatchObject({
+      version: actionState.version + 1,
+      pendingDecision: {
+        type: "defense-response",
+        combatantId: defenderId,
+        options: expect.arrayContaining([
+          {
+            id: "use-block:move-aoyosumu-blast-shield",
+            type: "use-block",
+            moveId: "move-aoyosumu-blast-shield",
+          },
+        ]),
+      },
+      resolutionFrames: [expect.objectContaining({ stage: "awaiting-defense" })],
+    });
+  });
+
   it("applies a selected converted Block to a converted attack and charges its derived cost", () => {
     const deps = dependencies([20]);
     const fight = success(

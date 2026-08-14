@@ -39,6 +39,8 @@ export interface ResolutionThresholdRule {
   readonly roll: "attack" | "defense";
   readonly comparison: "at-least" | "at-most";
   readonly value: number;
+  readonly relativeTo?: "attack-roll" | "defense-roll";
+  readonly relativeOperation?: "add" | "multiply";
   readonly resultScope: "current-attack" | "matching-die";
 }
 
@@ -84,6 +86,40 @@ const assertNaturalRolls = (
   }
   assertNumericResultOverrides(numericResultOverrides);
   assertPersistedDieValues(attack, defenseSides, blockedDice, naturalRolls);
+};
+
+const assertResolutionThresholdShape = (threshold: ResolutionThresholdRule) => {
+  if (threshold.outcome !== "successful" && threshold.outcome !== "stopped")
+    throw new RangeError("Resolution thresholds must contain a valid outcome.");
+  if (threshold.roll !== "attack" && threshold.roll !== "defense")
+    throw new RangeError("Resolution thresholds must contain a valid roll.");
+  if (threshold.comparison !== "at-least" && threshold.comparison !== "at-most")
+    throw new RangeError("Resolution thresholds must contain a valid comparison.");
+  if (!Number.isFinite(threshold.value))
+    throw new RangeError("Resolution thresholds must contain a finite value.");
+  if (threshold.resultScope !== "current-attack" && threshold.resultScope !== "matching-die")
+    throw new RangeError("Resolution thresholds must contain a valid result scope.");
+};
+
+const assertRelativeResolutionThreshold = (threshold: ResolutionThresholdRule) => {
+  if (threshold.relativeTo === undefined) {
+    if (threshold.relativeOperation !== undefined)
+      throw new RangeError("A relative threshold operation requires a referenced roll.");
+    return;
+  }
+  if (threshold.relativeOperation === undefined)
+    throw new RangeError("A relative threshold requires an explicit operation.");
+  if (threshold.relativeTo === "attack-roll" && threshold.roll === "attack")
+    throw new RangeError("A relative threshold must compare opposite roll results.");
+  if (threshold.relativeTo === "defense-roll" && threshold.roll === "defense")
+    throw new RangeError("A relative threshold must compare opposite roll results.");
+};
+
+const assertResolutionThresholds = (thresholds: readonly ResolutionThresholdRule[] | undefined) => {
+  for (const threshold of thresholds ?? []) {
+    assertResolutionThresholdShape(threshold);
+    assertRelativeResolutionThreshold(threshold);
+  }
 };
 
 const assertNumericResultOverrides = (
@@ -171,8 +207,9 @@ const resolutionThresholdOutcome = (
   const stoppedThresholds = thresholds.filter((threshold) => threshold.outcome === "stopped");
   const thresholdMatches = (threshold: ResolutionThresholdRule) => {
     const result = threshold.roll === "attack" ? attackResult : defenseResult;
+    const thresholdValue = resolutionThresholdValue(threshold, attackResult, defenseResult);
     const comparisonMatches =
-      threshold.comparison === "at-least" ? result >= threshold.value : result <= threshold.value;
+      threshold.comparison === "at-least" ? result >= thresholdValue : result <= thresholdValue;
     return threshold.outcome === "stopped" && threshold.comparison === "at-most"
       ? !comparisonMatches
       : comparisonMatches;
@@ -189,6 +226,17 @@ const resolutionThresholdOutcome = (
   )
     return "successful";
   return defaultOutcome;
+};
+
+const resolutionThresholdValue = (
+  threshold: ResolutionThresholdRule,
+  attackResult: number,
+  defenseResult: number,
+) => {
+  if (threshold.relativeTo === undefined) return threshold.value;
+  const referenceResult = threshold.relativeTo === "attack-roll" ? attackResult : defenseResult;
+  if (threshold.relativeOperation === "add") return referenceResult + threshold.value;
+  return referenceResult * threshold.value;
 };
 
 const resolveContestedAttackDie = (
@@ -252,6 +300,7 @@ export const resolveContestedAttackRolls = (
     resultOverrides,
     numericResultOverrides,
   );
+  assertResolutionThresholds(resolutionThresholds);
 
   const input: ContestedAttackRollInput = {
     attack,

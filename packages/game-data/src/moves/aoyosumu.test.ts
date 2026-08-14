@@ -83,7 +83,7 @@ describe("AOYOSUMU_MOVES", () => {
       expect.objectContaining({
         type: "schedule-effect",
         timing: { type: "turn-start", subject: "opponent", turnsAfter: 2 },
-        effect: expect.objectContaining({ resource: "hp", operation: "lose" }),
+        effect: expect.objectContaining({ resource: "hp", operation: "damage" }),
         cancellation: expect.objectContaining({ target: "source" }),
       }),
     ]);
@@ -129,6 +129,21 @@ describe("AOYOSUMU_MOVES", () => {
         roll: "attack",
         rerollScope: "entire-attack",
         useLimit: { scope: "turn", count: 1, sourceText: "more than once per turn" },
+      }),
+    ]);
+    expect(AOYOSUMU_MOVES.find((move) => move.name === "Tiger Strikes")?.effects).toEqual([
+      expect.objectContaining({
+        type: "reroll",
+        optional: true,
+        resultModifier: { type: "literal", value: 3 },
+      }),
+    ]);
+    expect(AOYOSUMU_MOVES.find((move) => move.name === "Zen Explosion")?.effects).toEqual([
+      expect.objectContaining({
+        type: "reroll",
+        optional: true,
+        requiresPriorSourceResult: "successful",
+        duration: expect.objectContaining({ type: "combat" }),
       }),
     ]);
     expect(AOYOSUMU_MOVES.find((move) => move.name === "Crescent Kick")?.effects).toEqual([
@@ -215,16 +230,6 @@ describe("AOYOSUMU_MOVES", () => {
         value: { type: "literal", value: 5 },
       }),
     ]);
-    expect(AOYOSUMU_MOVES.find((move) => move.name === "Tiger Strikes")?.effects).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: "reroll", roll: "defense" }),
-        expect.objectContaining({
-          type: "modify-roll",
-          roll: "defense",
-          amount: { type: "literal", value: 3 },
-        }),
-      ]),
-    );
     expect(AOYOSUMU_MOVES.find((move) => move.name === "Blast Shield")?.effects).toEqual([
       expect.objectContaining({
         type: "modify-cost",
@@ -276,7 +281,7 @@ describe("AOYOSUMU_MOVES", () => {
       expect.arrayContaining([
         expect.objectContaining({
           type: "skip-action",
-          blockedCategories: ["advanced-attack", "signature"],
+          blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         }),
         expect.objectContaining({
           type: "modify-roll",
@@ -377,6 +382,17 @@ describe("AOYOSUMU_MOVES", () => {
         expect.objectContaining({
           type: "modify-remaining-uses",
           amount: { type: "literal", value: 1 },
+          selector: expect.objectContaining({
+            ids: ["move-aoyosumu-super-arm-bar-takedown"],
+          }),
+          conditions: [
+            expect.objectContaining({
+              type: "move-use-count",
+              comparison: "exactly",
+              value: 1,
+              timing: "including-current-use",
+            }),
+          ],
         }),
       ]),
     );

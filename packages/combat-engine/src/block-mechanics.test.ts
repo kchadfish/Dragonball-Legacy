@@ -43,6 +43,22 @@ describe("converted Block mechanics", () => {
         restricted: false,
       }),
     ).toEqual({ canDeclare: false, stopsAttack: false });
+    expect(
+      evaluateBlockEligibility(beamRedirection, {
+        attackType: "physical",
+        additionalAttackTypes: ["energy"],
+        tags: ["punch"],
+        restricted: false,
+      }),
+    ).toEqual({ canDeclare: false, stopsAttack: false });
+    expect(
+      evaluateBlockEligibility(requireMove("move-aoyosumu-blast-shield"), {
+        attackType: "physical",
+        additionalAttackTypes: ["energy"],
+        tags: ["punch"],
+        restricted: false,
+      }),
+    ).toEqual({ canDeclare: true, stopsAttack: true });
   });
 
   it("evaluates X±N costs with the configured minimum", () => {

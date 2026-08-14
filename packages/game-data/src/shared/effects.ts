@@ -319,6 +319,7 @@ export interface MoveSelectorCondition {
     readonly dice?: number;
     readonly minimumDice?: number;
     readonly sides?: number;
+    readonly maximumSides?: number;
   };
   readonly sourceText: string;
 }
@@ -429,6 +430,7 @@ export type EffectDuration =
       readonly roll: "attack" | "defense" | "transformation";
       readonly comparison: "at-least" | "at-most";
       readonly value: NumericExpression;
+      readonly moveSelector?: MoveSelectorCondition;
       readonly sourceText: string;
     }
   | {
@@ -994,6 +996,7 @@ export interface ModifyCriticalThresholdEffect extends BaseEffectDefinition {
   readonly type: "modify-critical-threshold";
   readonly threshold: NumericExpression;
   readonly basis: "natural-result" | "final-result";
+  readonly selector?: MoveSelectorCondition;
 }
 
 export interface ModifySlotCapacityEffect extends BaseEffectDefinition {
@@ -1153,6 +1156,7 @@ export interface PreventMoveModificationEffect extends BaseEffectDefinition {
   readonly actor: "self" | "opponent" | "any";
   readonly effectSourceStyleExcludes?: string;
   readonly exceptSourceMoveIds?: readonly string[];
+  readonly exceptSourceStatusIds?: readonly StatusId[];
   readonly operations?: readonly "reduce"[];
 }
 
@@ -1187,7 +1191,11 @@ export interface RerollEffect extends BaseEffectDefinition {
   readonly type: "reroll";
   readonly roll: "attack" | "defense";
   readonly rerollScope?: "single-result" | "entire-attack";
+  /** A modifier applied only to the replacement roll, never the original roll. */
+  readonly resultModifier?: NumericExpression;
   readonly selector?: MoveSelectorCondition;
+  /** A durable reroll is unavailable until its source move records this result. */
+  readonly requiresPriorSourceResult?: "successful";
 }
 
 export interface RollAndStoreEffect extends BaseEffectDefinition {
@@ -1211,6 +1219,8 @@ export interface SetResolutionThresholdEffect extends BaseEffectDefinition {
   readonly value: NumericExpression;
   readonly selector?: MoveSelectorCondition;
   readonly relativeTo?: "attack-roll" | "defense-roll";
+  /** How the declared value combines with the referenced roll result. */
+  readonly relativeOperation?: "add" | "multiply";
   readonly resultScope?: "current-attack" | "matching-die";
 }
 
@@ -1261,7 +1271,7 @@ export interface ScheduleEffect extends BaseEffectDefinition {
   readonly effect: {
     readonly type: "modify-resource";
     readonly resource: "hp" | "ki";
-    readonly operation: "drain" | "gain" | "lose" | "set";
+    readonly operation: "damage" | "drain" | "gain" | "lose" | "set";
     readonly amount: NumericExpression;
   };
   readonly cancellation?: {
@@ -1317,7 +1327,7 @@ export interface SetRollSelectionEffect extends BaseEffectDefinition {
 
 export interface SkipActionEffect extends BaseEffectDefinition {
   readonly type: "skip-action";
-  readonly blockedCategories?: readonly ("advanced-attack" | "signature")[];
+  readonly blockedCategories?: readonly ("basic-attack" | "advanced-attack" | "signature")[];
 }
 
 export interface SuppressEffect extends BaseEffectDefinition {

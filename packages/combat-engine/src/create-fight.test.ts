@@ -70,6 +70,8 @@ describe("createFight", () => {
               stats: { power: 20, dexterity: 4, dexterityBonus: 1 },
               moveIds: ["move-freestyle-hidden-power-level"],
               moveUses: {},
+              moveUseLimitModifiers: {},
+              storedRolls: {},
               itemUses: {},
               activeStatuses: [],
               status: "active",
@@ -81,6 +83,8 @@ describe("createFight", () => {
               stats: { power: 18, dexterity: 5, dexterityBonus: 2 },
               moveIds: ["move-afterlife-give-me-energy"],
               moveUses: {},
+              moveUseLimitModifiers: {},
+              storedRolls: {},
               itemUses: {},
               activeStatuses: [],
               status: "active",
@@ -376,6 +380,78 @@ describe("validateFightState", () => {
     );
   });
 
+  it("rejects malformed combat-local restricted-use modifiers", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const combatant = createdFight.value.state.combatants[firstCombatantId];
+    const stateWith = (moveIds: readonly string[], moveUseLimitModifiers: Record<string, number>) =>
+      ({
+        ...createdFight.value.state,
+        combatants: {
+          ...createdFight.value.state.combatants,
+          [firstCombatantId]: { ...combatant, moveIds, moveUseLimitModifiers },
+        },
+      }) as FightState;
+
+    for (const state of [
+      stateWith(combatant.moveIds, { "move-not-owned": 1 }),
+      stateWith(combatant.moveIds, { "move-freestyle-hidden-power-level": 1 }),
+      stateWith(["move-kurokonwaku-breaking-the-cycle"], {
+        "move-kurokonwaku-breaking-the-cycle": 0,
+      }),
+    ]) {
+      expect(validateFightState(state)).toContainEqual(
+        expect.objectContaining({ type: "invalid-combatant-state" }),
+      );
+    }
+  });
+
+  it("accepts canonical stored rolls and rejects malformed or unowned records", () => {
+    const createdFight = createFight(
+      {
+        ...input,
+        combatants: [
+          { ...input.combatants[0], moveIds: ["move-haokiru-healing-ray"] },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const combatant = createdFight.value.state.combatants[firstCombatantId];
+    const withStoredRoll = (storedRolls: NonNullable<typeof combatant.storedRolls>) =>
+      ({
+        ...createdFight.value.state,
+        combatants: {
+          ...createdFight.value.state.combatants,
+          [firstCombatantId]: { ...combatant, storedRolls },
+        },
+      }) as FightState;
+    const valid = withStoredRoll({
+      "healing-ray-result": {
+        sourceDefinitionId: "move-haokiru-healing-ray",
+        storageKey: "healing-ray-result",
+        naturalResults: [9],
+        sides: 30,
+        storedOnTurn: 1,
+      },
+    });
+    const invalid = withStoredRoll({
+      "healing-ray-result": {
+        sourceDefinitionId: "move-haokiru-healing-ray",
+        storageKey: "different-key",
+        naturalResults: [31],
+        sides: 30,
+        storedOnTurn: 2,
+      },
+    });
+
+    expect(validateFightState(valid)).toEqual([]);
+    expect(validateFightState(invalid)).toContainEqual(
+      expect.objectContaining({ type: "invalid-combatant-state", subject: firstCombatantId }),
+    );
+  });
+
   it("identifies invalid temporary state for uses, statuses, transformations, history, and frames", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
@@ -534,6 +610,63 @@ describe("validateFightState", () => {
           scope: "next-rolls",
           remaining: 0,
           modifier: { type: "roll", roll: "defense", modifier: "result", amount: 2 },
+        },
+      ],
+    };
+
+    expect(validateFightState(invalidState)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "invalid-active-effect" })]),
+    );
+  });
+
+  it("rejects malformed scheduled resource state", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok || createdFight.value.state.status !== "active") {
+      throw new Error("Expected an active initial fight state.");
+    }
+    const invalidState: FightState = {
+      ...createdFight.value.state,
+      activeEffects: [
+        {
+          id: "active-effect:invalid-schedule" as never,
+          type: "scheduled-resource",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-afterlife-burning-shoot",
+          sourceEffectIndex: 0,
+          timing: { type: "turn-start", combatantId: secondCombatantId },
+          remainingBoundaries: 0,
+          repeat: "each-turn",
+          resource: "hp",
+          operation: "lose",
+          amount: { type: "literal", value: -1 },
+        },
+      ],
+    };
+
+    expect(validateFightState(invalidState)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "invalid-active-effect" })]),
+    );
+  });
+
+  it("rejects malformed durable action restrictions", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok || createdFight.value.state.status !== "active") {
+      throw new Error("Expected an active initial fight state.");
+    }
+    const invalidState: FightState = {
+      ...createdFight.value.state,
+      activeEffects: [
+        {
+          id: "active-effect:invalid-action-restriction" as never,
+          type: "action-restriction",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-aoyosumu-serenity-wave",
+          sourceEffectIndex: 0,
+          blockedCategories: ["basic-attack", "basic-attack"],
+          availableFromTurn: 0,
+          remainingTurns: 0,
         },
       ],
     };

@@ -3,6 +3,27 @@ import { describe, expect, it } from "vitest";
 import { AKAIKARU_MOVES } from "./akaikaru.js";
 
 describe("AKAIKARU_MOVES", () => {
+  it("records Swift Reaction's dynamic restricted uses and optional whole-attack reroll", () => {
+    const swiftReaction = AKAIKARU_MOVES.find((move) => move.name === "Swift Reaction");
+
+    expect(swiftReaction?.mechanics.restrictedUses).toEqual({
+      type: "bounded-stat",
+      subject: "self",
+      stat: "dexterity-bonus",
+      offset: -2,
+      minimum: 1,
+    });
+    expect(swiftReaction?.effects).toEqual([
+      expect.objectContaining({
+        type: "reroll",
+        trigger: "after-defense-roll",
+        optional: true,
+        roll: "attack",
+        rerollScope: "entire-attack",
+      }),
+    ]);
+  });
+
   it("records Fury Strikes' next KI-gain reduction", () => {
     expect(AKAIKARU_MOVES.find((move) => move.name === "Fury Strikes")?.effects).toEqual([
       expect.objectContaining({
@@ -19,6 +40,8 @@ describe("AKAIKARU_MOVES", () => {
       expect.arrayContaining([
         expect.objectContaining({
           type: "modify-move-classification",
+          optional: true,
+          selectionLimit: 1,
           setStyleId: "style-akaikaru",
         }),
         expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),

@@ -3,6 +3,32 @@ import { describe, expect, it } from "vitest";
 import { MIDORIKATAI_MOVES } from "./midorikatai.js";
 
 describe("MIDORIKATAI_MOVES", () => {
+  it("preserves Critical Mass Mastery's exact style, custom, and base-roll selectors", () => {
+    expect(
+      MIDORIKATAI_MOVES.find((move) => move.name === "Critical Mass Mastery")?.effects,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-critical-threshold",
+          threshold: { type: "literal", value: 29 },
+          basis: "final-result",
+          selector: expect.objectContaining({
+            styleId: "style-midorikatai",
+            attackRoll: { dice: 1, maximumSides: 32 },
+          }),
+        }),
+        expect.objectContaining({
+          type: "modify-critical-threshold",
+          selector: expect.objectContaining({
+            styleId: "style-freestyle",
+            custom: false,
+            attackRoll: { dice: 1, maximumSides: 32 },
+          }),
+        }),
+      ]),
+    );
+  });
+
   it("records Test of Strength's contest thresholds, attacker-wins ties, and HP penalty", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Test of Strength")?.effects).toEqual([
       expect.objectContaining({

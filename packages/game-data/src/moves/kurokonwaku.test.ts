@@ -13,9 +13,18 @@ describe("KUROKONWAKU_MOVES", () => {
     ]);
   });
 
-  it("records Breaking The Cycle's paired unrestricted successful-effect suppression", () => {
-    expect(KUROKONWAKU_MOVES.find((move) => move.name === "Breaking The Cycle")?.effects).toEqual(
+  it("records conditional restricted-use increases and paired suppression", () => {
+    const breaking = KUROKONWAKU_MOVES.find((move) => move.name === "Breaking The Cycle");
+    const neuron = KUROKONWAKU_MOVES.find((move) => move.name === "Neuron Disruptor");
+
+    expect(breaking?.mechanics.restrictedUses).toEqual({ type: "literal", value: 1 });
+    expect(breaking?.effects).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-remaining-uses",
+          selector: expect.objectContaining({ ids: ["move-kurokonwaku-breaking-the-cycle"] }),
+          conditions: [expect.objectContaining({ type: "moveset" })],
+        }),
         expect.objectContaining({
           type: "suppress",
           target: "self",
@@ -25,6 +34,16 @@ describe("KUROKONWAKU_MOVES", () => {
           type: "suppress",
           target: "opponent",
           aspects: ["successful-effects"],
+        }),
+      ]),
+    );
+    expect(neuron?.mechanics.restrictedUses).toEqual({ type: "literal", value: 1 });
+    expect(neuron?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-remaining-uses",
+          selector: expect.objectContaining({ ids: ["move-kurokonwaku-neuron-disruptor"] }),
+          conditions: [expect.objectContaining({ type: "moveset" })],
         }),
       ]),
     );
@@ -45,8 +64,12 @@ describe("KUROKONWAKU_MOVES", () => {
   it("represents rerolls, threshold branches, and result-gated locks", () => {
     expect(KUROKONWAKU_MOVES.find((move) => move.name === "Second Chance")?.effects).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: "reroll", roll: "defense" }),
-        expect.objectContaining({ type: "modify-roll", amount: { type: "literal", value: 5 } }),
+        expect.objectContaining({
+          type: "reroll",
+          optional: true,
+          roll: "defense",
+          resultModifier: { type: "literal", value: 5 },
+        }),
       ]),
     );
     expect(KUROKONWAKU_MOVES.find((move) => move.name === "Firebreath")?.effects).toEqual(

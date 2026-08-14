@@ -4,6 +4,7 @@ import { calculateBlockKiCost } from "./combat-mechanics.js";
 
 export interface BlockableAttack {
   readonly attackType: "physical" | "energy";
+  readonly additionalAttackTypes?: readonly ("physical" | "energy")[];
   readonly tags: readonly string[];
   readonly restricted: boolean;
 }
@@ -27,7 +28,9 @@ export const evaluateBlockEligibility = (
     return { canDeclare: false, stopsAttack: false };
   }
 
-  const typeMatches = mechanics.allowedAttackTypes?.includes(attack.attackType) ?? false;
+  const attackTypes = [attack.attackType, ...(attack.additionalAttackTypes ?? [])];
+  const typeMatches =
+    mechanics.allowedAttackTypes?.some((type) => attackTypes.includes(type)) ?? false;
   const tagMatches = mechanics.allowedAttackTags?.some((tag) => attack.tags.includes(tag)) ?? false;
   const canDeclare = typeMatches || tagMatches;
   return { canDeclare, stopsAttack: canDeclare && !attack.restricted };

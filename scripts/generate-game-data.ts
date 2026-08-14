@@ -125,7 +125,8 @@ const numericExpression = (
 
 const mechanicsFor = (effectText: string): Record<string, unknown> => {
   const cost = /Cost:\s*([^.]*)\s+KI\b/iu.exec(effectText)?.[1];
-  const restrictedUses = /RESTRICTEDx(\d+)/iu.exec(effectText)?.[1];
+  const baseEffectText = effectText.replace(/^\s*(?:\([^)]*\)\s*)+/u, "");
+  const restrictedUses = /RESTRICTEDx(\d+)/iu.exec(baseEffectText)?.[1];
   const timingText = /Timing:\s*([^.]*)\./iu.exec(effectText)?.[1];
   const attackType = /\b(Physical|Energy) attack\./iu.exec(effectText)?.[1]?.toLowerCase();
   const damage = /Deal \(([^)]*)\) damage/iu.exec(effectText)?.[1];

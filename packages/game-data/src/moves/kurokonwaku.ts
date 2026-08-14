@@ -965,22 +965,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "after-defense-roll",
         target: "self",
         type: "reroll",
+        optional: true,
         roll: "defense",
         rerollScope: "single-result",
+        resultModifier: { type: "literal", value: 5 },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         sourceText:
           "RESTRICTEDx1. Use after you roll your defensive roll. You may re-roll your defensive roll",
-      },
-      {
-        trigger: "after-defense-roll",
-        target: "self",
-        type: "modify-roll",
-        roll: "defense",
-        modifier: "result",
-        amount: { type: "literal", value: 5 },
-        scope: { type: "next-roll", roll: "defense", sourceText: "the second roll" },
-        sourceText:
-          "You may re-roll your defensive roll, gaining +5 to the result of the second roll",
       },
       {
         trigger: "passive",
@@ -1260,6 +1251,28 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
     "move-kurokonwaku-neuron-disruptor",
     [
       {
+        trigger: "passive",
+        target: "self",
+        type: "modify-remaining-uses",
+        amount: { type: "literal", value: 1 },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: ["move-kurokonwaku-neuron-disruptor"],
+          sourceText: "this attack",
+        },
+        conditions: [
+          {
+            type: "moveset",
+            subject: "self",
+            excludesIds: ["move-kurokonwaku-concussion-shot"],
+            sourceText: "If Concussion Shot is not in your moveset",
+          },
+        ],
+        sourceText:
+          "If Concussion Shot is not in your moveset, this attack is RESTRICTEDx2 instead",
+      },
+      {
         trigger: "on-success",
         target: "opponent",
         type: "lock",
@@ -1370,6 +1383,12 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           roll: "attack",
           comparison: "at-least",
           value: { type: "literal", value: 23 },
+          moveSelector: {
+            type: "move-selector",
+            subject: "source",
+            attackRoll: { dice: 1 },
+            sourceText: "a single dice attack",
+          },
           sourceText:
             "until they roll an attack roll result of 23 or higher on a single dice attack",
         },
@@ -1544,7 +1563,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "self",
         type: "skip-action",
-        blockedCategories: ["advanced-attack", "signature"],
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         duration: {
           type: "turns",
           turns: { type: "literal", value: 2 },

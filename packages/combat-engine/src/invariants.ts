@@ -1,4 +1,5 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
+import { MOVE_DEFINITIONS } from "@dragonball-resurgence/game-data";
 
 import {
   activeEffectIdSchema,
@@ -106,6 +107,28 @@ const validateMoveUses = (
   }
 };
 
+const validateMoveUseLimitModifiers = (
+  combatant: CombatantState,
+  recordId: string,
+  violations: FightStateInvariantViolation[],
+) => {
+  for (const [moveId, modifier] of Object.entries(combatant.moveUseLimitModifiers ?? {})) {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    if (
+      !combatant.moveIds.includes(moveId) ||
+      move?.mechanics.restrictedUses?.type !== "literal" ||
+      !validCounter(modifier, 1)
+    ) {
+      addViolation(
+        violations,
+        "invalid-combatant-state",
+        "Move-use limit modifiers must be positive integers for owned, canonically restricted moves.",
+        recordId,
+      );
+    }
+  }
+};
+
 const validateItemUses = (
   combatant: CombatantState,
   recordId: string,
@@ -117,6 +140,51 @@ const validateItemUses = (
         violations,
         "invalid-use-count",
         "Item use counts must be positive integers for items owned by the combatant.",
+        recordId,
+      );
+    }
+  }
+};
+
+const storedRollKeyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const validateStoredRolls = (
+  combatant: CombatantState,
+  recordId: string,
+  turnNumber: number,
+  violations: FightStateInvariantViolation[],
+) => {
+  for (const [storageKey, storedRoll] of Object.entries(combatant.storedRolls ?? {})) {
+    const sourceMove = MOVE_DEFINITIONS.find(
+      (candidate) => candidate.id === storedRoll.sourceDefinitionId,
+    );
+    const sourceEffect = sourceMove?.effects?.find(
+      (effect) => effect.type === "roll-and-store" && effect.storageKey === storageKey,
+    );
+    const validSourceEffect =
+      sourceEffect?.type === "roll-and-store" && sourceEffect.target === "self";
+    const validResults =
+      storedRoll.naturalResults.length > 0 &&
+      storedRoll.naturalResults.every(
+        (result) => Number.isInteger(result) && result >= 1 && result <= storedRoll.sides,
+      );
+    if (
+      storedRoll.storageKey !== storageKey ||
+      !storedRollKeyPattern.test(storageKey) ||
+      !combatant.moveIds.includes(storedRoll.sourceDefinitionId) ||
+      !validSourceEffect ||
+      storedRoll.naturalResults.length !==
+        (sourceEffect?.type === "roll-and-store" ? sourceEffect.dice : 0) ||
+      !Number.isInteger(storedRoll.sides) ||
+      storedRoll.sides < 1 ||
+      !validResults ||
+      !validCounter(storedRoll.storedOnTurn, 1) ||
+      storedRoll.storedOnTurn > turnNumber
+    ) {
+      addViolation(
+        violations,
+        "invalid-combatant-state",
+        "Stored rolls must match an owned declarative roll, use a stable key, and contain bounded natural results from a completed combat turn.",
         recordId,
       );
     }
@@ -162,6 +230,7 @@ const validateActiveStatuses = (
 const validateCombatant = (
   recordId: string,
   combatant: CombatantState,
+  turnNumber: number,
   violations: FightStateInvariantViolation[],
 ) => {
   if (!combatantIdSchema.safeParse(recordId).success || combatant.id !== recordId) {
@@ -215,7 +284,9 @@ const validateCombatant = (
   }
 
   validateMoveUses(combatant, recordId, violations);
+  validateMoveUseLimitModifiers(combatant, recordId, violations);
   validateItemUses(combatant, recordId, violations);
+  validateStoredRolls(combatant, recordId, turnNumber, violations);
   validateActiveStatuses(combatant, recordId, violations);
 };
 
@@ -298,6 +369,11 @@ const hasValidCostEffectDetails = (effect: ActiveCostModifierEffect) => {
 const hasValidRollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "modify-roll" }>) =>
   (effect.roll === "attack" || effect.roll === "defense") &&
   (effect.modifier === "result" || effect.modifier === "sides") &&
+  (effect.cap === undefined ||
+    (effect.cap.type === "allow-exceed" &&
+      (effect.cap.scope === "amount" ||
+        effect.cap.scope === "total" ||
+        effect.cap.scope === "roll"))) &&
   Number.isFinite(effect.amount) &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
@@ -308,6 +384,12 @@ const hasValidResolutionThresholdDetails = (
   (effect.outcome === "successful" || effect.outcome === "stopped") &&
   (effect.roll === "attack" || effect.roll === "defense") &&
   (effect.comparison === "at-least" || effect.comparison === "at-most") &&
+  (effect.relativeTo === undefined
+    ? effect.relativeOperation === undefined
+    : (effect.relativeTo === "attack-roll" || effect.relativeTo === "defense-roll") &&
+      (effect.relativeOperation === "add" || effect.relativeOperation === "multiply") &&
+      ((effect.relativeTo === "attack-roll" && effect.roll === "defense") ||
+        (effect.relativeTo === "defense-roll" && effect.roll === "attack"))) &&
   (effect.resultScope === "current-attack" || effect.resultScope === "matching-die") &&
   (effect.appliesTo === "source" || effect.appliesTo === "target") &&
   (effect.scope === undefined || effect.scope === "next-action") &&
@@ -342,9 +424,22 @@ const hasValidNextActionModifierDetails = (
   return (
     validDamageOperation &&
     (effect.modifier.type === "damage" ||
+      (effect.modifier.type === "stat" &&
+        (effect.modifier.stat === "dexterity" || effect.modifier.stat === "dexterity-bonus") &&
+        (effect.modifier.operation === "add" ||
+          effect.modifier.operation === "set" ||
+          effect.modifier.operation === "multiply") &&
+        (effect.modifier.roll === undefined ||
+          effect.modifier.roll === "attack" ||
+          effect.modifier.roll === "defense")) ||
       (effect.modifier.type === "roll" &&
         (effect.modifier.roll === "attack" || effect.modifier.roll === "defense") &&
-        (effect.modifier.modifier === "result" || effect.modifier.modifier === "sides"))) &&
+        (effect.modifier.modifier === "result" || effect.modifier.modifier === "sides") &&
+        (effect.modifier.cap === undefined ||
+          (effect.modifier.cap.type === "allow-exceed" &&
+            (effect.modifier.cap.scope === "amount" ||
+              effect.modifier.cap.scope === "total" ||
+              effect.modifier.cap.scope === "roll"))))) &&
     Number.isFinite(effect.modifier.amount) &&
     typeof effect.sourceDefinitionId === "string" &&
     effect.sourceDefinitionId.length > 0 &&
@@ -393,6 +488,53 @@ const hasValidDamageModifierCombatantReferences = (
   return true;
 };
 
+const hasValidStatModifierEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "modify-stat" }>,
+) =>
+  effect.duration.type === "turns" &&
+  validCounter(effect.duration.remaining, 1) &&
+  Number.isFinite(effect.amount) &&
+  effect.amount >= 0 &&
+  effect.sourceDefinitionId.length > 0;
+
+const hasValidSuppressionEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "suppress" }>,
+) => {
+  const selector: unknown = effect.selector;
+  const validSelector =
+    selector === undefined ||
+    (typeof selector === "object" &&
+      selector !== null &&
+      "type" in selector &&
+      selector.type === "move-selector");
+  const validDuration =
+    effect.duration.type === "combat" ||
+    (effect.duration.type === "turns" && validCounter(effect.duration.remaining, 1)) ||
+    (effect.duration.type === "next-actions" && validCounter(effect.duration.remaining, 1)) ||
+    (effect.duration.type === "until-roll-threshold" &&
+      effect.duration.roll === "attack" &&
+      (effect.duration.comparison === "at-least" || effect.duration.comparison === "at-most") &&
+      Number.isFinite(effect.duration.value));
+  return (
+    effect.aspects.length > 0 &&
+    effect.aspects.every((aspect) => aspect === "all-effects" || aspect === "successful-effects") &&
+    validSelector &&
+    validDuration &&
+    effect.sourceDefinitionId.length > 0
+  );
+};
+
+const hasValidSuppressionCombatantReferences = (
+  state: FightState,
+  effect: Extract<ActiveCombatEffect, { type: "suppress" }>,
+) => {
+  if (effect.duration.type === "turns" || effect.duration.type === "next-actions")
+    return isActiveCombatant(state, effect.duration.ownerCombatantId);
+  if (effect.duration.type === "until-roll-threshold")
+    return isActiveCombatant(state, effect.duration.combatantId);
+  return true;
+};
+
 const hasValidRollModificationPreventionDetails = (
   effect: Extract<ActiveCombatEffect, { type: "prevent-roll-modification" }>,
 ) =>
@@ -425,7 +567,9 @@ const hasValidMoveModificationPreventionDetails = (
     (effect.effectSourceStyleExcludes === undefined ||
       typeof effect.effectSourceStyleExcludes === "string") &&
     (effect.exceptSourceMoveIds === undefined ||
-      effect.exceptSourceMoveIds.every((moveId) => typeof moveId === "string"))
+      effect.exceptSourceMoveIds.every((moveId) => typeof moveId === "string")) &&
+    (effect.exceptSourceStatusIds === undefined ||
+      effect.exceptSourceStatusIds.every((statusId) => typeof statusId === "string"))
   );
 };
 
@@ -499,6 +643,64 @@ const hasValidExtraActionEffectDetails = (
     (validCounter(effect.useLimit.count, 1) &&
       (effect.useLimit.scope === "combat" || effect.useLimit.scope === "turn")));
 
+const hasValidActionRestrictionEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { readonly type: "action-restriction" }>,
+) => {
+  const categories = effect.blockedCategories;
+  const allowedCategories = new Set(["basic-attack", "advanced-attack", "signature"]);
+  return (
+    effect.sourceDefinitionId.length > 0 &&
+    validCounter(effect.sourceEffectIndex, 0) &&
+    validCounter(effect.availableFromTurn, 1) &&
+    validCounter(effect.remainingTurns, 1) &&
+    (categories === undefined ||
+      (categories.length > 0 &&
+        new Set(categories).size === categories.length &&
+        categories.every((category) => allowedCategories.has(category))))
+  );
+};
+
+const hasValidScheduledAmount = (
+  amount: Extract<ActiveCombatEffect, { readonly type: "scheduled-resource" }>["amount"],
+) => {
+  if (amount.type === "literal") return Number.isFinite(amount.value) && amount.value >= 0;
+  if (amount.type === "stat-percent")
+    return amount.stat === "power" && Number.isFinite(amount.percent) && amount.percent >= 0;
+  return (
+    amount.type === "resource-percent" &&
+    (amount.resource === "hp" || amount.resource === "ki") &&
+    (amount.basis === "current" || amount.basis === "total") &&
+    Number.isFinite(amount.percent) &&
+    amount.percent >= 0
+  );
+};
+
+const hasValidScheduledResourceEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { readonly type: "scheduled-resource" }>,
+) => {
+  const duration = effect.duration;
+  const validDuration =
+    duration === undefined ||
+    (duration.type === "turns" && validCounter(duration.remaining, 1)) ||
+    (duration.type === "until-roll-threshold" &&
+      Number.isFinite(duration.value) &&
+      (duration.moveSelector === undefined || duration.moveSelector.type === "move-selector"));
+  const threshold = effect.cancellation?.rollThreshold;
+  return (
+    effect.sourceDefinitionId.length > 0 &&
+    validCounter(effect.sourceEffectIndex, 0) &&
+    validCounter(effect.remainingBoundaries, 1) &&
+    (effect.repeat === "once" || effect.repeat === "each-turn") &&
+    (effect.timing.type === "phase-start"
+      ? effect.timing.phase === "upkeep"
+      : effect.timing.phase === undefined) &&
+    (effect.operation !== "damage" || effect.resource === "hp") &&
+    hasValidScheduledAmount(effect.amount) &&
+    validDuration &&
+    (threshold === undefined || Number.isFinite(threshold.value))
+  );
+};
+
 const hasValidActionLockEffectDetails = (
   effect: Extract<
     ActiveCombatEffect,
@@ -565,40 +767,88 @@ const hasValidActionLockCombatantReferences = (
 };
 
 const hasValidNonFloatingEffectDetails = (
-  effect: Exclude<ActiveCombatEffect, { type: "floating-effect" | "extra-action" }>,
+  effect: Exclude<
+    ActiveCombatEffect,
+    { type: "floating-effect" | "extra-action" | "scheduled-resource" }
+  >,
 ) => {
-  if (effect.type === "modify-ki-cost") return hasValidCostEffectDetails(effect);
-  if (effect.type === "modify-roll") return hasValidRollEffectDetails(effect);
-  if (effect.type === "set-resolution-threshold") return hasValidResolutionThresholdDetails(effect);
-  if (effect.type === "modify-damage") return hasValidDamageModifierDetails(effect);
-  if (effect.type === "active-constant") return hasValidConstantEffectDetails(effect);
-  if (effect.type === "force-next-action") return hasValidForcedActionEffectDetails(effect);
-  if (effect.type === "modify-item-next-attack-damage")
-    return hasValidItemDamageModifierEffectDetails(effect);
-  if (effect.type === "action-lock") return hasValidActionLockEffectDetails(effect);
-  if (effect.type === "prevent-move-use") return hasValidActionLockEffectDetails(effect);
-  if (effect.type === "prevent-status") return hasValidActionLockEffectDetails(effect);
-  if (effect.type === "prevent-combat-result") return hasValidActionLockEffectDetails(effect);
-  if (effect.type === "prevent-roll-modification")
-    return (
-      hasValidActionLockEffectDetails(effect) && hasValidRollModificationPreventionDetails(effect)
-    );
-  if (effect.type === "prevent-move-modification")
-    return (
-      hasValidActionLockEffectDetails(effect) && hasValidMoveModificationPreventionDetails(effect)
-    );
-  if (effect.type === "prevent-resource-modification")
-    return (
-      hasValidActionLockEffectDetails(effect) &&
-      hasValidResourceModificationPreventionDetails(effect)
-    );
-  return hasValidNextActionModifierDetails(effect);
+  switch (effect.type) {
+    case "modify-ki-cost":
+      return hasValidCostEffectDetails(effect);
+    case "modify-roll":
+      return hasValidRollEffectDetails(effect);
+    case "set-resolution-threshold":
+      return hasValidResolutionThresholdDetails(effect);
+    case "modify-damage":
+      return hasValidDamageModifierDetails(effect);
+    case "modify-stat":
+      return hasValidStatModifierEffectDetails(effect);
+    case "suppress":
+      return hasValidSuppressionEffectDetails(effect);
+    case "active-constant":
+      return hasValidConstantEffectDetails(effect);
+    case "force-next-action":
+      return hasValidForcedActionEffectDetails(effect);
+    case "action-restriction":
+      return hasValidActionRestrictionEffectDetails(effect);
+    case "modify-item-next-attack-damage":
+      return hasValidItemDamageModifierEffectDetails(effect);
+    case "action-lock":
+    case "prevent-move-use":
+    case "prevent-status":
+    case "prevent-combat-result":
+      return hasValidActionLockEffectDetails(effect);
+    case "prevent-roll-modification":
+      return (
+        hasValidActionLockEffectDetails(effect) && hasValidRollModificationPreventionDetails(effect)
+      );
+    case "prevent-move-modification":
+      return (
+        hasValidActionLockEffectDetails(effect) && hasValidMoveModificationPreventionDetails(effect)
+      );
+    case "prevent-resource-modification":
+      return (
+        hasValidActionLockEffectDetails(effect) &&
+        hasValidResourceModificationPreventionDetails(effect)
+      );
+    case "modify-next-action":
+      return hasValidNextActionModifierDetails(effect);
+  }
 };
 
 const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
   if (effect.type === "floating-effect") return hasValidFloatingEffectDetails(effect);
   if (effect.type === "extra-action") return hasValidExtraActionEffectDetails(effect);
+  if (effect.type === "scheduled-resource") return hasValidScheduledResourceEffectDetails(effect);
   return hasValidNonFloatingEffectDetails(effect);
+};
+
+const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatEffect) => {
+  if (effect.type === "scheduled-resource")
+    return (
+      isActiveCombatant(state, effect.timing.combatantId) &&
+      (effect.duration?.type !== "until-roll-threshold" ||
+        isActiveCombatant(state, effect.duration.combatantId)) &&
+      (effect.cancellation === undefined ||
+        isActiveCombatant(state, effect.cancellation.actorCombatantId))
+    );
+  if (effect.type === "modify-damage")
+    return hasValidDamageModifierCombatantReferences(state, effect);
+  if (effect.type === "modify-stat")
+    return isActiveCombatant(state, effect.duration.ownerCombatantId);
+  if (effect.type === "suppress") return hasValidSuppressionCombatantReferences(state, effect);
+  if (
+    effect.type === "action-lock" ||
+    effect.type === "prevent-move-use" ||
+    effect.type === "prevent-status" ||
+    effect.type === "prevent-combat-result" ||
+    effect.type === "prevent-roll-modification" ||
+    effect.type === "prevent-move-modification" ||
+    effect.type === "prevent-resource-modification" ||
+    effect.type === "set-resolution-threshold"
+  )
+    return hasValidActionLockCombatantReferences(state, effect);
+  return true;
 };
 
 const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
@@ -613,17 +863,7 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
       (effect.type !== "floating-effect" ||
         effect.scope.type !== "next-turn" ||
         isActiveCombatant(state, effect.scope.combatantId)) &&
-      ((effect.type !== "action-lock" &&
-        effect.type !== "prevent-move-use" &&
-        effect.type !== "prevent-status" &&
-        effect.type !== "prevent-combat-result" &&
-        effect.type !== "prevent-roll-modification" &&
-        effect.type !== "prevent-move-modification" &&
-        effect.type !== "modify-damage" &&
-        effect.type !== "set-resolution-threshold") ||
-        (effect.type === "modify-damage"
-          ? hasValidDamageModifierCombatantReferences(state, effect)
-          : hasValidActionLockCombatantReferences(state, effect))) &&
+      hasValidActiveEffectReferences(state, effect) &&
       hasValidEffectDetails(effect);
     if (!validEffect) {
       addViolation(
@@ -1042,7 +1282,7 @@ export const validateFightState = (state: FightState): readonly FightStateInvari
   validateFightMetadata(state, combatantEntries, violations);
 
   for (const [recordId, combatant] of combatantEntries) {
-    validateCombatant(recordId, combatant, violations);
+    validateCombatant(recordId, combatant, state.turnNumber, violations);
     validateCombatantReferences(state, combatant, violations);
   }
   validateActiveEffects(state, violations);

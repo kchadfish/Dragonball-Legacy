@@ -23533,7 +23533,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       restrictedUses: {
         type: "literal",
-        value: 2,
+        value: 1,
       },
       attack: {
         type: "physical",
@@ -24171,7 +24171,7 @@ export const MOVE_SOURCE_DEFINITIONS: readonly MoveSourceDefinition[] = [
       },
       restrictedUses: {
         type: "literal",
-        value: 2,
+        value: 1,
       },
       attack: {
         type: "physical",

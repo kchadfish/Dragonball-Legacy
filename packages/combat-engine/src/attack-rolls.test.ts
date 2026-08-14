@@ -167,6 +167,77 @@ describe("contested attack rolls", () => {
     ).toMatchObject([{ outcome: "stopped" }]);
   });
 
+  it("evaluates typed additive and multiplicative thresholds from the matching die results", () => {
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "stopped",
+              roll: "defense",
+              comparison: "at-least",
+              value: 5,
+              relativeTo: "attack-roll",
+              relativeOperation: "add",
+              resultScope: "current-attack",
+            },
+          ],
+          naturalRolls: [{ attack: 10, defense: 14 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toMatchObject([{ outcome: "successful" }]);
+
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "stopped",
+              roll: "defense",
+              comparison: "at-least",
+              value: 2,
+              relativeTo: "attack-roll",
+              relativeOperation: "multiply",
+              resultScope: "matching-die",
+            },
+          ],
+          naturalRolls: [{ attack: 10, defense: 19 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toMatchObject([{ outcome: "successful" }]);
+  });
+
+  it("rejects incomplete relative threshold rules before rolling", () => {
+    expect(() =>
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "stopped",
+              roll: "defense",
+              comparison: "at-least",
+              value: 5,
+              relativeTo: "attack-roll",
+              resultScope: "current-attack",
+            },
+          ],
+        },
+        new SequenceRandomSource([10, 15]),
+      ),
+    ).toThrow("A relative threshold requires an explicit operation.");
+  });
+
   it("uses a declared defense die size for both random and persisted rolls", () => {
     expect(
       resolveContestedAttackRolls(

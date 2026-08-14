@@ -327,6 +327,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         comparison: "at-least",
         value: { type: "literal", value: 2 },
         relativeTo: "attack-roll",
+        relativeOperation: "multiply",
         resultScope: "current-attack",
         sourceText:
           "Your opponent's defensive roll must be double your attack roll to stop this attack",
@@ -447,7 +448,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "self",
         type: "skip-action",
-        blockedCategories: ["advanced-attack", "signature"],
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         scope: { type: "next-turn", subject: "self", sourceText: "on your next turns" },
         sourceText: "SUCCESSFUL - You and your opponent cannot attack on your next turns",
       },
@@ -455,7 +456,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "on-success",
         target: "opponent",
         type: "skip-action",
-        blockedCategories: ["advanced-attack", "signature"],
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         scope: { type: "next-turn", subject: "opponent", sourceText: "on your next turns" },
         sourceText: "SUCCESSFUL - You and your opponent cannot attack on your next turns",
       },
@@ -752,6 +753,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         comparison: "at-least",
         value: { type: "literal", value: 3 },
         relativeTo: "defense-roll",
+        relativeOperation: "add",
         resultScope: "matching-die",
         sourceText:
           "Your opponent must have an attack roll of +3 or higher your defensive roll in order for their attack to be SUCCESSFUL",
@@ -765,6 +767,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         comparison: "at-least",
         value: { type: "literal", value: 5 },
         relativeTo: "defense-roll",
+        relativeOperation: "add",
         resultScope: "matching-die",
         conditions: [
           {
@@ -982,7 +985,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         trigger: "before-attack-roll",
         target: "self",
         type: "skip-action",
-        blockedCategories: ["advanced-attack", "signature"],
+        blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
         sourceText: "You may not attack or Power Up on your next turn",
       },

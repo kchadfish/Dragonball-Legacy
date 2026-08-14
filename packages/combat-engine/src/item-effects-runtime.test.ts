@@ -122,6 +122,78 @@ describe("item effect runtime", () => {
     });
   });
 
+  it("executes the common on-move-use resource primitive for a converted healing item", () => {
+    const firstCombatantId = combatantIdSchema.parse("combatant:common-item-user");
+    const secondCombatantId = combatantIdSchema.parse("combatant:common-item-opponent");
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-12T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:common-item-use")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      eventIds: [
+        combatEventIdSchema.parse("event:common-item-fight-started"),
+        combatEventIdSchema.parse("event:common-item-turn-started"),
+        combatEventIdSchema.parse("event:common-item-action"),
+        combatEventIdSchema.parse("event:common-item-used"),
+      ],
+    });
+    const created = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 2, dexterityBonus: 0 },
+            moveIds: [],
+            itemIds: ["item-equipment-first-aid-kit"],
+          },
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 1, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
+      },
+      dependencies,
+    );
+    if (!created.ok) throw new Error("Expected valid fight setup.");
+    const action = advanceFight(created.value.state, dependencies);
+    if (!action.ok || action.value.state.status !== "active")
+      throw new Error("Expected action state.");
+
+    expect(enumerateLegalDecisions(action.value.state, firstCombatantId)).toContainEqual({
+      type: "use-item",
+      actorId: firstCombatantId,
+      itemId: "item-equipment-first-aid-kit",
+    });
+    const used = submitCombatDecision(
+      action.value.state,
+      {
+        type: "use-item",
+        id: combatDecisionIdSchema.parse("decision:use-first-aid-kit"),
+        actorId: firstCombatantId,
+        expectedStateVersion: 1,
+        itemId: "item-equipment-first-aid-kit",
+      },
+      dependencies,
+    );
+    if (!used.ok || used.value.state.status !== "active")
+      throw new Error("Expected used item state.");
+
+    expect(used.value.state.version).toBe(2);
+    expect(used.value.state.combatants[firstCombatantId]).toMatchObject({
+      hitPoints: { current: 100 },
+      itemUses: { "item-equipment-first-aid-kit": 1 },
+    });
+    expect(used.value.events).toContainEqual(
+      expect.objectContaining({ type: "item-used", itemId: "item-equipment-first-aid-kit" }),
+    );
+    expect(enumerateLegalDecisions(used.value.state, firstCombatantId)).not.toContainEqual(
+      expect.objectContaining({
+        type: "use-item",
+        itemId: "item-equipment-first-aid-kit",
+      }),
+    );
+  });
+
   it("keeps a combat-duration item roll modifier in deterministic fight state", () => {
     const firstCombatantId = combatantIdSchema.parse("combatant:drink-user");
     const secondCombatantId = combatantIdSchema.parse("combatant:drink-opponent");

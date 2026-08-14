@@ -47,6 +47,8 @@ const createCombatantState = (
     ? {}
     : { transformationIds: [...combatant.transformationIds] }),
   moveUses: {},
+  storedRolls: {},
+  moveUseLimitModifiers: {},
   itemUses: {},
   activeStatuses: [],
   status: "active",
