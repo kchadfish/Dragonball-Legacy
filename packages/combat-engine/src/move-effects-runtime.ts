@@ -239,6 +239,15 @@ export interface DeactivationApplication {
   readonly sourceText: string;
 }
 
+export interface ActivationApplication {
+  readonly target: "self" | "opponent";
+  readonly selector: MoveSelectorCondition;
+  readonly optional: boolean;
+  /** The declarative move that produced this application, retained for replay. */
+  readonly sourceDefinitionId: string;
+  readonly sourceText: string;
+}
+
 export interface FloatingEffectApplication {
   readonly target: "self" | "opponent";
   readonly floatingEffectId: string;
@@ -1375,6 +1384,7 @@ const emptyEffectChanges = () => ({
   suppressions: [] as SuppressionApplication[],
   forcedActions: [] as ForcedActionApplication[],
   actionRestrictions: [] as ActionRestrictionApplication[],
+  activations: [] as ActivationApplication[],
   locks: [] as LockApplication[],
   deactivations: [] as DeactivationApplication[],
   floatingEffects: [] as FloatingEffectApplication[],
@@ -1491,6 +1501,7 @@ const statusEffectChanges = (
     suppressions: [],
     forcedActions: [],
     actionRestrictions: [],
+    activations: [],
     locks: [],
     deactivations: [],
     floatingEffects: [],
@@ -1897,6 +1908,23 @@ const deactivationEffectChanges = (
   };
 };
 
+const activationEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "activate" }>,
+  move: MoveDefinition,
+  target: "self" | "opponent",
+): EffectChanges => ({
+  ...emptyEffectChanges(),
+  activations: [
+    {
+      target,
+      selector: effect.selector,
+      optional: effect.optional === true,
+      sourceDefinitionId: move.id,
+      sourceText: effect.sourceText,
+    },
+  ],
+});
+
 const remainingUseModificationEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "modify-remaining-uses" }>,
   move: MoveDefinition,
@@ -2279,6 +2307,12 @@ const rerollEffectChanges = (
 };
 
 const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], TriggeredEffectHandler>> = {
+  activate: (effect, move, _context, target) =>
+    activationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "activate" }>,
+      move,
+      target,
+    ),
   "roll-and-store": (effect, move, context, target, _trigger, effectIndex) =>
     rollAndStoreEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "roll-and-store" }>,
@@ -2490,10 +2524,20 @@ const triggeredEffectChanges = (
     effect.trigger !== trigger ||
     (effect.optional === true &&
       effect.type !== "reroll" &&
-      !context.enabledOptionalEffectIndices?.includes(effectIndex)) ||
+      !context.enabledOptionalEffectIndices?.includes(effectIndex) &&
+      !(
+        context.collectPendingChoices === true &&
+        trigger === "on-success" &&
+        effect.type === "activate"
+      )) ||
     (effect.activationGroup !== undefined &&
       effect.type !== "reroll" &&
-      !context.enabledOptionalEffectIndices?.includes(effectIndex)) ||
+      !context.enabledOptionalEffectIndices?.includes(effectIndex) &&
+      !(
+        context.collectPendingChoices === true &&
+        trigger === "on-success" &&
+        effect.type === "activate"
+      )) ||
     ((trigger === "on-resource-gain" || trigger === "on-resource-drain") &&
       !effect.conditions?.some((condition) => condition.type === "resource-change") &&
       context.resourceChange?.subject !== target) ||
@@ -2659,6 +2703,7 @@ const moveEffectsForTriggerInternal = (
   readonly suppressions: readonly SuppressionApplication[];
   readonly forcedActions: readonly ForcedActionApplication[];
   readonly actionRestrictions: readonly ActionRestrictionApplication[];
+  readonly activations: readonly ActivationApplication[];
   readonly locks: readonly LockApplication[];
   readonly deactivations: readonly DeactivationApplication[];
   readonly floatingEffects: readonly FloatingEffectApplication[];
@@ -2694,6 +2739,7 @@ const moveEffectsForTriggerInternal = (
   const suppressions: SuppressionApplication[] = [];
   const forcedActions: ForcedActionApplication[] = [];
   const actionRestrictions: ActionRestrictionApplication[] = [];
+  const activations: ActivationApplication[] = [];
   const locks: LockApplication[] = [];
   const deactivations: DeactivationApplication[] = [];
   const floatingEffects: FloatingEffectApplication[] = [];
@@ -2718,11 +2764,14 @@ const moveEffectsForTriggerInternal = (
   const enabledEffectIndices = new Set(context.enabledOptionalEffectIndices ?? []);
   const resolvedEffectIndices = new Set(context.resolvedOptionalEffectIndices ?? []);
   const choiceGroups = new Map<string, readonly number[]>();
-  if (context.collectPendingChoices === true && trigger === "before-attack-roll") {
+  if (
+    context.collectPendingChoices === true &&
+    (trigger === "before-attack-roll" || trigger === "after-defense-roll")
+  ) {
     for (const [effectIndex, effect] of (move.effects ?? []).entries()) {
       if (
-        (effect.optional !== true && effect.activationGroup === undefined) ||
-        !effectMatches(effect, context)
+        effect.trigger !== trigger ||
+        (effect.optional !== true && effect.activationGroup === undefined)
       )
         continue;
       const key = effect.activationGroup ?? `effect:${effectIndex}`;
@@ -2730,19 +2779,9 @@ const moveEffectsForTriggerInternal = (
       choiceGroups.set(key, indices);
     }
     for (const [key, effectIndices] of choiceGroups) {
-      if (effectIndices.some((effectIndex) => resolvedEffectIndices.has(effectIndex))) continue;
-      const groupEffects = effectIndices.map((effectIndex) => move.effects![effectIndex]!);
-      if (
-        !groupEffects.some(
-          (effect): effect is Extract<EffectDefinition, { readonly type: "modify-resource" }> =>
-            effect.type === "modify-resource" &&
-            effect.target === "self" &&
-            effect.resource === "hp" &&
-            effect.operation === "lose" &&
-            effect.amount?.type === "resource-percent",
-        )
-      )
+      if (!effectIndices.some((effectIndex) => effectMatches(move.effects![effectIndex]!, context)))
         continue;
+      if (effectIndices.some((effectIndex) => resolvedEffectIndices.has(effectIndex))) continue;
       const plans = effectIndices.map((effectIndex) =>
         compileEffectPlan({
           sourceDefinitionId: move.id,
@@ -2765,13 +2804,19 @@ const moveEffectsForTriggerInternal = (
     const isChoiceEffect =
       (effect.optional === true || effect.activationGroup !== undefined) &&
       effect.type !== "reroll";
-    if (isChoiceEffect && !enabledEffectIndices.has(effectIndex)) continue;
+    const collectActivationChoice =
+      context.collectPendingChoices === true &&
+      trigger === "on-success" &&
+      effect.type === "activate";
+    if (isChoiceEffect && !enabledEffectIndices.has(effectIndex) && !collectActivationChoice)
+      continue;
     const compiled = compileEffectPlan({
       sourceDefinitionId: move.id,
       effectIndex,
       effect,
       allowFloatingOnMoveUse,
-      allowPendingChoice: isChoiceEffect && enabledEffectIndices.has(effectIndex),
+      allowPendingChoice:
+        (isChoiceEffect && enabledEffectIndices.has(effectIndex)) || collectActivationChoice,
     });
     if (!compiled.ok) continue;
     for (const target of effectTargets(compiled.value.definition)) {
@@ -2795,6 +2840,7 @@ const moveEffectsForTriggerInternal = (
       suppressions.push(...changes.suppressions);
       forcedActions.push(...changes.forcedActions);
       actionRestrictions.push(...changes.actionRestrictions);
+      activations.push(...changes.activations);
       locks.push(...changes.locks);
       deactivations.push(...changes.deactivations);
       floatingEffects.push(...changes.floatingEffects);
@@ -2847,6 +2893,7 @@ const moveEffectsForTriggerInternal = (
       suppressions.push(...nested.suppressions);
       forcedActions.push(...nested.forcedActions);
       actionRestrictions.push(...nested.actionRestrictions);
+      activations.push(...nested.activations);
       locks.push(...nested.locks);
       deactivations.push(...nested.deactivations);
       floatingEffects.push(...nested.floatingEffects);
@@ -2881,6 +2928,7 @@ const moveEffectsForTriggerInternal = (
     suppressions,
     forcedActions,
     actionRestrictions,
+    activations,
     locks,
     deactivations,
     floatingEffects,

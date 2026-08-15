@@ -36,6 +36,19 @@ describe("combat capability matrix", () => {
     expect(rendered).toContain("cap=maximum:total");
   });
 
+  it("classifies exact successful CONSTANT Skill activation choices", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.effectType === "activate" && row.capabilityId === "activate.v1",
+    );
+
+    expect(rows.map((row) => row.sourceDefinitionId)).toEqual([
+      "move-freestyle-monkey-sweep",
+      "move-freestyle-tricky-sword-maneuvers",
+      "move-kiihakai-triple-torpedo",
+    ]);
+    expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+  });
+
   it("classifies all canonical stored writes and only exact immediate threshold consumers", () => {
     const matrix = createCombatCapabilityMatrix();
     const storedWrites = matrix.occurrences.filter((row) => row.effectType === "roll-and-store");
@@ -262,7 +275,7 @@ describe("combat capability matrix", () => {
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(9);
+    expect(rows).toHaveLength(10);
     expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
   });
@@ -311,8 +324,9 @@ describe("combat capability matrix", () => {
         row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows.map((row) => `${row.sourceDefinitionId}#${row.effectIndex}`)).toEqual([
+      "move-afterlife-super-galick-gun#0",
       "move-aoyosumu-opportunist#2",
       "move-midorikatai-flawless-execution-mastery#1",
     ]);
@@ -481,6 +495,52 @@ describe("combat capability matrix", () => {
         expect.objectContaining({
           status: "unsupported-in-scope",
           prerequisite: "generic pending-choice compilation and resolution",
+        }),
+      ]),
+    );
+  });
+
+  it("classifies complete Supernova pre-roll choices as one generic supported group", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-afterlife-supernova",
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(0, 2)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          effectIndex: 0,
+          status: "supported-generic",
+          capabilityId: "modify-cost.v1",
+          executor: "cost-modifier",
+        }),
+        expect.objectContaining({
+          effectIndex: 1,
+          status: "supported-generic",
+          capabilityId: "set-roll-definition.v1",
+          executor: "roll-definition",
+        }),
+      ]),
+    );
+    expect(rows[2]).toMatchObject({ status: "unsupported-in-scope" });
+  });
+
+  it("classifies Super Galick Gun's complete after-defense choice as one generic group", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-afterlife-super-galick-gun",
+    );
+
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          effectIndex: 0,
+          status: "supported-generic",
+          capabilityId: "modify-roll.v1",
+        }),
+        expect.objectContaining({
+          effectIndex: 1,
+          status: "supported-generic",
+          capabilityId: "set-combat-result.v1",
         }),
       ]),
     );

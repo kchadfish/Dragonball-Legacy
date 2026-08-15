@@ -797,6 +797,8 @@ export type ResolutionFrame =
       readonly targetCombatantId: CombatantId;
       readonly sourceDefinitionId: string;
       readonly effectIndex: number;
+      /** Legacy effect frames omitted this field and represent deactivation. */
+      readonly operation?: "activate" | "deactivate";
       readonly returnPhase: CombatPhase;
       readonly trigger: "upkeep" | "action" | "end" | "on-success" | "on-stopped";
       readonly pendingDecisionId?: PendingDecisionId;

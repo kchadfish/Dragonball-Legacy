@@ -7,6 +7,7 @@ import {
 } from "@dragonball-resurgence/game-data";
 
 export const registeredEffectTypes = [
+  "activate",
   "apply-status",
   "create-floating-effect",
   "deactivate",
@@ -372,6 +373,61 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
     );
   issues.push(...conditionIssues(effect, sourceDefinitionId, effectIndex));
   issues.push(...requirementIssues(effect, sourceDefinitionId, effectIndex));
+  return issues;
+};
+
+const activateIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "activate" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger !== "on-success")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Activation selection currently resolves only after a successful action.",
+      ),
+    );
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Activation selection currently targets only the activating combatant.",
+      ),
+    );
+  if (
+    effect.asIf !== undefined ||
+    effect.repeatCount !== undefined ||
+    effect.ignoreRequirements === true ||
+    effect.selectionKey !== undefined ||
+    effect.repeatUntil !== undefined ||
+    effect.activationCost !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Activation selection supports one ordinary CONSTANT Skill choice without repeat or alternate activation semantics.",
+      ),
+    );
+  const selectorIsConstant =
+    (effect.selector.category === "skill" && effect.selector.constant === true) ||
+    (effect.selector.ids !== undefined && effect.selector.ids.length > 0);
+  if (!selectorIsConstant || effect.selector.subject !== "source")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Activation selection requires a source CONSTANT Skill selector.",
+      ),
+    );
   return issues;
 };
 
@@ -1220,13 +1276,17 @@ const setCombatResultIssues = (
         "Current-attack success overrides require a passive trigger so the result is known before resolution.",
       ),
     );
-  if (effect.result === "critical" && effect.trigger !== "on-success")
+  const isAfterDefenseCritical =
+    effect.result === "critical" &&
+    effect.trigger === "after-defense-roll" &&
+    effect.target === "opponent";
+  if (effect.result === "critical" && effect.trigger !== "on-success" && !isAfterDefenseCritical)
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Current-attack critical overrides require an on-success trigger.",
+        "Current-attack critical overrides require an on-success trigger or a post-defense reaction.",
       ),
     );
   if (effect.result === "stopped")
@@ -1238,7 +1298,7 @@ const setCombatResultIssues = (
         "Stopped result overrides require a persisted defense or per-die reaction frame.",
       ),
     );
-  if (effect.result === "critical" && effect.target !== "self")
+  if (effect.result === "critical" && effect.target !== "self" && !isAfterDefenseCritical)
     issues.push(
       issue(
         "unsupported-target",
@@ -2265,6 +2325,7 @@ const createExecutor = <T extends RegisteredEffectDefinition>(
 });
 
 export const effectExecutorRegistry = {
+  activate: createExecutor("activate", activateIssues),
   "apply-status": createExecutor("apply-status", applyStatusIssues),
   "create-floating-effect": createExecutor("create-floating-effect", createFloatingIssues),
   deactivate: createExecutor("deactivate"),

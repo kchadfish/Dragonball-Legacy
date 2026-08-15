@@ -991,8 +991,25 @@ const validEffectSelectionFrame = (
   if (state.pendingDecision.combatantId !== frame.sourceCombatantId) return false;
   if (!validCounter(frame.remainingSelections ?? 0, 1)) return false;
   if (frame.optional !== undefined && typeof frame.optional !== "boolean") return false;
+  if (
+    frame.operation !== undefined &&
+    frame.operation !== "activate" &&
+    frame.operation !== "deactivate"
+  )
+    return false;
   if (frame.eligibleMoveIds === undefined || frame.eligibleMoveIds.length === 0) return false;
   if (new Set(frame.eligibleMoveIds).size !== frame.eligibleMoveIds.length) return false;
+  if (frame.operation === "activate") {
+    const target = state.combatants[frame.targetCombatantId];
+    return frame.eligibleMoveIds.every((moveId) => {
+      const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+      return (
+        target.moveIds.includes(moveId) &&
+        move?.category === "skill" &&
+        move.effectClauses.some((clause) => clause.text === "Constant.")
+      );
+    });
+  }
   return frame.eligibleMoveIds.every((moveId) =>
     state.activeEffects.some(
       (effect) =>
@@ -1088,12 +1105,14 @@ const validPendingDecision = (state: ActiveFightState) => {
         frame.type === "effect" &&
         frame.pendingDecisionId === pendingDecision.id &&
         frame.eligibleMoveIds?.includes(moveId) === true &&
-        state.activeEffects.some(
-          (effect) =>
-            effect.type === "active-constant" &&
-            effect.sourceCombatantId === frame.targetCombatantId &&
-            effect.sourceDefinitionId === moveId,
-        ),
+        (frame.operation === "activate"
+          ? state.combatants[frame.targetCombatantId].moveIds.includes(moveId)
+          : state.activeEffects.some(
+              (effect) =>
+                effect.type === "active-constant" &&
+                effect.sourceCombatantId === frame.targetCombatantId &&
+                effect.sourceDefinitionId === moveId,
+            )),
     );
   const validOptions = pendingDecision.options.every(
     (option) =>

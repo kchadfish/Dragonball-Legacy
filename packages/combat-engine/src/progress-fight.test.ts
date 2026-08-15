@@ -69,8 +69,8 @@ const createInitialState = (dependencies = createDependencies()) => {
   return { state: requireTransition(fight).state, dependencies };
 };
 
-const createStrainingDependencies = () =>
-  createTestCombatDependencies([20, 1], new Date("2026-08-04T12:00:00.000Z"), {
+const createStrainingDependencies = (randomValues: readonly number[] = [20, 1]) =>
+  createTestCombatDependencies(randomValues, new Date("2026-08-04T12:00:00.000Z"), {
     fightIds: [fightIdSchema.parse("fight:straining-bodyslam")],
     combatantIds: [firstCombatantId, secondCombatantId],
     eventIds: [
@@ -145,6 +145,7 @@ describe("generic before-attack pending effect choices", () => {
         { id: "decline", type: "decline" },
       ],
     });
+
     expect(pending.combatants[firstCombatantId].hitPoints.current).toBe(100);
     expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([]);
 
@@ -254,6 +255,329 @@ describe("generic before-attack pending effect choices", () => {
     );
     expect(defense.combatants[firstCombatantId].hitPoints.current).toBe(100);
     expect(defense.pendingDecision?.type).toBe("defense-response");
+  });
+});
+
+describe("generic successful CONSTANT Skill activation", () => {
+  it("serializes the move choice and charges the selected skill on resume", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 30, 30, 30],
+      new Date("2026-08-04T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:activation")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 40 }, (_, index) =>
+          combatEventIdSchema.parse(`event:activation-${index + 1}`),
+        ),
+        pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:activation")],
+        resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:activation")],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:activation")],
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-freestyle-monkey-sweep", "move-freestyle-monkey-maneuvers"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-give-me-energy"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const submitted = submitCombatDecision(
+      action,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:activation-attack"),
+        actorId: firstCombatantId,
+        expectedStateVersion: action.version,
+        moveId: "move-freestyle-monkey-sweep",
+        targetCombatantId: secondCombatantId,
+      },
+      dependencies,
+    );
+    const pending = requireActiveFightState(requireTransition(submitted).state);
+    expect(pending.pendingDecision).toMatchObject({
+      type: "select-move",
+      combatantId: firstCombatantId,
+      options: [
+        {
+          id: "activate:move-freestyle-monkey-maneuvers",
+          type: "select-move",
+          moveId: "move-freestyle-monkey-maneuvers",
+        },
+        { id: "decline", type: "decline" },
+      ],
+    });
+    expect(pending.resolutionFrames[0]).toMatchObject({
+      type: "effect",
+      operation: "activate",
+      eligibleMoveIds: ["move-freestyle-monkey-maneuvers"],
+    });
+    expect(pending.combatants[firstCombatantId].ki.current).toBe(4);
+
+    const resumed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:activation-select"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate:move-freestyle-monkey-maneuvers",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(resumed.combatants[firstCombatantId].ki.current).toBe(2);
+    expect(resumed.combatants[firstCombatantId].moveUses["move-freestyle-monkey-maneuvers"]).toBe(
+      1,
+    );
+    expect(resumed.activeEffects).toContainEqual(
+      expect.objectContaining({
+        id: "active-effect:activation",
+        type: "active-constant",
+        sourceDefinitionId: "move-freestyle-monkey-maneuvers",
+        paidActivationCost: 2,
+        lifecycle: "active",
+      }),
+    );
+    expect(resumed.version).toBe(pending.version + 1);
+    expect(resumed.pendingDecision).toBeUndefined();
+    expect(resumed.resolutionFrames).toEqual([]);
+  });
+
+  it("resumes a generic grouped roll-definition choice with its optional Ki cost", () => {
+    const dependencies = createStrainingDependencies([34, 1]);
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-supernova"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const prepared: ActiveFightState = {
+      ...action,
+      turnNumber: 10,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId]!,
+          ki: { ...action.combatants[firstCombatantId]!.ki, current: 10 },
+        },
+      },
+    };
+
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          prepared,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:supernova"),
+            actorId: firstCombatantId,
+            expectedStateVersion: prepared.version,
+            moveId: "move-afterlife-supernova",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(pending.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      options: [
+        {
+          id: "activate-effect:0,1",
+          type: "activate-effect",
+          effectIndices: [0, 1],
+        },
+        { id: "decline", type: "decline" },
+      ],
+    });
+    expect(pending.combatants[firstCombatantId]!.ki.current).toBe(10);
+
+    const resumedTransition = requireTransition(
+      submitCombatDecision(
+        pending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:supernova-optional"),
+          actorId: firstCombatantId,
+          expectedStateVersion: pending.version,
+          pendingDecisionId: pending.pendingDecision!.id,
+          optionId: "activate-effect:0,1",
+        },
+        dependencies,
+      ),
+    );
+    const resumed = requireActiveFightState(resumedTransition.state);
+
+    expect(resumed.combatants[firstCombatantId]!.ki.current).toBe(1);
+    expect(resumed.pendingDecision).toBeUndefined();
+    expect(resumedTransition.events).toContainEqual(
+      expect.objectContaining({ type: "attack-rolled", naturalResult: 34, result: 34 }),
+    );
+
+    expect(resumed.actionHistory.at(-1)).toMatchObject({
+      moveId: "move-afterlife-supernova",
+    });
+  });
+
+  it("offers and resumes a grouped after-defense choice without rerolling persisted dice", () => {
+    const dependencies = createStrainingDependencies([20, 24, 20, 24, 20, 24]);
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-super-galick-gun"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const pendingDefense = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          {
+            ...action,
+            turnNumber: 10,
+            combatants: {
+              ...action.combatants,
+              [firstCombatantId]: {
+                ...action.combatants[firstCombatantId]!,
+                ki: { ...action.combatants[firstCombatantId]!.ki, current: 10 },
+              },
+            },
+          },
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:galick-gun"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-afterlife-super-galick-gun",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(pendingDefense.pendingDecision?.type).toBe("defense-response");
+    const pendingReaction = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pendingDefense,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:galick-defense"),
+            actorId: secondCombatantId,
+            expectedStateVersion: pendingDefense.version,
+            pendingDecisionId: pendingDefense.pendingDecision!.id,
+            optionId: "roll-defense",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(pendingReaction.pendingDecision).toMatchObject({
+      type: "post-defense-roll",
+      combatantId: firstCombatantId,
+      options: [
+        {
+          id: "decline",
+          type: "decline",
+        },
+        {
+          id: "activate-effect:0,1",
+          type: "activate-effect",
+          effectIndices: [0, 1],
+        },
+      ],
+    });
+    expect(pendingReaction.combatants[firstCombatantId]!.ki.current).toBe(10);
+    expect(pendingReaction.resolutionFrames[0]).toMatchObject({
+      stage: "awaiting-post-defense-reaction",
+      naturalRolls: [{ attack: 20, defense: 24 }],
+    });
+
+    const resumedTransition = requireTransition(
+      submitCombatDecision(
+        pendingReaction,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:galick-activate"),
+          actorId: firstCombatantId,
+          expectedStateVersion: pendingReaction.version,
+          pendingDecisionId: pendingReaction.pendingDecision!.id,
+          optionId: "activate-effect:0,1",
+        },
+        dependencies,
+      ),
+    );
+    const resumed = requireActiveFightState(resumedTransition.state);
+
+    expect(resumed.combatants[firstCombatantId]!.ki.current).toBe(1);
+    expect(resumed.actionHistory.at(-1)).toMatchObject({
+      moveId: "move-afterlife-super-galick-gun",
+      critical: true,
+    });
+    expect(resumedTransition.events).toContainEqual(
+      expect.objectContaining({
+        type: "attack-resolved",
+        moveId: "move-afterlife-super-galick-gun",
+        critical: true,
+      }),
+    );
+    expect(resumed.pendingDecision).toBeUndefined();
   });
 });
 

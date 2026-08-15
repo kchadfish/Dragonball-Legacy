@@ -75,6 +75,11 @@ const activeTransformationRaceIds = new Set([
 const genericExecutors: Readonly<
   Record<string, { executor: string; test: string; capabilityId?: string }>
 > = {
+  activate: {
+    executor: "constant-activation-selection",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    capabilityId: "activate.v1",
+  },
   "apply-status": { executor: "status-lifecycle", test: "move-effects-runtime.test.ts" },
   "create-floating-effect": {
     executor: "floating-effect-lifecycle",
@@ -355,56 +360,63 @@ const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
-const isLiteral = (value: unknown, expected: number) =>
-  isRecord(value) && value.type === "literal" && value.value === expected;
-
-const isSupportedPendingChoiceOccurrence = (occurrence: Occurrence) => {
+const isSupportedPendingChoiceOccurrence = (
+  occurrence: Occurrence,
+  occurrences: readonly Occurrence[],
+) => {
   const effect = occurrence.effect;
   if (
-    effect.activationGroup === undefined ||
-    effect.trigger !== "before-attack-roll" ||
+    (effect.trigger !== "before-attack-roll" && effect.trigger !== "after-defense-roll") ||
     (effect.target !== "self" && effect.target !== "opponent")
   )
     return false;
-  if (
-    effect.type === "modify-resource" &&
-    effect.target === "self" &&
-    effect.optional === true &&
-    effect.operation === "lose" &&
-    isRecord(effect.amount) &&
-    effect.amount.type === "resource-percent" &&
-    effect.amount.subject === "self" &&
-    effect.amount.resource === "hp" &&
-    effect.amount.basis === "current" &&
-    effect.amount.percent === 10
-  )
-    return true;
-  if (
-    effect.type === "schedule-effect" &&
-    effect.target === "opponent" &&
-    isRecord(effect.timing) &&
-    effect.timing.type === "turn-end" &&
-    effect.timing.subject === "opponent" &&
-    effect.timing.turnsAfter === 0 &&
-    effect.repeat === "each-turn" &&
-    isRecord(effect.effect) &&
-    effect.effect.type === "modify-resource" &&
-    effect.effect.resource === "ki" &&
-    effect.effect.operation === "lose" &&
-    isLiteral(effect.effect.amount, 1)
-  )
-    return true;
-  return (
-    effect.type === "modify-cost" &&
-    effect.target === "opponent" &&
-    effect.operation === "add" &&
-    isLiteral(effect.amount, 1) &&
-    isRecord(effect.duration) &&
-    effect.duration.type === "until-combat-result"
+  const groupOccurrences = occurrences.filter(
+    (candidate) =>
+      candidate.origin === occurrence.origin &&
+      candidate.sourceDefinitionId === occurrence.sourceDefinitionId &&
+      candidate.effect.trigger === effect.trigger &&
+      (effect.activationGroup === undefined
+        ? candidate.effect === effect && candidate.effect.target === effect.target
+        : candidate.effect.activationGroup === effect.activationGroup),
+  );
+  if (groupOccurrences.length === 0) return false;
+  return groupOccurrences.every(
+    (candidate) =>
+      candidate.origin !== "item" &&
+      compileEffectPlan({
+        sourceDefinitionId: candidate.sourceDefinitionId,
+        effectIndex: candidate.effectIndex,
+        effect: candidate.effect as EffectDefinition,
+        allowPendingChoice: true,
+      }).ok,
   );
 };
 
-const classify = (occurrence: Occurrence) => {
+const isSupportedActivationOccurrence = (occurrence: Occurrence) => {
+  const effect = occurrence.effect;
+  if (
+    effect.type !== "activate" ||
+    effect.trigger !== "on-success" ||
+    effect.target !== "self" ||
+    !isRecord(effect.selector) ||
+    effect.selector.subject !== "source" ||
+    !(
+      (effect.selector.category === "skill" && effect.selector.constant === true) ||
+      (Array.isArray(effect.selector.ids) && effect.selector.ids.length > 0)
+    ) ||
+    effect.selector.styleId !== undefined ||
+    effect.asIf !== undefined ||
+    effect.repeatCount !== undefined ||
+    effect.ignoreRequirements === true ||
+    effect.selectionKey !== undefined ||
+    effect.repeatUntil !== undefined ||
+    effect.activationCost !== undefined
+  )
+    return false;
+  return true;
+};
+
+const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) => {
   const effectType = stringValue(occurrence.effect.type) ?? "unknown";
   if (occurrence.origin === "item" && approvedItemExclusions[effectType] !== undefined) {
     return {
@@ -417,10 +429,12 @@ const classify = (occurrence: Occurrence) => {
       approvedExclusion: approvedItemExclusions[effectType],
     };
   }
-  const pendingChoiceSupported = isSupportedPendingChoiceOccurrence(occurrence);
+  const pendingChoiceSupported = isSupportedPendingChoiceOccurrence(occurrence, occurrences);
+  const activationSupported = isSupportedActivationOccurrence(occurrence);
   if (
     (occurrence.effect.optional === true || occurrence.effect.activationGroup !== undefined) &&
-    !pendingChoiceSupported
+    !pendingChoiceSupported &&
+    !activationSupported
   ) {
     return {
       status: "unsupported-in-scope" as const,
@@ -439,7 +453,7 @@ const classify = (occurrence: Occurrence) => {
           sourceDefinitionId: occurrence.sourceDefinitionId,
           effectIndex: occurrence.effectIndex,
           effect: occurrence.effect as EffectDefinition,
-          allowPendingChoice: pendingChoiceSupported,
+          allowPendingChoice: pendingChoiceSupported || activationSupported,
         });
   if (effectType === "modify-damage") {
     if (isSupportedDamageOccurrence(occurrence) && compilation?.ok === true) {
@@ -548,8 +562,9 @@ const collectOccurrences = (): readonly Occurrence[] => {
 };
 
 export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
-  const occurrences = collectOccurrences().map((occurrence) => {
-    const classification = classify(occurrence);
+  const sourceOccurrences = collectOccurrences();
+  const occurrences = sourceOccurrences.map((occurrence) => {
+    const classification = classify(occurrence, sourceOccurrences);
     return {
       sourceDefinitionId: occurrence.sourceDefinitionId,
       origin: occurrence.origin,

@@ -29,6 +29,24 @@ const firstEffectOfType = (moveId: string, type: string) => {
 };
 
 describe("declarative effect executor registry", () => {
+  it("compiles the exact successful CONSTANT Skill activation variant", () => {
+    const { move, effect } = firstEffectOfType("move-freestyle-monkey-sweep", "activate");
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: move.effects!.indexOf(effect),
+      effect,
+      allowPendingChoice: true,
+    });
+
+    expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
+    if (!compiled.ok) return;
+    expect(executeCompiledEffect(compiled.value, { move, target: "self" }).effect).toMatchObject({
+      type: "activate",
+      trigger: "on-success",
+      target: "self",
+    });
+  });
+
   it("compiles exact stored rolls and only their faithfully executable immediate consumers", () => {
     for (const moveId of [
       "move-afterlife-solar-flare",
@@ -698,6 +716,7 @@ describe("declarative effect executor registry", () => {
 
   it("keeps the runtime registry exhaustively named", () => {
     expect(Object.keys(effectExecutorRegistry).sort()).toEqual([
+      "activate",
       "apply-status",
       "create-floating-effect",
       "deactivate",

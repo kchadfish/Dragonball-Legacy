@@ -28,14 +28,14 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 745 `supported-generic`, 246
+The generated capability matrix records 753 `supported-generic`, 238
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 246 remaining in-scope occurrences through the later
+requires closing the 240 remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
 The next implementation priority is the highest-volume ready prerequisite
 identified in the latest dated entry below.
@@ -1450,6 +1450,103 @@ The independent coverage run passes all 43 test files and 619 tests at 77.34%
 global branch coverage. The single final `npm run quality` gate passes the
 format, lint, validation, full test and build, coverage, duplication, and
 production dependency audit stages.
+
+## 2026-08-15 generic CONSTANT Skill activation slice
+
+The generic `activate` executor now covers the exact selector-driven
+`on-success` CONSTANT Skill activation variant. The compiler authorizes
+self-targeted source selectors that identify CONSTANT Skills by category or
+explicit move IDs, while rejecting repeat, alternate activation, activation
+cost, and unsupported trigger semantics. The runtime retains the selected move
+IDs, source effect identity, pending-decision version, authorized combatant,
+and activation operation in a serializable effect frame. Resuming the public
+`select-move` decision performs the canonical CONSTANT Skill eligibility,
+prevention, restricted-use, KI-cost, reactivation, active-effect, move-use, and
+event transitions through the normal invariant-checked state boundary.
+
+Focused public behavior covers Monkey Sweep: the successful attack creates a
+deterministic activation selection, decline remains available for optional
+activation, and selecting Monkey Maneuvers charges its KI cost, increments its
+use count, creates the active CONSTANT effect, advances the version, and
+clears the suspended frame. Compiler and runtime tests cover the registered
+executor and declarative application. No move-name branch or source-text
+execution was added.
+
+The regenerated matrix now records 749 `supported-generic`, 242
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The
+generic pending-choice prerequisite is reduced to 62 occurrences across 39
+definitions; typed compiled-damage or resolution-context remains at 11,
+typed executor or compiled-plan accounting at 166, and typed reroll reaction
+lifecycle at 3. The newly supported activation rows are Monkey Sweep, Tricky
+Sword Maneuvers, and Triple Torpedo. Activation variants requiring repeat,
+selection-key, alternate activation, activation-cost, style-scoped selector,
+or non-successful timing remain explicitly unsupported. Every out-of-scope
+occurrence retains its documented approved exclusion, and the catalog-closure
+goal remains active.
+
+## 2026-08-15 generic grouped pre-roll choice slice
+
+The generic pending-choice runtime now supports complete optional or activation
+groups whose effects all target the current `before-attack-roll` lifecycle and
+compile through the existing pending-effect executor authorization. The
+serialized pending decision retains the exact ordered effect indices and
+resumes through the existing public attack transition without rediscovering or
+reapplying the selected group. Groups remain atomic: a group with any
+unsupported effect, trigger, target, activation lifecycle, or nested selection
+is left unsupported rather than partially enabled.
+
+Supernova is covered publicly through `createFight`, `advanceFight`, and
+`submitCombatDecision`. Selecting its grouped `+2 KI` cost and `1d35`
+roll-definition effects charges the optional cost only on resume and applies
+the selected roll definition before the deterministic attack roll. The shared
+cost and roll-resolution pipelines now consume the selected effect context;
+no move-name or source-text execution branch was added. Focused matrix,
+runtime, compiler, and public-transition tests cover group classification,
+selection, decline, exact effect indices, state-version advancement, KI
+payment, roll-definition behavior, and duplicate-prevention behavior.
+
+The regenerated matrix now records 751 `supported-generic`, 240
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The generic
+pending-choice prerequisite is reduced to 60 occurrences across 38 definitions;
+typed compiled-damage or resolution-context remains at 11, typed executor or
+compiled-plan accounting at 166, and typed reroll reaction lifecycle at 3.
+Every out-of-scope occurrence retains its documented approved exclusion, and
+the catalog-closure goal remains active.
+
+## 2026-08-15 generic grouped after-defense choice slice
+
+The generic pending-choice transition now supports complete optional or
+activation groups on the `after-defense-roll` lifecycle when their typed roll
+and combat-result effects compile through the existing executor authorization.
+Group discovery is atomic across target selectors: when one member matches, the
+ordered group is offered so dependent conditions can evaluate against the
+selected group's modified result. The pending option serializes the exact move
+and effect indices, and the post-defense frame retains the natural attack and
+defense rolls plus numeric and result overrides until the public decision is
+accepted.
+
+On selection, declarative activation costs are evaluated from the persisted
+roll context, checked against the acting combatant's KI, and charged exactly
+once. The selected effect indices resume through the normal attack resolver;
+numeric roll modifications are applied before dependent result conditions, and
+CRITICAL overrides are resolved without emitting duplicate roll events. The
+transition remains immutable, version-incrementing, deterministic, and
+invariant-checked. Super Galick Gun is covered through `createFight`,
+`advanceFight`, and `submitCombatDecision`, including persisted natural rolls,
+the grouped +10 result and CRITICAL effects, KI payment, final resolution, and
+duplicate-prevention behavior. No move-name branch or source-text execution was
+added.
+
+The regenerated matrix now records 753 `supported-generic`, 238
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The generic
+pending-choice prerequisite is reduced to 55 occurrences across 34 definitions;
+typed compiled-damage or resolution-context remains at 11, typed executor or
+compiled-plan accounting at 166, and typed reroll reaction lifecycle at 6.
+Remaining grouped-choice work includes unsupported effect variants, nested
+selection, and broader grouped activation-cost semantics; these remain visible
+as prerequisites rather than being approximated. Every out-of-scope occurrence
+retains its documented approved exclusion, and the catalog-closure goal remains
+active.
 
 ## Handoff prompt
 
