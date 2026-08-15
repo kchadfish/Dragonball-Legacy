@@ -33,6 +33,26 @@ const context = {
 };
 
 describe("converted move effects", () => {
+  it("resolves the selected Straining Bodyslam activation group before the attack roll", () => {
+    const move = moves.get("move-freestyle-straining-bodyslam");
+    if (move === undefined) throw new Error("Expected Straining Bodyslam.");
+
+    expect(
+      moveEffectsForTrigger(move, "before-attack-roll", {
+        ...context,
+        self: { ...self, hitPoints: { current: 100, maximum: 100 } },
+        enabledOptionalEffectIndices: [0, 1],
+      }).resources,
+    ).toEqual([
+      expect.objectContaining({
+        resource: "hp",
+        target: "self",
+        operation: "lose",
+        amount: 10,
+      }),
+    ]);
+  });
+
   it("resolves compiled after-defense rerolls without applying bonuses to the original roll", () => {
     const swiftReaction = moves.get("move-akaikaru-swift-reaction");
     const zenExplosion = moves.get("move-aoyosumu-zen-explosion");

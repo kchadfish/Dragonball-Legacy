@@ -100,6 +100,10 @@ export interface EffectCompilationInput {
   readonly sourceDefinitionId: string;
   readonly effectIndex: number;
   readonly effect: EffectDefinition;
+  /** Nested floating bundles may dispatch their effects from on-move-use. */
+  readonly allowFloatingOnMoveUse?: boolean;
+  /** A pending-choice response may explicitly enable one optional effect plan. */
+  readonly allowPendingChoice?: boolean;
 }
 
 export type EffectCompilationResult =
@@ -1981,13 +1985,13 @@ function createFloatingIssues(
         `Floating-effect scope ${scope} does not have a durable combat representation.`,
       ),
     );
-  if (effect.duration !== undefined)
+  if (effect.duration !== undefined && effect.duration.type !== "combat")
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Floating-effect duration requires a persisted termination transition and is not approximated by scope.",
+        `Floating-effect duration ${effect.duration.type} requires a persisted termination transition.`,
       ),
     );
   if (
@@ -2060,6 +2064,7 @@ function createFloatingIssues(
       sourceDefinitionId,
       effectIndex: nestedIndex,
       effect: nestedEffect,
+      allowFloatingOnMoveUse: true,
     });
     if (!nestedCompilation.ok)
       issues.push(
@@ -2308,6 +2313,8 @@ export const compileEffectPlan = ({
   sourceDefinitionId,
   effectIndex,
   effect,
+  allowFloatingOnMoveUse = false,
+  allowPendingChoice = false,
 }: EffectCompilationInput): EffectCompilationResult => {
   const executor = Object.hasOwn(effectExecutorRegistry, effect.type)
     ? effectExecutorRegistry[effect.type as RegisteredEffectType]
@@ -2325,8 +2332,19 @@ export const compileEffectPlan = ({
       ],
     };
   const issues = executor.validate(effect as never, sourceDefinitionId, effectIndex);
-  return issues.length > 0
-    ? { ok: false, issues }
+  const filteredIssues = issues.filter((candidate) => {
+    if (
+      allowFloatingOnMoveUse &&
+      effect.trigger === "on-move-use" &&
+      candidate.message ===
+        "On-move-use currently dispatches only durable self follow-ups and current-action self cost modifiers."
+    )
+      return false;
+    if (allowPendingChoice && candidate.code === "requires-pending-choice") return false;
+    return true;
+  });
+  return filteredIssues.length > 0
+    ? { ok: false, issues: filteredIssues }
     : { ok: true, value: executor.compile(effect as never, sourceDefinitionId, effectIndex) };
 };
 

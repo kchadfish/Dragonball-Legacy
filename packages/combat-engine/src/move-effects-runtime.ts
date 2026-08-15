@@ -54,6 +54,18 @@ export interface MoveEffectRuntimeContext {
   };
   /** Direct source resolution opts into bundles owned by the acting combatant. */
   readonly includeActiveFloatingEffects?: boolean;
+  /** Collect optional effect groups that can be resumed before a roll. */
+  readonly collectPendingChoices?: boolean;
+  /** Effect indices explicitly enabled by a pending-choice response. */
+  readonly enabledOptionalEffectIndices?: readonly number[];
+  /** Effect indices whose optional decision has already been resolved. */
+  readonly resolvedOptionalEffectIndices?: readonly number[];
+}
+
+export interface PendingEffectChoice {
+  readonly sourceDefinitionId: MoveDefinition["id"];
+  readonly effectIndices: readonly number[];
+  readonly activationGroup?: string;
 }
 
 export interface ResourceChangeEvent {
@@ -2476,8 +2488,12 @@ const triggeredEffectChanges = (
 ) => {
   if (
     effect.trigger !== trigger ||
-    (effect.optional === true && effect.type !== "reroll") ||
-    effect.activationGroup !== undefined ||
+    (effect.optional === true &&
+      effect.type !== "reroll" &&
+      !context.enabledOptionalEffectIndices?.includes(effectIndex)) ||
+    (effect.activationGroup !== undefined &&
+      effect.type !== "reroll" &&
+      !context.enabledOptionalEffectIndices?.includes(effectIndex)) ||
     ((trigger === "on-resource-gain" || trigger === "on-resource-drain") &&
       !effect.conditions?.some((condition) => condition.type === "resource-change") &&
       context.resourceChange?.subject !== target) ||
@@ -2631,6 +2647,7 @@ const moveEffectsForTriggerInternal = (
     | "upkeep-phase",
   context: MoveEffectRuntimeContext,
   includeActiveFloatingEffects: boolean,
+  allowFloatingOnMoveUse = false,
 ): {
   readonly resources: readonly ResourceChange[];
   readonly storedRollRequests: readonly StoredRollRequest[];
@@ -2662,9 +2679,11 @@ const moveEffectsForTriggerInternal = (
   readonly costModifications: readonly CostModification[];
   readonly currentActionCostModifications: readonly CurrentActionCostModification[];
   readonly rerolls: readonly RerollApplication[];
+  readonly pendingEffectChoices: readonly PendingEffectChoice[];
   // eslint-disable-next-line sonarjs/cognitive-complexity
 } => {
-  if (moveEffectsSuppressed(move, trigger, context)) return emptyEffectChanges();
+  if (moveEffectsSuppressed(move, trigger, context))
+    return { ...emptyEffectChanges(), pendingEffectChoices: [] };
   const resources: ResourceChange[] = [];
   const storedRollRequests: StoredRollRequest[] = [];
   const statuses: StatusApplication[] = [];
@@ -2695,11 +2714,64 @@ const moveEffectsForTriggerInternal = (
   const costModifications: CostModification[] = [];
   const currentActionCostModifications: CurrentActionCostModification[] = [];
   const rerolls: RerollApplication[] = [];
+  const pendingEffectChoices: PendingEffectChoice[] = [];
+  const enabledEffectIndices = new Set(context.enabledOptionalEffectIndices ?? []);
+  const resolvedEffectIndices = new Set(context.resolvedOptionalEffectIndices ?? []);
+  const choiceGroups = new Map<string, readonly number[]>();
+  if (context.collectPendingChoices === true && trigger === "before-attack-roll") {
+    for (const [effectIndex, effect] of (move.effects ?? []).entries()) {
+      if (
+        (effect.optional !== true && effect.activationGroup === undefined) ||
+        !effectMatches(effect, context)
+      )
+        continue;
+      const key = effect.activationGroup ?? `effect:${effectIndex}`;
+      const indices = [...(choiceGroups.get(key) ?? []), effectIndex];
+      choiceGroups.set(key, indices);
+    }
+    for (const [key, effectIndices] of choiceGroups) {
+      if (effectIndices.some((effectIndex) => resolvedEffectIndices.has(effectIndex))) continue;
+      const groupEffects = effectIndices.map((effectIndex) => move.effects![effectIndex]!);
+      if (
+        !groupEffects.some(
+          (effect): effect is Extract<EffectDefinition, { readonly type: "modify-resource" }> =>
+            effect.type === "modify-resource" &&
+            effect.target === "self" &&
+            effect.resource === "hp" &&
+            effect.operation === "lose" &&
+            effect.amount?.type === "resource-percent",
+        )
+      )
+        continue;
+      const plans = effectIndices.map((effectIndex) =>
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect: move.effects![effectIndex]!,
+          allowPendingChoice: true,
+        }),
+      );
+      if (plans.every((plan) => plan.ok)) {
+        const activationGroup = key.startsWith("effect:") ? undefined : key;
+        pendingEffectChoices.push({
+          sourceDefinitionId: move.id,
+          effectIndices,
+          ...(activationGroup === undefined ? {} : { activationGroup }),
+        });
+      }
+    }
+  }
   for (const [effectIndex, effect] of (move.effects ?? []).entries()) {
+    const isChoiceEffect =
+      (effect.optional === true || effect.activationGroup !== undefined) &&
+      effect.type !== "reroll";
+    if (isChoiceEffect && !enabledEffectIndices.has(effectIndex)) continue;
     const compiled = compileEffectPlan({
       sourceDefinitionId: move.id,
       effectIndex,
       effect,
+      allowFloatingOnMoveUse,
+      allowPendingChoice: isChoiceEffect && enabledEffectIndices.has(effectIndex),
     });
     if (!compiled.ok) continue;
     for (const target of effectTargets(compiled.value.definition)) {
@@ -2763,6 +2835,7 @@ const moveEffectsForTriggerInternal = (
         trigger,
         { ...context, includeActiveFloatingEffects: false },
         false,
+        true,
       );
       resources.push(...nested.resources);
       storedRollRequests.push(...nested.storedRollRequests);
@@ -2794,6 +2867,7 @@ const moveEffectsForTriggerInternal = (
       costModifications.push(...nested.costModifications);
       currentActionCostModifications.push(...nested.currentActionCostModifications);
       rerolls.push(...nested.rerolls);
+      pendingEffectChoices.push(...nested.pendingEffectChoices);
     }
   }
   return {
@@ -2827,6 +2901,7 @@ const moveEffectsForTriggerInternal = (
     costModifications,
     currentActionCostModifications,
     rerolls,
+    pendingEffectChoices,
   };
 };
 

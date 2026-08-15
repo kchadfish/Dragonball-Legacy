@@ -69,6 +69,194 @@ const createInitialState = (dependencies = createDependencies()) => {
   return { state: requireTransition(fight).state, dependencies };
 };
 
+const createStrainingDependencies = () =>
+  createTestCombatDependencies([20, 1], new Date("2026-08-04T12:00:00.000Z"), {
+    fightIds: [fightIdSchema.parse("fight:straining-bodyslam")],
+    combatantIds: [firstCombatantId, secondCombatantId],
+    eventIds: [
+      ...Array.from({ length: 60 }, (_, index) =>
+        combatEventIdSchema.parse(`event:straining-bodyslam-${index + 1}`),
+      ),
+    ],
+    activeEffectIds: Array.from({ length: 10 }, (_, index) =>
+      activeEffectIdSchema.parse(`active-effect:straining-bodyslam-${index + 1}`),
+    ),
+    pendingDecisionIds: [
+      pendingDecisionIdSchema.parse("pending-decision:straining-effect"),
+      pendingDecisionIdSchema.parse("pending-decision:straining-defense"),
+    ],
+    resolutionFrameIds: [
+      resolutionFrameIdSchema.parse("resolution-frame:straining-effect"),
+      resolutionFrameIdSchema.parse("resolution-frame:straining-defense"),
+    ],
+  });
+
+describe("generic before-attack pending effect choices", () => {
+  it("offers a deterministic activation or decline before defense and applies activation costs on resume", () => {
+    const dependencies = createStrainingDependencies();
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-freestyle-straining-bodyslam"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-backflip"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const signatureAction = { ...action, turnNumber: 10 };
+    const submitted = submitCombatDecision(
+      signatureAction,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:straining-bodyslam"),
+        actorId: firstCombatantId,
+        expectedStateVersion: signatureAction.version,
+        moveId: "move-freestyle-straining-bodyslam",
+        targetCombatantId: secondCombatantId,
+      },
+      dependencies,
+    );
+    const pending = requireActiveFightState(requireTransition(submitted).state);
+
+    expect(pending.version).toBe(action.version + 1);
+    expect(pending.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      combatantId: firstCombatantId,
+      options: [
+        {
+          id: "activate-effect:0,1",
+          type: "activate-effect",
+          effectIndices: [0, 1],
+        },
+        { id: "decline", type: "decline" },
+      ],
+    });
+    expect(pending.combatants[firstCombatantId].hitPoints.current).toBe(100);
+    expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([]);
+
+    const resumed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:straining-activate"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate-effect:0,1",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(resumed.version).toBe(pending.version + 1);
+    expect(resumed.combatants[firstCombatantId].hitPoints.current).toBe(100);
+    expect(resumed.pendingDecision?.type).toBe("defense-response");
+    expect(resumed.resolutionFrames[0]).toMatchObject({
+      stage: "awaiting-defense",
+      attack: { type: "move", moveId: "move-freestyle-straining-bodyslam" },
+      enabledOptionalEffectIndices: [0, 1],
+      resolvedOptionalEffectIndices: [0, 1],
+    });
+
+    const completed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          resumed,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:straining-defense"),
+            actorId: secondCombatantId,
+            expectedStateVersion: resumed.version,
+            pendingDecisionId: resumed.pendingDecision!.id,
+            optionId: "roll-defense",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(completed.combatants[firstCombatantId].hitPoints.current).toBe(90);
+  });
+
+  it("declines the grouped effect without spending HP while preserving the attack decision", () => {
+    const dependencies = createStrainingDependencies();
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-freestyle-straining-bodyslam"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-backflip"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const signatureAction = { ...action, turnNumber: 10 };
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          signatureAction,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:straining-decline"),
+            actorId: firstCombatantId,
+            expectedStateVersion: signatureAction.version,
+            moveId: "move-freestyle-straining-bodyslam",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const defense = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:straining-decline-choice"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "decline",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(defense.combatants[firstCombatantId].hitPoints.current).toBe(100);
+    expect(defense.pendingDecision?.type).toBe("defense-response");
+  });
+});
+
 describe("stored-roll transitions", () => {
   it("stores an action roll, emits it, and resolves an exact immediate low-roll branch", () => {
     const dependencies = createTestCombatDependencies([9], new Date("2026-08-13T12:00:00.000Z"), {
@@ -1326,6 +1514,80 @@ describe("on-move-use effect dispatch", () => {
         floatingEffectId: "chained-mastery-next-turn-kick-follow-up",
         targetCombatantId: firstCombatantId,
         scope: { type: "next-turn", combatantId: firstCombatantId },
+      }),
+    );
+  });
+
+  it("persists an explicitly combat-duration floating bundle through the public attack transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1],
+      new Date("2026-08-14T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:rising-sun-floating")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:rising-sun")],
+        eventIds: Array.from({ length: 24 }, (_, index) =>
+          combatEventIdSchema.parse(`event:rising-sun-floating-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-kiihakai-the-rising-sun"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const prepared = {
+      ...action,
+      turnNumber: 10,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId],
+          ki: { ...action.combatants[firstCombatantId].ki, current: 9 },
+        },
+      },
+    } satisfies ActiveFightState;
+    const transition = requireTransition(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:rising-sun-floating"),
+          actorId: firstCombatantId,
+          expectedStateVersion: prepared.version,
+          moveId: "move-kiihakai-the-rising-sun",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(prepared.version + 1);
+    expect(transition.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "floating-effect",
+        floatingEffectId: "the-rising-sun-physical-attack-retaliation",
+        sourceDefinitionId: "move-kiihakai-the-rising-sun",
+        targetCombatantId: secondCombatantId,
+        scope: { type: "combat" },
       }),
     );
   });

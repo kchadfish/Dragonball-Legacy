@@ -24,6 +24,22 @@ limited to Humans, Saiyans, Hybrid-Saiyans, Namekians, Changelings, and
 Bio-Androids. Do not widen transformation families without an explicit scope
 decision.
 
+## Current phase status
+
+**Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
+accounting gate is satisfied for all 1,120 converted structured occurrences.
+The generated capability matrix records 745 `supported-generic`, 246
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
+occurrence has a precise status, reason, prerequisite or approved exclusion;
+supported rows identify their compiler, executor, and focused coverage.
+
+This does **not** mean the combat engine is catalog-complete. Phase 1 permits
+explicitly tracked `unsupported-in-scope` work. Overall completion still
+requires closing the 246 remaining in-scope occurrences through the later
+normalization, execution, lifecycle, scheduling, and catalog-closure phases.
+The next implementation priority is the highest-volume ready prerequisite
+identified in the latest dated entry below.
+
 The converted catalog is data-complete, but it is **not** equivalent to engine
 complete. The current inventory has 499 moves and 838 move effects across 46
 effect types. It also has 162 items, with 282 item effects; 102 item rules are
@@ -1372,6 +1388,68 @@ TypeScript build, 77.04% global branch coverage, duplication detection, and the
 production dependency audit with zero vulnerabilities. The repository quality
 script remains blocked only by the pre-existing 135-file repository-wide
 Prettier baseline; all merged implementation and test files are formatted.
+
+## 2026-08-14 combat-duration floating bundle slice
+
+The generic `create-floating-effect.v1` executor now accepts an explicit
+`duration: combat` declaration. This is a semantic normalization, not an
+approximation: the existing active floating-effect contract already represents
+the same remainder-of-combat lifecycle as `scope: combat`. Other floating
+durations remain rejected until their termination transitions can be persisted.
+
+Nested floating effects can now compile their declared `on-move-use` listeners
+through the same typed executor path. The standalone on-move-use restriction is
+unchanged; only the already-supported active floating bundle dispatch receives
+this narrow validation context. The public The Rising Sun transition verifies
+that its successful attack creates an invariant-checked combat-scoped floating
+effect, advances the state version once, and retains the source identity and
+target. No source text or move-name branch was added.
+
+The regenerated matrix now records 741 `supported-generic`, 250
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 69 generic pending-choice, 11 typed compiled-damage or
+resolution-context, 167 typed executor or compiled-plan, and 3 typed reroll
+reaction lifecycle occurrences. Every out-of-scope occurrence retains its
+documented approved exclusion, and the goal remains active because the 250
+in-scope unsupported occurrences are not yet closed. Focused compiler, floating
+runtime, public-transition, and capability-matrix checks are required evidence
+for this slice and pass. The independent coverage run passes all 43 test files
+and 614 tests at 77.09% global branch coverage. The single final
+`npm run quality` gate passes formatting, lint, reference and game-data
+validation, combat-boundary validation, the full test suite and build, coverage
+thresholds, duplication detection, and the production dependency audit.
+The next highest-volume ready prerequisite remains the generic pending-choice
+and deterministic-resume slice; its 69 occurrences remain explicitly
+unsupported until the suspended operation can retain all required
+resolution-local context.
+
+## 2026-08-15 serialized pending-effect choice slice
+
+The generic pending-choice transition now supports the exact grouped
+`before-attack-roll` variants used by Straining Bodyslam and Straining
+Knockback. A deterministic pending decision serializes the ordered effect
+indices and state version before defense or randomness; activation and decline
+both resume through the normal public attack transition. Selected indices are
+carried through the defense frame so an activated group is not rediscovered or
+applied twice. HP percentage loss, scheduled Ki loss, and Advanced Attack cost
+modification continue to use their existing generic executors. Invariants
+validate the serialized frame and option references, and no move-name or source
+text branch was added.
+
+Focused compiler, runtime, capability-matrix, and public transition tests cover
+explicit compiler authorization, activation, decline, state-version changes,
+defense suspension, resource application, and duplicate-prevention behavior.
+The regenerated matrix now records 745 `supported-generic`, 246
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The
+generic pending-choice prerequisite is reduced to 65 occurrences across 42
+definitions; unrelated optional and activation-group variants remain
+explicitly unsupported, including selection, lifecycle, and multi-effect
+semantics that this slice does not persist. Every out-of-scope occurrence
+retains its documented approved exclusion, and the goal remains active.
+The independent coverage run passes all 43 test files and 619 tests at 77.34%
+global branch coverage. The single final `npm run quality` gate passes the
+format, lint, validation, full test and build, coverage, duplication, and
+production dependency audit stages.
 
 ## Handoff prompt
 

@@ -161,6 +161,7 @@ export interface PendingDecisionOption {
   readonly combatantId?: CombatantId;
   readonly itemId?: ItemId;
   readonly moveId?: MoveId;
+  readonly effectIndices?: readonly number[];
 }
 
 export interface PendingDecision {
@@ -749,6 +750,8 @@ export type ResolutionFrame =
       readonly attack:
         | { readonly type: "basic-attack"; readonly basicAttack: BasicAttackType }
         | { readonly type: "move"; readonly moveId: MoveId };
+      readonly enabledOptionalEffectIndices?: readonly number[];
+      readonly resolvedOptionalEffectIndices?: readonly number[];
     }
   | {
       readonly id: ResolutionFrameId;
@@ -772,6 +775,20 @@ export type ResolutionFrame =
       readonly numericResultOverrides: readonly (
         { readonly attack?: number; readonly defense?: number } | undefined
       )[];
+    }
+  | {
+      readonly id: ResolutionFrameId;
+      readonly type: "attack";
+      readonly decisionId: CombatDecisionId;
+      readonly attackerId: CombatantId;
+      readonly targetCombatantId: CombatantId;
+      readonly returnPhase: "action" | "counter";
+      readonly stage: "awaiting-effect-choice";
+      readonly pendingDecisionId: PendingDecisionId;
+      readonly attack: { readonly type: "move"; readonly moveId: MoveId };
+      readonly effectIndices: readonly number[];
+      readonly resolvedEffectIndices: readonly number[];
+      readonly enabledEffectIndices: readonly number[];
     }
   | {
       readonly id: ResolutionFrameId;

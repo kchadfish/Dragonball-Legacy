@@ -959,11 +959,27 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
 const validAttackResolutionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
-) =>
-  combatDecisionIdSchema.safeParse(frame.decisionId).success &&
-  isActiveCombatant(state, frame.attackerId) &&
-  isActiveCombatant(state, frame.targetCombatantId) &&
-  frame.attackerId !== frame.targetCombatantId;
+) => {
+  const common =
+    combatDecisionIdSchema.safeParse(frame.decisionId).success &&
+    isActiveCombatant(state, frame.attackerId) &&
+    isActiveCombatant(state, frame.targetCombatantId) &&
+    frame.attackerId !== frame.targetCombatantId;
+  if (!common || frame.stage !== "awaiting-effect-choice") return common;
+  if (state.status !== "active") return false;
+  return (
+    pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
+    state.pendingDecision?.id === frame.pendingDecisionId &&
+    state.pendingDecision.type === "optional-effect" &&
+    state.pendingDecision.combatantId === frame.attackerId &&
+    frame.attack.type === "move" &&
+    frame.effectIndices.length > 0 &&
+    frame.resolvedEffectIndices.length === 0 &&
+    frame.enabledEffectIndices.length === 0 &&
+    frame.effectIndices.every((index) => Number.isInteger(index) && index >= 0) &&
+    new Set(frame.effectIndices).size === frame.effectIndices.length
+  );
+};
 
 const validEffectSelectionFrame = (
   state: FightState,
@@ -1085,6 +1101,9 @@ const validPendingDecision = (state: ActiveFightState) => {
       (option.combatantId === undefined || isActiveCombatant(state, option.combatantId)) &&
       (option.itemId === undefined ||
         state.combatants[pendingDecision.combatantId].itemIds?.includes(option.itemId)) &&
+      (option.effectIndices === undefined ||
+        (option.effectIndices.length > 0 &&
+          option.effectIndices.every((index) => Number.isInteger(index) && index >= 0))) &&
       (option.moveId === undefined ||
         (pendingDecision.type === "select-move"
           ? selectableMoveIsEligible(option.moveId)

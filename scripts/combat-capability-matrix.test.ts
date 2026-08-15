@@ -262,7 +262,7 @@ describe("combat capability matrix", () => {
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(9);
     expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
   });
@@ -447,12 +447,43 @@ describe("combat capability matrix", () => {
     const pending = rows.filter((row) => row.status === "unsupported-in-scope");
 
     expect(rows).toHaveLength(9);
-    expect(supported).toHaveLength(8);
+    expect(supported).toHaveLength(9);
     expect(supported.every((row) => row.capabilityId === "schedule-effect.v1")).toBe(true);
     expect(supported.every((row) => row.executor === "scheduled-resource")).toBe(true);
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.sourceDefinitionId).toBe("move-freestyle-straining-bodyslam");
-    expect(pending[0]?.prerequisite).toBe("generic pending-choice compilation and resolution");
+    expect(pending).toHaveLength(0);
+  });
+
+  it("classifies the supported grouped pending-choice variants without widening optional coverage", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.sourceDefinitionId === "move-freestyle-straining-bodyslam" ||
+        row.sourceDefinitionId === "move-freestyle-straining-knockback",
+    );
+
+    expect(rows).toHaveLength(5);
+    expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+    expect(rows.map((row) => row.capabilityId).sort()).toEqual(
+      [
+        "modify-cost.v1",
+        "modify-resource.v1",
+        "modify-resource.v1",
+        "modify-roll.v1",
+        "schedule-effect.v1",
+      ].sort(),
+    );
+
+    expect(
+      createCombatCapabilityMatrix().occurrences.filter(
+        (row) => row.sourceDefinitionId === "move-haokiru-tornado-uppercut",
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "unsupported-in-scope",
+          prerequisite: "generic pending-choice compilation and resolution",
+        }),
+      ]),
+    );
   });
 
   it("classifies every exact critical-threshold occurrence through the generic attack resolver", () => {

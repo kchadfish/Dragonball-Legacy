@@ -206,6 +206,49 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: false });
   });
 
+  it("only compiles Straining Bodyslam's grouped effects when pending choice is explicit", () => {
+    const move = moveWithId("move-freestyle-straining-bodyslam");
+    const effects = move.effects ?? [];
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 0,
+        effect: effects[0]!,
+      }),
+    ).toMatchObject({ ok: false, issues: [{ code: "requires-pending-choice" }] });
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 0,
+        effect: effects[0]!,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "modify-resource" } });
+  });
+
+  it("compiles combat-duration floating bundles without widening lifecycle support", () => {
+    const supported = effectAt("move-kiihakai-the-rising-sun", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: supported.move.id,
+        effectIndex: 0,
+        effect: supported.effect,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { type: "create-floating-effect" },
+    });
+
+    const unsupported = effectAt("move-haokiru-dragon-dust", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: unsupported.move.id,
+        effectIndex: 0,
+        effect: unsupported.effect,
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
   it("compiles a resource change with a typed numeric cap", () => {
     const { move, effect } = effectAt("move-kiihakai-power-surge-mastery", 1);
     const compiled = compileEffectPlan({

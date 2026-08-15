@@ -15,6 +15,11 @@ interface SourceEffect {
   readonly scope?: { readonly type?: unknown };
   readonly duration?: { readonly type?: unknown };
   readonly operation?: unknown;
+  readonly amount?: unknown;
+  readonly timing?: unknown;
+  readonly effect?: unknown;
+  readonly cancellation?: unknown;
+  readonly repeat?: unknown;
   readonly percent?: { readonly type?: unknown };
   readonly selector?: unknown;
   readonly activationGroup?: unknown;
@@ -52,7 +57,7 @@ export interface CombatCapabilityMatrixRow {
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-13";
+  readonly generatedAt: "2026-08-14";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -347,6 +352,58 @@ const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
   );
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isLiteral = (value: unknown, expected: number) =>
+  isRecord(value) && value.type === "literal" && value.value === expected;
+
+const isSupportedPendingChoiceOccurrence = (occurrence: Occurrence) => {
+  const effect = occurrence.effect;
+  if (
+    effect.activationGroup === undefined ||
+    effect.trigger !== "before-attack-roll" ||
+    (effect.target !== "self" && effect.target !== "opponent")
+  )
+    return false;
+  if (
+    effect.type === "modify-resource" &&
+    effect.target === "self" &&
+    effect.optional === true &&
+    effect.operation === "lose" &&
+    isRecord(effect.amount) &&
+    effect.amount.type === "resource-percent" &&
+    effect.amount.subject === "self" &&
+    effect.amount.resource === "hp" &&
+    effect.amount.basis === "current" &&
+    effect.amount.percent === 10
+  )
+    return true;
+  if (
+    effect.type === "schedule-effect" &&
+    effect.target === "opponent" &&
+    isRecord(effect.timing) &&
+    effect.timing.type === "turn-end" &&
+    effect.timing.subject === "opponent" &&
+    effect.timing.turnsAfter === 0 &&
+    effect.repeat === "each-turn" &&
+    isRecord(effect.effect) &&
+    effect.effect.type === "modify-resource" &&
+    effect.effect.resource === "ki" &&
+    effect.effect.operation === "lose" &&
+    isLiteral(effect.effect.amount, 1)
+  )
+    return true;
+  return (
+    effect.type === "modify-cost" &&
+    effect.target === "opponent" &&
+    effect.operation === "add" &&
+    isLiteral(effect.amount, 1) &&
+    isRecord(effect.duration) &&
+    effect.duration.type === "until-combat-result"
+  );
+};
+
 const classify = (occurrence: Occurrence) => {
   const effectType = stringValue(occurrence.effect.type) ?? "unknown";
   if (occurrence.origin === "item" && approvedItemExclusions[effectType] !== undefined) {
@@ -360,7 +417,11 @@ const classify = (occurrence: Occurrence) => {
       approvedExclusion: approvedItemExclusions[effectType],
     };
   }
-  if (occurrence.effect.optional === true || occurrence.effect.activationGroup !== undefined) {
+  const pendingChoiceSupported = isSupportedPendingChoiceOccurrence(occurrence);
+  if (
+    (occurrence.effect.optional === true || occurrence.effect.activationGroup !== undefined) &&
+    !pendingChoiceSupported
+  ) {
     return {
       status: "unsupported-in-scope" as const,
       capabilityId: null,
@@ -378,6 +439,7 @@ const classify = (occurrence: Occurrence) => {
           sourceDefinitionId: occurrence.sourceDefinitionId,
           effectIndex: occurrence.effectIndex,
           effect: occurrence.effect as EffectDefinition,
+          allowPendingChoice: pendingChoiceSupported,
         });
   if (effectType === "modify-damage") {
     if (isSupportedDamageOccurrence(occurrence) && compilation?.ok === true) {
@@ -502,7 +564,7 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-13",
+    generatedAt: "2026-08-14",
     activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
       raceId.slice(5, -1),
     ),
