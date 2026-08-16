@@ -1762,7 +1762,12 @@ describe("basic attacks", () => {
   });
 
   it("prevents a same-action converted roll modifier before the roll is resolved", () => {
-    const { state, dependencies } = createActionState([10, 1]);
+    const { state, dependencies } = createActionState(
+      [10, 1],
+      Array.from({ length: 8 }, (_, index) =>
+        activeEffectIdSchema.parse(`active-effect:converted-roll-prevention-${index}`),
+      ),
+    );
     const prevented: ActiveFightState = {
       ...state,
       turnNumber: 10,
@@ -1917,7 +1922,12 @@ describe("basic attacks", () => {
   it("allows a constant passive signature modifier to exceed the standard result cap", () => {
     const activeMasteryId = activeEffectIdSchema.parse("active-effect:flawless-execution");
     const activeModifierId = activeEffectIdSchema.parse("active-effect:signature-roll-boost");
-    const { state, dependencies } = createActionState([20, 1], [activeMasteryId, activeModifierId]);
+    const { state, dependencies } = createActionState(
+      [20, 1],
+      Array.from({ length: 8 }, (_, index) =>
+        activeEffectIdSchema.parse(`active-effect:flawless-execution-roll-${index}`),
+      ),
+    );
     const armed: ActiveFightState = {
       ...state,
       turnNumber: 10,

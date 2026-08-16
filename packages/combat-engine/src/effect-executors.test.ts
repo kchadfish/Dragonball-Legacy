@@ -332,10 +332,10 @@ describe("declarative effect executor registry", () => {
   });
 
   it("rejects an effect discriminant without a registered executor", () => {
-    const { move, effect } = effectAt("move-afterlife-give-me-energy", 0);
+    const { move, effect } = effectAt("move-kiihakai-fierce-focus-mastery", 2);
     const compiled = compileEffectPlan({
       sourceDefinitionId: move.id,
-      effectIndex: 0,
+      effectIndex: 2,
       effect,
     });
 
@@ -345,7 +345,7 @@ describe("declarative effect executor registry", () => {
         expect.objectContaining({
           code: "unsupported-effect-type",
           sourceDefinitionId: move.id,
-          effectIndex: 0,
+          effectIndex: 2,
         }),
       ],
     });
@@ -731,6 +731,7 @@ describe("declarative effect executor registry", () => {
       "modify-resource",
       "modify-roll",
       "modify-stat",
+      "negate",
       "prevent-combat-result",
       "prevent-move-modification",
       "prevent-move-use",

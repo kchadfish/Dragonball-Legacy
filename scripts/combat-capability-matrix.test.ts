@@ -34,6 +34,9 @@ describe("combat capability matrix", () => {
     expect(rendered).toContain("source-text-only abilities are not executable");
     expect(rendered).toContain("cap=maximum:roll");
     expect(rendered).toContain("cap=maximum:total");
+    expect(rendered).toContain("## Unsupported in-scope priorities");
+    expect(rendered).toContain("| Rank | Prerequisite | Effect type | Occurrences | Definitions |");
+    expect(rendered).toMatch(/\| 1 \| .+ \| .+ \| \d+ \| \d+ \|/);
   });
 
   it("classifies exact successful CONSTANT Skill activation choices", () => {
@@ -44,6 +47,7 @@ describe("combat capability matrix", () => {
     expect(rows.map((row) => row.sourceDefinitionId)).toEqual([
       "move-freestyle-monkey-sweep",
       "move-freestyle-tricky-sword-maneuvers",
+      "move-kiihakai-kinetic-outburst",
       "move-kiihakai-triple-torpedo",
     ]);
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
@@ -324,9 +328,11 @@ describe("combat capability matrix", () => {
         row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(5);
     expect(rows.map((row) => `${row.sourceDefinitionId}#${row.effectIndex}`)).toEqual([
+      "move-afterlife-multi-form#1",
       "move-afterlife-super-galick-gun#0",
+      "move-afterlife-death-ball#1",
       "move-aoyosumu-opportunist#2",
       "move-midorikatai-flawless-execution-mastery#1",
     ]);
@@ -341,9 +347,13 @@ describe("combat capability matrix", () => {
     );
 
     expect(supported.map((row) => `${row.sourceDefinitionId}#${row.effectIndex}`)).toEqual([
+      "move-freestyle-sense-power-level#0",
+      "move-freestyle-sense-power-level#1",
+      "move-freestyle-sense-power-level#2",
       "move-haokiru-conservation-mastery#1",
       "move-haokiru-focused-mastery#0",
       "move-haokiru-focused-mastery#1",
+      "move-kurokonwaku-control-mastery#1",
     ]);
     expect(supported.every((row) => row.executor !== null)).toBe(true);
   });
@@ -522,7 +532,11 @@ describe("combat capability matrix", () => {
         }),
       ]),
     );
-    expect(rows[2]).toMatchObject({ status: "unsupported-in-scope" });
+    expect(rows[2]).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "modify-roll.v1",
+      executor: "roll-modifier",
+    });
   });
 
   it("classifies Super Galick Gun's complete after-defense choice as one generic group", () => {

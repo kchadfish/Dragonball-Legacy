@@ -91,6 +91,20 @@ const createStrainingDependencies = (randomValues: readonly number[] = [20, 1]) 
     ],
   });
 
+const createKineticDependencies = () =>
+  createTestCombatDependencies([20, 1], new Date("2026-08-04T12:00:00.000Z"), {
+    fightIds: [fightIdSchema.parse("fight:kinetic-outburst")],
+    combatantIds: [firstCombatantId, secondCombatantId],
+    eventIds: Array.from({ length: 30 }, (_, index) =>
+      combatEventIdSchema.parse(`event:kinetic-outburst-${index + 1}`),
+    ),
+    activeEffectIds: Array.from({ length: 10 }, (_, index) =>
+      activeEffectIdSchema.parse(`active-effect:kinetic-outburst-${index + 1}`),
+    ),
+    pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:kinetic-outburst")],
+    resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:kinetic-outburst")],
+  });
+
 describe("generic before-attack pending effect choices", () => {
   it("offers a deterministic activation or decline before defense and applies activation costs on resume", () => {
     const dependencies = createStrainingDependencies();
@@ -255,6 +269,60 @@ describe("generic before-attack pending effect choices", () => {
     );
     expect(defense.combatants[firstCombatantId].hitPoints.current).toBe(100);
     expect(defense.pendingDecision?.type).toBe("defense-response");
+  });
+
+  it("offers Kinetic Outburst's grouped roll penalty as a public pending choice", () => {
+    const dependencies = createKineticDependencies();
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-kiihakai-kinetic-outburst"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-backflip"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:kinetic-outburst"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-kiihakai-kinetic-outburst",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(pending.pendingDecision?.type).toBe("optional-effect");
+    expect(pending.pendingDecision?.options).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "decline" }),
+        expect.objectContaining({ id: "activate-effect:0,1" }),
+      ]),
+    );
+    expect(pending.resolutionFrames[0]).toMatchObject({
+      stage: "awaiting-effect-choice",
+    });
   });
 });
 
@@ -2584,6 +2652,82 @@ describe("initial turn progression", () => {
     );
   });
 
+  it("negates serialized attack-prevention effects through the public action transition", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-04T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:give-me-energy-negation")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      eventIds: Array.from({ length: 30 }, (_, index) =>
+        combatEventIdSchema.parse(`event:give-me-energy-negation-${index}`),
+      ),
+      activeEffectIds: [
+        activeEffectIdSchema.parse("active-effect:attack-lock-to-negate"),
+        activeEffectIdSchema.parse("active-effect:attack-restriction-to-negate"),
+      ],
+    });
+    const created = requireTransition(createFight(input, dependencies));
+    const actionState: ActiveFightState = {
+      ...requireActiveFightState(created.state),
+      phase: "action",
+      activeCombatantId: secondCombatantId,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:attack-lock-to-negate"),
+          type: "action-lock",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-afterlife-dodon-ray",
+          affectedType: "attack",
+          duration: { type: "combat" },
+        },
+        {
+          id: activeEffectIdSchema.parse("active-effect:attack-restriction-to-negate"),
+          type: "action-restriction",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-afterlife-dodon-ray",
+          sourceEffectIndex: 0,
+          availableFromTurn: 1,
+          remainingTurns: 1,
+        },
+      ],
+    };
+    expect(enumerateLegalDecisions(actionState, secondCombatantId)).toContainEqual(
+      expect.objectContaining({
+        type: "use-move",
+        moveId: "move-afterlife-give-me-energy",
+      }),
+    );
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        actionState,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:give-me-energy-negation"),
+          actorId: secondCombatantId,
+          expectedStateVersion: actionState.version,
+          moveId: "move-afterlife-give-me-energy",
+          targetCombatantId: firstCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(actionState.version + 1);
+    expect(transition.state.activeEffects).not.toContainEqual(
+      expect.objectContaining({ id: "active-effect:attack-lock-to-negate" }),
+    );
+    expect(transition.state.activeEffects).not.toContainEqual(
+      expect.objectContaining({ id: "active-effect:attack-restriction-to-negate" }),
+    );
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({
+        type: "effect-negated",
+        activeEffectId: "active-effect:attack-lock-to-negate",
+      }),
+    );
+  });
+
   it("persists and consumes a next-action successful-effect suppression", () => {
     const dependencies = createTestCombatDependencies(
       [30, 1, 30, 1],
@@ -4287,6 +4431,7 @@ describe("initial turn progression", () => {
         resolutionFrameIds: Array.from({ length: 10 }, (_, index) =>
           resolutionFrameIdSchema.parse(`resolution-frame:combat-result-history-${index}`),
         ),
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:combat-result-history-escape")],
       },
     );
     const created = requireTransition(

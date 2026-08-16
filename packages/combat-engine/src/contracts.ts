@@ -73,6 +73,9 @@ export interface CombatantState {
   readonly hitPoints: CombatResources;
   readonly ki: CombatResources;
   readonly stats: CombatantStats;
+  readonly level?: number;
+  readonly planetHasDragonBalls?: boolean;
+  readonly masteredTransformationIds?: readonly TransformationId[];
   readonly moveIds: readonly MoveId[];
   readonly itemIds?: readonly ItemId[];
   readonly transformationIds?: readonly TransformationId[];
@@ -101,6 +104,9 @@ const createFightCombatantInputSchema = z
           .max(GLOBAL_RULES.combat.maximumDexterityBonus),
       })
       .strict(),
+    level: z.number().nonnegative().optional(),
+    planetHasDragonBalls: z.boolean().optional(),
+    masteredTransformationIds: z.array(z.string().min(1)).optional(),
     moveIds: z.array(z.string().min(1)).superRefine((moveIds, context) => {
       const seenMoveIds = new Set<string>();
 
@@ -162,6 +168,7 @@ export interface PendingDecisionOption {
   readonly itemId?: ItemId;
   readonly moveId?: MoveId;
   readonly effectIndices?: readonly number[];
+  readonly selectedNumericValue?: number;
 }
 
 export interface PendingDecision {
@@ -200,6 +207,8 @@ export interface ActiveCostModifierEffect {
   readonly scope: "next-eligible-action";
 }
 
+export type CombatRollType = "attack" | "defense" | "escape" | "initiative" | "transformation";
+
 /** A combat-persistent item modifier applied to a named roll before it is made. */
 export interface ActiveRollModifierEffect {
   readonly id: ActiveEffectId;
@@ -207,13 +216,25 @@ export interface ActiveRollModifierEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: ItemId | MoveId;
-  readonly roll: "attack" | "defense";
-  readonly modifier: "result" | "sides";
+  readonly roll: CombatRollType;
+  readonly modifier: "dice" | "result" | "sides";
   readonly amount: number;
-  readonly cap?: ActiveRollModificationCap;
+  readonly cap?:
+    | ActiveRollModificationCap
+    | {
+        readonly type: "maximum" | "minimum";
+        readonly scope: "amount" | "total" | "roll";
+        readonly value: number;
+      };
   readonly selector?: MoveSelectorCondition;
   readonly stacking?: "allow" | "prevent";
-  readonly duration: "combat";
+  readonly duration:
+    | "combat"
+    | {
+        readonly type: "turns" | "turns-or-until-perfect-roll";
+        readonly ownerCombatantId: CombatantId;
+        readonly remaining: number;
+      };
 }
 
 /** A durable reaction that replaces one or more persisted attack dice. */
@@ -280,10 +301,10 @@ type ActiveNextActionModifier =
     }
   | {
       readonly type: "roll";
-      readonly roll: "attack" | "defense";
-      readonly modifier: "result" | "sides";
+      readonly roll: CombatRollType;
+      readonly modifier: "dice" | "result" | "sides";
       readonly amount: number;
-      readonly cap?: ActiveRollModificationCap;
+      readonly cap?: NonNullable<ActiveRollModifierEffect["cap"]>;
     }
   | {
       readonly type: "stat";
@@ -302,7 +323,14 @@ export interface ActiveNextActionModifierEffect {
   readonly sourceDefinitionId: MoveId;
   readonly selector?: MoveSelectorCondition;
   /** The first matching action/roll at or after this scope becomes eligible. */
-  readonly scope?: "next-action" | "following-action" | "next-roll" | "next-actions" | "next-rolls";
+  readonly scope?:
+    | "next-action"
+    | "following-action"
+    | "next-actions"
+    | "next-phase"
+    | "next-roll"
+    | "next-rolls"
+    | "next-turn";
   /** Remaining actions or individual rolls for counted scopes. */
   readonly remaining?: number;
   readonly stacking?: "allow" | "prevent";
@@ -467,8 +495,6 @@ export interface ActiveActionLockEffect {
       };
 }
 
-export type CombatRollType = "attack" | "defense" | "transformation";
-
 /** A selector-scoped prevention retained independently from ordinary action locks. */
 export interface ActiveMoveUsePreventionEffect {
   readonly id: ActiveEffectId;
@@ -511,8 +537,8 @@ export interface ActiveRollModificationPreventionEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
-  readonly roll: "attack" | "defense";
-  readonly modifier: "result" | "sides" | "any";
+  readonly roll: CombatRollType;
+  readonly modifier: "dice" | "result" | "sides" | "any";
   readonly selector?: MoveSelectorCondition;
   /** Allows the effect that established this prevention to make its declared exception. */
   readonly exemptSourceEffect?: boolean;
@@ -789,6 +815,7 @@ export type ResolutionFrame =
       readonly effectIndices: readonly number[];
       readonly resolvedEffectIndices: readonly number[];
       readonly enabledEffectIndices: readonly number[];
+      readonly selectedNumericValues?: Readonly<Record<string, number>>;
     }
   | {
       readonly id: ResolutionFrameId;
@@ -1102,6 +1129,14 @@ export interface EffectDeactivatedEvent extends CombatEventBase {
   readonly sourceDefinitionId: MoveId;
 }
 
+export interface EffectNegatedEvent extends CombatEventBase {
+  readonly type: "effect-negated";
+  readonly activeEffectId: ActiveEffectId;
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+}
+
 /** A mandatory duration check, retained so turn-start randomness is replayable. */
 export interface EffectRolledEvent extends CombatEventBase {
   readonly type: "effect-rolled";
@@ -1212,6 +1247,7 @@ export type CombatEvent =
   | EffectActivatedEvent
   | EffectExpiredEvent
   | EffectDeactivatedEvent
+  | EffectNegatedEvent
   | EffectRolledEvent
   | RollStoredEvent
   | StatusAppliedEvent

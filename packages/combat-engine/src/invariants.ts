@@ -367,14 +367,25 @@ const hasValidCostEffectDetails = (effect: ActiveCostModifierEffect) => {
 };
 
 const hasValidRollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "modify-roll" }>) =>
-  (effect.roll === "attack" || effect.roll === "defense") &&
-  (effect.modifier === "result" || effect.modifier === "sides") &&
+  (effect.roll === "attack" ||
+    effect.roll === "defense" ||
+    effect.roll === "escape" ||
+    effect.roll === "initiative" ||
+    effect.roll === "transformation") &&
+  (effect.modifier === "dice" || effect.modifier === "result" || effect.modifier === "sides") &&
   (effect.cap === undefined ||
-    (effect.cap.type === "allow-exceed" &&
-      (effect.cap.scope === "amount" ||
-        effect.cap.scope === "total" ||
-        effect.cap.scope === "roll"))) &&
+    (effect.cap.type === "allow-exceed"
+      ? effect.cap.scope === "amount" || effect.cap.scope === "total" || effect.cap.scope === "roll"
+      : (effect.cap.type === "maximum" || effect.cap.type === "minimum") &&
+        (effect.cap.scope === "amount" ||
+          effect.cap.scope === "total" ||
+          effect.cap.scope === "roll") &&
+        Number.isFinite(effect.cap.value))) &&
   Number.isFinite(effect.amount) &&
+  (effect.duration === "combat" ||
+    ((effect.duration.type === "turns" || effect.duration.type === "turns-or-until-perfect-roll") &&
+      typeof effect.duration.ownerCombatantId === "string" &&
+      validCounter(effect.duration.remaining, 1))) &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
 
@@ -429,7 +440,9 @@ const hasValidNextActionModifierDetails = (
     scope === "following-action" ||
     scope === "next-roll" ||
     scope === "next-actions" ||
-    scope === "next-rolls";
+    scope === "next-rolls" ||
+    scope === "next-phase" ||
+    scope === "next-turn";
   const validRemaining = effect.remaining === undefined || validCounter(effect.remaining, 1);
   const validFollowingTurn =
     effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1);
@@ -439,6 +452,13 @@ const hasValidNextActionModifierDetails = (
     effect.modifier.operation === "add" ||
     effect.modifier.operation === "multiply" ||
     effect.modifier.operation === "set";
+  const validRollCap = (
+    cap: NonNullable<Extract<ActiveCombatEffect, { type: "modify-roll" }>["cap"]>,
+  ) =>
+    cap.type === "allow-exceed"
+      ? cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll"
+      : Number.isFinite(cap.value) &&
+        (cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll");
   return (
     validDamageOperation &&
     (effect.modifier.type === "damage" ||
@@ -451,13 +471,15 @@ const hasValidNextActionModifierDetails = (
           effect.modifier.roll === "attack" ||
           effect.modifier.roll === "defense")) ||
       (effect.modifier.type === "roll" &&
-        (effect.modifier.roll === "attack" || effect.modifier.roll === "defense") &&
-        (effect.modifier.modifier === "result" || effect.modifier.modifier === "sides") &&
-        (effect.modifier.cap === undefined ||
-          (effect.modifier.cap.type === "allow-exceed" &&
-            (effect.modifier.cap.scope === "amount" ||
-              effect.modifier.cap.scope === "total" ||
-              effect.modifier.cap.scope === "roll"))))) &&
+        (effect.modifier.roll === "attack" ||
+          effect.modifier.roll === "defense" ||
+          effect.modifier.roll === "escape" ||
+          effect.modifier.roll === "initiative" ||
+          effect.modifier.roll === "transformation") &&
+        (effect.modifier.modifier === "dice" ||
+          effect.modifier.modifier === "result" ||
+          effect.modifier.modifier === "sides") &&
+        (effect.modifier.cap === undefined || validRollCap(effect.modifier.cap)))) &&
     Number.isFinite(effect.modifier.amount) &&
     typeof effect.sourceDefinitionId === "string" &&
     effect.sourceDefinitionId.length > 0 &&

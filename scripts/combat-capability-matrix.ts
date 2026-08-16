@@ -106,8 +106,16 @@ const genericExecutors: Readonly<
     capabilityId: "modify-remaining-uses.v1",
   },
   "modify-resource": { executor: "resource-change", test: "move-effects-runtime.test.ts" },
-  "modify-roll": { executor: "roll-modifier", test: "attack-rolls.test.ts" },
+  "modify-roll": {
+    executor: "roll-modifier",
+    test: "attack-rolls.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
   "modify-stat": { executor: "stat-modifier", test: "progress-fight.test.ts" },
+  negate: {
+    executor: "attack-prevention-negation",
+    test: "progress-fight.test.ts",
+    capabilityId: "negate.v1",
+  },
   reroll: {
     executor: "reroll-reaction",
     test: "basic-attack.test.ts, move-effects-runtime.test.ts",
@@ -610,7 +618,41 @@ const summary = (rows: readonly CombatCapabilityMatrixRow[]) => {
     );
 };
 
+const prioritySummary = (rows: readonly CombatCapabilityMatrixRow[]) => {
+  const counts = new Map<
+    string,
+    { prerequisite: string; effectType: string; occurrences: number; definitions: Set<string> }
+  >();
+  for (const row of rows) {
+    if (row.status !== "unsupported-in-scope") continue;
+    const prerequisite = row.prerequisite ?? "unclassified";
+    const key = `${prerequisite}\u0000${row.effectType}`;
+    const current = counts.get(key) ?? {
+      prerequisite,
+      effectType: row.effectType,
+      occurrences: 0,
+      definitions: new Set<string>(),
+    };
+    current.occurrences += 1;
+    current.definitions.add(row.sourceDefinitionId);
+    counts.set(key, current);
+  }
+  return [...counts.values()]
+    .sort(
+      (left, right) =>
+        right.occurrences - left.occurrences ||
+        right.definitions.size - left.definitions.size ||
+        left.prerequisite.localeCompare(right.prerequisite) ||
+        left.effectType.localeCompare(right.effectType),
+    )
+    .map((value, index) => ({
+      rank: index + 1,
+      ...value,
+    }));
+};
+
 export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatrix()): string => {
+  const priorities = prioritySummary(matrix.occurrences);
   const lines = [
     "# Combat capability matrix",
     "",
@@ -623,6 +665,17 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
     "## Unsupported in-scope summary",
     "",
     ...summary(matrix.occurrences),
+    "",
+    "## Unsupported in-scope priorities",
+    "",
+    "Ranked by occurrence count, then distinct definitions, to select the next generic capability slice.",
+    "",
+    "| Rank | Prerequisite | Effect type | Occurrences | Definitions |",
+    "| ---: | --- | --- | ---: | ---: |",
+    ...priorities.map(
+      (priority) =>
+        `| ${priority.rank} | ${priority.prerequisite} | ${priority.effectType} | ${priority.occurrences} | ${priority.definitions.size} |`,
+    ),
     "",
     "## Occurrences",
     "",

@@ -28,14 +28,14 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 753 `supported-generic`, 238
+The generated capability matrix records 780 `supported-generic`, 211
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 240 remaining in-scope occurrences through the later
+requires closing the 211 remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
 The next implementation priority is the highest-volume ready prerequisite
 identified in the latest dated entry below.
@@ -126,6 +126,51 @@ effect-type-level executor registration as proof that every variant is
 supported.
 
 ## Immediate resume point
+
+### Latest implementation slice — complete active-scope `modify-roll`
+
+The active transformation scope has no remaining `modify-roll` occurrences
+classified as `unsupported-in-scope`. The regenerated occurrence-level matrix
+contains 129 active-scope `modify-roll` rows, all classified
+`supported-generic` through `roll-modifier.v1`; its 86 exact trigger/target/
+scope/duration/operation/numeric/cap/selector/condition variant groups remain
+visible in the generated table. The supported inventory covers:
+
+- Triggers: `start-combat`, `action-phase`, `passive`, `before-attack-roll`,
+  `before-defense-roll`, `after-defense-roll`, `on-success`, `on-stopped`,
+  `on-roll-result`, `on-power-up`, `on-resource-gain`, and `on-resource-drain`.
+- Targets and selectors: `self` and `opponent`, including move selectors,
+  constant-skill selectors, present selectors, and matching active effects.
+- Scopes and lifecycle: current action, next action(s), next roll(s),
+  following action, next turn, next phase, combat, and unscoped effects;
+  combat, turns, until-combat-result, until-resource-threshold, and
+  turns-or-until-perfect-roll durations.
+- Roll semantics: attack, defense, escape, initiative, and transformation
+  definitions; dice, sides, result, multiplier, selected-dice-count, and
+  stopped-hit-count numeric forms; additive and cap-only modifiers; maximum,
+  minimum, and allow-exceed caps; and roll-die-result, roll-threshold,
+  location, level, transformation-mastery, prior-action, prior-turn,
+  move-modification, move-effect-active, combat-result, resource-threshold,
+  and selector conditions.
+- Choice and ordering behavior: serialized optional and activation-group
+  choices, prevention precedence, matching-roll consumption, per-die
+  before-attack evaluation, natural-versus-modified results, durable pending
+  numeric selections, deterministic replay, and invariant-checked state
+  versions.
+
+Focused public coverage now includes Kinetic Outburst's grouped
+before-attack choice, Multi-Form numeric selection/resume, start-combat
+initiative modifiers, caps, selectors, condition matching, persistence/resume,
+natural-versus-modified roll results, and per-die result conditions in
+`progress-fight.test.ts`, `attack-rolls.test.ts`, and
+`move-effects-runtime.test.ts`. `npm run test:coverage` passed with 43 test
+files and 628 tests, and the final `npm run quality` gate passed.
+
+The remaining in-scope work is non-`modify-roll` work: 211 occurrence rows
+remain `unsupported-in-scope`, including `modify-roll-modifier` and other
+effect families. The next resume point is to take the highest-volume
+dependency-ready non-`modify-roll` family from the generated matrix, without
+reclassifying unfinished rows as out of scope.
 
 ### Latest implementation slice (2026-08-11)
 
@@ -1547,6 +1592,45 @@ selection, and broader grouped activation-cost semantics; these remain visible
 as prerequisites rather than being approximated. Every out-of-scope occurrence
 retains its documented approved exclusion, and the catalog-closure goal remains
 active.
+
+## 2026-08-15 generic attack-prevention negation slice
+
+The generic `negate.v1` executor now covers the exact action-phase
+`prevent-attack` variant: an opponent-targeted negation removes matching
+serialized `action-lock(attack)` and full-action `action-restriction` effects from the
+target. The transition is generic and provenance-preserving; it does not infer
+partial category restrictions, status removal, current-resolution prevention,
+damage negation, selectors, or activation-cost and limit semantics that are not
+retained by this slice.
+
+The public `submitCombatDecision` transition remains immutable, increments the
+state version once, emits an `effect-negated` event for each removed active
+effect, and validates the resulting state through the existing invariant
+boundary. Focused compiler, runtime, and public-transition tests cover
+registration, legal action exposure, both serialized attack-prevention effect
+families, event identity, removal, and version advancement. No move-name branch,
+source-text execution, or silent approximation was added.
+
+The regenerated matrix now records 754 `supported-generic`, 237
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The
+remaining unsupported rows continue to be tracked under generic pending-choice
+(55), typed compiled-damage or resolution-context (11), typed executor or
+compiled-plan accounting (165), and typed reroll reaction lifecycle (6)
+prerequisites. Damage negation, selector-specific negation, status negation,
+and other lifecycle variants remain explicitly unsupported. Every out-of-scope
+occurrence retains its documented approved exclusion, and the catalog-closure
+goal remains active.
+
+## 2026-08-15 capability-priority reporting
+
+The generated capability matrix now retains its prerequisite summary and adds a
+ranked breakdown by prerequisite and concrete effect type. Ranking uses
+unsupported occurrence count first and distinct definition count second, making
+the next generic slice visible inside broad accounting buckets without changing
+runtime support or treating a family-level executor as complete. The current
+highest-volume unresolved variant is `modify-roll` under typed executor
+accounting and compiled-plan validation (17 occurrences across 15 definitions);
+the existing occurrence rows remain authoritative for exact variant boundaries.
 
 ## Handoff prompt
 

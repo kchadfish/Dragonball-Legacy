@@ -7,6 +7,7 @@ import {
 
 import type {
   ActiveFightState,
+  ActiveCombatEffect,
   CombatResult,
   CombatTransition,
   CombatantState,
@@ -18,6 +19,8 @@ import type { CombatDependencies } from "./dependencies.js";
 import type { CombatantId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
 import { applyCombatItemPassives } from "./item-effects-runtime.js";
+import { moveEffectsForTrigger } from "./move-effects-runtime.js";
+import { activeRollModifierFromApplication } from "./progress-fight.js";
 
 const knownMoveIds = new Set(MOVE_DEFINITIONS.map((move) => move.id));
 const knownItemIds = new Set(ITEM_DEFINITIONS.map((item) => item.id));
@@ -41,6 +44,13 @@ const createCombatantState = (
   hitPoints: { current: combatant.maximumHitPoints, maximum: combatant.maximumHitPoints },
   ki: { current: GLOBAL_RULES.combat.startingKi, maximum: GLOBAL_RULES.combat.maximumKi },
   stats: { ...combatant.stats },
+  ...(combatant.level === undefined ? {} : { level: combatant.level }),
+  ...(combatant.planetHasDragonBalls === undefined
+    ? {}
+    : { planetHasDragonBalls: combatant.planetHasDragonBalls }),
+  ...(combatant.masteredTransformationIds === undefined
+    ? {}
+    : { masteredTransformationIds: [...combatant.masteredTransformationIds] }),
   moveIds: [...combatant.moveIds],
   ...(combatant.itemIds === undefined ? {} : { itemIds: [...combatant.itemIds] }),
   ...(combatant.transformationIds === undefined
@@ -87,6 +97,7 @@ interface InitiativeResult {
   readonly tieBreakerRolls: readonly {
     readonly combatantId: CombatantId;
     readonly naturalResult: number;
+    readonly result: number;
   }[];
 }
 
@@ -94,6 +105,7 @@ const determineInitiative = (
   firstCombatant: CombatantState,
   secondCombatant: CombatantState,
   dependencies: CombatDependencies,
+  modifiers: ReadonlyMap<CombatantId, number>,
 ): InitiativeResult => {
   if (firstCombatant.stats.dexterity !== secondCombatant.stats.dexterity) {
     return {
@@ -117,14 +129,98 @@ const determineInitiative = (
       GLOBAL_RULES.combat.initiative.tiedDexterityTieBreakerDieSides,
     );
     tieBreakerRolls.push(
-      { combatantId: firstCombatant.id, naturalResult: firstRoll },
-      { combatantId: secondCombatant.id, naturalResult: secondRoll },
+      {
+        combatantId: firstCombatant.id,
+        naturalResult: firstRoll,
+        result: firstRoll + (modifiers.get(firstCombatant.id) ?? 0),
+      },
+      {
+        combatantId: secondCombatant.id,
+        naturalResult: secondRoll,
+        result: secondRoll + (modifiers.get(secondCombatant.id) ?? 0),
+      },
     );
-    if (firstRoll !== secondRoll) {
-      activeCombatantId = firstRoll > secondRoll ? firstCombatant.id : secondCombatant.id;
+    const firstResult = firstRoll + (modifiers.get(firstCombatant.id) ?? 0);
+    const secondResult = secondRoll + (modifiers.get(secondCombatant.id) ?? 0);
+    if (firstResult !== secondResult) {
+      activeCombatantId = firstResult > secondResult ? firstCombatant.id : secondCombatant.id;
     }
   }
   return { activeCombatantId, tieBreakerRolls };
+};
+
+type StartCombatRollModification = ReturnType<
+  typeof moveEffectsForTrigger
+>["rollModifications"][number];
+
+const appendStartCombatRollModification = (
+  application: StartCombatRollModification,
+  source: CombatantState,
+  opponent: CombatantState,
+  moveId: CombatantState["moveIds"][number],
+  activeEffects: ActiveCombatEffect[],
+  initiativeModifiers: Map<CombatantId, number>,
+  dependencies: CombatDependencies,
+) => {
+  const combatantId = application.target === "self" ? source.id : opponent.id;
+  if (application.roll === "initiative" && application.modifier === "result") {
+    initiativeModifiers.set(
+      combatantId,
+      (initiativeModifiers.get(combatantId) ?? 0) + application.amount,
+    );
+    return;
+  }
+  const active = activeRollModifierFromApplication(
+    application.roll === "escape" && application.scope === undefined
+      ? { ...application, scope: "combat" }
+      : application,
+    source.id,
+    opponent.id,
+    moveId,
+    1,
+    dependencies,
+  );
+  if (active !== undefined) activeEffects.push(active);
+};
+
+const startCombatRollState = (
+  firstCombatant: CombatantState,
+  secondCombatant: CombatantState,
+  dependencies: CombatDependencies,
+) => {
+  const moves = new Map(MOVE_DEFINITIONS.map((move) => [move.id, move]));
+  const activeEffects: ActiveCombatEffect[] = [];
+  const initiativeModifiers = new Map<CombatantId, number>();
+  for (const [source, opponent] of [
+    [firstCombatant, secondCombatant],
+    [secondCombatant, firstCombatant],
+  ] as const) {
+    for (const moveId of source.moveIds) {
+      const move = moves.get(moveId);
+      if (move === undefined) continue;
+      const effects = moveEffectsForTrigger(move, "start-combat", {
+        self: source,
+        opponent,
+        turnNumber: 1,
+        completedTurnCount: 0,
+        moves,
+        moveActivationCounts: new Map(),
+        successfulHitCount: 0,
+        activeEffects,
+      });
+      for (const application of effects.rollModifications)
+        appendStartCombatRollModification(
+          application,
+          source,
+          opponent,
+          move.id,
+          activeEffects,
+          initiativeModifiers,
+          dependencies,
+        );
+    }
+  }
+  return { activeEffects, initiativeModifiers };
 };
 
 /**
@@ -184,7 +280,13 @@ export const createFight = (
     [firstCombatantId]: firstCombatant,
     [secondCombatantId]: secondCombatant,
   };
-  const initiative = determineInitiative(firstCombatant, secondCombatant, dependencies);
+  const startCombat = startCombatRollState(firstCombatant, secondCombatant, dependencies);
+  const initiative = determineInitiative(
+    firstCombatant,
+    secondCombatant,
+    dependencies,
+    startCombat.initiativeModifiers,
+  );
   const activeCombatantId = initiative.activeCombatantId;
   const state: ActiveFightState = {
     id: fightId,
@@ -196,7 +298,7 @@ export const createFight = (
     phase: "upkeep",
     activeCombatantId,
     combatants,
-    activeEffects: [],
+    activeEffects: startCombat.activeEffects,
     actionHistory: [],
     resolutionFrames: [],
     eventSequence: 2 + initiative.tieBreakerRolls.length,
@@ -225,7 +327,7 @@ export const createFight = (
           type: "initiative-rolled" as const,
           combatantId: roll.combatantId,
           naturalResult: roll.naturalResult,
-          result: roll.naturalResult,
+          result: roll.result,
         })),
         {
           id: dependencies.ids.nextEventId(),

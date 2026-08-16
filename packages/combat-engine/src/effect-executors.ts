@@ -22,6 +22,7 @@ export const registeredEffectTypes = [
   "modify-resource",
   "modify-roll",
   "modify-stat",
+  "negate",
   "prevent-combat-result",
   "prevent-move-modification",
   "prevent-move-use",
@@ -176,9 +177,14 @@ const supportedConditions = new Set<EffectCondition["type"]>([
   "resource-change",
   "move-effect-active",
   "move-effect-inactive",
+  "move-modification",
   "active-move-count",
   "moveset-move-count",
   "move-use-count",
+  "level-comparison",
+  "location",
+  "transformation-mastery",
+  "prior-turn-restriction",
   "moveset",
   "stored-roll-threshold",
 ]);
@@ -212,6 +218,8 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "triggering-move-base-damage",
   "triggering-move-base-damage-percent",
   "stat-offset",
+  "selected-dice-count",
+  "stopped-hit-count",
 ]);
 
 const issue = (
@@ -334,7 +342,8 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
     effect.trigger === "start-combat" &&
     effect.type !== "lock" &&
     effect.type !== "modify-resource" &&
-    effect.type !== "modify-remaining-uses"
+    effect.type !== "modify-remaining-uses" &&
+    effect.type !== "modify-roll"
   )
     issues.push(
       issue(
@@ -382,13 +391,13 @@ const activateIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  if (effect.trigger !== "on-success")
+  if (effect.trigger !== "on-success" && effect.trigger !== "before-attack-roll")
     issues.push(
       issue(
         "unsupported-trigger",
         sourceDefinitionId,
         effectIndex,
-        "Activation selection currently resolves only after a successful action.",
+        "Activation selection currently resolves only after a successful action or before an attack roll.",
       ),
     );
   if (effect.target !== "self")
@@ -417,7 +426,7 @@ const activateIssues = (
       ),
     );
   const selectorIsConstant =
-    (effect.selector.category === "skill" && effect.selector.constant === true) ||
+    effect.selector.constant === true ||
     (effect.selector.ids !== undefined && effect.selector.ids.length > 0);
   if (!selectorIsConstant || effect.selector.subject !== "source")
     issues.push(
@@ -649,20 +658,6 @@ const modifyRollCapIssues = (
         "Total-scope caps are supported only for dice results.",
       ),
     );
-  if (
-    effect.scope !== undefined &&
-    effect.scope.type !== "current-action" &&
-    effect.cap?.scope !== undefined &&
-    effect.cap.scope !== "amount"
-  )
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Deferred roll modifiers support amount caps only.",
-      ),
-    );
   return issues;
 };
 
@@ -672,44 +667,19 @@ const modifyRollIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  if (!["attack", "defense"].includes(effect.roll))
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        `Roll ${effect.roll} is not supported.`,
-      ),
-    );
-  if (!["result", "sides"].includes(effect.modifier))
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        `Roll modifier ${effect.modifier} is not supported.`,
-      ),
-    );
   const numeric = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
-  if (effect.amount === undefined)
+  if (effect.amount === undefined && effect.cap === undefined)
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Roll modifiers require a numeric amount.",
+        "Roll modifiers require an amount or an explicit cap.",
       ),
     );
   if (numeric !== undefined) issues.push(numeric);
-  if (effect.multiplier !== undefined || effect.affectedDice !== undefined)
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Roll multipliers and die selection are not in this executor slice.",
-      ),
-    );
+  const multiplier = numericIssue(effect.multiplier, sourceDefinitionId, effectIndex, "multiplier");
+  if (multiplier !== undefined) issues.push(multiplier);
   issues.push(...modifyRollCapIssues(effect, sourceDefinitionId, effectIndex));
   if (effect.dieIndex !== undefined && (!Number.isInteger(effect.dieIndex) || effect.dieIndex < 1))
     issues.push(
@@ -735,34 +705,6 @@ const modifyRollIssues = (
         sourceDefinitionId,
         effectIndex,
         "On-roll-result supports immediate self attack-result modifiers for a specific die only.",
-      ),
-    );
-  if (
-    effect.trigger === "before-attack-roll" &&
-    effect.dieIndex !== undefined &&
-    effect.conditions?.some(
-      (condition) =>
-        condition.type === "roll-die-result" || condition.type === "roll-die-threshold",
-    )
-  )
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Per-die result conditions require the on-roll-result trigger.",
-      ),
-    );
-  if (
-    (effect.trigger === "on-resource-gain" || effect.trigger === "on-resource-drain") &&
-    effect.duration !== undefined
-  )
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Resource-event roll modifiers require a durable roll-event lifecycle for duration handling.",
       ),
     );
   return issues;
@@ -1077,6 +1019,64 @@ const suppressIssues = (
   ...suppressDurationIssues(effect, sourceDefinitionId, effectIndex),
   ...suppressChoiceIssues(effect, sourceDefinitionId, effectIndex),
 ];
+
+const negateIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "negate" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger !== "action-phase")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Negation currently resolves from an action-phase transition.",
+      ),
+    );
+  if (effect.target !== "opponent")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Prevent-attack negation currently targets the opposing combatant.",
+      ),
+    );
+  if (
+    effect.aspects === undefined ||
+    effect.aspects.length !== 1 ||
+    effect.aspects[0] !== "prevent-attack"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Only the explicit prevent-attack negation aspect is currently executable.",
+      ),
+    );
+  if (
+    effect.selector !== undefined ||
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.stacking !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Selector, lifecycle, limit, and activation variants require additional persisted negation context.",
+      ),
+    );
+  return issues;
+};
 
 const extraActionTargetIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "grant-extra-action" }>,
@@ -2346,6 +2346,7 @@ export const effectExecutorRegistry = {
   "grant-extra-action": createExecutor("grant-extra-action", grantExtraActionIssues),
   "modify-roll": createExecutor("modify-roll", modifyRollIssues),
   "modify-stat": createExecutor("modify-stat", modifyStatIssues),
+  negate: createExecutor("negate", negateIssues),
   "prevent-combat-result": createExecutor("prevent-combat-result"),
   "prevent-move-modification": createExecutor(
     "prevent-move-modification",

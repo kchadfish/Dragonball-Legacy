@@ -40,6 +40,7 @@ export interface MoveEffectRuntimeContext {
   readonly incomingDamage?: number;
   /** Final damage dealt by the current attack when a resource effect consumes it. */
   readonly currentDamage?: number;
+  readonly selectedNumericValues?: Readonly<Record<string, number>>;
   readonly mode?: "spar" | "battle";
   /** The attack that caused a passive effect owned by another move to trigger. */
   readonly triggeringMove?: MoveDefinition;
@@ -66,7 +67,23 @@ export interface PendingEffectChoice {
   readonly sourceDefinitionId: MoveDefinition["id"];
   readonly effectIndices: readonly number[];
   readonly activationGroup?: string;
+  readonly numericSelection?: {
+    readonly key: string;
+    readonly minimum: number;
+    readonly maximum: number;
+  };
 }
+
+type RollComparisonRuntimeCondition = Extract<
+  RuntimeCondition,
+  { readonly type: "roll-comparison" }
+>;
+type RollThresholdRuntimeCondition = Extract<RuntimeCondition, { readonly type: "roll-threshold" }>;
+type SuccessfulHitCountRuntimeCondition = Extract<
+  RuntimeCondition,
+  { readonly type: "successful-hit-count" }
+>;
+type CombatResultRuntimeCondition = Extract<RuntimeCondition, { readonly type: "combat-result" }>;
 
 export interface ResourceChangeEvent {
   readonly resource: "hp" | "ki";
@@ -281,27 +298,49 @@ export interface StatusPreventionApplication {
   readonly duration: LockApplication["duration"];
 }
 
+export interface NegationApplication {
+  readonly target: "self" | "opponent";
+  readonly aspects: readonly ("prevent-attack" | "prevent-damage")[];
+}
+
+type RollModificationModifier = "dice" | "result" | "sides";
+type RollModificationCap =
+  | {
+      readonly type: "maximum" | "minimum";
+      readonly scope: "amount" | "total" | "roll";
+      readonly value: number;
+    }
+  | { readonly type: "allow-exceed"; readonly scope: "amount" | "total" | "roll" };
+
 export interface RollModification {
   readonly target: "self" | "opponent";
-  readonly roll: "attack" | "defense";
-  readonly modifier: "result" | "sides";
+  readonly roll: "attack" | "defense" | "escape" | "initiative" | "transformation";
+  readonly modifier: RollModificationModifier;
   readonly amount: number;
-  readonly cap?:
-    | {
-        readonly type: "maximum" | "minimum";
-        readonly scope: "amount" | "total" | "roll";
-        readonly value: number;
-      }
-    | { readonly type: "allow-exceed"; readonly scope: "amount" | "total" | "roll" };
+  readonly multiplier?: number;
+  readonly affectedDice?: "all" | "ceiling-half";
+  readonly cap?: RollModificationCap;
   /** One-based die index for an immediate per-die result modifier. */
   readonly dieIndex?: number;
   readonly selector?: MoveSelectorCondition;
   readonly stacking?: "allow" | "prevent";
   /** Retained so state mutation can distinguish immediate from durable roll changes. */
   readonly scope?:
-    "combat" | "following-action" | "next-action" | "next-actions" | "next-roll" | "next-rolls";
+    | "current-action"
+    | "combat"
+    | "following-action"
+    | "next-action"
+    | "next-actions"
+    | "next-phase"
+    | "next-roll"
+    | "next-rolls"
+    | "next-turn";
   /** Resolved count for next-actions/next-rolls scopes. */
   readonly remaining?: number;
+  readonly duration?:
+    | { readonly type: "combat" }
+    | { readonly type: "turns"; readonly remaining: number }
+    | { readonly type: "turns-or-until-perfect-roll"; readonly remaining: number };
 }
 
 export interface DamageModification {
@@ -434,8 +473,8 @@ export interface CombatResultPreventionApplication {
 
 export interface RollModificationPreventionApplication {
   readonly target: "self" | "opponent";
-  readonly roll: "attack" | "defense";
-  readonly modifier: "result" | "sides" | "any";
+  readonly roll: "attack" | "defense" | "escape" | "initiative" | "transformation";
+  readonly modifier: "dice" | "result" | "sides" | "any";
   readonly selector?: MoveSelectorCondition;
   readonly exemptSourceEffect?: boolean;
   readonly duration: LockApplication["duration"];
@@ -918,146 +957,235 @@ const resourceChangeMatches = (
   );
 };
 
+const levelComparisonMatches = (
+  condition: Extract<RuntimeCondition, { readonly type: "level-comparison" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  const left = condition.left === "self" ? context.self.level : context.opponent.level;
+  const right = condition.right === "self" ? context.self.level : context.opponent.level;
+  if (left === undefined || right === undefined) return false;
+  const difference =
+    condition.difference === undefined ? 0 : numeric(condition.difference, context);
+  if (difference === undefined) return false;
+  const target = right + difference;
+  if (condition.comparison === "higher-than") return left > target;
+  if (condition.comparison === "lower-than") return left < target;
+  if (condition.comparison === "at-least") return left >= target;
+  return left === target;
+};
+
+const locationMatches = (
+  condition: Extract<RuntimeCondition, { readonly type: "location" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  const combatant = condition.subject === "self" ? context.self : context.opponent;
+  return condition.state === "planet-has-dragon-balls" && combatant.planetHasDragonBalls === true;
+};
+
+const transformationMasteryMatches = (
+  _condition: Extract<RuntimeCondition, { readonly type: "transformation-mastery" }>,
+  context: MoveEffectRuntimeContext,
+) =>
+  context.self.transformation !== undefined &&
+  context.self.masteredTransformationIds?.includes(context.self.transformation.transformationId) ===
+    true;
+
+const priorTurnRestrictionMatches = (
+  condition: Extract<RuntimeCondition, { readonly type: "prior-turn-restriction" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  const actorId = condition.subject === "self" ? context.self.id : context.opponent.id;
+  const priorTurn = context.turnNumber - 1;
+  return (context.actionHistory ?? []).some(
+    (action) =>
+      action.actorId === actorId &&
+      action.turnNumber === priorTurn &&
+      ((condition.anyOf.includes("attack-use") &&
+        (action.type === "basic-attack" || action.type === "use-move")) ||
+        (condition.anyOf.includes("power-up") && action.type === "power-up")),
+  );
+};
+
+const moveModificationMatches = (
+  condition: Extract<RuntimeCondition, { readonly type: "move-modification" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  const currentMove =
+    context.triggeringMove ??
+    (context.currentAction?.type === "use-move"
+      ? context.moves.get(context.currentAction.moveId)
+      : undefined);
+  if (currentMove === undefined) return false;
+  return [...(context.activeEffects ?? [])].some((activeEffect) => {
+    if (activeEffect.type !== "active-constant" || activeEffect.lifecycle === "deactivated") {
+      return false;
+    }
+    const sourceMove = context.moves.get(activeEffect.sourceDefinitionId);
+    return (
+      sourceMove?.styleId === condition.sourceStyleId &&
+      sourceMove.effects?.some(
+        (effect) =>
+          (condition.aspect === "damage" && effect.type === "modify-damage") ||
+          (condition.aspect === "cost" && effect.type === "modify-cost"),
+      ) === true
+    );
+  });
+};
+
 type RuntimeConditionHandler = (
   condition: RuntimeCondition,
   context: MoveEffectRuntimeContext,
 ) => boolean;
+type RuntimeConditionType = RuntimeCondition["type"];
 
-const runtimeConditionHandlers: Partial<Record<RuntimeCondition["type"], RuntimeConditionHandler>> =
-  {
-    "combat-result": (condition, context) =>
-      combatResultMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "combat-result" }>,
-        context,
-      ),
-    "successful-hit-count": (condition, context) => {
-      const typed = condition as Extract<
-        RuntimeCondition,
-        { readonly type: "successful-hit-count" }
-      >;
-      return numericComparison(typed.value, context.successfulHitCount, typed.comparison, context);
-    },
-    "roll-threshold": (condition, context) =>
-      rollThresholdMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "roll-threshold" }>,
-        context,
-      ),
-    "roll-comparison": (condition, context) =>
-      rollComparisonMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "roll-comparison" }>,
-        context,
-      ),
-    "paid-ki-cost": (condition, context) =>
-      paidKiCostMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "paid-ki-cost" }>,
-        context,
-      ),
-    "stat-comparison": (condition, context) =>
-      statComparisonMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "stat-comparison" }>,
-        context,
-      ),
-    "resource-threshold": (condition, context) =>
-      resourceThresholdMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "resource-threshold" }>,
-        context,
-      ),
-    "resource-comparison": (condition, context) =>
-      resourceComparisonMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "resource-comparison" }>,
-        context,
-      ),
-    "move-selector": (condition, context) =>
-      moveSelectorMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "move-selector" }>,
-        context,
-      ),
-    "combat-context": (condition, context) =>
-      context.mode ===
-      (condition as Extract<RuntimeCondition, { readonly type: "combat-context" }>).mode,
-    "combat-state": (condition, context) =>
-      conditionCombatStateMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "combat-state" }>,
-        context,
-      ),
-    status: (condition, context) =>
-      conditionStatusMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "status" }>,
-        context,
-      ),
-    "move-effect-active": (condition, context) =>
-      activeMoveEffectMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "move-effect-active" }>,
-        context,
-      ),
-    "move-effect-inactive": (condition, context) =>
-      activeMoveEffectMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "move-effect-inactive" }>,
-        context,
-      ),
-    "active-move-count": (condition, context) =>
-      activeMoveCountMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "active-move-count" }>,
-        context,
-      ),
-    "moveset-move-count": (condition, context) =>
-      movesetMoveCountMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "moveset-move-count" }>,
-        context,
-      ),
-    "move-use-count": (condition, context) =>
-      moveUseCountMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "move-use-count" }>,
-        context,
-      ),
-    moveset: (condition, context) =>
-      movesetMatches(condition as Extract<RuntimeCondition, { readonly type: "moveset" }>, context),
-    "perfect-roll": (condition, context) =>
-      conditionPerfectRollMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "perfect-roll" }>,
-        context,
-      ),
-    "roll-die-result": (condition, context) =>
-      conditionRollDieResultMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "roll-die-result" }>,
-        context,
-      ),
-    "roll-die-threshold": (condition, context) =>
-      conditionRollDieThresholdMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "roll-die-threshold" }>,
-        context,
-      ),
-    "prior-action": (condition, context) =>
-      priorActionMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "prior-action" }>,
-        context,
-      ),
-    "no-prior-action": (condition, context) =>
-      !priorActionMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "no-prior-action" }>,
-        context,
-      ),
-    "action-sequence": (condition, context) =>
-      actionSequenceMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "action-sequence" }>,
-        context,
-      ),
-    "incoming-damage": (condition, context) =>
-      incomingDamageMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "incoming-damage" }>,
-        context,
-      ),
-    "resource-change": (condition, context) =>
-      resourceChangeMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "resource-change" }>,
-        context,
-      ),
-    "stored-roll-threshold": (condition, context) =>
-      storedRollThresholdMatches(
-        condition as Extract<RuntimeCondition, { readonly type: "stored-roll-threshold" }>,
-        context,
-      ),
-  };
+const rollThresholdHandler: RuntimeConditionHandler = (condition, context) =>
+  rollThresholdMatches(condition as RollThresholdRuntimeCondition, context);
+const successfulHitCountHandler: RuntimeConditionHandler = (condition, context) => {
+  const typed = condition as SuccessfulHitCountRuntimeCondition;
+  return numericComparison(typed.value, context.successfulHitCount, typed.comparison, context);
+};
+const combatResultHandler: RuntimeConditionHandler = (condition, context) =>
+  combatResultMatches(condition as CombatResultRuntimeCondition, context);
+
+const runtimeConditionHandlers: Partial<Record<RuntimeConditionType, RuntimeConditionHandler>> = {
+  "combat-result": combatResultHandler,
+  "successful-hit-count": successfulHitCountHandler,
+  "roll-threshold": rollThresholdHandler,
+  "roll-comparison": (condition, context) =>
+    rollComparisonMatches(condition as RollComparisonRuntimeCondition, context),
+  "paid-ki-cost": (condition, context) =>
+    paidKiCostMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "paid-ki-cost" }>,
+      context,
+    ),
+  "stat-comparison": (condition, context) =>
+    statComparisonMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "stat-comparison" }>,
+      context,
+    ),
+  "resource-threshold": (condition, context) =>
+    resourceThresholdMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "resource-threshold" }>,
+      context,
+    ),
+  "resource-comparison": (condition, context) =>
+    resourceComparisonMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "resource-comparison" }>,
+      context,
+    ),
+  "move-selector": (condition, context) =>
+    moveSelectorMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "move-selector" }>,
+      context,
+    ),
+  "combat-context": (condition, context) =>
+    context.mode ===
+    (condition as Extract<RuntimeCondition, { readonly type: "combat-context" }>).mode,
+  "combat-state": (condition, context) =>
+    conditionCombatStateMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "combat-state" }>,
+      context,
+    ),
+  status: (condition, context) =>
+    conditionStatusMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "status" }>,
+      context,
+    ),
+  "move-effect-active": (condition, context) =>
+    activeMoveEffectMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "move-effect-active" }>,
+      context,
+    ),
+  "move-effect-inactive": (condition, context) =>
+    activeMoveEffectMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "move-effect-inactive" }>,
+      context,
+    ),
+  "active-move-count": (condition, context) =>
+    activeMoveCountMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "active-move-count" }>,
+      context,
+    ),
+  "moveset-move-count": (condition, context) =>
+    movesetMoveCountMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "moveset-move-count" }>,
+      context,
+    ),
+  "move-use-count": (condition, context) =>
+    moveUseCountMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "move-use-count" }>,
+      context,
+    ),
+  moveset: (condition, context) =>
+    movesetMatches(condition as Extract<RuntimeCondition, { readonly type: "moveset" }>, context),
+  "perfect-roll": (condition, context) =>
+    conditionPerfectRollMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "perfect-roll" }>,
+      context,
+    ),
+  "roll-die-result": (condition, context) =>
+    conditionRollDieResultMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "roll-die-result" }>,
+      context,
+    ),
+  "roll-die-threshold": (condition, context) =>
+    conditionRollDieThresholdMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "roll-die-threshold" }>,
+      context,
+    ),
+  "prior-action": (condition, context) =>
+    priorActionMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "prior-action" }>,
+      context,
+    ),
+  "no-prior-action": (condition, context) =>
+    !priorActionMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "no-prior-action" }>,
+      context,
+    ),
+  "action-sequence": (condition, context) =>
+    actionSequenceMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "action-sequence" }>,
+      context,
+    ),
+  "incoming-damage": (condition, context) =>
+    incomingDamageMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "incoming-damage" }>,
+      context,
+    ),
+  "resource-change": (condition, context) =>
+    resourceChangeMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "resource-change" }>,
+      context,
+    ),
+  "level-comparison": (condition, context) =>
+    levelComparisonMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "level-comparison" }>,
+      context,
+    ),
+  location: (condition, context) =>
+    locationMatches(condition as Extract<RuntimeCondition, { readonly type: "location" }>, context),
+  "transformation-mastery": (condition, context) =>
+    transformationMasteryMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "transformation-mastery" }>,
+      context,
+    ),
+  "prior-turn-restriction": (condition, context) =>
+    priorTurnRestrictionMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "prior-turn-restriction" }>,
+      context,
+    ),
+  "move-modification": (condition, context) =>
+    moveModificationMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "move-modification" }>,
+      context,
+    ),
+  "stored-roll-threshold": (condition, context) =>
+    storedRollThresholdMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "stored-roll-threshold" }>,
+      context,
+    ),
+};
 
 const conditionMatches = (condition: RuntimeCondition, context: MoveEffectRuntimeContext) =>
   runtimeConditionHandlers[condition.type]?.(condition, context) ?? false;
@@ -1096,6 +1224,7 @@ const numeric = (
     triggeringMove: context.triggeringMove,
     triggeringMoveOwner: context.triggeringMoveOwner,
     currentDamage: context.currentDamage,
+    selectedNumericValues: context.selectedNumericValues,
   });
 
 const damageAmount = (
@@ -1391,6 +1520,7 @@ const emptyEffectChanges = () => ({
   moveUsePreventions: [] as MoveUsePreventionApplication[],
   remainingUseModifications: [] as RemainingUseModificationApplication[],
   statusPreventions: [] as StatusPreventionApplication[],
+  negations: [] as NegationApplication[],
   rollModifications: [] as RollModification[],
   rollDefinitions: [] as RollDefinitionOverride[],
   rollResultOverrides: [] as RollResultOverride[],
@@ -1508,6 +1638,7 @@ const statusEffectChanges = (
     moveUsePreventions: [],
     remainingUseModifications: [],
     statusPreventions: [],
+    negations: [],
     rollModifications: [],
     rollDefinitions: [],
     rollResultOverrides: [],
@@ -2045,12 +2176,36 @@ const moveModificationPreventionEffectChanges = (
       };
 };
 
+const rollModificationCapScope = (
+  definition: NonNullable<Extract<EffectDefinition, { readonly type: "modify-roll" }>["cap"]>,
+  modifier: "dice" | "result" | "sides",
+  amountOmitted: boolean,
+): "amount" | "total" | "roll" => {
+  if (!amountOmitted) return "amount";
+  if (definition.type === "allow-exceed") return "amount";
+  return modifier === "sides" || modifier === "dice" ? "roll" : "total";
+};
+
+const rollModificationDuration = (
+  duration: Extract<EffectDefinition, { readonly type: "modify-roll" }>["duration"],
+  context: MoveEffectRuntimeContext,
+): RollModification["duration"] => {
+  if (duration === undefined) return undefined;
+  if (duration.type === "combat") return { type: "combat" as const };
+  if (duration.type !== "turns" && duration.type !== "turns-or-until-perfect-roll")
+    return undefined;
+  const turns = numeric(duration.turns, context);
+  return turns === undefined || turns < 1 ? undefined : { type: duration.type, remaining: turns };
+};
+
 const resolvedRollModificationCap = (
   definition: Extract<EffectDefinition, { readonly type: "modify-roll" }>["cap"],
   context: MoveEffectRuntimeContext,
+  modifier: "dice" | "result" | "sides",
+  amountOmitted: boolean,
 ): RollModification["cap"] => {
   if (definition === undefined) return undefined;
-  const scope = definition.scope ?? "amount";
+  const scope = definition.scope ?? rollModificationCapScope(definition, modifier, amountOmitted);
   if (definition.type === "allow-exceed") return { type: definition.type, scope };
   const value = numeric(definition.value, context);
   if (value === undefined) return undefined;
@@ -2067,25 +2222,42 @@ const isResolvedRollModification = (
   !(definition !== undefined && cap === undefined) &&
   !(countedScope !== undefined && countedScope < 1);
 
+const numericSelectionForEffect = (
+  move: MoveDefinition,
+  effect: Extract<EffectDefinition, { readonly type: "modify-roll" }>,
+): PendingEffectChoice["numericSelection"] => {
+  const expression = effect.amount;
+  if (expression?.type !== "selected-dice-count") return undefined;
+  const maximum = move.mechanics.attack?.attackRoll?.dice;
+  return maximum === undefined ? undefined : { key: expression.selectionKey, minimum: 0, maximum };
+};
+
 const rollModificationEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "modify-roll" }>,
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
 ): EffectChanges => {
-  if (
-    (effect.roll !== "attack" && effect.roll !== "defense") ||
-    (effect.modifier !== "result" && effect.modifier !== "sides") ||
-    effect.amount === undefined
-  ) {
+  if (effect.amount === undefined && effect.cap === undefined) {
     return emptyEffectChanges();
   }
-  const amount = numeric(effect.amount, context);
-  const cap = resolvedRollModificationCap(effect.cap, context);
+  const amount = effect.amount === undefined ? 0 : numeric(effect.amount, context);
+  const multiplier = effect.multiplier === undefined ? 1 : numeric(effect.multiplier, context);
+  const cap = resolvedRollModificationCap(
+    effect.cap,
+    context,
+    effect.modifier,
+    effect.amount === undefined,
+  );
   const countedScope =
     effect.scope?.type === "next-actions" || effect.scope?.type === "next-rolls"
       ? numeric(effect.scope.count, context)
       : undefined;
-  if (!isResolvedRollModification(amount, effect.cap, cap, countedScope))
+  const duration = rollModificationDuration(effect.duration, context);
+  if (
+    !isResolvedRollModification(amount, effect.cap, cap, countedScope) ||
+    (effect.duration !== undefined && duration === undefined) ||
+    multiplier === undefined
+  )
     return emptyEffectChanges();
   return {
     ...emptyEffectChanges(),
@@ -2094,19 +2266,24 @@ const rollModificationEffectChanges = (
         target,
         roll: effect.roll,
         modifier: effect.modifier,
-        amount,
+        amount: amount * multiplier,
+        ...(effect.affectedDice === undefined ? {} : { affectedDice: effect.affectedDice }),
         ...(cap === undefined ? {} : { cap }),
         ...(effect.dieIndex === undefined ? {} : { dieIndex: effect.dieIndex }),
         ...(effect.selector === undefined ? {} : { selector: effect.selector }),
-        ...(effect.scope?.type === "combat" ||
+        ...(effect.scope?.type === "current-action" ||
+        effect.scope?.type === "combat" ||
         effect.scope?.type === "following-action" ||
         effect.scope?.type === "next-action" ||
         effect.scope?.type === "next-actions" ||
         effect.scope?.type === "next-roll" ||
-        effect.scope?.type === "next-rolls"
+        effect.scope?.type === "next-rolls" ||
+        effect.scope?.type === "next-phase" ||
+        effect.scope?.type === "next-turn"
           ? { scope: effect.scope.type }
           : {}),
         ...(countedScope === undefined ? {} : { remaining: countedScope }),
+        ...(duration === undefined ? {} : { duration }),
       },
     ],
   };
@@ -2229,6 +2406,14 @@ const combatResultPreventionEffectChanges = (
         ],
       };
 };
+
+const negateEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "negate" }>,
+  target: "self" | "opponent",
+): EffectChanges => ({
+  ...emptyEffectChanges(),
+  negations: [{ target, aspects: effect.aspects ?? [] }],
+});
 
 const criticalThresholdEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "modify-critical-threshold" }>,
@@ -2479,6 +2664,8 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
+  negate: (effect, _move, _context, target) =>
+    negateEffectChanges(effect as Extract<EffectDefinition, { readonly type: "negate" }>, target),
   reroll: (effect, move, context, target, _trigger, effectIndex) =>
     rerollEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "reroll" }>,
@@ -2724,6 +2911,7 @@ const moveEffectsForTriggerInternal = (
   readonly costModifications: readonly CostModification[];
   readonly currentActionCostModifications: readonly CurrentActionCostModification[];
   readonly rerolls: readonly RerollApplication[];
+  readonly negations: readonly NegationApplication[];
   readonly pendingEffectChoices: readonly PendingEffectChoice[];
   // eslint-disable-next-line sonarjs/cognitive-complexity
 } => {
@@ -2760,6 +2948,7 @@ const moveEffectsForTriggerInternal = (
   const costModifications: CostModification[] = [];
   const currentActionCostModifications: CurrentActionCostModification[] = [];
   const rerolls: RerollApplication[] = [];
+  const negations: NegationApplication[] = [];
   const pendingEffectChoices: PendingEffectChoice[] = [];
   const enabledEffectIndices = new Set(context.enabledOptionalEffectIndices ?? []);
   const resolvedEffectIndices = new Set(context.resolvedOptionalEffectIndices ?? []);
@@ -2792,10 +2981,19 @@ const moveEffectsForTriggerInternal = (
       );
       if (plans.every((plan) => plan.ok)) {
         const activationGroup = key.startsWith("effect:") ? undefined : key;
+        const numericSelection = effectIndices
+          .map((effectIndex) => {
+            const effect = move.effects![effectIndex]!;
+            return effect.type === "modify-roll"
+              ? numericSelectionForEffect(move, effect)
+              : undefined;
+          })
+          .find((selection) => selection !== undefined);
         pendingEffectChoices.push({
           sourceDefinitionId: move.id,
           effectIndices,
           ...(activationGroup === undefined ? {} : { activationGroup }),
+          ...(numericSelection === undefined ? {} : { numericSelection }),
         });
       }
     }
@@ -2861,6 +3059,7 @@ const moveEffectsForTriggerInternal = (
       costModifications.push(...changes.costModifications);
       currentActionCostModifications.push(...changes.currentActionCostModifications);
       rerolls.push(...changes.rerolls);
+      negations.push(...changes.negations);
     }
   }
   if (includeActiveFloatingEffects) {
@@ -2914,6 +3113,7 @@ const moveEffectsForTriggerInternal = (
       costModifications.push(...nested.costModifications);
       currentActionCostModifications.push(...nested.currentActionCostModifications);
       rerolls.push(...nested.rerolls);
+      negations.push(...nested.negations);
       pendingEffectChoices.push(...nested.pendingEffectChoices);
     }
   }
@@ -2949,6 +3149,7 @@ const moveEffectsForTriggerInternal = (
     costModifications,
     currentActionCostModifications,
     rerolls,
+    negations,
     pendingEffectChoices,
   };
 };

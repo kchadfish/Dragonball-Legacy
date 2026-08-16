@@ -41,6 +41,8 @@ export interface NumericExpressionContext {
   readonly triggeringMoveOwner?: "self" | "opponent";
   /** Final damage dealt by the current attack when a resource effect consumes it. */
   readonly currentDamage?: number;
+  /** Values selected through a pending declarative numeric choice. */
+  readonly selectedNumericValues?: Readonly<Record<string, number>>;
 }
 
 const combatantForSubject = (context: NumericExpressionContext, subject: "self" | "opponent") =>
@@ -331,6 +333,17 @@ const durableExpressionHandlers: Partial<
     return values.every((value): value is number => value !== undefined)
       ? Math.min(...values)
       : undefined;
+  },
+  "selected-dice-count": (expression, context) => {
+    if (!isType(expression, "selected-dice-count")) return undefined;
+    const selected = context.selectedNumericValues?.[expression.selectionKey];
+    if (selected === undefined) return undefined;
+    if (expression.operation === "negate") return -selected;
+    const groupSize = expression.groupSize;
+    const perGroup = expression.perGroup;
+    return groupSize === undefined || perGroup === undefined
+      ? undefined
+      : Math.floor(selected / groupSize) * perGroup;
   },
   "completed-combat-turn-count": (expression, context) =>
     isType(expression, "completed-combat-turn-count")

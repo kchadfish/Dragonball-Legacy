@@ -50,6 +50,7 @@ import {
   type RemainingUseModificationApplication,
   type StatusPreventionApplication,
   type RollModification,
+  type PendingEffectChoice,
   type DamageModification,
   type StatModification,
   type RollDefinitionOverride,
@@ -72,6 +73,8 @@ import type {
   ActiveCombatEffect,
   ActiveCostModifierEffect,
   ActiveRollModificationCap,
+  ActiveRollModifierEffect,
+  CombatRollType,
   ActiveFightState,
   ActiveRerollEffect,
   ActiveStatus,
@@ -94,6 +97,8 @@ import type {
 import type { CombatDependencies } from "./dependencies.js";
 import type { CombatantId, PendingDecisionId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
+
+type RollModifierKind = "dice" | "result" | "sides";
 
 const invalidFightState = (state: CombatTransition["state"]): CombatFailure => ({
   type: "invalid-fight-state",
@@ -369,6 +374,12 @@ const isForcedActionEffect = (effect: MoveEffect) =>
 const isStoredRollActionEffect = (effect: MoveEffect) =>
   effect.type === "roll-and-store" && effect.target === "self";
 
+const isAttackPreventionNegationEffect = (effect: MoveEffect) =>
+  effect.type === "negate" &&
+  effect.target === "opponent" &&
+  effect.aspects?.length === 1 &&
+  effect.aspects[0] === "prevent-attack";
+
 const isSimpleActionMove = (move: MoveDefinition) => {
   const actionEffects = (move.effects ?? []).filter((effect) => effect.trigger === "action-phase");
   return (
@@ -381,7 +392,8 @@ const isSimpleActionMove = (move: MoveDefinition) => {
         isDamageActionModifier(effect) ||
         isRollActionModifier(effect) ||
         isForcedActionEffect(effect) ||
-        isStoredRollActionEffect(effect),
+        isStoredRollActionEffect(effect) ||
+        isAttackPreventionNegationEffect(effect),
     )
   );
 };
@@ -861,15 +873,22 @@ const isCombatDamageModifierItem = (item: (typeof ITEM_DEFINITIONS)[number]) =>
 const isCombatUsableItem = (item: (typeof ITEM_DEFINITIONS)[number]) =>
   isCombatResourceItem(item) || isCombatRollModifierItem(item) || isCombatDamageModifierItem(item);
 
-interface RollModificationPreventedInput {
+type RollModificationPreventedInput = {
   readonly state: ActiveFightState;
   readonly combatantId: CombatantId;
-  readonly roll: "attack" | "defense";
-  readonly modifier: "result" | "sides";
+  readonly roll: CombatRollType;
+  readonly modifier: RollModifierKind;
   readonly move?: MoveDefinition;
   readonly sourceCombatantId?: CombatantId;
   readonly sourceDefinitionId?: string;
-}
+};
+
+const activeRollCapForEffect = (effect: ActiveCombatEffect) => {
+  if (effect.type === "modify-roll") return effect.cap;
+  if (effect.type === "modify-next-action" && effect.modifier.type === "roll")
+    return effect.modifier.cap;
+  return undefined;
+};
 
 const passiveRollModificationPrevented = ({
   state,
@@ -951,7 +970,7 @@ const rollModificationPrevented = ({
     activeMoveModificationPrevented({
       state,
       combatantId,
-      aspect: modifier === "sides" ? "dice-sides" : "roll-results",
+      aspect: modifier === "sides" || modifier === "dice" ? "dice-sides" : "roll-results",
       move,
       sourceCombatantId,
       sourceDefinitionId,
@@ -1028,8 +1047,8 @@ const activeEffectSuppressed = (state: ActiveFightState, effect: ActiveCombatEff
 const rollModifierAmount = (
   effect: ActiveCombatEffect,
   combatantId: CombatantId,
-  roll: "attack" | "defense",
-  modifier: "result" | "sides",
+  roll: CombatRollType,
+  modifier: RollModifierKind,
   move?: MoveDefinition,
 ) => {
   if (
@@ -1072,8 +1091,8 @@ const activeRollModifierIsBlocked = (
   state: ActiveFightState,
   effect: ActiveCombatEffect,
   combatantId: CombatantId,
-  roll: "attack" | "defense",
-  modifier: "result" | "sides",
+  roll: CombatRollType,
+  modifier: RollModifierKind,
   move: MoveDefinition | undefined,
 ) =>
   activeEffectSuppressed(state, effect) ||
@@ -1092,8 +1111,8 @@ const activeRollModifierIsBlocked = (
 const activeRollModifier = (
   state: ActiveFightState,
   combatantId: CombatantId,
-  roll: "attack" | "defense",
-  modifier: "result" | "sides",
+  roll: CombatRollType,
+  modifier: RollModifierKind,
   move?: MoveDefinition,
 ) => {
   const matchingEffects = state.activeEffects.filter(
@@ -1115,8 +1134,8 @@ const activeRollModifier = (
 const activeRollModifierCanExceed = (
   state: ActiveFightState,
   combatantId: CombatantId,
-  roll: "attack" | "defense",
-  modifier: "result" | "sides",
+  roll: CombatRollType,
+  modifier: RollModifierKind,
   move: MoveDefinition | undefined,
 ) =>
   state.activeEffects.some(
@@ -1125,6 +1144,34 @@ const activeRollModifierCanExceed = (
       rollModifierAmount(effect, combatantId, roll, modifier, move) !== 0 &&
       activeRollModifierAllowsExceed(effect),
   );
+
+const activeRollNumericCap = (
+  state: ActiveFightState,
+  combatantId: CombatantId,
+  roll: CombatRollType,
+  modifier: RollModifierKind,
+  scope: "total" | "roll",
+  move?: MoveDefinition,
+) => {
+  const matching = state.activeEffects.filter(
+    (effect) =>
+      !activeRollModifierIsBlocked(state, effect, combatantId, roll, modifier, move) &&
+      activeRollCapForEffect(effect)?.type !== "allow-exceed" &&
+      activeRollCapForEffect(effect)?.scope === scope,
+  );
+  return matching.reduce<
+    | {
+        readonly type: "maximum" | "minimum";
+        readonly scope: "amount" | "total" | "roll";
+        readonly value: number;
+      }
+    | undefined
+  >((cap, effect) => {
+    const candidate = activeRollCapForEffect(effect);
+    if (candidate === undefined || candidate.type === "allow-exceed") return cap;
+    return { type: candidate.type, scope: candidate.scope, value: candidate.value };
+  }, undefined);
+};
 
 const activeStatModifierApplies = (
   state: ActiveFightState,
@@ -1577,21 +1624,42 @@ const actionRestrictionAfterOwnerTurn = (
     : [{ ...effect, remainingTurns: effect.remainingTurns - 1 }];
 };
 
+const simpleEffectAfterOwnerTurn = (
+  effect: ActiveCombatEffect,
+  combatantId: CombatantId,
+  turnNumber: number,
+): readonly ActiveCombatEffect[] | undefined => {
+  if (effect.type === "action-restriction")
+    return actionRestrictionAfterOwnerTurn(effect, combatantId, turnNumber);
+  if (effect.type === "extra-action")
+    return effect.targetCombatantId === combatantId && effect.expiresAfterTurn <= turnNumber
+      ? []
+      : [effect];
+  if (effect.type === "floating-effect")
+    return effect.scope.type === "next-turn" &&
+      effect.scope.combatantId === combatantId &&
+      turnNumber > effect.createdOnTurn
+      ? []
+      : [effect];
+  return undefined;
+};
+
 const effectsAfterOwnerTurn = (state: ActiveFightState, combatantId: CombatantId) =>
   state.activeEffects.flatMap<ActiveCombatEffect>((effect) => {
-    if (effect.type === "action-restriction")
-      return actionRestrictionAfterOwnerTurn(effect, combatantId, state.turnNumber);
-    if (effect.type === "extra-action") {
-      return effect.targetCombatantId === combatantId && effect.expiresAfterTurn <= state.turnNumber
+    const simpleEffect = simpleEffectAfterOwnerTurn(effect, combatantId, state.turnNumber);
+    if (simpleEffect !== undefined) return simpleEffect;
+    if (effect.type === "modify-next-action") return [effect];
+    if (effect.type === "modify-roll") {
+      if (effect.duration === "combat" || effect.duration.type !== "turns") return [effect];
+      if (effect.duration.ownerCombatantId !== combatantId) return [effect];
+      return effect.duration.remaining <= 1
         ? []
-        : [effect];
-    }
-    if (effect.type === "floating-effect") {
-      return effect.scope.type === "next-turn" &&
-        effect.scope.combatantId === combatantId &&
-        state.turnNumber > effect.createdOnTurn
-        ? []
-        : [effect];
+        : [
+            {
+              ...effect,
+              duration: { ...effect.duration, remaining: effect.duration.remaining - 1 },
+            },
+          ];
     }
     if (
       (effect.type !== "action-lock" &&
@@ -2020,7 +2088,11 @@ interface AttackEffectResolutionContext {
   readonly defenderId: CombatantId;
   readonly turnNumber: number;
   readonly outcome?: "successful" | "stopped";
-  readonly rolls?: readonly { readonly attackResult: number; readonly defenseResult?: number }[];
+  readonly rolls?: readonly {
+    readonly attackResult: number;
+    readonly attackNaturalResult?: number;
+    readonly defenseResult?: number;
+  }[];
   readonly move?: MoveDefinition;
   readonly basicAttack?: BasicAttackType;
 }
@@ -2317,12 +2389,12 @@ const floatingEffectTerminatesAfterAttack = (
   });
 
 const scheduledRollMatches = (
-  roll: "attack" | "defense" | "transformation",
+  roll: CombatRollType,
   comparison: "at-least" | "at-most",
   value: number,
   context: AttackEffectResolutionContext,
 ) => {
-  if (roll === "transformation" || context.rolls === undefined) return false;
+  if ((roll !== "attack" && roll !== "defense") || context.rolls === undefined) return false;
   return context.rolls.some((result) => {
     const candidate = roll === "attack" ? result.attackResult : result.defenseResult;
     return candidate !== undefined && numericSelectorComparison(candidate, comparison, value);
@@ -2387,6 +2459,14 @@ const effectAfterNonFloatingAttackResolution = (
 ): readonly ActiveCombatEffect[] => {
   if (effect.type === "modify-damage")
     return modifyDamageAfterNonFloatingAttackResolution(effect, context);
+  if (
+    effect.type === "modify-roll" &&
+    effect.duration !== "combat" &&
+    effect.duration.type === "turns-or-until-perfect-roll" &&
+    effect.targetCombatantId === context.attackerId &&
+    context.rolls?.some((roll) => roll.attackNaturalResult === 30)
+  )
+    return [];
   if (effect.type === "modify-stat") return [effect];
   if (effect.type === "suppress") return suppressionAfterAttack(effect, context);
   if (effect.type === "modify-ki-cost")
@@ -2625,6 +2705,7 @@ const requestAttackEffectChoice = ({
   target,
   move,
   effectIndices,
+  numericSelection,
   dependencies,
 }: {
   readonly state: ActiveFightState;
@@ -2632,6 +2713,7 @@ const requestAttackEffectChoice = ({
   readonly target: ActiveFightState["combatants"][CombatantId];
   readonly move: MoveDefinition;
   readonly effectIndices: readonly number[];
+  readonly numericSelection: PendingEffectChoice["numericSelection"];
   readonly dependencies: CombatDependencies;
 }): CombatResult<CombatTransition> => {
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
@@ -2645,11 +2727,26 @@ const requestAttackEffectChoice = ({
       combatantId: decision.actorId,
       type: "optional-effect",
       options: [
-        {
-          id: `activate-effect:${effectIndices.join(",")}`,
-          type: "activate-effect",
-          effectIndices,
-        },
+        ...(numericSelection === undefined
+          ? [
+              {
+                id: `activate-effect:${effectIndices.join(",")}`,
+                type: "activate-effect" as const,
+                effectIndices,
+              },
+            ]
+          : Array.from(
+              { length: numericSelection.maximum - numericSelection.minimum + 1 },
+              (_, index) => {
+                const selectedNumericValue = numericSelection.minimum + index;
+                return {
+                  id: `activate-effect:${effectIndices.join(",")}:${numericSelection.key}=${selectedNumericValue}`,
+                  type: "activate-effect" as const,
+                  effectIndices,
+                  selectedNumericValue,
+                };
+              },
+            )),
         { id: "decline", type: "decline" },
       ],
     },
@@ -2667,6 +2764,7 @@ const requestAttackEffectChoice = ({
         effectIndices,
         resolvedEffectIndices: [],
         enabledEffectIndices: [],
+        ...(numericSelection === undefined ? {} : { selectedNumericValues: {} }),
       },
     ],
     eventSequence: state.eventSequence + 1,
@@ -4524,6 +4622,7 @@ interface CompleteConvertedAttackInput {
   readonly enabledOptionalEffectIndices?: readonly number[];
   readonly resolvedOptionalEffectIndices?: readonly number[];
   readonly enabledAfterDefenseEffectIndices?: readonly number[];
+  readonly selectedNumericValues?: Readonly<Record<string, number>>;
 }
 
 const convertedAttackCost = (
@@ -5016,7 +5115,17 @@ const convertedAttackRoll = (
       roll,
       modifier,
     });
-    return totalCap === undefined ? combinedAmount : applyRollCap(combinedAmount, totalCap);
+    const activeTotalCap = activeRollNumericCap(
+      state,
+      activeCombatantId,
+      roll,
+      modifier,
+      "total",
+      move,
+    );
+    const cappedAmount =
+      totalCap === undefined ? combinedAmount : applyRollCap(combinedAmount, totalCap);
+    return activeTotalCap === undefined ? cappedAmount : applyRollCap(cappedAmount, activeTotalCap);
   };
   const rollValueWithCap = (
     value: number,
@@ -5034,7 +5143,16 @@ const convertedAttackRoll = (
       roll,
       modifier,
     });
-    return cap === undefined ? value : applyRollCap(value, cap);
+    const activeCap = activeRollNumericCap(
+      state,
+      targetScope === "self" ? attacker.id : target.id,
+      roll,
+      modifier,
+      "roll",
+      move,
+    );
+    const cappedValue = cap === undefined ? value : applyRollCap(value, cap);
+    return activeCap === undefined ? cappedValue : applyRollCap(cappedValue, activeCap);
   };
   const rollDefinition = beforeAttackEffects.rollDefinitions.find(
     (effect): effect is RollDefinitionOverride =>
@@ -5075,7 +5193,15 @@ const convertedAttackRoll = (
       rolls: priorRolls,
       successfulHitCount: priorRolls.filter((roll) => roll.outcome === "successful").length,
     });
-    const amount = onRollResultEffects.rollModifications
+    const beforeAttackDieEffects = moveEffectsForTrigger(move, "before-attack-roll", {
+      ...effectContext,
+      rolls: priorRolls,
+      successfulHitCount: priorRolls.filter((roll) => roll.outcome === "successful").length,
+    });
+    const amount = [
+      ...beforeAttackDieEffects.rollModifications,
+      ...onRollResultEffects.rollModifications,
+    ]
       .filter(
         (effect) =>
           effect.target === "self" &&
@@ -5147,7 +5273,11 @@ const convertedAttackRoll = (
     {
       attack: {
         ...adjustedAttack,
-        ...(rollDefinition?.dice === undefined ? {} : { dice: rollDefinition.dice }),
+        dice: Math.max(
+          1,
+          (rollDefinition?.dice ?? adjustedAttack.dice) +
+            totalRollModifier("self", "attack", "dice"),
+        ),
         sides: rollValueWithCap(
           (rollDefinition?.sides ?? (attack.attackRoll ?? defaultMoveAttackRoll()).sides) +
             totalRollModifier("self", "attack", "sides"),
@@ -5838,6 +5968,7 @@ const effectsRelativeToActionActor = (
     activations: remap(effects.activations),
     locks: remap(effects.locks),
     deactivations: remap(effects.deactivations),
+    negations: remap(effects.negations),
     floatingEffects: effects.floatingEffects.map((effect) => ({
       ...effect,
       target: targetForAction(effect.target),
@@ -6046,6 +6177,7 @@ const mergeMoveEffects = (
   resourceModificationPreventions: effectSets.flatMap(
     (effects) => effects.resourceModificationPreventions,
   ),
+  negations: effectSets.flatMap((effects) => effects.negations),
   costModifications: effectSets.flatMap((effects) => effects.costModifications),
   currentActionCostModifications: effectSets.flatMap(
     (effects) => effects.currentActionCostModifications,
@@ -6130,6 +6262,7 @@ const effectsForUpkeepTarget = (
     (effect) => effect.target === target,
   ),
   statusPreventions: effects.statusPreventions.filter((effect) => effect.target === target),
+  negations: effects.negations.filter((effect) => effect.target === target),
   rollModifications: effects.rollModifications.filter((effect) => effect.target === target),
   rollDefinitions: effects.rollDefinitions.filter((effect) => effect.target === target),
   rollResultOverrides: effects.rollResultOverrides.filter((effect) => effect.target === target),
@@ -6210,6 +6343,7 @@ interface AttackResolutionOptions {
   readonly enabledOptionalEffectIndices?: readonly number[];
   readonly resolvedOptionalEffectIndices?: readonly number[];
   readonly enabledAfterDefenseEffectIndices?: readonly number[];
+  readonly selectedNumericValues?: Readonly<Record<string, number>>;
 }
 
 interface BasicAttackResolutionOptions {
@@ -6294,6 +6428,9 @@ const selectedAfterDefenseEffectsForResolution = (
         enabledOptionalEffectIndices: input.enabledAfterDefenseEffectIndices,
       });
 
+const currentActionForEffectContext = (action: CombatActionRecord) =>
+  action.type === "basic-attack" || action.type === "use-move" ? action : undefined;
+
 const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
   const {
     state,
@@ -6310,6 +6447,9 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
   const effectContext = convertedAttackEffectContext(state, attacker, target, move);
   const attackEffectContext = {
     ...effectContext,
+    ...(input.selectedNumericValues === undefined
+      ? {}
+      : { selectedNumericValues: input.selectedNumericValues }),
     ...(input.enabledOptionalEffectIndices === undefined
       ? {}
       : { enabledOptionalEffectIndices: input.enabledOptionalEffectIndices }),
@@ -6336,10 +6476,7 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
     successfulHitCount: initialRoll.successfulHitCount,
     rolls: initialRoll.rolls,
     paidKiCost: cost,
-    currentAction:
-      initialCurrentAction.type === "basic-attack" || initialCurrentAction.type === "use-move"
-        ? initialCurrentAction
-        : undefined,
+    currentAction: currentActionForEffectContext(initialCurrentAction),
     collectPendingChoices: true,
   };
   const selectedAfterDefenseEffects = selectedAfterDefenseEffectsForResolution(
@@ -6611,6 +6748,7 @@ const pendingAttackEffectChoice = ({
     target,
     move,
     effectIndices: pendingEffects.effectIndices,
+    numericSelection: pendingEffects.numericSelection,
     dependencies,
   });
 };
@@ -6633,6 +6771,7 @@ const resolveConvertedAttackMove = (
     enabledOptionalEffectIndices,
     resolvedOptionalEffectIndices,
     enabledAfterDefenseEffectIndices,
+    selectedNumericValues,
   }: AttackResolutionOptions = {},
 ): CombatResult<CombatTransition> => {
   const attacker = state.combatants[decision.actorId];
@@ -6642,6 +6781,7 @@ const resolveConvertedAttackMove = (
       ? moveEffectsForTrigger(move, "before-attack-roll", {
           ...convertedAttackEffectContext(state, attacker, target, move),
           enabledOptionalEffectIndices,
+          ...(selectedNumericValues === undefined ? {} : { selectedNumericValues }),
           ...(resolvedOptionalEffectIndices === undefined ? {} : { resolvedOptionalEffectIndices }),
         })
       : undefined;
@@ -6718,6 +6858,7 @@ const resolveConvertedAttackMove = (
     enabledOptionalEffectIndices,
     resolvedOptionalEffectIndices,
     enabledAfterDefenseEffectIndices,
+    ...(selectedNumericValues === undefined ? {} : { selectedNumericValues }),
   });
 };
 
@@ -7699,6 +7840,23 @@ const resolveSimpleActionMove = (
     ),
     ...resourceTriggered.map(({ effects: triggeredEffects }) => triggeredEffects),
   );
+  const negatedActiveEffects = state.activeEffects.filter((effect) =>
+    resolvedEffects.negations.some((negation) => {
+      const targetId = negation.target === "self" ? actor.id : target.id;
+      if (effect.targetCombatantId !== targetId) return false;
+      const preventsAllAttacks =
+        effect.type === "action-restriction" &&
+        (effect.blockedCategories === undefined ||
+          (effect.blockedCategories.includes("basic-attack") &&
+            effect.blockedCategories.includes("advanced-attack") &&
+            effect.blockedCategories.includes("signature")));
+      return (
+        negation.aspects.includes("prevent-attack") &&
+        ((effect.type === "action-lock" && effect.affectedType === "attack") || preventsAllAttacks)
+      );
+    }),
+  );
+  const negatedActiveEffectIds = new Set(negatedActiveEffects.map((effect) => effect.id));
   const actorAfter = statusesAfterApplications(
     resourceAfterChanges(
       {
@@ -7763,6 +7921,7 @@ const resolveSimpleActionMove = (
   ];
   const events = simpleActionMoveEvents(state, decision, dependencies, {
     activatedEffects,
+    negatedEffects: negatedActiveEffects,
     move,
     actor,
     actorAfter,
@@ -7773,8 +7932,9 @@ const resolveSimpleActionMove = (
   });
   const remainingActiveEffects = state.activeEffects.filter(
     (effect) =>
-      effect.type !== "floating-effect" ||
-      !(effect.scope.type === "next-action" && effect.targetCombatantId === actor.id),
+      !negatedActiveEffectIds.has(effect.id) &&
+      (effect.type !== "floating-effect" ||
+        !(effect.scope.type === "next-action" && effect.targetCombatantId === actor.id)),
   );
   const consumedExtraActionEffects = consumeExtraActionForDecision(state, decision);
   const nextActiveEffects = [...remainingActiveEffects, ...modifiers, ...activatedEffects].flatMap(
@@ -7813,6 +7973,7 @@ const resolveSimpleActionMove = (
 
 interface SimpleActionMoveEventContext {
   readonly activatedEffects: readonly ActiveCombatEffect[];
+  readonly negatedEffects: readonly ActiveCombatEffect[];
   readonly move: MoveDefinition;
   readonly actor: ActiveFightState["combatants"][CombatantId];
   readonly actorAfter: ActiveFightState["combatants"][CombatantId];
@@ -7828,6 +7989,7 @@ const simpleActionMoveEvents = (
   dependencies: CombatDependencies,
   {
     activatedEffects,
+    negatedEffects,
     actor,
     actorAfter,
     move,
@@ -7881,6 +8043,19 @@ const simpleActionMoveEvents = (
       fightId: state.id,
       causedByDecisionId: decision.id,
       type: "effect-activated",
+      activeEffectId: effect.id,
+      sourceCombatantId: effect.sourceCombatantId,
+      targetCombatantId: effect.targetCombatantId,
+      sourceDefinitionId: effect.sourceDefinitionId,
+    });
+  }
+  for (const effect of negatedEffects) {
+    events.push({
+      id: dependencies.ids.nextEventId(),
+      sequence: state.eventSequence + events.length + 1,
+      fightId: state.id,
+      causedByDecisionId: decision.id,
+      type: "effect-negated",
       activeEffectId: effect.id,
       sourceCombatantId: effect.sourceCombatantId,
       targetCombatantId: effect.targetCombatantId,
@@ -10774,11 +10949,20 @@ const activeResourceModificationPreventionFromApplication = (
 /** Persists durable converted roll changes; immediate changes stay inside the roll resolution. */
 const activeRollCapFromApplication = (
   application: RollModification,
-): ActiveRollModificationCap | undefined => {
-  if (application.cap?.type !== "allow-exceed") return undefined;
+):
+  | ActiveRollModificationCap
+  | Extract<ActiveRollModifierEffect["cap"], { readonly type: "maximum" | "minimum" }>
+  | undefined => {
+  if (application.cap === undefined) return undefined;
+  if (application.cap.type === "allow-exceed")
+    return {
+      type: "allow-exceed",
+      scope: application.cap.scope ?? "amount",
+    };
   return {
-    type: "allow-exceed",
-    scope: application.cap.scope ?? "amount",
+    type: application.cap.type,
+    scope: application.cap.scope,
+    value: application.cap.value,
   };
 };
 
@@ -10786,35 +10970,37 @@ const isDeferredRollModificationScope = (scope: RollModification["scope"]) =>
   scope === "following-action" ||
   scope === "next-action" ||
   scope === "next-actions" ||
+  scope === "next-phase" ||
   scope === "next-roll" ||
-  scope === "next-rolls";
+  scope === "next-rolls" ||
+  scope === "next-turn";
 
-const activeRollModifierFromApplication = (
+const activeRollModifierDuration = (
+  application: RollModification,
+  targetCombatantId: CombatantId,
+): ActiveRollModifierEffect["duration"] =>
+  application.duration === undefined || application.duration.type === "combat"
+    ? "combat"
+    : {
+        type: application.duration.type,
+        ownerCombatantId: targetCombatantId,
+        remaining: application.duration.remaining,
+      };
+
+const activeRollModifierIsImmediate = (application: RollModification) =>
+  application.scope === "combat" || (application.scope === undefined && application.duration);
+
+const deferredActiveRollModifierFromApplication = (
   application: RollModification,
   sourceCombatantId: CombatantId,
   opponentCombatantId: CombatantId,
   sourceDefinitionId: MoveDefinition["id"],
   createdOnTurn: number,
+  cap: ActiveRollModifierEffect["cap"],
   dependencies: CombatDependencies,
 ): ActiveCombatEffect | undefined => {
-  const targetCombatantId = application.target === "self" ? sourceCombatantId : opponentCombatantId;
-  const cap = activeRollCapFromApplication(application);
-  if (application.scope === "combat")
-    return {
-      id: dependencies.ids.nextActiveEffectId(),
-      type: "modify-roll",
-      sourceCombatantId,
-      targetCombatantId,
-      sourceDefinitionId,
-      roll: application.roll,
-      modifier: application.modifier,
-      amount: rollModificationAmount(application),
-      ...(cap === undefined ? {} : { cap }),
-      ...(application.selector === undefined ? {} : { selector: application.selector }),
-      ...(application.stacking === undefined ? {} : { stacking: application.stacking }),
-      duration: "combat",
-    };
   if (!isDeferredRollModificationScope(application.scope)) return undefined;
+  const targetCombatantId = application.target === "self" ? sourceCombatantId : opponentCombatantId;
   return {
     id: dependencies.ids.nextActiveEffectId(),
     type: "modify-next-action",
@@ -10833,7 +11019,45 @@ const activeRollModifierFromApplication = (
     scope: application.scope,
     ...(application.remaining === undefined ? {} : { remaining: application.remaining }),
     ...(application.scope === "following-action" ? { availableFromTurn: createdOnTurn + 1 } : {}),
+    ...(application.scope === "next-turn" ? { availableFromTurn: createdOnTurn + 1 } : {}),
   };
+};
+
+export const activeRollModifierFromApplication = (
+  application: RollModification,
+  sourceCombatantId: CombatantId,
+  opponentCombatantId: CombatantId,
+  sourceDefinitionId: MoveDefinition["id"],
+  createdOnTurn: number,
+  dependencies: CombatDependencies,
+): ActiveCombatEffect | undefined => {
+  const targetCombatantId = application.target === "self" ? sourceCombatantId : opponentCombatantId;
+  const cap = activeRollCapFromApplication(application);
+  const duration = activeRollModifierDuration(application, targetCombatantId);
+  if (activeRollModifierIsImmediate(application))
+    return {
+      id: dependencies.ids.nextActiveEffectId(),
+      type: "modify-roll",
+      sourceCombatantId,
+      targetCombatantId,
+      sourceDefinitionId,
+      roll: application.roll,
+      modifier: application.modifier,
+      amount: rollModificationAmount(application),
+      ...(cap === undefined ? {} : { cap }),
+      ...(application.selector === undefined ? {} : { selector: application.selector }),
+      ...(application.stacking === undefined ? {} : { stacking: application.stacking }),
+      duration,
+    };
+  return deferredActiveRollModifierFromApplication(
+    application,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    cap,
+    dependencies,
+  );
 };
 
 const activeRollModifiersFromApplications = (
@@ -12308,12 +12532,20 @@ const resolveOptionalEffectChoice = (
     option?.type === "activate-effect" && option.effectIndices !== undefined
       ? option.effectIndices
       : [];
+  const selectedNumericValues =
+    option?.selectedNumericValue === undefined
+      ? undefined
+      : (() => {
+          const match = /:([^:=]+)=(-?\d+)$/.exec(option.id);
+          return match === null ? undefined : { [match[1]]: Number(match[2]) };
+        })();
   if (
     option === undefined ||
     (option.type !== "decline" && option.type !== "activate-effect") ||
     (option.type === "activate-effect" &&
       (enabledEffectIndices.length !== frame.effectIndices.length ||
-        enabledEffectIndices.some((index, position) => index !== frame.effectIndices[position])))
+        enabledEffectIndices.some((index, position) => index !== frame.effectIndices[position]))) ||
+    (option.selectedNumericValue !== undefined && selectedNumericValues === undefined)
   )
     return {
       ok: false,
@@ -12340,6 +12572,7 @@ const resolveOptionalEffectChoice = (
     {
       enabledOptionalEffectIndices: enabledEffectIndices,
       resolvedOptionalEffectIndices: frame.effectIndices,
+      ...(selectedNumericValues === undefined ? {} : { selectedNumericValues }),
     },
   );
 };
