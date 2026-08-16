@@ -53,6 +53,27 @@ describe("combat capability matrix", () => {
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
   });
 
+  it("classifies action-phase extra-action allowances with the durable scheduler", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.effectType === "grant-extra-action" && row.variant.includes("trigger=action-phase"),
+    );
+
+    expect(rows.map((row) => row.sourceDefinitionId)).toEqual([
+      "move-afterlife-petrifying-spit",
+      "move-afterlife-special-fighting-pose-3",
+      "move-haokiru-willing-sacrifice",
+    ]);
+    expect(
+      rows.every(
+        (row) =>
+          row.status === "supported-generic" &&
+          row.capabilityId === "grant-extra-action.v2" &&
+          row.executor === "extra-action-scheduler",
+      ),
+    ).toBe(true);
+  });
+
   it("classifies all canonical stored writes and only exact immediate threshold consumers", () => {
     const matrix = createCombatCapabilityMatrix();
     const storedWrites = matrix.occurrences.filter((row) => row.effectType === "roll-and-store");
@@ -279,9 +300,16 @@ describe("combat capability matrix", () => {
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(12);
     expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
+    expect(
+      rows.some(
+        (row) =>
+          row.sourceDefinitionId === "move-kiihakai-ki-jammer" &&
+          row.variant.includes("duration=until-combat-result"),
+      ),
+    ).toBe(true);
   });
 
   it("classifies exact on-move-use follow-ups and cost modifiers generically", () => {
@@ -365,12 +393,12 @@ describe("combat capability matrix", () => {
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
     expect(rows).toHaveLength(19);
-    expect(supported).toHaveLength(8);
-    expect(unsupported).toHaveLength(11);
+    expect(supported).toHaveLength(11);
+    expect(unsupported).toHaveLength(8);
     expect(
       supported.every(
         (row) =>
-          row.capabilityId === "grant-extra-action.v1" &&
+          row.capabilityId === "grant-extra-action.v2" &&
           row.executor === "extra-action-scheduler" &&
           row.focusedCoverage === "progress-fight.test.ts",
       ),

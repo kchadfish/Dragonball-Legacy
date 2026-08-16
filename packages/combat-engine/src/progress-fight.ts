@@ -186,6 +186,7 @@ type ActionAttackResult = {
   readonly counter: boolean;
   readonly attackRollResult?: number;
   readonly defenseRollResult?: number;
+  readonly damageDealt?: number;
 };
 
 const actionRecordWithAttackResult = (
@@ -374,6 +375,21 @@ const isForcedActionEffect = (effect: MoveEffect) =>
 const isStoredRollActionEffect = (effect: MoveEffect) =>
   effect.type === "roll-and-store" && effect.target === "self";
 
+const isActionPhaseFloatingEffect = (effect: MoveEffect) =>
+  effect.type === "create-floating-effect" && effect.trigger === "action-phase";
+
+const isActionPhaseExtraActionEffect = (effect: MoveEffect) =>
+  effect.type === "grant-extra-action" &&
+  effect.trigger === "action-phase" &&
+  effect.target === "self" &&
+  effect.phase === "action-phase" &&
+  effect.optional !== true &&
+  effect.activationCost === undefined &&
+  effect.duration === undefined &&
+  effect.cooldown === undefined &&
+  effect.selectionLimit === undefined &&
+  effect.stacking === undefined;
+
 const isAttackPreventionNegationEffect = (effect: MoveEffect) =>
   effect.type === "negate" &&
   effect.target === "opponent" &&
@@ -393,6 +409,8 @@ const isSimpleActionMove = (move: MoveDefinition) => {
         isRollActionModifier(effect) ||
         isForcedActionEffect(effect) ||
         isStoredRollActionEffect(effect) ||
+        isActionPhaseFloatingEffect(effect) ||
+        isActionPhaseExtraActionEffect(effect) ||
         isAttackPreventionNegationEffect(effect),
     )
   );
@@ -1029,7 +1047,35 @@ const activeMoveModificationPrevented = ({
 const effectMatchesMoveSelector = (
   selector: MoveSelectorCondition | undefined,
   move?: MoveDefinition,
-) => selector === undefined || (move !== undefined && selectorMatchesMove(selector, move));
+) =>
+  selector === undefined ||
+  (move !== undefined && selectorMatchesMove(selector, move)) ||
+  (move === undefined && selectorMatchesAnyMove(selector));
+
+const selectorMatchesAnyMove = (selector: MoveSelectorCondition) =>
+  ![
+    "ids",
+    "styleId",
+    "styleIdExcludes",
+    "category",
+    "categoryExcludes",
+    "categories",
+    "tags",
+    "custom",
+    "styleProvenance",
+    "effectKinds",
+    "restriction",
+    "constant",
+    "effectTextIncludes",
+    "effectTextIncludesAny",
+    "effectTextExcludes",
+    "selectionKey",
+    "requirementExcludes",
+    "requirementIncludes",
+    "baseKiCost",
+    "costModification",
+    "attackRoll",
+  ].some((key) => selector[key as keyof MoveSelectorCondition] !== undefined);
 
 const activeEffectSuppressed = (state: ActiveFightState, effect: ActiveCombatEffect) => {
   if (effect.type === "suppress") return false;
@@ -1433,6 +1479,7 @@ type DamageOperation = {
   readonly amount: number;
   readonly basis?: "power-percent" | "damage-percent";
   readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
+  readonly capOnly?: boolean;
 };
 
 const activeDamageEffectOperation = (
@@ -1449,6 +1496,7 @@ const activeDamageEffectOperation = (
     amount: effect.amount,
     basis: effect.basis,
     ...(effect.cap === undefined ? {} : { cap: effect.cap }),
+    ...(effect.capOnly === true ? { capOnly: true } : {}),
   };
 };
 
@@ -1463,7 +1511,9 @@ const activeNextActionDamageOperation = (
   return {
     operation: effect.modifier.operation ?? "add",
     amount: effect.modifier.amount,
+    ...(effect.modifier.basis === undefined ? {} : { basis: effect.modifier.basis }),
     ...(effect.modifier.cap === undefined ? {} : { cap: effect.modifier.cap }),
+    ...(effect.modifier.capOnly === true ? { capOnly: true } : {}),
   };
 };
 
@@ -1504,6 +1554,10 @@ const applyPowerDamageOperation = (damage: number, operation: DamageOperation, a
 };
 
 const applyDamageOperation = (damage: number, operation: DamageOperation) => {
+  if (operation.capOnly && operation.cap !== undefined) {
+    if (operation.cap.type === "maximum") return Math.min(damage, operation.cap.value);
+    return Math.max(damage, operation.cap.value);
+  }
   const amount = cappedDamageModifierAmount(operation);
   if (operation.basis === "damage-percent")
     return applyDamagePercentOperation(damage, operation, amount);
@@ -2374,8 +2428,27 @@ const suppressionAfterAttack = (
 const floatingEffectTerminatesAfterAttack = (
   effect: Extract<ActiveCombatEffect, { readonly type: "floating-effect" }>,
   context: AttackEffectResolutionContext,
-) =>
-  effect.termination.some((rule) => {
+) => {
+  const duration = effect.duration;
+  if (
+    duration !== undefined &&
+    (duration.combatantId === context.attackerId || duration.combatantId === context.defenderId) &&
+    duration.result === context.outcome &&
+    (duration.moveSelector === undefined ||
+      (context.move !== undefined && selectorMatchesMove(duration.moveSelector, context.move))) &&
+    (duration.rollThreshold === undefined ||
+      (((duration.rollThreshold.roll === "attack" && duration.combatantId === context.attackerId) ||
+        (duration.rollThreshold.roll === "defense" &&
+          duration.combatantId === context.defenderId)) &&
+        scheduledRollMatches(
+          duration.rollThreshold.roll,
+          duration.rollThreshold.comparison,
+          duration.rollThreshold.value,
+          context,
+        )))
+  )
+    return true;
+  return effect.termination.some((rule) => {
     const resultMatches =
       (rule.trigger === "on-success" && context.outcome === "successful") ||
       (rule.trigger === "on-stopped" && context.outcome === "stopped");
@@ -2387,6 +2460,7 @@ const floatingEffectTerminatesAfterAttack = (
       (context.move !== undefined && selectorMatchesMove(rule.selector, context.move));
     return resultMatches && actorMatches && selectorMatches;
   });
+};
 
 const scheduledRollMatches = (
   roll: CombatRollType,
@@ -3254,6 +3328,7 @@ const createDeathBeamState = (
             outcome: resolution.outcome,
             critical: resolution.critical,
             counter: resolution.counter,
+            damageDealt: Math.max(0, target.hitPoints.current - resolution.remainingHitPoints),
             attackRollResult: resolution.attackResult,
             defenseRollResult: resolution.defenseResult,
           }),
@@ -3276,6 +3351,7 @@ const createDeathBeamState = (
             outcome: resolution.outcome,
             critical: resolution.critical,
             counter: resolution.counter,
+            damageDealt: Math.max(0, target.hitPoints.current - resolution.remainingHitPoints),
             attackRollResult: resolution.attackResult,
             defenseRollResult: resolution.defenseResult,
           }),
@@ -3916,6 +3992,7 @@ const convertedAttackActionHistory = (
     outcome: context.roll.successfulHitCount > 0 ? "successful" : "stopped",
     critical: context.roll.critical,
     counter: context.roll.counter,
+    damageDealt: Math.max(0, context.target.hitPoints.current - context.remainingHitPoints),
     ...(context.roll.rolls.length === 1
       ? {
           attackRollResult: context.roll.rolls[0].attackResult,
@@ -4693,6 +4770,23 @@ const activeFloatingEffectFromApplication = (
   floatingEffectId: application.floatingEffectId,
   effects: application.effects,
   termination: application.termination,
+  ...(application.duration === undefined
+    ? {}
+    : {
+        duration: {
+          type: "until-combat-result" as const,
+          combatantId:
+            application.duration.actor === "self" ? sourceCombatantId : targetCombatantId,
+          result: application.duration.result,
+          ...(application.duration.moveSelector === undefined
+            ? {}
+            : { moveSelector: application.duration.moveSelector }),
+          ...(application.duration.rollThreshold === undefined
+            ? {}
+            : { rollThreshold: application.duration.rollThreshold }),
+        },
+      }),
+  ...(application.stacking === undefined ? {} : { stacking: application.stacking }),
   scope: floatingScopeForApplication(application, sourceCombatantId, targetCombatantId),
   createdOnTurn,
 });
@@ -5460,7 +5554,26 @@ const convertedAttackActivatedEffects = ({
         ];
       });
   const floatingEffects = activeFloatingEffectsFromApplications(
-    effects.floatingEffects,
+    effects.floatingEffects.filter(
+      (application, index, applications) =>
+        application.stacking !== "prevent" ||
+        (!state.activeEffects.some(
+          (activeEffect) =>
+            activeEffect.type === "floating-effect" &&
+            activeEffect.sourceCombatantId === attacker.id &&
+            activeEffect.targetCombatantId ===
+              (application.target === "self" ? attacker.id : target.id) &&
+            activeEffect.floatingEffectId === application.floatingEffectId,
+        ) &&
+          applications
+            .slice(0, index)
+            .every(
+              (priorApplication) =>
+                priorApplication.stacking !== "prevent" ||
+                priorApplication.floatingEffectId !== application.floatingEffectId ||
+                priorApplication.target !== application.target,
+            )),
+    ),
     attacker.id,
     target.id,
     move.id,
@@ -6928,6 +7041,7 @@ const completedBasicAttackResolution = (
     outcome: resolution.outcome,
     critical: resolution.critical,
     counter: resolution.counter,
+    damageDealt: resolution.damage,
     attackRollResult: resolution.attackResult,
     defenseRollResult: resolution.defenseResult,
   });
@@ -7074,6 +7188,7 @@ const resolveBasicAttack = (
         outcome: resolution.outcome,
         critical: resolution.critical,
         counter: resolution.counter,
+        damageDealt: resolution.damage,
         attackRollResult: resolution.attackResult,
         defenseRollResult: resolution.defenseResult,
       }),
@@ -11251,6 +11366,9 @@ const activeScheduledResourcesFromApplications = (
     ];
   });
 
+const deferredDamageBasis = (basis: DamageModification["basis"]) =>
+  basis === "damage-percent" ? { basis } : {};
+
 const activeDamageModifiersFromApplications = (
   applications: readonly DamageModification[],
   sourceCombatantId: CombatantId,
@@ -11304,6 +11422,7 @@ const activeDamageModifiersFromApplications = (
         modifier: {
           type: "damage" as const,
           amount: application.amount,
+          ...deferredDamageBasis(application.basis),
           ...(application.cap === undefined ? {} : { cap: application.cap }),
           ...(application.operation === "add" ? {} : { operation: application.operation }),
         },

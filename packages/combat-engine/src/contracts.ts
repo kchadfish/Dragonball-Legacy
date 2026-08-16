@@ -296,6 +296,8 @@ type ActiveNextActionModifier =
       readonly type: "damage";
       readonly amount: number;
       readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
+      readonly capOnly?: boolean;
+      readonly basis?: "power-percent" | "damage-percent";
       /** Omitted means additive damage, preserving the compact legacy form. */
       readonly operation?: "add" | "multiply" | "set";
     }
@@ -396,6 +398,7 @@ export interface ActiveDamageModifierEffect {
   readonly basis: "power-percent" | "damage-percent";
   readonly amount: number;
   readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
+  readonly capOnly?: boolean;
   readonly availableFromTurn?: number;
   readonly duration:
     | { readonly type: "combat" }
@@ -606,6 +609,18 @@ export interface ActiveFloatingEffect {
     readonly actor: "self" | "opponent";
     readonly selector?: MoveSelectorCondition;
   }[];
+  readonly duration?: {
+    readonly type: "until-combat-result";
+    readonly combatantId: CombatantId;
+    readonly result: "successful" | "stopped" | "critical" | "counter";
+    readonly moveSelector?: MoveSelectorCondition;
+    readonly rollThreshold?: {
+      readonly roll: "attack" | "defense" | "transformation";
+      readonly comparison: "at-least" | "at-most";
+      readonly value: number;
+    };
+  };
+  readonly stacking?: "allow" | "prevent";
   readonly scope:
     | { readonly type: "combat" }
     | { readonly type: "next-action" }
@@ -722,6 +737,8 @@ export type CombatActionRecord =
       readonly attackRollResult?: number;
       /** A single-die defense roll's resolved result, when the action produced one. */
       readonly defenseRollResult?: number;
+      /** Damage dealt by the completed attack, when it resolved damage. */
+      readonly damageDealt?: number;
       readonly turnNumber: number;
       readonly phase: "action" | "counter";
     }
@@ -738,6 +755,8 @@ export type CombatActionRecord =
       readonly attackRollResult?: number;
       /** A single-die defense roll's resolved result, when the action produced one. */
       readonly defenseRollResult?: number;
+      /** Damage dealt by the completed attack, when it resolved damage. */
+      readonly damageDealt?: number;
       readonly turnNumber: number;
       readonly phase: "action" | "counter";
     }

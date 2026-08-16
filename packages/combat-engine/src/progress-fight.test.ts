@@ -523,6 +523,7 @@ describe("generic successful CONSTANT Skill activation", () => {
 
     expect(resumed.actionHistory.at(-1)).toMatchObject({
       moveId: "move-afterlife-supernova",
+      damageDealt: expect.any(Number),
     });
   });
 
@@ -1403,6 +1404,10 @@ describe("upkeep-phase effect dispatch", () => {
           type: "modify-next-action",
           sourceDefinitionId: "move-afterlife-kaio-ken",
           remaining: 3,
+          modifier: {
+            type: "damage",
+            amount: 2,
+          },
         }),
         expect.objectContaining({
           id: "active-effect:upkeep-prevention",
@@ -1980,6 +1985,85 @@ describe("on-move-use effect dispatch", () => {
         sourceDefinitionId: "move-kiihakai-the-rising-sun",
         targetCombatantId: secondCombatantId,
         scope: { type: "combat" },
+      }),
+    );
+  });
+
+  it("persists Ki Jammer's generic combat-result duration and non-stacking policy", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1],
+      new Date("2026-08-15T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:ki-jammer-floating")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:ki-jammer")],
+        eventIds: Array.from({ length: 24 }, (_, index) =>
+          combatEventIdSchema.parse(`event:ki-jammer-floating-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-kiihakai-ki-jammer"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const transition = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:ki-jammer-floating"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-kiihakai-ki-jammer",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(action.version + 1);
+    expect(transition.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "floating-effect",
+        floatingEffectId: "ki-jammer-power-up-damage-penalty",
+        sourceDefinitionId: "move-kiihakai-ki-jammer",
+        targetCombatantId: secondCombatantId,
+        stacking: "prevent",
+        duration: {
+          type: "until-combat-result",
+          combatantId: secondCombatantId,
+          result: "successful",
+          moveSelector: {
+            type: "move-selector",
+            subject: "target",
+            attackRoll: { dice: 1 },
+            sourceText: "a SUCCESSFUL single dice attack roll",
+          },
+          rollThreshold: {
+            roll: "attack",
+            comparison: "at-least",
+            value: 25,
+          },
+        },
       }),
     );
   });
@@ -3340,6 +3424,96 @@ describe("initial turn progression", () => {
     expect(attack.state.combatants[secondCombatantId].hitPoints.current).toBe(87);
   });
 
+  it("preserves damage-percent semantics for a deferred opponent damage modifier", () => {
+    const dependencies = createTestCombatDependencies(
+      [28, 1, 28, 1],
+      new Date("2026-08-14T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:deferred-damage-percent")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:deferred-damage-percent")],
+        eventIds: Array.from({ length: 24 }, (_, index) =>
+          combatEventIdSchema.parse(`event:deferred-damage-percent-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              level: 1,
+              stats: { power: 20, dexterity: 2, dexterityBonus: 0 },
+              moveIds: ["move-freestyle-underdog-dropkick"],
+            },
+            {
+              maximumHitPoints: 100,
+              level: 3,
+              stats: { power: 100, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const firstAttack = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:deferred-damage-percent"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-freestyle-underdog-dropkick",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(firstAttack.state.activeEffects).toEqual([
+      expect.objectContaining({
+        type: "modify-next-action",
+        targetCombatantId: secondCombatantId,
+        modifier: { type: "damage", amount: -10, basis: "damage-percent" },
+      }),
+    ]);
+
+    const opponentUpkeep = requireActiveFightState(
+      requireTransition(advanceFight(firstAttack.state, dependencies)).state,
+    );
+    const opponentAction = requireActiveFightState(
+      requireTransition(advanceFight(opponentUpkeep, dependencies)).state,
+    );
+    const secondAttackResult = submitCombatDecision(
+      opponentAction,
+      {
+        type: "basic-attack",
+        id: combatDecisionIdSchema.parse("decision:deferred-damage-percent-follow-up"),
+        actorId: secondCombatantId,
+        expectedStateVersion: opponentAction.version,
+        basicAttack: "basic-punch",
+        targetCombatantId: firstCombatantId,
+      },
+      dependencies,
+    );
+    if (!secondAttackResult.ok)
+      throw new Error(`Second attack rejected: ${JSON.stringify(secondAttackResult.error)}`);
+    const secondAttack = secondAttackResult.value;
+
+    expect(secondAttack.events).toContainEqual(
+      expect.objectContaining({ type: "damage-applied", amount: 9, remainingHitPoints: 91 }),
+    );
+    expect(secondAttack.state.version).toBe(opponentAction.version + 1);
+    expect(secondAttack.state.activeEffects).toEqual([]);
+  });
+
   it("uses resource comparisons for legal cost reduction and successful damage scheduling", () => {
     const dependencies = createTestCombatDependencies(
       [28, 1],
@@ -3426,7 +3600,7 @@ describe("initial turn progression", () => {
       expect.objectContaining({
         type: "modify-next-action",
         targetCombatantId: targetId,
-        modifier: { type: "damage", amount: -50 },
+        modifier: { type: "damage", amount: -50, basis: "damage-percent" },
       }),
     );
   });
@@ -4631,6 +4805,84 @@ describe("initial turn progression", () => {
     expect(secondAttackState.combatants[firstCombatantId].moveUses).toMatchObject({
       "move-akaikaru-chained-strikes": 2,
     });
+  });
+
+  it("executes condition-aware action-phase extra actions through the public scheduler", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-14T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:action-phase-extra-action")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+        activeEffectIdSchema.parse(`active-effect:action-phase-extra-action-${index}`),
+      ),
+      eventIds: Array.from({ length: 30 }, (_, index) =>
+        combatEventIdSchema.parse(`event:action-phase-extra-action-${index}`),
+      ),
+    });
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-special-fighting-pose-3", "move-afterlife-give-me-energy"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const submitted = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:action-phase-extra-action"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-afterlife-special-fighting-pose-3",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    const next = requireActiveFightState(submitted.state);
+
+    expect(next.version).toBe(action.version + 1);
+    expect(next).toMatchObject({
+      phase: "action",
+      activeCombatantId: firstCombatantId,
+    });
+    expect(next.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "extra-action",
+          sourceDefinitionId: "move-afterlife-special-fighting-pose-3",
+          sourceEffectIndex: 2,
+          phase: "action",
+          remainingActions: 1,
+        }),
+        expect.objectContaining({
+          type: "floating-effect",
+          floatingEffectId: "special-fighting-pose-3-constant-skill-activation",
+        }),
+      ]),
+    );
+    expect(enumerateLegalDecisions(next, firstCombatantId)).toContainEqual(
+      expect.objectContaining({
+        type: "use-move",
+        moveId: "move-afterlife-give-me-energy",
+      }),
+    );
   });
 
   it("makes a next-turn action allowance available only in its declared action phase", () => {

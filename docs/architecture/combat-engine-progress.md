@@ -28,14 +28,14 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 780 `supported-generic`, 211
+The generated capability matrix records 789 `supported-generic`, 202
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 211 remaining in-scope occurrences through the later
+requires closing the 202 remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
 The next implementation priority is the highest-volume ready prerequisite
 identified in the latest dated entry below.
@@ -127,6 +127,36 @@ supported.
 
 ## Immediate resume point
 
+### Latest implementation slice (2026-08-16) — action-phase extra-action scheduling
+
+The generic extra-action scheduler now executes non-optional action-phase
+allowances from simple action moves. The existing durable
+`ActiveExtraActionEffect` lifecycle is reused: condition evaluation occurs
+against the current public transition context, allowances are persisted with
+their source effect index and turn bounds, legal decisions are filtered before
+submission, and consumption increments the immutable state version.
+
+The simple-action classifier now admits the generic action-phase
+`create-floating-effect` and `grant-extra-action` primitives that the executor
+already resolves. This closes the condition-aware Petrifying Spit, Special
+Fighting Pose 3, and Willing Sacrifice allowances without definition-specific
+branches. The capability is versioned as `grant-extra-action.v2`.
+
+Focused public coverage in `progress-fight.test.ts` verifies creation,
+condition evaluation, durable effect persistence, legal-decision filtering,
+and the state-version increment through `createFight`,
+`advanceFight`, `enumerateLegalDecisions`, and `submitCombatDecision`.
+`combat-capability-matrix.test.ts` verifies all three converted action-phase
+occurrences are classified as `supported-generic`. The regenerated matrix now
+accounts for 789 `supported-generic`, 202 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences.
+
+The remaining extra-action rows are intentionally not approximated: upkeep
+decision boundaries, optional or activation-cost choices, passive policies,
+and per-die `on-roll-result` scheduling still require their own serialized
+mechanics. The next highest-volume prerequisite is the nine-occurrence
+`modify-resource` slice in the generated matrix.
+
 ### Latest implementation slice — complete active-scope `modify-roll`
 
 The active transformation scope has no remaining `modify-roll` occurrences
@@ -166,11 +196,34 @@ natural-versus-modified roll results, and per-die result conditions in
 `move-effects-runtime.test.ts`. `npm run test:coverage` passed with 43 test
 files and 628 tests, and the final `npm run quality` gate passed.
 
-The remaining in-scope work is non-`modify-roll` work: 211 occurrence rows
+The remaining in-scope work is non-`modify-roll` work: 205 occurrence rows
 remain `unsupported-in-scope`, including `modify-roll-modifier` and other
 effect families. The next resume point is to take the highest-volume
 dependency-ready non-`modify-roll` family from the generated matrix, without
 reclassifying unfinished rows as out of scope.
+
+### Latest implementation slice (2026-08-14) — generic damage context
+
+The `modify-damage` executor now covers two additional declarative variants
+without definition-specific branches:
+
+- Cap-only passive current-action modifiers resolve the declared cap against
+  the final damage value, including Tornado Uppercut's maximum of 55% Power.
+  The cap-only representation is explicit in the durable damage modifier
+  contract, so it cannot be confused with a zero-valued additive modifier.
+- `prior-attack-damage-percent` evaluates from persisted action history. It
+  selects the opponent's last two successful Advanced Attacks that targeted the
+  current combatant, records their dealt damage at the public attack transition,
+  and converts the total back to the attacker's Power percentage for Vengeance
+  Wave. Missing historical damage never becomes an implicit zero.
+
+Focused coverage in `move-effects-runtime.test.ts` verifies both variants;
+the public transition paths retain deterministic state versions, action
+history, and invariant validation. The regenerated matrix now accounts for
+786 `supported-generic`, 205 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. The remaining `modify-damage` rows are
+still explicitly unsupported where they require pending choices, unresolved
+conditions, or resolution-local critical/response context.
 
 ### Latest implementation slice (2026-08-11)
 
@@ -1621,16 +1674,99 @@ and other lifecycle variants remain explicitly unsupported. Every out-of-scope
 occurrence retains its documented approved exclusion, and the catalog-closure
 goal remains active.
 
+## 2026-08-15 deferred damage-percent lifecycle slice
+
+The generic damage executor now preserves a declared `damage-percent` basis when
+an `on-success` damage modifier targets a later action. The basis is carried
+through the durable `modify-next-action` contract, validated as an invariant,
+and applied against the later attack's resolved damage rather than being
+mistaken for a flat Power-percent amount. Selector-only descriptions with no
+move constraints also match eligible basic attacks, so a deferred “next attack”
+effect does not remain stranded when the follow-up action is a basic attack.
+
+The public transition test covers Freestyle Underdog Dropkick against a
+higher-level opponent through `createFight`, `advanceFight`, and
+`submitCombatDecision`. It verifies the persisted basis and target, the
+10-percent reduction against a 100-Power basic attack, one-time consumption,
+state-version advancement, and the empty post-resolution active-effect set.
+The implementation is generic; it does not inspect move names or source prose.
+
+The capability matrix now recognizes the already-implemented level-comparison
+condition for damage modifiers and classifies Underdog Dropkick's deferred
+damage response as `supported-generic` through `damage-modifier.v1`. The
+regenerated matrix records 781 `supported-generic`, 210
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 10 typed compiled-damage or
+resolution-context, 145 typed executor or compiled-plan, and 6 typed reroll
+reaction-lifecycle occurrences. The remaining damage rows require explicit
+stored-roll, critical-resolution, optional-choice, or unsupported trigger
+context and remain visible rather than being approximated.
+
+Focused combat-engine typecheck and `progress-fight.test.ts` checks pass.
+Coverage and the single final `npm run quality` gate remain required before
+handoff.
+
 ## 2026-08-15 capability-priority reporting
 
 The generated capability matrix now retains its prerequisite summary and adds a
-ranked breakdown by prerequisite and concrete effect type. Ranking uses
-unsupported occurrence count first and distinct definition count second, making
-the next generic slice visible inside broad accounting buckets without changing
-runtime support or treating a family-level executor as complete. The current
-highest-volume unresolved variant is `modify-roll` under typed executor
-accounting and compiled-plan validation (17 occurrences across 15 definitions);
-the existing occurrence rows remain authoritative for exact variant boundaries.
+ranked breakdown by prerequisite and concrete effect type. Ranking uses unsupported occurrence count first and distinct definition count
+second, making the next generic slice visible inside broad accounting buckets
+without changing runtime support or treating a family-level executor as
+complete. The generated matrix is authoritative for the current ranking:
+`modify-damage` under typed compiled damage context and resolution-local state
+is now the highest-volume unresolved variant at 10 occurrences across 10
+definitions. The earlier `modify-roll` priority note is superseded by the
+regenerated occurrence-level report.
+
+## 2026-08-15 upkeep deferred-damage accounting slice
+
+The capability classifier now recognizes the already-implemented generic
+`modify-next-action` lifecycle for self-targeted `modify-damage` effects emitted
+at the `upkeep-phase` boundary. The classification is intentionally limited to
+effects without activation costs or use limits; those require separate durable
+consumption semantics and remain unsupported. The runtime continues to resolve
+the typed percentage against the owning combatant's Power and persists the
+declared next-action count through the normal immutable, versioned, invariant-
+checked transition. No source text or move-name branch participates in the
+classification or execution.
+
+Kaio-Ken's exact three-attack `+(10% Power)` occurrence is now
+`supported-generic` through `damage-modifier.v1`. The public upkeep transition
+test asserts the persisted damage basis, amount, operation, and remaining
+action count. The regenerated matrix records 782 `supported-generic`, 209
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 9 typed compiled-damage or
+resolution-context, 145 typed executor or compiled-plan, and 6 typed reroll
+reaction-lifecycle occurrences. The next ranked prerequisite is now
+`create-floating-effect` under typed executor accounting; the remaining
+compiled-damage rows require stored context, selected targets, critical
+resolution, or durable use-limit semantics and remain explicitly unsupported.
+
+## 2026-08-15 combat-result floating lifecycle slice
+
+The generic `create-floating-effect.v1` executor now persists the supported
+`until-combat-result` lifecycle instead of rejecting every non-combat duration.
+The active floating-effect contract records the actor-resolved combatant,
+successful or stopped result, move selector, and one literal attack or defense
+roll threshold. The attack-resolution transition evaluates those fields against
+the persisted move and roll results, expires the bundle immutably, advances the
+state version once, and validates combatant references and finite thresholds
+through the invariant boundary.
+
+The same generic lifecycle now honors `stacking: prevent` by retaining one
+matching source/target/floating-effect identity, while `stacking: allow` remains
+unchanged. Ki Jammer's converted effect is covered through the public
+`createFight`, `advanceFight`, and `submitCombatDecision` path, including its
+normalized threshold and non-stacking state. No source text or move-name branch
+participates in compilation or execution; durations with unsupported result,
+condition, cost, limit, or pending-choice semantics remain explicitly rejected.
+
+The regenerated matrix records 784 `supported-generic`, 207
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 9 typed compiled-damage or
+resolution-context, 143 typed executor or compiled-plan, and 6 typed reroll
+reaction-lifecycle occurrences. Every out-of-scope occurrence retains its
+documented approved exclusion, and the catalog-closure goal remains active.
 
 ## Handoff prompt
 

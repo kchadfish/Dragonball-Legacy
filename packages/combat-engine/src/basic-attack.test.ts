@@ -1084,6 +1084,7 @@ describe("basic attacks", () => {
         counter: false,
         attackRollResult: 11,
         defenseRollResult: 11,
+        damageDealt: 3,
       },
     ]);
   });

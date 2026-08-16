@@ -586,6 +586,50 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("applies cap-only damage modifiers and totals the last advanced attacks", () => {
+    const tornadoUppercut = moves.get("move-haokiru-tornado-uppercut");
+    const vengeanceWave = moves.get("move-haokiru-vengeance-wave");
+    if (tornadoUppercut === undefined || vengeanceWave === undefined)
+      throw new Error("Expected Haokiru damage definitions.");
+
+    expect(adjustedMoveDamage(tornadoUppercut, 20, context)).toBe(11);
+    expect(
+      moveEffectsForTrigger(vengeanceWave, "passive", {
+        ...context,
+        actionHistory: [
+          {
+            type: "use-move",
+            decisionId: "decision:prior-vengeance-one" as never,
+            actorId: opponent.id,
+            targetCombatantId: self.id,
+            moveId: "move-afterlife-masenko" as never,
+            turnNumber: 3,
+            phase: "action",
+            outcome: "successful",
+            damageDealt: 10,
+          },
+          {
+            type: "use-move",
+            decisionId: "decision:prior-vengeance-two" as never,
+            actorId: opponent.id,
+            targetCombatantId: self.id,
+            moveId: "move-afterlife-masenko" as never,
+            turnNumber: 4,
+            phase: "action",
+            outcome: "successful",
+            damageDealt: 20,
+          },
+        ],
+      }).damageModifications,
+    ).toEqual([
+      expect.objectContaining({
+        operation: "set",
+        amount: 30,
+        basis: "power-percent",
+      }),
+    ]);
+  });
+
   it("dispatches nested effects from a durable floating bundle without source-text interpretation", () => {
     const backflipKick = moves.get("move-akaikaru-backflip-kick");
     const nestedBundle = backflipKick?.effects?.[0];

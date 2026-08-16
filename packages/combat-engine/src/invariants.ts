@@ -452,6 +452,11 @@ const hasValidNextActionModifierDetails = (
     effect.modifier.operation === "add" ||
     effect.modifier.operation === "multiply" ||
     effect.modifier.operation === "set";
+  const validDamageBasis =
+    effect.modifier.type !== "damage" ||
+    effect.modifier.basis === undefined ||
+    effect.modifier.basis === "power-percent" ||
+    effect.modifier.basis === "damage-percent";
   const validRollCap = (
     cap: NonNullable<Extract<ActiveCombatEffect, { type: "modify-roll" }>["cap"]>,
   ) =>
@@ -461,6 +466,7 @@ const hasValidNextActionModifierDetails = (
         (cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll");
   return (
     validDamageOperation &&
+    validDamageBasis &&
     (effect.modifier.type === "damage" ||
       (effect.modifier.type === "stat" &&
         (effect.modifier.stat === "dexterity" || effect.modifier.stat === "dexterity-bonus") &&
@@ -653,21 +659,42 @@ const hasValidItemDamageModifierEffectDetails = (
 
 const hasValidFloatingEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "floating-effect" }>,
-) =>
-  effect.floatingEffectId.length > 0 &&
-  effect.sourceDefinitionId.length > 0 &&
-  validCounter(effect.createdOnTurn, 1) &&
-  (effect.scope.type === "combat" ||
-    effect.scope.type === "next-action" ||
-    (effect.scope.type === "next-turn" && typeof effect.scope.combatantId === "string")) &&
-  effect.effects.every((nestedEffect) => nestedEffect.type !== "create-floating-effect") &&
-  effect.termination.every(
-    (termination) =>
-      (termination.trigger === "on-power-up" ||
-        termination.trigger === "on-stopped" ||
-        termination.trigger === "on-success") &&
-      (termination.actor === "self" || termination.actor === "opponent"),
+) => {
+  const duration = effect.duration;
+  return (
+    effect.floatingEffectId.length > 0 &&
+    effect.sourceDefinitionId.length > 0 &&
+    validCounter(effect.createdOnTurn, 1) &&
+    (effect.scope.type === "combat" ||
+      effect.scope.type === "next-action" ||
+      (effect.scope.type === "next-turn" && typeof effect.scope.combatantId === "string")) &&
+    (effect.stacking === undefined ||
+      effect.stacking === "allow" ||
+      effect.stacking === "prevent") &&
+    (duration === undefined ||
+      (duration.type === "until-combat-result" &&
+        typeof duration.combatantId === "string" &&
+        (duration.result === "successful" ||
+          duration.result === "stopped" ||
+          duration.result === "critical" ||
+          duration.result === "counter") &&
+        (duration.rollThreshold === undefined ||
+          ((duration.rollThreshold.roll === "attack" ||
+            duration.rollThreshold.roll === "defense" ||
+            duration.rollThreshold.roll === "transformation") &&
+            (duration.rollThreshold.comparison === "at-least" ||
+              duration.rollThreshold.comparison === "at-most") &&
+            Number.isFinite(duration.rollThreshold.value))))) &&
+    effect.effects.every((nestedEffect) => nestedEffect.type !== "create-floating-effect") &&
+    effect.termination.every(
+      (termination) =>
+        (termination.trigger === "on-power-up" ||
+          termination.trigger === "on-stopped" ||
+          termination.trigger === "on-success") &&
+        (termination.actor === "self" || termination.actor === "opponent"),
+    )
   );
+};
 
 const hasValidExtraActionEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "extra-action" }>,
@@ -866,6 +893,8 @@ const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
 };
 
 const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatEffect) => {
+  if (effect.type === "floating-effect" && effect.duration !== undefined)
+    return isActiveCombatant(state, effect.duration.combatantId);
   if (effect.type === "scheduled-resource")
     return (
       isActiveCombatant(state, effect.timing.combatantId) &&
@@ -919,6 +948,24 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
   }
 };
 
+const validDamageDealt = (damage: number | undefined) =>
+  damage === undefined || (Number.isFinite(damage) && damage >= 0);
+
+type AttackActionHistoryRecord = Extract<
+  CombatActionRecord,
+  { readonly type: "basic-attack" | "use-move" }
+>;
+
+const validAttackActionResults = (action: AttackActionHistoryRecord) =>
+  (action.outcome === undefined ||
+    action.outcome === "successful" ||
+    action.outcome === "stopped") &&
+  (action.critical === undefined || typeof action.critical === "boolean") &&
+  (action.counter === undefined || typeof action.counter === "boolean") &&
+  (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
+  (action.defenseRollResult === undefined || Number.isFinite(action.defenseRollResult)) &&
+  validDamageDealt(action.damageDealt);
+
 const validateActionHistory = (state: FightState, violations: FightStateInvariantViolation[]) => {
   const decisionIds = new Set<string>();
   let previousTurnNumber = 0;
@@ -936,13 +983,7 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
       if (action.type === "basic-attack") {
         return (
           combatantForId(state, action.targetCombatantId) !== undefined &&
-          (action.outcome === undefined ||
-            action.outcome === "successful" ||
-            action.outcome === "stopped") &&
-          (action.critical === undefined || typeof action.critical === "boolean") &&
-          (action.counter === undefined || typeof action.counter === "boolean") &&
-          (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
-          (action.defenseRollResult === undefined || Number.isFinite(action.defenseRollResult))
+          validAttackActionResults(action)
         );
       }
       if (action.type === "use-move") {
@@ -950,13 +991,7 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
           combatantForId(state, action.targetCombatantId) !== undefined &&
           typeof action.moveId === "string" &&
           action.moveId.length > 0 &&
-          (action.outcome === undefined ||
-            action.outcome === "successful" ||
-            action.outcome === "stopped") &&
-          (action.critical === undefined || typeof action.critical === "boolean") &&
-          (action.counter === undefined || typeof action.counter === "boolean") &&
-          (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
-          (action.defenseRollResult === undefined || Number.isFinite(action.defenseRollResult))
+          validAttackActionResults(action)
         );
       }
       if (action.type === "use-item") {

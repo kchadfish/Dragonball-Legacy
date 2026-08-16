@@ -325,6 +325,26 @@ const durableExpressionHandlers: Partial<
       ? undefined
       : result * (expression.multiplier ?? 1) + (expression.addition ?? 0);
   },
+  "prior-attack-damage-percent": (expression, context) => {
+    if (!isType(expression, "prior-attack-damage-percent")) return undefined;
+    const actorId = context.opponent.id;
+    const priorAttacks = (context.actionHistory ?? [])
+      .filter(
+        (action): action is Extract<CombatActionRecord, { readonly type: "use-move" }> =>
+          action.type === "use-move" &&
+          action.actorId === actorId &&
+          action.targetCombatantId === context.self.id &&
+          action.outcome === "successful" &&
+          action.damageDealt !== undefined &&
+          context.moves.get(action.moveId)?.category === "advanced-attack",
+      )
+      .slice(-expression.count);
+    if (priorAttacks.length < expression.count) return undefined;
+    return priorAttacks.reduce((total, action) => {
+      const power = context.opponent.stats.power;
+      return total + (action.damageDealt! * 100) / power;
+    }, 0);
+  },
   minimum: (expression, context) => {
     if (!isType(expression, "minimum")) return undefined;
     const values = expression.values.map((value) =>

@@ -206,42 +206,44 @@ export interface ScheduledResourceApplication {
   };
 }
 
+type LockDuration =
+  | { readonly type: "combat" }
+  | { readonly type: "turns"; readonly remaining: number }
+  | { readonly type: "next-actions"; readonly remaining: number }
+  | {
+      readonly type: "until-roll-threshold";
+      readonly roll: "attack" | "defense" | "transformation";
+      readonly comparison: "at-least" | "at-most";
+      readonly value: number;
+    }
+  | {
+      readonly type: "until-resource-threshold";
+      readonly subject: "self" | "opponent";
+      readonly resource: "hp" | "ki";
+      readonly comparison: "at-least" | "at-most";
+      readonly value: number;
+    }
+  | {
+      readonly type: "until-combat-result";
+      readonly actor: "self" | "opponent";
+      readonly result: "successful" | "stopped" | "critical" | "counter";
+      readonly selector?: MoveSelectorCondition;
+    }
+  | {
+      readonly type: "until-turn-start-roll-threshold";
+      readonly subject: "self" | "opponent";
+      readonly dice: number;
+      readonly sides: number;
+      readonly comparison: "at-least" | "at-most";
+      readonly value: number;
+      readonly remainingIgnoredChecks: number;
+    };
+
 export interface LockApplication {
   readonly target: "self" | "opponent";
   readonly affectedType: Extract<EffectDefinition, { readonly type: "lock" }>["affectedType"];
   readonly selector?: MoveSelectorCondition;
-  readonly duration:
-    | { readonly type: "combat" }
-    | { readonly type: "turns"; readonly remaining: number }
-    | { readonly type: "next-actions"; readonly remaining: number }
-    | {
-        readonly type: "until-roll-threshold";
-        readonly roll: "attack" | "defense" | "transformation";
-        readonly comparison: "at-least" | "at-most";
-        readonly value: number;
-      }
-    | {
-        readonly type: "until-resource-threshold";
-        readonly subject: "self" | "opponent";
-        readonly resource: "hp" | "ki";
-        readonly comparison: "at-least" | "at-most";
-        readonly value: number;
-      }
-    | {
-        readonly type: "until-combat-result";
-        readonly actor: "self" | "opponent";
-        readonly result: "successful" | "stopped" | "critical" | "counter";
-        readonly selector?: MoveSelectorCondition;
-      }
-    | {
-        readonly type: "until-turn-start-roll-threshold";
-        readonly subject: "self" | "opponent";
-        readonly dice: number;
-        readonly sides: number;
-        readonly comparison: "at-least" | "at-most";
-        readonly value: number;
-        readonly remainingIgnoredChecks: number;
-      };
+  readonly duration: LockDuration;
 }
 
 export interface DeactivationApplication {
@@ -275,6 +277,18 @@ export interface FloatingEffectApplication {
     readonly selector?: MoveSelectorCondition;
   }[];
   readonly scope: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>["scope"];
+  readonly duration?: {
+    readonly type: "until-combat-result";
+    readonly actor: "self" | "opponent";
+    readonly result: "successful" | "stopped" | "critical" | "counter";
+    readonly moveSelector?: MoveSelectorCondition;
+    readonly rollThreshold?: {
+      readonly roll: "attack" | "defense" | "transformation";
+      readonly comparison: "at-least" | "at-most";
+      readonly value: number;
+    };
+  };
+  readonly stacking?: "allow" | "prevent";
 }
 
 export interface MoveUsePreventionApplication {
@@ -350,6 +364,7 @@ export interface DamageModification {
   readonly amount: number;
   readonly basis: "power-percent" | "damage-percent";
   readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
+  readonly capOnly?: boolean;
   readonly selector?: MoveSelectorCondition;
   readonly scope?: "current-action" | "following-action" | "next-action" | "next-actions";
   readonly remaining?: number;
@@ -1280,7 +1295,7 @@ export const adjustedMoveDamage = (
       !effectMatches(effect, context)
     )
       return damage;
-    const value = effect.percent === undefined ? undefined : numeric(effect.percent, context);
+    const value = effect.percent === undefined ? 0 : numeric(effect.percent, context);
     if (value === undefined) return damage;
     if (
       effect.selector !== undefined &&
@@ -1288,6 +1303,11 @@ export const adjustedMoveDamage = (
         !matchesMoveSelector(context.triggeringMove, effect.selector))
     )
       return damage;
+    if (effect.cap !== undefined && effect.percent === undefined) {
+      const cap = numeric(effect.cap.value, context);
+      if (cap === undefined) return damage;
+      return effect.cap.type === "maximum" ? Math.min(damage, cap) : Math.max(damage, cap);
+    }
     if (effect.operation === "set") return damageAmount(effect.percent!, value, context);
     if (effect.operation === "multiply") return Math.round((damage * value) / 100);
     return damage + damageAmount(effect.percent!, value, context);
@@ -1325,9 +1345,11 @@ const damageModificationCap = (
 ) => {
   if (effect.cap === undefined) return undefined;
   const value = numeric(effect.cap.value, context);
-  if (value === undefined || effect.percent === undefined) return undefined;
+  if (value === undefined) return undefined;
   const resolvedValue =
-    effect.percent.type === "damage-percent" ? value : damageAmount(effect.percent, value, context);
+    effect.percent === undefined || effect.percent.type === "damage-percent"
+      ? value
+      : damageAmount(effect.percent, value, context);
   return { type: effect.cap.type, value: resolvedValue };
 };
 
@@ -1335,16 +1357,18 @@ const damageModificationAmount = (
   effect: Extract<EffectDefinition, { readonly type: "modify-damage" }>,
   resolvedAmount: number,
   context: MoveEffectRuntimeContext,
-) =>
-  effect.operation === "multiply"
-    ? resolvedAmount
-    : damageAmount(effect.percent!, resolvedAmount, context);
+) => {
+  if (effect.percent === undefined) return 0;
+  if (effect.operation === "multiply") return resolvedAmount;
+  return damageAmount(effect.percent, resolvedAmount, context);
+};
 
 const damageModificationValue = (
   effect: Extract<EffectDefinition, { readonly type: "modify-damage" }>,
   context: MoveEffectRuntimeContext,
 ) => {
-  if (effect.percent === undefined) return undefined;
+  if (effect.percent === undefined)
+    return effect.cap === undefined ? undefined : { resolvedAmount: 0 };
   const amount = numeric(effect.percent, context);
   const resolvedAmount = effect.percent.type === "damage-percent" ? effect.percent.percent : amount;
   return resolvedAmount === undefined ? undefined : { resolvedAmount };
@@ -1364,7 +1388,16 @@ const damageModificationLifecycle = (
   const cap = damageModificationCap(effect, context);
   if (effect.cap !== undefined && cap === undefined) return undefined;
   const nextTurn = damageModificationNextTurnDuration(effect, context, target);
-  return { scope, remaining, duration, cap, nextTurn };
+  return {
+    scope:
+      scope === undefined || scope === "next-turn"
+        ? undefined
+        : (scope as "current-action" | "following-action" | "next-action" | "next-actions"),
+    remaining,
+    duration,
+    cap,
+    nextTurn,
+  };
 };
 
 const resolvedDamageModification = (
@@ -1372,12 +1405,7 @@ const resolvedDamageModification = (
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
 ): DamageModification | undefined => {
-  if (
-    effect.percent === undefined ||
-    effect.optional === true ||
-    effect.activationGroup !== undefined
-  )
-    return undefined;
+  if (effect.optional === true || effect.activationGroup !== undefined) return undefined;
   const value = damageModificationValue(effect, context);
   if (value === undefined) return undefined;
   const lifecycle = damageModificationLifecycle(effect, context, target);
@@ -1386,12 +1414,11 @@ const resolvedDamageModification = (
     target,
     operation: effect.operation ?? "add",
     amount: damageModificationAmount(effect, value.resolvedAmount, context),
-    basis: damageBasis(effect.percent),
+    basis: effect.percent === undefined ? "power-percent" : damageBasis(effect.percent),
     ...(lifecycle.cap === undefined ? {} : { cap: lifecycle.cap }),
+    ...(effect.percent === undefined ? { capOnly: true } : {}),
     ...(effect.selector === undefined ? {} : { selector: effect.selector }),
-    ...(lifecycle.scope === undefined || lifecycle.scope === "next-turn"
-      ? {}
-      : { scope: lifecycle.scope }),
+    ...(lifecycle.scope === undefined ? {} : { scope: lifecycle.scope }),
     ...(lifecycle.remaining === undefined ? {} : { remaining: lifecycle.remaining }),
     ...(effect.scope?.type === "next-turn" ? { availableFromTurn: context.turnNumber + 1 } : {}),
     ...(lifecycle.duration === undefined && lifecycle.nextTurn === undefined
@@ -1656,23 +1683,59 @@ const statusEffectChanges = (
 
 const floatingEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
+  context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
-): EffectChanges => ({
-  ...emptyEffectChanges(),
-  floatingEffects: [
-    {
-      target,
-      floatingEffectId: effect.floatingEffectId,
-      effects: effect.effects ?? [],
-      termination: (effect.termination ?? []).map(({ trigger, actor, selector }) => ({
-        trigger,
-        actor,
-        ...(selector === undefined ? {} : { selector }),
-      })),
-      scope: effect.scope,
-    },
-  ],
-});
+): EffectChanges => {
+  const duration = effect.duration;
+  const threshold =
+    duration?.type === "until-combat-result"
+      ? duration.conditions?.find((condition) => condition.type === "roll-threshold")
+      : undefined;
+  const rollThreshold =
+    duration?.type === "until-combat-result" && threshold?.type === "roll-threshold"
+      ? {
+          roll: threshold.roll,
+          comparison: threshold.comparison,
+          value: numeric(threshold.value, context),
+        }
+      : undefined;
+  const normalizedDuration =
+    duration?.type === "until-combat-result"
+      ? {
+          type: "until-combat-result" as const,
+          actor: duration.actor,
+          result: duration.result,
+          ...(duration.moveSelector === undefined ? {} : { moveSelector: duration.moveSelector }),
+          ...(rollThreshold?.value === undefined
+            ? {}
+            : {
+                rollThreshold: {
+                  roll: rollThreshold.roll,
+                  comparison: rollThreshold.comparison,
+                  value: rollThreshold.value,
+                },
+              }),
+        }
+      : undefined;
+  return {
+    ...emptyEffectChanges(),
+    floatingEffects: [
+      {
+        target,
+        floatingEffectId: effect.floatingEffectId,
+        effects: effect.effects ?? [],
+        termination: (effect.termination ?? []).map(({ trigger, actor, selector }) => ({
+          trigger,
+          actor,
+          ...(selector === undefined ? {} : { selector }),
+        })),
+        scope: effect.scope,
+        ...(normalizedDuration === undefined ? {} : { duration: normalizedDuration }),
+        ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+      },
+    ],
+  };
+};
 
 const rollAndStoreEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "roll-and-store" }>,
@@ -2506,9 +2569,10 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       target,
       effectIndex,
     ),
-  "create-floating-effect": (effect, _move, _context, target) =>
+  "create-floating-effect": (effect, _move, context, target) =>
     floatingEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
+      context,
       target,
     ),
   "grant-extra-action": (effect, _move, context, target, trigger, effectIndex) =>

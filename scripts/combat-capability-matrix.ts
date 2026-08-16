@@ -87,7 +87,11 @@ const genericExecutors: Readonly<
   },
   deactivate: { executor: "constant-lifecycle", test: "deactivation-flow.test.ts" },
   "force-action": { executor: "forced-action", test: "progress-fight.test.ts" },
-  "grant-extra-action": { executor: "extra-action-scheduler", test: "progress-fight.test.ts" },
+  "grant-extra-action": {
+    executor: "extra-action-scheduler",
+    test: "progress-fight.test.ts",
+    capabilityId: "grant-extra-action.v2",
+  },
   lock: { executor: "action-lock", test: "progress-fight.test.ts" },
   "modify-cost": { executor: "cost-modifier", test: "move-effects-runtime.test.ts" },
   "modify-critical-threshold": {
@@ -220,6 +224,7 @@ const supportedNumericTypes = new Set([
   "resource-from-threshold",
   "successful-hit-count",
   "prior-roll-result",
+  "prior-attack-damage-percent",
   "completed-combat-turn-count",
   "damage-percent",
   "active-move-count",
@@ -252,6 +257,7 @@ const supportedDamageConditions = new Set([
   "active-move-count",
   "moveset-move-count",
   "move-use-count",
+  "level-comparison",
 ]);
 
 const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
@@ -288,6 +294,14 @@ const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
       effect.trigger === "on-success" ||
       effect.trigger === "on-stopped" ||
       effect.trigger === "before-attack-roll")
+  )
+    return true;
+  if (
+    (effect.scope?.type === "next-action" || effect.scope?.type === "next-actions") &&
+    effect.trigger === "upkeep-phase" &&
+    effect.target === "self" &&
+    effect.activationCost === undefined &&
+    effect.useLimit === undefined
   )
     return true;
   if (
@@ -337,7 +351,9 @@ const isSupportedExtraActionOccurrence = (occurrence: Occurrence) => {
   return (
     effect.type === "grant-extra-action" &&
     effect.target === "self" &&
-    (effect.trigger === "on-success" || effect.trigger === "on-stopped") &&
+    (effect.trigger === "on-success" ||
+      effect.trigger === "on-stopped" ||
+      (effect.trigger === "action-phase" && occurrence.origin === "move")) &&
     effect.phase === "action-phase" &&
     (effect.scope === undefined ||
       effect.scope.type === "current-action" ||

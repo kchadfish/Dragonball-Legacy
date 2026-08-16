@@ -207,6 +207,7 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "paid-activation-cost",
   "successful-hit-count",
   "prior-roll-result",
+  "prior-attack-damage-percent",
   "completed-combat-turn-count",
   "active-move-count",
   "active-move-effect-text-count",
@@ -507,10 +508,10 @@ const modifyDamageIssues = (
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const numeric =
-    effect.percent?.type === "damage-percent"
+    effect.percent === undefined || effect.percent.type === "damage-percent"
       ? undefined
       : numericIssue(effect.percent, sourceDefinitionId, effectIndex, "percent");
-  if (effect.percent === undefined)
+  if (effect.percent === undefined && effect.cap === undefined)
     issues.push(
       issue(
         "unsupported-variant",
@@ -2029,6 +2030,55 @@ const preventResourceModificationIssues = (
   return issues;
 };
 
+const floatingDurationIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const duration = effect.duration;
+  if (duration === undefined || duration.type === "combat") return [];
+  if (duration.type !== "until-combat-result")
+    return [
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Floating-effect duration ${duration.type} requires a persisted termination transition.`,
+      ),
+    ];
+  const thresholdConditions = (duration.conditions ?? []).filter(
+    (condition) => condition.type === "roll-threshold",
+  );
+  const invalidThreshold =
+    (duration.conditions ?? []).some((condition) => condition.type !== "roll-threshold") ||
+    thresholdConditions.length > 1 ||
+    (thresholdConditions[0] !== undefined &&
+      (thresholdConditions[0].roll === "transformation" ||
+        thresholdConditions[0].value.type !== "literal"));
+  return [
+    ...(duration.result === "successful" || duration.result === "stopped"
+      ? []
+      : [
+          issue(
+            "unsupported-variant",
+            sourceDefinitionId,
+            effectIndex,
+            `Floating-effect combat result ${duration.result} is not available at the attack transition boundary.`,
+          ),
+        ]),
+    ...(invalidThreshold
+      ? [
+          issue(
+            "unsupported-variant",
+            sourceDefinitionId,
+            effectIndex,
+            "Floating-effect combat-result duration supports one literal attack or defense roll threshold.",
+          ),
+        ]
+      : []),
+  ];
+};
+
 function createFloatingIssues(
   effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
   sourceDefinitionId: string,
@@ -2045,21 +2095,12 @@ function createFloatingIssues(
         `Floating-effect scope ${scope} does not have a durable combat representation.`,
       ),
     );
-  if (effect.duration !== undefined && effect.duration.type !== "combat")
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        `Floating-effect duration ${effect.duration.type} requires a persisted termination transition.`,
-      ),
-    );
+  issues.push(...floatingDurationIssues(effect, sourceDefinitionId, effectIndex));
   if (
     effect.activationCost !== undefined ||
     effect.useLimit !== undefined ||
     effect.cooldown !== undefined ||
-    effect.selectionLimit !== undefined ||
-    effect.stacking !== undefined
+    effect.selectionLimit !== undefined
   )
     issues.push(
       issue(
