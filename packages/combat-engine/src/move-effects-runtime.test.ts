@@ -675,6 +675,44 @@ describe("converted move effects", () => {
     ).toEqual([]);
   });
 
+  it("resolves floating activation costs and combat limits as typed application data", () => {
+    const hiddenPower = moves.get("move-freestyle-hidden-power-level");
+    if (hiddenPower === undefined) throw new Error("Expected Hidden Power Level.");
+
+    const floating = moveEffectsForTrigger(hiddenPower, "upkeep-phase", {
+      ...context,
+      self: { ...self, ki: { current: 8, maximum: 10 } },
+    }).floatingEffects;
+
+    expect(floating).toEqual([
+      expect.objectContaining({
+        sourceEffectIndex: 0,
+        floatingEffectId: "hidden-power-level-zero-ki-recovery",
+        activationCost: { resource: "ki", amount: 2 },
+        useLimit: { scope: "combat", count: 1 },
+      }),
+    ]);
+  });
+
+  it("resolves a floating bundle's direct attack-roll threshold duration", () => {
+    const dragonDust = moves.get("move-haokiru-dragon-dust");
+    if (dragonDust === undefined) throw new Error("Expected Dragon Dust.");
+
+    expect(moveEffectsForTrigger(dragonDust, "on-success", context).floatingEffects).toEqual([
+      expect.objectContaining({
+        floatingEffectId: "dragon-dust-hp-gain-retaliation",
+        target: "opponent",
+        duration: {
+          type: "until-roll-threshold",
+          roll: "attack",
+          comparison: "at-least",
+          value: 23,
+        },
+        useLimit: { scope: "turn", count: 1 },
+      }),
+    ]);
+  });
+
   it("evaluates active and inactive move-effect conditions from durable effects", () => {
     const x20 = moves.get("move-afterlife-x20-kaioken-kamehameha");
     if (x20 === undefined) throw new Error("Expected move-effect condition test moves.");

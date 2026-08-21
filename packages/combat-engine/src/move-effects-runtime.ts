@@ -102,8 +102,24 @@ export interface ResourceChange {
   readonly amount: number;
   readonly cap?: { readonly type: "maximum" | "minimum"; readonly value: number };
   readonly sourceCombatantId?: CombatantState["id"];
+  readonly sourceEffectIndex?: number;
+  readonly activationCost?: {
+    readonly resource: "hp" | "ki";
+    readonly amount: number;
+    readonly minimum?: number;
+  };
   readonly cause?: "non-damage-effect" | "opponent-effect";
   readonly sourceStyleId?: string;
+}
+
+export interface ResourceActionModifierApplication {
+  readonly target: "self" | "opponent";
+  readonly effectIndex: number;
+  readonly resource: "hp" | "ki";
+  readonly operation: "drain" | "gain" | "lose" | "set";
+  readonly amount: number;
+  readonly basis: "damage-percent";
+  readonly scope: "next-action";
 }
 
 export interface StoredRollRequest {
@@ -269,6 +285,7 @@ export interface ActivationApplication {
 
 export interface FloatingEffectApplication {
   readonly target: "self" | "opponent";
+  readonly sourceEffectIndex: number;
   readonly floatingEffectId: string;
   readonly effects: readonly EffectDefinition[];
   readonly termination: readonly {
@@ -277,18 +294,32 @@ export interface FloatingEffectApplication {
     readonly selector?: MoveSelectorCondition;
   }[];
   readonly scope: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>["scope"];
-  readonly duration?: {
-    readonly type: "until-combat-result";
-    readonly actor: "self" | "opponent";
-    readonly result: "successful" | "stopped" | "critical" | "counter";
-    readonly moveSelector?: MoveSelectorCondition;
-    readonly rollThreshold?: {
-      readonly roll: "attack" | "defense" | "transformation";
-      readonly comparison: "at-least" | "at-most";
-      readonly value: number;
-    };
-  };
+  readonly duration?:
+    | {
+        readonly type: "until-combat-result";
+        readonly actor: "self" | "opponent";
+        readonly result: "successful" | "stopped" | "critical" | "counter";
+        readonly moveSelector?: MoveSelectorCondition;
+        readonly rollThreshold?: {
+          readonly roll: "attack" | "defense" | "transformation";
+          readonly comparison: "at-least" | "at-most";
+          readonly value: number;
+        };
+      }
+    | {
+        readonly type: "until-roll-threshold";
+        readonly roll: "attack" | "defense";
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
+        readonly moveSelector?: MoveSelectorCondition;
+      };
   readonly stacking?: "allow" | "prevent";
+  readonly activationCost?: {
+    readonly resource: "hp" | "ki";
+    readonly amount: number;
+    readonly minimum?: number;
+  };
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
 export interface MoveUsePreventionApplication {
@@ -1212,8 +1243,25 @@ const requirementsMatch = (effect: EffectDefinition, context: MoveEffectRuntimeC
       requirement.moveIds.every((moveId) => !context.self.moveIds.includes(moveId)),
   );
 
+const turnLimitedEffectAlreadyUsed = (
+  effect: EffectDefinition,
+  context: MoveEffectRuntimeContext,
+) => {
+  if (effect.useLimit?.scope !== "turn") return false;
+  const currentAction = context.currentAction;
+  if (currentAction?.type !== "use-move") return false;
+  return (context.actionHistory ?? []).some(
+    (action) =>
+      action.type === "use-move" &&
+      action.actorId === context.self.id &&
+      action.turnNumber === context.turnNumber &&
+      action.moveId === currentAction.moveId,
+  );
+};
+
 const effectMatches = (effect: EffectDefinition, context: MoveEffectRuntimeContext) =>
   requirementsMatch(effect, context) &&
+  !turnLimitedEffectAlreadyUsed(effect, context) &&
   (effect.conditions ?? [])
     .filter((condition) => effect.type !== "deactivate" || condition.type !== "move-selector")
     .every((condition) => conditionMatches(condition, context));
@@ -1531,6 +1579,7 @@ const effectTargets = (effect: EffectDefinition): readonly ("self" | "opponent")
 
 const emptyEffectChanges = () => ({
   resources: [] as ResourceChange[],
+  resourceActionModifiers: [] as ResourceActionModifierApplication[],
   storedRollRequests: [] as StoredRollRequest[],
   statuses: [] as StatusApplication[],
   extraActions: [] as ExtraActionApplication[],
@@ -1681,47 +1730,103 @@ const statusEffectChanges = (
   };
 };
 
+const floatingActivationCost = (
+  effect: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  if (effect.activationCost === undefined) return undefined;
+  const amount = numeric(effect.activationCost.amount, context);
+  if (amount === undefined) return null;
+  const minimum =
+    effect.activationCost.minimum === undefined
+      ? undefined
+      : numeric(effect.activationCost.minimum, context);
+  if (effect.activationCost.minimum !== undefined && minimum === undefined) return null;
+  return {
+    resource: effect.activationCost.resource,
+    amount,
+    ...(minimum === undefined ? {} : { minimum }),
+  };
+};
+
+const floatingUseLimitCount = (
+  effect: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  if (effect.useLimit === undefined) return undefined;
+  if (typeof effect.useLimit.count === "number") return effect.useLimit.count;
+  return numeric(effect.useLimit.count, context);
+};
+
+const hasValidFloatingUseLimit = (
+  effect: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
+  count: number | undefined,
+) =>
+  effect.useLimit === undefined || (count !== undefined && Number.isInteger(count) && count >= 1);
+
+const normalizedFloatingDuration = (
+  duration: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>["duration"],
+  context: MoveEffectRuntimeContext,
+): FloatingEffectApplication["duration"] | null => {
+  if (duration === undefined) return undefined;
+  if (duration.type === "combat") return undefined;
+  if (duration.type === "until-combat-result") {
+    const threshold = duration.conditions?.find((condition) => condition.type === "roll-threshold");
+    const rollThreshold =
+      threshold?.type === "roll-threshold"
+        ? {
+            roll: threshold.roll,
+            comparison: threshold.comparison,
+            value: numeric(threshold.value, context),
+          }
+        : undefined;
+    return {
+      type: "until-combat-result",
+      actor: duration.actor,
+      result: duration.result,
+      ...(duration.moveSelector === undefined ? {} : { moveSelector: duration.moveSelector }),
+      ...(rollThreshold?.value === undefined
+        ? {}
+        : {
+            rollThreshold: {
+              roll: rollThreshold.roll,
+              comparison: rollThreshold.comparison,
+              value: rollThreshold.value,
+            },
+          }),
+    };
+  }
+  if (duration.type !== "until-roll-threshold") return null;
+  if (duration.roll === "transformation") return null;
+  const value = numeric(duration.value, context);
+  if (value === undefined) return null;
+  return {
+    type: "until-roll-threshold",
+    roll: duration.roll,
+    comparison: duration.comparison,
+    value,
+    ...(duration.moveSelector === undefined ? {} : { moveSelector: duration.moveSelector }),
+  };
+};
+
 const floatingEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
+  effectIndex: number,
 ): EffectChanges => {
-  const duration = effect.duration;
-  const threshold =
-    duration?.type === "until-combat-result"
-      ? duration.conditions?.find((condition) => condition.type === "roll-threshold")
-      : undefined;
-  const rollThreshold =
-    duration?.type === "until-combat-result" && threshold?.type === "roll-threshold"
-      ? {
-          roll: threshold.roll,
-          comparison: threshold.comparison,
-          value: numeric(threshold.value, context),
-        }
-      : undefined;
-  const normalizedDuration =
-    duration?.type === "until-combat-result"
-      ? {
-          type: "until-combat-result" as const,
-          actor: duration.actor,
-          result: duration.result,
-          ...(duration.moveSelector === undefined ? {} : { moveSelector: duration.moveSelector }),
-          ...(rollThreshold?.value === undefined
-            ? {}
-            : {
-                rollThreshold: {
-                  roll: rollThreshold.roll,
-                  comparison: rollThreshold.comparison,
-                  value: rollThreshold.value,
-                },
-              }),
-        }
-      : undefined;
+  const activationCost = floatingActivationCost(effect, context);
+  const useLimitCount = floatingUseLimitCount(effect, context);
+  if (activationCost === null || !hasValidFloatingUseLimit(effect, useLimitCount))
+    return emptyEffectChanges();
+  const normalizedDuration = normalizedFloatingDuration(effect.duration, context);
+  if (normalizedDuration === null) return emptyEffectChanges();
   return {
     ...emptyEffectChanges(),
     floatingEffects: [
       {
         target,
+        sourceEffectIndex: effectIndex,
         floatingEffectId: effect.floatingEffectId,
         effects: effect.effects ?? [],
         termination: (effect.termination ?? []).map(({ trigger, actor, selector }) => ({
@@ -1732,6 +1837,20 @@ const floatingEffectChanges = (
         scope: effect.scope,
         ...(normalizedDuration === undefined ? {} : { duration: normalizedDuration }),
         ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+        ...(activationCost === undefined
+          ? {}
+          : {
+              activationCost: {
+                resource: activationCost.resource,
+                amount: activationCost.amount,
+                ...(activationCost.minimum === undefined
+                  ? {}
+                  : { minimum: activationCost.minimum }),
+              },
+            }),
+        ...(effect.useLimit === undefined
+          ? {}
+          : { useLimit: { scope: effect.useLimit.scope, count: useLimitCount! } }),
       },
     ],
   };
@@ -1890,7 +2009,9 @@ const scheduledResourceEffectChanges = (
   };
 };
 
-type EffectChanges = ReturnType<typeof emptyEffectChanges>;
+type EffectChanges = Omit<ReturnType<typeof emptyEffectChanges>, "resourceActionModifiers"> & {
+  readonly resourceActionModifiers?: readonly ResourceActionModifierApplication[];
+};
 type TriggeredEffectHandler = (
   effect: EffectDefinition,
   move: MoveDefinition,
@@ -1910,36 +2031,110 @@ const resourceEffectAmount = (
   return Math.round((context.currentDamage * effect.amount.percent) / 100);
 };
 
+const resourceActivationCost = (
+  effect: Extract<EffectDefinition, { readonly type: "modify-resource" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  if (effect.activationCost === undefined) return undefined;
+  const amount = numeric(effect.activationCost.amount, context);
+  const minimum =
+    effect.activationCost.minimum === undefined
+      ? undefined
+      : numeric(effect.activationCost.minimum, context);
+  return amount === undefined ||
+    (effect.activationCost.minimum !== undefined && minimum === undefined)
+    ? null
+    : {
+        resource: effect.activationCost.resource,
+        amount,
+        ...(minimum === undefined ? {} : { minimum }),
+      };
+};
+
+const resourceEffectCap = (
+  effect: Extract<EffectDefinition, { readonly type: "modify-resource" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  if (effect.cap === undefined) return undefined;
+  const value = numeric(effect.cap.value, context);
+  return value === undefined ? null : { type: effect.cap.type, value };
+};
+
+const resourceChangeFromEffect = (
+  effect: Extract<EffectDefinition, { readonly type: "modify-resource" }>,
+  move: MoveDefinition,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+  amount: number,
+  cap: ReturnType<typeof resourceEffectCap>,
+  activationCost: Exclude<ReturnType<typeof resourceActivationCost>, null>,
+  effectIndex: number,
+): ResourceChange => ({
+  resource: effect.resource,
+  target,
+  operation: effect.operation,
+  amount,
+  ...(cap === undefined || cap === null ? {} : { cap }),
+  sourceCombatantId: context.self.id,
+  ...(activationCost === undefined
+    ? {}
+    : {
+        sourceEffectIndex: effectIndex,
+        activationCost: {
+          resource: activationCost.resource,
+          amount: activationCost.amount,
+          ...(activationCost.minimum === undefined ? {} : { minimum: activationCost.minimum }),
+        },
+      }),
+  cause: "non-damage-effect" as const,
+  ...(move.styleId === undefined ? {} : { sourceStyleId: move.styleId }),
+});
+
 const resourceEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "modify-resource" }>,
   move: MoveDefinition,
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
+  effectIndex: number,
 ): EffectChanges => {
+  const cap = resourceEffectCap(effect, context);
+  const activationCost = resourceActivationCost(effect, context);
+  if (cap === null) return emptyEffectChanges();
+  if (activationCost === null) return emptyEffectChanges();
+  if (effect.scope?.type === "next-action" && effect.amount?.type === "damage-percent") {
+    return {
+      ...emptyEffectChanges(),
+      resourceActionModifiers: [
+        {
+          target,
+          effectIndex,
+          resource: effect.resource,
+          operation: effect.operation,
+          amount: effect.amount.percent,
+          basis: "damage-percent",
+          scope: "next-action",
+        },
+      ],
+    };
+  }
   const amount = resourceEffectAmount(effect, context);
-  const capValue = effect.cap === undefined ? undefined : numeric(effect.cap.value, context);
   if (effect.amount !== undefined && amount === undefined) return emptyEffectChanges();
-  if (effect.cap !== undefined && capValue === undefined) return emptyEffectChanges();
-  const cap =
-    effect.cap === undefined || capValue === undefined
-      ? undefined
-      : { type: effect.cap.type, value: capValue };
   return {
     ...emptyEffectChanges(),
     resources:
       amount === undefined
         ? []
         : [
-            {
-              resource: effect.resource,
+            resourceChangeFromEffect(
+              effect,
+              move,
+              context,
               target,
-              operation: effect.operation,
               amount,
-              ...(cap === undefined ? {} : { cap }),
-              sourceCombatantId: context.self.id,
-              cause: "non-damage-effect" as const,
-              ...(move.styleId === undefined ? {} : { sourceStyleId: move.styleId }),
-            },
+              cap,
+              activationCost,
+              effectIndex,
+            ),
           ],
   };
 };
@@ -2569,11 +2764,12 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       target,
       effectIndex,
     ),
-  "create-floating-effect": (effect, _move, context, target) =>
+  "create-floating-effect": (effect, _move, context, target, _trigger, effectIndex) =>
     floatingEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "create-floating-effect" }>,
       context,
       target,
+      effectIndex,
     ),
   "grant-extra-action": (effect, _move, context, target, trigger, effectIndex) =>
     extraActionEffectChanges(
@@ -2620,12 +2816,13 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
-  "modify-resource": (effect, _move, context, target) =>
+  "modify-resource": (effect, move, context, target, _trigger, effectIndex) =>
     resourceEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "modify-resource" }>,
-      _move,
+      move,
       context,
       target,
+      effectIndex,
     ),
   "modify-remaining-uses": (effect, move, context, target) =>
     remainingUseModificationEffectChanges(
@@ -2945,6 +3142,7 @@ const moveEffectsForTriggerInternal = (
   allowFloatingOnMoveUse = false,
 ): {
   readonly resources: readonly ResourceChange[];
+  readonly resourceActionModifiers: readonly ResourceActionModifierApplication[];
   readonly storedRollRequests: readonly StoredRollRequest[];
   readonly statuses: readonly StatusApplication[];
   readonly extraActions: readonly ExtraActionApplication[];
@@ -2982,6 +3180,7 @@ const moveEffectsForTriggerInternal = (
   if (moveEffectsSuppressed(move, trigger, context))
     return { ...emptyEffectChanges(), pendingEffectChoices: [] };
   const resources: ResourceChange[] = [];
+  const resourceActionModifiers: ResourceActionModifierApplication[] = [];
   const storedRollRequests: StoredRollRequest[] = [];
   const statuses: StatusApplication[] = [];
   const extraActions: ExtraActionApplication[] = [];
@@ -3093,6 +3292,7 @@ const moveEffectsForTriggerInternal = (
         effectIndex,
       );
       resources.push(...changes.resources);
+      resourceActionModifiers.push(...(changes.resourceActionModifiers ?? []));
       storedRollRequests.push(...changes.storedRollRequests);
       statuses.push(...changes.statuses);
       extraActions.push(...changes.extraActions);
@@ -3147,6 +3347,7 @@ const moveEffectsForTriggerInternal = (
         true,
       );
       resources.push(...nested.resources);
+      resourceActionModifiers.push(...(nested.resourceActionModifiers ?? []));
       storedRollRequests.push(...nested.storedRollRequests);
       statuses.push(...nested.statuses);
       extraActions.push(...nested.extraActions);
@@ -3183,6 +3384,7 @@ const moveEffectsForTriggerInternal = (
   }
   return {
     resources,
+    resourceActionModifiers,
     storedRollRequests,
     statuses,
     extraActions,

@@ -28,7 +28,7 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 789 `supported-generic`, 202
+The generated capability matrix records 790 `supported-generic`, 201
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
@@ -1767,6 +1767,156 @@ prerequisite buckets are 49 generic pending-choice, 9 typed compiled-damage or
 resolution-context, 143 typed executor or compiled-plan, and 6 typed reroll
 reaction-lifecycle occurrences. Every out-of-scope occurrence retains its
 documented approved exclusion, and the catalog-closure goal remains active.
+
+## 2026-08-15 on-power-up resource activation-cost slice
+
+The generic `modify-resource.v1` executor now carries a resolved activation
+cost and source effect index through immediate resource changes. The transition
+boundary pays each eligible cost once, rejects the benefit when the owning
+combatant cannot satisfy the declared cost or minimum, and applies the cost and
+benefit as one immutable, versioned, invariant-checked resource transition.
+Start-combat costs use the same generic path. Immediate `on-power-up` effects
+may also declare the bounded once-per-turn limit, which is enforced by the
+power-up lifecycle rather than by a move-specific rule.
+
+The public `progress-fight.test.ts` coverage exercises Haokiru Reserves through
+`createFight`, `advanceFight`, `enumerateLegalDecisions`, and
+`submitCombatDecision`. It verifies the HP benefit, net KI change after the
+activation cost, structured KI event, legal power-up exposure, and state-version
+advancement. No source-text execution or move-name branch was added.
+
+The regenerated matrix now records 790 `supported-generic`, 201
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The
+typed-executor accounting bucket is 139 occurrences; its next ranked slice is
+`create-floating-effect` at 8 occurrences, followed by 8 remaining
+`modify-resource` occurrences. Remaining resource rows require persisted SP
+combat context, deferred scopes, resource-event cost or use-limit accounting,
+stored-roll context, or other explicit lifecycle primitives and remain
+unsupported. Every out-of-scope occurrence retains its documented approved
+exclusion, and the catalog-closure goal remains active.
+
+## 2026-08-20 floating activation-cost lifecycle slice
+
+The generic `create-floating-effect.v1` executor now supports the exact
+self-targeted `upkeep-phase` activation-cost variant. The typed runtime
+application retains the source effect index, resolved HP or KI cost, minimum,
+and one-per-combat limit. Before upkeep mutations are applied, the transition
+checks the persisted active-effect identity and current resource availability;
+an eligible creation pays its cost and creates the floating bundle in the same
+immutable transition, while an unaffordable or already-consumed creation is
+omitted without charging a partial cost. The active effect is invariant-checked
+and the public transition advances the state version once and emits the normal
+resource and activation events.
+
+Hidden Power Level is covered through `createFight` and `advanceFight`, with
+runtime and compiler tests covering the serialized application metadata,
+two-KI payment, durable source identity, event output, and state-version
+advance. No source text or move-name branch was added. The exact Fall 7 Times,
+Get Up 8 occurrence remains unsupported because its nested relative resolution
+threshold has no explicit typed add or multiply operation. Other floating rows
+requiring roll-threshold termination, optional selection, unsupported condition
+context, or unsupported nested resource exclusions remain explicitly
+unsupported.
+
+The regenerated matrix now records 791 `supported-generic`, 200
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 7 typed compiled damage or
+resolution-local state, 138 typed executor or compiled-plan, and 6 typed reroll
+reaction-lifecycle occurrences. The next ranked typed-executor slices are
+`modify-resource` and `set-combat-result` at 8 occurrences each; every
+out-of-scope definition retains its documented approved exclusion and the
+catalog-closure goal remains active.
+
+## 2026-08-20 after-defense per-die combat-result slice
+
+The generic `set-combat-result.v1` executor now supports the exact
+`after-defense-roll` and `matching-die` lifecycle for declarative successful or
+stopped results. Source moves are discovered from active constants and owned
+reaction definitions, each die is evaluated against the persisted attack and
+defense results, and paid or use-limited reactions retain their source move,
+effect index, die index, resolved KI cost, and combat use accounting across the
+versioned post-defense frame. Automatic results and selected reactions use the
+same generic source/effect path; unsupported current-attack, next-action,
+before-defense, and on-stopped result transitions remain explicitly rejected.
+
+Close Shave and Energy Redirection are covered through the public basic-attack
+decision boundary. Tests verify the persisted per-die stop, serialized
+reaction option identity, one-KI payment, source move-use increment, resumed
+successful outcome, and invariant-checked state transition. No source prose or
+move-name branch participates in this executor path.
+
+The regenerated matrix now records 793 `supported-generic`, 198
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 7 typed compiled damage or
+resolution-local state, 136 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor slice is
+`modify-resource` at 8 occurrences; every out-of-scope definition retains its
+documented approved exclusion and the catalog-closure goal remains active.
+
+## 2026-08-20 deferred modify-resource next-action slice
+
+The generic `modify-resource.v1` executor now supports the exact deferred
+damage-based resource variant: a `damage-percent` amount with a `next-action`
+scope. The runtime persists this as a typed, opponent- or self-targeted
+`modify-next-action` resource modifier, resolves the percentage from the later
+attack's final damage, applies the immutable HP or KI transition with existing
+prevention rules, consumes the one-shot modifier only after a matching attack,
+and validates the serialized shape through the combat invariant boundary.
+Basic and converted attacks use the same deterministic resource transition;
+basic attacks also emit the resource event and normalize a defeated attacker.
+
+Psycho Driver is covered through the public fight transition path, including
+the serialized modifier, exact target, 20 percent damage result, HP event,
+one-shot consumption, and state-version advance. No source text or move-name
+branch participates in execution, and deferred variants with activation costs,
+caps, or durations remain rejected rather than approximated.
+
+The regenerated matrix now records 794 `supported-generic`, 197
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The typed
+executor accounting bucket is 135 occurrences; its next ranked slices are
+`create-floating-effect` at 7 and `negate` at 7. The seven remaining typed
+`modify-resource` rows are Akaikaru Shotgun Blast's roll-modified trigger,
+Freestyle Anger Manipulation's stopped-hit-fraction condition, Haokiru Dragon's
+Pride's SP comparison, Haokiru Display of Endurance's blocked-attack-damage
+amount, Kiihakai Energy Slasher's deferred power-up trigger, Kurokonwaku Ki
+Trap's stored-roll condition, and Kurokonwaku Bloodletter's duration-bound
+resource event. Each remains explicitly excluded in the matrix with its
+required missing lifecycle or context; every other in-scope converted effect
+has generic or named coverage, and every out-of-scope definition retains an
+approved exclusion.
+
+## 2026-08-20 floating attack-roll threshold duration slice
+
+The generic `create-floating-effect.v1` executor now supports the exact
+`until-roll-threshold` duration for attack and defense rolls. The runtime
+persists the target-local roll, comparison, threshold, optional move selector,
+and source move's turn-scoped one-use limit in typed state. Expiry is evaluated
+from the deterministic persisted roll context, and the resulting active effect
+passes the existing versioned transition and invariant checks.
+
+Haokiru Dragon Dust is covered through compiler, runtime, and public fight
+transition tests. Its retaliation effect is created after a successful move,
+expires after the target's attack roll reaches 23, and cannot be created twice
+from the same source move during one turn because the generic executor checks
+persisted action history. No source text or move-name branch participates in
+this behavior. Transformation-roll thresholds, per-die creation, unsupported
+condition context, unsupported nested numeric/resource semantics, and optional
+effect selection remain explicitly rejected in the matrix.
+
+The regenerated matrix now records 795 `supported-generic`, 196
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 7 typed compiled damage or
+resolution-local state, 134 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor slices
+are `modify-resource` and `negate` at 7 occurrences each. The six remaining
+typed `create-floating-effect` rows are Afterlife Solar Flare's target-relation
+condition, Akaikaru Backflip Kick's per-die creation, Freestyle Monkey Sweep's
+activation-unavailable condition, Haokiru Display of Endurance's blocked-attack
+damage amount, Kurokonwaku Vampiric Lust's unsupported nested resource shape,
+and Midorikatai Fall 7 Times Get Up 8's unresolved relative roll threshold.
+Midorikatai Not Over Till It's Over remains a documented pending-choice
+exclusion. Every out-of-scope definition retains its approved exclusion, and
+the catalog-closure goal remains active.
 
 ## Handoff prompt
 

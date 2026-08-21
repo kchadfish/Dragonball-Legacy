@@ -711,6 +711,38 @@ const modifyRollIssues = (
   return issues;
 };
 
+const deferredDamageResourceIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.amount?.type !== "damage-percent" || effect.scope === undefined) return [];
+  if (effect.scope.type !== "current-action" && effect.scope.type !== "next-action")
+    return [
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Damage-based resource changes require an immediate current-action or next-action damage context.",
+      ),
+    ];
+  if (
+    effect.scope.type === "next-action" &&
+    (effect.cap !== undefined ||
+      effect.activationCost !== undefined ||
+      effect.duration !== undefined)
+  )
+    return [
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Deferred damage-based resource changes support only a one-shot next-action modifier.",
+      ),
+    ];
+  return [];
+};
+
 const modifyResourceIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource" }>,
   sourceDefinitionId: string,
@@ -726,32 +758,17 @@ const modifyResourceIssues = (
   );
   if (amountIssue !== undefined) issues.push(amountIssue);
   if (capValueIssue !== undefined) issues.push(capValueIssue);
-  if (
-    effect.amount?.type === "damage-percent" &&
-    effect.scope !== undefined &&
-    effect.scope.type !== "current-action"
-  )
-    issues.push(
-      issue(
-        "unsupported-variant",
-        sourceDefinitionId,
-        effectIndex,
-        "Damage-based resource changes require an immediate current-action damage context.",
-      ),
-    );
+  issues.push(...deferredDamageResourceIssues(effect, sourceDefinitionId, effectIndex));
   if (
     effect.trigger === "start-combat" &&
-    (effect.scope !== undefined ||
-      effect.duration !== undefined ||
-      effect.activationCost !== undefined ||
-      effect.useLimit !== undefined)
+    (effect.scope !== undefined || effect.duration !== undefined || effect.useLimit !== undefined)
   )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Start-combat resource changes must resolve immediately without deferred scope, caps, costs, or limits.",
+        "Start-combat resource changes must resolve immediately without deferred scope, caps, or limits.",
       ),
     );
   if (
@@ -775,16 +792,41 @@ const modifyResourceIssues = (
       effect.trigger === "on-resource-gain" ||
       effect.trigger === "on-resource-drain") &&
     ((effect.scope !== undefined && effect.scope.type !== "current-action") ||
-      effect.duration !== undefined ||
-      effect.activationCost !== undefined ||
-      effect.useLimit !== undefined)
+      effect.duration !== undefined)
   )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Power-up and resource-event resource changes require explicit durable scheduling, caps, and cost accounting.",
+        "Power-up and resource-event resource changes require explicit durable scheduling and caps.",
+      ),
+    );
+  if (
+    (effect.trigger === "on-resource-gain" || effect.trigger === "on-resource-drain") &&
+    (effect.activationCost !== undefined || effect.useLimit !== undefined)
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Resource-event resource changes require durable event cost and use-limit accounting.",
+      ),
+    );
+  if (
+    effect.trigger === "on-power-up" &&
+    effect.useLimit !== undefined &&
+    (effect.useLimit.scope !== "turn" ||
+      typeof effect.useLimit.count !== "number" ||
+      effect.useLimit.count !== 1)
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Power-up resource changes support only a once-per-turn use limit.",
       ),
     );
   return issues;
@@ -1259,7 +1301,9 @@ const setCombatResultIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  if (effect.resultScope !== "current-attack")
+  const isAfterDefensePerDie =
+    effect.trigger === "after-defense-roll" && effect.resultScope === "matching-die";
+  if (effect.resultScope !== "current-attack" && !isAfterDefensePerDie)
     issues.push(
       issue(
         "unsupported-variant",
@@ -1268,7 +1312,7 @@ const setCombatResultIssues = (
         "Combat-result overrides currently apply only to the current attack.",
       ),
     );
-  if (effect.result === "successful" && effect.trigger !== "passive")
+  if (effect.result === "successful" && effect.trigger !== "passive" && !isAfterDefensePerDie)
     issues.push(
       issue(
         "unsupported-variant",
@@ -1290,7 +1334,7 @@ const setCombatResultIssues = (
         "Current-attack critical overrides require an on-success trigger or a post-defense reaction.",
       ),
     );
-  if (effect.result === "stopped")
+  if (effect.result === "stopped" && !isAfterDefensePerDie)
     issues.push(
       issue(
         "unsupported-variant",
@@ -2037,6 +2081,27 @@ const floatingDurationIssues = (
 ) => {
   const duration = effect.duration;
   if (duration === undefined || duration.type === "combat") return [];
+  if (duration.type === "until-roll-threshold") {
+    const valueIssue = numericIssue(
+      duration.value,
+      sourceDefinitionId,
+      effectIndex,
+      "duration.value",
+    );
+    return [
+      ...(valueIssue === undefined ? [] : [valueIssue]),
+      ...(duration.roll === "attack" || duration.roll === "defense"
+        ? []
+        : [
+            issue(
+              "unsupported-variant",
+              sourceDefinitionId,
+              effectIndex,
+              "Floating-effect roll-threshold duration supports attack or defense rolls only.",
+            ),
+          ]),
+    ];
+  }
   if (duration.type !== "until-combat-result")
     return [
       issue(
@@ -2079,6 +2144,75 @@ const floatingDurationIssues = (
   ];
 };
 
+const floatingActivationCostIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  for (const [value, path] of [
+    [effect.activationCost?.amount, "activationCost.amount"],
+    [effect.activationCost?.minimum, "activationCost.minimum"],
+  ] as const) {
+    const numeric = numericIssue(value, sourceDefinitionId, effectIndex, path);
+    if (numeric !== undefined) issues.push(numeric);
+  }
+  if (
+    effect.activationCost !== undefined &&
+    (effect.trigger !== "upkeep-phase" || effect.target !== "self")
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Floating-effect activation costs are supported only for self-targeted upkeep effects.",
+      ),
+    );
+  return issues;
+};
+
+const floatingUseLimitIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.useLimit === undefined) return [];
+  const countIssue =
+    typeof effect.useLimit.count === "number"
+      ? undefined
+      : numericIssue(effect.useLimit.count, sourceDefinitionId, effectIndex, "useLimit.count");
+  const isOne =
+    typeof effect.useLimit.count === "number"
+      ? effect.useLimit.count === 1
+      : effect.useLimit.count.type === "literal" && effect.useLimit.count.value === 1;
+  const hasUnsupportedLifecycle =
+    effect.useLimit.scope === "combat"
+      ? !isOne ||
+        (effect.scope !== undefined && effect.scope.type !== "combat") ||
+        effect.duration !== undefined ||
+        (effect.termination?.length ?? 0) > 0
+      : !isOne ||
+        (effect.scope !== undefined &&
+          effect.scope.type !== "combat" &&
+          effect.scope?.type !== "next-action" &&
+          effect.scope?.type !== "next-turn") ||
+        effect.duration?.type !== "until-roll-threshold";
+  return [
+    ...(countIssue === undefined ? [] : [countIssue]),
+    ...(hasUnsupportedLifecycle
+      ? [
+          issue(
+            "unsupported-variant",
+            sourceDefinitionId,
+            effectIndex,
+            "Floating-effect use limits support one combat-scoped creation without a separate expiry.",
+          ),
+        ]
+      : []),
+  ];
+};
+
 function createFloatingIssues(
   effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
   sourceDefinitionId: string,
@@ -2096,18 +2230,15 @@ function createFloatingIssues(
       ),
     );
   issues.push(...floatingDurationIssues(effect, sourceDefinitionId, effectIndex));
-  if (
-    effect.activationCost !== undefined ||
-    effect.useLimit !== undefined ||
-    effect.cooldown !== undefined ||
-    effect.selectionLimit !== undefined
-  )
+  issues.push(...floatingActivationCostIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...floatingUseLimitIssues(effect, sourceDefinitionId, effectIndex));
+  if (effect.cooldown !== undefined || effect.selectionLimit !== undefined)
     issues.push(
       issue(
         "requires-pending-choice",
         sourceDefinitionId,
         effectIndex,
-        "Floating-effect creation costs, limits, and stacking rules require a serialized lifecycle decision.",
+        "Floating-effect cooldowns and selections require a serialized lifecycle decision.",
       ),
     );
   if (

@@ -446,7 +446,7 @@ describe("generic successful CONSTANT Skill activation", () => {
             },
             {
               maximumHitPoints: 100,
-              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              stats: { power: 100, dexterity: 1, dexterityBonus: 0 },
               moveIds: [],
             },
           ],
@@ -2067,6 +2067,93 @@ describe("on-move-use effect dispatch", () => {
       }),
     );
   });
+
+  it("expires Dragon Dust's floating bundle after the target reaches its attack-roll threshold", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1, 23, 1],
+      new Date("2026-08-20T13:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:dragon-dust-floating")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:dragon-dust")],
+        eventIds: Array.from({ length: 30 }, (_, index) =>
+          combatEventIdSchema.parse(`event:dragon-dust-floating-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-haokiru-dragon-dust"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 100, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const signatureAction = { ...action, turnNumber: 10 };
+    const dustTransition = submitCombatDecision(
+      signatureAction,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:dragon-dust"),
+        actorId: firstCombatantId,
+        expectedStateVersion: signatureAction.version,
+        moveId: "move-haokiru-dragon-dust",
+        targetCombatantId: secondCombatantId,
+      },
+      dependencies,
+    );
+    if (!dustTransition.ok)
+      throw new Error(`Dragon Dust transition failed: ${JSON.stringify(dustTransition.error)}`);
+    const dust = requireActiveFightState(dustTransition.value.state);
+    expect(dust.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "floating-effect",
+        floatingEffectId: "dragon-dust-hp-gain-retaliation",
+        targetCombatantId: secondCombatantId,
+        duration: {
+          type: "until-roll-threshold",
+          combatantId: secondCombatantId,
+          roll: "attack",
+          comparison: "at-least",
+          value: 23,
+        },
+      }),
+    );
+
+    const followUp = requireTransition(
+      submitCombatDecision(
+        { ...dust, phase: "action", activeCombatantId: secondCombatantId },
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:dragon-dust-threshold"),
+          actorId: secondCombatantId,
+          expectedStateVersion: dust.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: firstCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    expect(followUp.state.version).toBe(dust.version + 1);
+    expect(followUp.state.activeEffects).not.toContainEqual(
+      expect.objectContaining({ floatingEffectId: "dragon-dust-hp-gain-retaliation" }),
+    );
+  });
 });
 
 describe("generic combat-result overrides", () => {
@@ -3366,6 +3453,101 @@ describe("initial turn progression", () => {
     expect(attack.state.activeEffects).toEqual([]);
   });
 
+  it("applies and consumes Psycho Driver's deferred damage-based HP loss", () => {
+    const dependencies = createTestCombatDependencies(
+      [28, 1, 28, 1],
+      new Date("2026-08-20T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:psycho-driver")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: ["active-effect:psycho-driver" as never],
+        eventIds: Array.from({ length: 20 }, (_, index) =>
+          combatEventIdSchema.parse(`event:psycho-driver-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 2, dexterityBonus: 0 },
+              moveIds: ["move-kurokonwaku-psycho-driver"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 100, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireTransition(advanceFight(created.state, dependencies));
+    const psycho = requireTransition(
+      submitCombatDecision(
+        action.state,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:psycho-driver"),
+          actorId: firstCombatantId,
+          expectedStateVersion: 1,
+          moveId: "move-kurokonwaku-psycho-driver",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    const psychoState = requireActiveFightState(psycho.state);
+    expect(psychoState.activeEffects).toEqual([
+      expect.objectContaining({
+        type: "modify-next-action",
+        targetCombatantId: secondCombatantId,
+        scope: "next-action",
+        modifier: {
+          type: "resource",
+          resource: "hp",
+          operation: "lose",
+          amount: 20,
+          basis: "damage-percent",
+        },
+      }),
+    ]);
+
+    const attack = requireTransition(
+      submitCombatDecision(
+        {
+          ...psychoState,
+          phase: "action",
+          activeCombatantId: secondCombatantId,
+        },
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:psycho-follow-up"),
+          actorId: secondCombatantId,
+          expectedStateVersion: psychoState.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: firstCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    expect(attack.events).toContainEqual(
+      expect.objectContaining({
+        type: "hp-changed",
+        sourceCombatantId: firstCombatantId,
+        targetCombatantId: secondCombatantId,
+        amount: -2,
+        remainingHitPoints: 93,
+      }),
+    );
+    expect(attack.state.combatants[secondCombatantId].hitPoints.current).toBe(93);
+    expect(attack.state.activeEffects).toEqual([]);
+  });
+
   it("applies a successful current-action damage modifier through the public transition", () => {
     const dependencies = createTestCombatDependencies(
       [28, 1],
@@ -4213,6 +4395,202 @@ describe("initial turn progression", () => {
         scope: "next-action",
       }),
     );
+  });
+
+  it("charges an on-power-up resource effect through the public transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 19],
+      new Date("2026-08-10T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:reserves")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 10 }, (_, index) =>
+          combatEventIdSchema.parse(`event:reserves-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: ["move-haokiru-reserves"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const damagedAction: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId],
+          hitPoints: { ...action.combatants[firstCombatantId].hitPoints, current: 50 },
+        },
+      },
+    };
+
+    expect(enumerateLegalDecisions(damagedAction, firstCombatantId)).toContainEqual({
+      type: "power-up",
+      actorId: firstCombatantId,
+    });
+    const transition = requireTransition(
+      submitCombatDecision(
+        damagedAction,
+        {
+          type: "power-up",
+          id: combatDecisionIdSchema.parse("decision:reserves"),
+          actorId: firstCombatantId,
+          expectedStateVersion: damagedAction.version,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.version).toBe(damagedAction.version + 1);
+    expect(transition.state.combatants[firstCombatantId].hitPoints.current).toBe(55);
+    expect(transition.state.combatants[firstCombatantId].ki.current).toBe(7);
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "ki-changed", amount: 2, remainingKi: 7 }),
+    );
+  });
+
+  it("charges a typed floating-effect activation cost through the public upkeep transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 19],
+      new Date("2026-08-10T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:hidden-power-level")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:hidden-power-level")],
+        eventIds: Array.from({ length: 10 }, (_, index) =>
+          combatEventIdSchema.parse(`event:hidden-power-level-${index}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                moveIds: ["move-freestyle-hidden-power-level"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const ready = {
+      ...created,
+      combatants: {
+        ...created.combatants,
+        [firstCombatantId]: {
+          ...created.combatants[firstCombatantId],
+          ki: { ...created.combatants[firstCombatantId].ki, current: 8 },
+        },
+      },
+    } satisfies ActiveFightState;
+
+    const transition = requireTransition(advanceFight(ready, dependencies));
+    const action = requireActiveFightState(transition.state);
+    expect(action.version).toBe(ready.version + 1);
+    expect(action.combatants[firstCombatantId].ki.current).toBe(6);
+    expect(action.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "floating-effect",
+        sourceEffectIndex: 0,
+        sourceDefinitionId: "move-freestyle-hidden-power-level",
+        floatingEffectId: "hidden-power-level-zero-ki-recovery",
+      }),
+    );
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "ki-changed", amount: -2, remainingKi: 6 }),
+    );
+  });
+
+  it("omits a costed floating effect when the public upkeep transition cannot afford it", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 19],
+      new Date("2026-08-10T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:hidden-power-level-unaffordable")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [
+          activeEffectIdSchema.parse("active-effect:hidden-power-level-unaffordable"),
+        ],
+        eventIds: Array.from({ length: 10 }, (_, index) =>
+          combatEventIdSchema.parse(`event:hidden-power-level-unaffordable-${index}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                moveIds: ["move-freestyle-hidden-power-level"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const ready = {
+      ...created,
+      combatants: {
+        ...created.combatants,
+        [firstCombatantId]: {
+          ...created.combatants[firstCombatantId],
+          ki: { ...created.combatants[firstCombatantId].ki, current: 1 },
+        },
+      },
+    } satisfies ActiveFightState;
+
+    const transition = requireTransition(advanceFight(ready, dependencies));
+    const action = requireActiveFightState(transition.state);
+    expect(action.version).toBe(ready.version + 1);
+    expect(action.combatants[firstCombatantId].ki.current).toBe(1);
+    expect(action.activeEffects).not.toContainEqual(
+      expect.objectContaining({
+        type: "floating-effect",
+        sourceDefinitionId: "move-freestyle-hidden-power-level",
+        floatingEffectId: "hidden-power-level-zero-ki-recovery",
+      }),
+    );
+    expect(transition.events).not.toContainEqual(expect.objectContaining({ type: "ki-changed" }));
   });
 
   it("dispatches structured power-up effects into durable next-turn state", () => {

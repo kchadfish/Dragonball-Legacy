@@ -168,6 +168,11 @@ export interface PendingDecisionOption {
   readonly itemId?: ItemId;
   readonly moveId?: MoveId;
   readonly effectIndices?: readonly number[];
+  readonly combatResultOverride?: {
+    readonly sourceDefinitionId: MoveId;
+    readonly sourceEffectIndex: number;
+    readonly dieIndex: number;
+  };
   readonly selectedNumericValue?: number;
 }
 
@@ -314,6 +319,13 @@ type ActiveNextActionModifier =
       readonly operation: "add" | "set" | "multiply";
       readonly amount: number;
       readonly roll?: "attack" | "defense";
+    }
+  | {
+      readonly type: "resource";
+      readonly resource: "hp" | "ki";
+      readonly operation: "drain" | "gain" | "lose" | "set";
+      readonly amount: number;
+      readonly basis: "damage-percent";
     };
 
 /** A resolved move effect that modifies its owner's immediately following action. */
@@ -602,6 +614,7 @@ export interface ActiveFloatingEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex?: number;
   readonly floatingEffectId: string;
   readonly effects: readonly EffectDefinition[];
   readonly termination: readonly {
@@ -609,17 +622,26 @@ export interface ActiveFloatingEffect {
     readonly actor: "self" | "opponent";
     readonly selector?: MoveSelectorCondition;
   }[];
-  readonly duration?: {
-    readonly type: "until-combat-result";
-    readonly combatantId: CombatantId;
-    readonly result: "successful" | "stopped" | "critical" | "counter";
-    readonly moveSelector?: MoveSelectorCondition;
-    readonly rollThreshold?: {
-      readonly roll: "attack" | "defense" | "transformation";
-      readonly comparison: "at-least" | "at-most";
-      readonly value: number;
-    };
-  };
+  readonly duration?:
+    | {
+        readonly type: "until-combat-result";
+        readonly combatantId: CombatantId;
+        readonly result: "successful" | "stopped" | "critical" | "counter";
+        readonly moveSelector?: MoveSelectorCondition;
+        readonly rollThreshold?: {
+          readonly roll: "attack" | "defense" | "transformation";
+          readonly comparison: "at-least" | "at-most";
+          readonly value: number;
+        };
+      }
+    | {
+        readonly type: "until-roll-threshold";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack" | "defense";
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
+        readonly moveSelector?: MoveSelectorCondition;
+      };
   readonly stacking?: "allow" | "prevent";
   readonly scope:
     | { readonly type: "combat" }

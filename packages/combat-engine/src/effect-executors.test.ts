@@ -244,7 +244,7 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "modify-resource" } });
   });
 
-  it("compiles combat-duration floating bundles without widening lifecycle support", () => {
+  it("compiles floating bundles with an attack roll threshold duration", () => {
     const supported = effectAt("move-kiihakai-the-rising-sun", 0);
     expect(
       compileEffectPlan({
@@ -257,14 +257,32 @@ describe("declarative effect executor registry", () => {
       value: { type: "create-floating-effect" },
     });
 
-    const unsupported = effectAt("move-haokiru-dragon-dust", 0);
+    const supportedThreshold = effectAt("move-haokiru-dragon-dust", 0);
     expect(
       compileEffectPlan({
-        sourceDefinitionId: unsupported.move.id,
+        sourceDefinitionId: supportedThreshold.move.id,
         effectIndex: 0,
-        effect: unsupported.effect,
+        effect: supportedThreshold.effect,
       }),
-    ).toMatchObject({ ok: false });
+    ).toMatchObject({ ok: true, value: { type: "create-floating-effect" } });
+
+    const unsupported = {
+      ...supportedThreshold.effect,
+      duration: {
+        type: "until-roll-threshold" as const,
+        roll: "transformation" as const,
+        comparison: "at-least" as const,
+        value: { type: "literal" as const, value: 23 },
+        sourceText: "test",
+      },
+    };
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: supportedThreshold.move.id,
+        effectIndex: 0,
+        effect: unsupported as never,
+      }),
+    ).toMatchObject({ ok: false, issues: [{ code: "unsupported-variant" }] });
   });
 
   it("compiles a resource change with a typed numeric cap", () => {
@@ -283,6 +301,40 @@ describe("declarative effect executor registry", () => {
         effectIndex: 1,
       },
     });
+  });
+
+  it("compiles Psycho Driver's deferred damage-based resource change", () => {
+    const { move, effect } = effectAt("move-kurokonwaku-psycho-driver", 0);
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: 0,
+      effect,
+    });
+
+    expect(compiled).toMatchObject({
+      ok: true,
+      value: {
+        type: "modify-resource",
+        sourceDefinitionId: move.id,
+        effectIndex: 0,
+      },
+    });
+
+    const unsupported = {
+      ...effect,
+      activationCost: {
+        resource: "ki" as const,
+        operation: "lose" as const,
+        amount: { type: "literal" as const, value: 1 },
+      },
+    };
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 0,
+        effect: unsupported,
+      }),
+    ).toMatchObject({ ok: false, issues: [{ code: "unsupported-variant" }] });
   });
 
   it("compiles and executes a supported damage effect with durable provenance", () => {
@@ -545,7 +597,7 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: false });
   });
 
-  it("compiles a flat floating bundle and rejects lifecycle variants it cannot persist", () => {
+  it("compiles flat floating bundles and preserves supported lifecycle variants", () => {
     const supported = effectAt("move-akaikaru-anger-management", 0);
     expect(
       compileEffectPlan({
@@ -555,17 +607,25 @@ describe("declarative effect executor registry", () => {
       }),
     ).toMatchObject({ ok: true });
 
-    const unsupported = effectAt("move-haokiru-dragon-dust", 0);
-    const rejected = compileEffectPlan({
-      sourceDefinitionId: unsupported.move.id,
+    const threshold = effectAt("move-haokiru-dragon-dust", 0);
+    const compiledThreshold = compileEffectPlan({
+      sourceDefinitionId: threshold.move.id,
       effectIndex: 0,
-      effect: unsupported.effect,
+      effect: threshold.effect,
     });
-    expect(rejected).toMatchObject({ ok: false });
-    if (rejected.ok) return;
-    expect(rejected.issues).toContainEqual(
-      expect.objectContaining({ code: "unsupported-variant" }),
-    );
+    expect(compiledThreshold).toMatchObject({
+      ok: true,
+      value: { type: "create-floating-effect" },
+    });
+
+    const costed = effectAt("move-freestyle-hidden-power-level", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: costed.move.id,
+        effectIndex: 0,
+        effect: costed.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "create-floating-effect" } });
   });
 
   it("compiles same-turn source-move extra actions and rejects scheduled variants", () => {

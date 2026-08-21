@@ -53,6 +53,35 @@ describe("combat capability matrix", () => {
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
   });
 
+  it("classifies after-defense per-die combat-result reactions through the generic executor", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.effectType === "set-combat-result",
+    );
+    const supported = rows.filter(
+      (row) =>
+        row.status === "supported-generic" &&
+        (row.sourceDefinitionId === "move-aoyosumu-close-shave" ||
+          row.sourceDefinitionId === "move-freestyle-energy-redirection") &&
+        row.variant.includes("trigger=after-defense-roll") &&
+        row.variant.includes("scope=none"),
+    );
+
+    expect(rows).toHaveLength(12);
+    expect(supported.map((row) => row.sourceDefinitionId)).toEqual([
+      "move-aoyosumu-close-shave",
+      "move-freestyle-energy-redirection",
+    ]);
+    expect(
+      supported.every(
+        (row) =>
+          row.capabilityId === "set-combat-result.v1" &&
+          row.executor === "combat-result-override" &&
+          row.focusedCoverage === "progress-fight.test.ts",
+      ),
+    ).toBe(true);
+    expect(rows.filter((row) => row.status === "unsupported-in-scope")).toHaveLength(6);
+  });
+
   it("classifies action-phase extra-action allowances with the durable scheduler", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) =>
@@ -300,7 +329,7 @@ describe("combat capability matrix", () => {
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(12);
+    expect(rows).toHaveLength(14);
     expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
     expect(
@@ -308,6 +337,16 @@ describe("combat capability matrix", () => {
         (row) =>
           row.sourceDefinitionId === "move-kiihakai-ki-jammer" &&
           row.variant.includes("duration=until-combat-result"),
+      ),
+    ).toBe(true);
+    expect(rows.some((row) => row.sourceDefinitionId === "move-freestyle-hidden-power-level")).toBe(
+      true,
+    );
+    expect(
+      rows.some(
+        (row) =>
+          row.sourceDefinitionId === "move-haokiru-dragon-dust" &&
+          row.variant.includes("duration=until-roll-threshold"),
       ),
     ).toBe(true);
   });
@@ -345,6 +384,20 @@ describe("combat capability matrix", () => {
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
     expect(rows.every((row) => row.capabilityId === "modify-resource.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "item-resource")).toBe(true);
+  });
+
+  it("classifies Psycho Driver's deferred resource effect through the generic lifecycle", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-kurokonwaku-psycho-driver",
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      effectType: "modify-resource",
+      status: "supported-generic",
+      capabilityId: "modify-resource.v1",
+      executor: "resource-change",
+    });
   });
 
   it("classifies standard roll-cap bypass effects through the generic roll executor", () => {

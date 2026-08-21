@@ -2565,9 +2565,15 @@ describe("basic attacks", () => {
     if (post === undefined) throw new Error("Expected attacker after-roll reaction.");
     expect(post).toMatchObject({ combatantId: attackerId });
     expect(post.options).toContainEqual({
-      id: "activate-move:move-freestyle-energy-redirection:0",
+      id: "activate-combat-result:move-freestyle-energy-redirection:0:0",
       type: "activate-effect",
       moveId: "move-freestyle-energy-redirection",
+      effectIndices: [0],
+      combatResultOverride: {
+        sourceDefinitionId: "move-freestyle-energy-redirection",
+        sourceEffectIndex: 0,
+        dieIndex: 0,
+      },
     });
     const resolved = requireTransition(
       submitCombatDecision(
@@ -2578,7 +2584,7 @@ describe("basic attacks", () => {
           actorId: attackerId,
           expectedStateVersion: rolled.state.version,
           pendingDecisionId: post.id,
-          optionId: "activate-move:move-freestyle-energy-redirection:0",
+          optionId: "activate-combat-result:move-freestyle-energy-redirection:0:0",
         },
         dependencies,
       ),

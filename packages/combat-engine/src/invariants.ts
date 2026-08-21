@@ -457,6 +457,12 @@ const hasValidNextActionModifierDetails = (
     effect.modifier.basis === undefined ||
     effect.modifier.basis === "power-percent" ||
     effect.modifier.basis === "damage-percent";
+  const validResourceOperation =
+    effect.modifier.type !== "resource" ||
+    effect.modifier.operation === "drain" ||
+    effect.modifier.operation === "gain" ||
+    effect.modifier.operation === "lose" ||
+    effect.modifier.operation === "set";
   const validRollCap = (
     cap: NonNullable<Extract<ActiveCombatEffect, { type: "modify-roll" }>["cap"]>,
   ) =>
@@ -467,6 +473,7 @@ const hasValidNextActionModifierDetails = (
   return (
     validDamageOperation &&
     validDamageBasis &&
+    validResourceOperation &&
     (effect.modifier.type === "damage" ||
       (effect.modifier.type === "stat" &&
         (effect.modifier.stat === "dexterity" || effect.modifier.stat === "dexterity-bonus") &&
@@ -485,7 +492,10 @@ const hasValidNextActionModifierDetails = (
         (effect.modifier.modifier === "dice" ||
           effect.modifier.modifier === "result" ||
           effect.modifier.modifier === "sides") &&
-        (effect.modifier.cap === undefined || validRollCap(effect.modifier.cap)))) &&
+        (effect.modifier.cap === undefined || validRollCap(effect.modifier.cap))) ||
+      (effect.modifier.type === "resource" &&
+        (effect.modifier.resource === "hp" || effect.modifier.resource === "ki") &&
+        effect.modifier.basis === "damage-percent")) &&
     Number.isFinite(effect.modifier.amount) &&
     typeof effect.sourceDefinitionId === "string" &&
     effect.sourceDefinitionId.length > 0 &&
@@ -664,6 +674,7 @@ const hasValidFloatingEffectDetails = (
   return (
     effect.floatingEffectId.length > 0 &&
     effect.sourceDefinitionId.length > 0 &&
+    (effect.sourceEffectIndex === undefined || validCounter(effect.sourceEffectIndex, 0)) &&
     validCounter(effect.createdOnTurn, 1) &&
     (effect.scope.type === "combat" ||
       effect.scope.type === "next-action" ||
@@ -684,7 +695,12 @@ const hasValidFloatingEffectDetails = (
             duration.rollThreshold.roll === "transformation") &&
             (duration.rollThreshold.comparison === "at-least" ||
               duration.rollThreshold.comparison === "at-most") &&
-            Number.isFinite(duration.rollThreshold.value))))) &&
+            Number.isFinite(duration.rollThreshold.value)))) ||
+      (duration.type === "until-roll-threshold" &&
+        typeof duration.combatantId === "string" &&
+        (duration.roll === "attack" || duration.roll === "defense") &&
+        (duration.comparison === "at-least" || duration.comparison === "at-most") &&
+        Number.isFinite(duration.value))) &&
     effect.effects.every((nestedEffect) => nestedEffect.type !== "create-floating-effect") &&
     effect.termination.every(
       (termination) =>
