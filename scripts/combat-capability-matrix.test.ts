@@ -65,6 +65,14 @@ describe("combat capability matrix", () => {
         row.variant.includes("trigger=after-defense-roll") &&
         row.variant.includes("scope=none"),
     );
+    const deferred = rows.filter(
+      (row) =>
+        row.status === "supported-generic" &&
+        (row.sourceDefinitionId === "move-aoyosumu-tranquil-strike" ||
+          row.sourceDefinitionId === "move-freestyle-underdog-evasion") &&
+        row.variant.includes("trigger=on-stopped") &&
+        row.variant.includes("scope=next-action"),
+    );
 
     expect(rows).toHaveLength(12);
     expect(supported.map((row) => row.sourceDefinitionId)).toEqual([
@@ -79,7 +87,34 @@ describe("combat capability matrix", () => {
           row.focusedCoverage === "progress-fight.test.ts",
       ),
     ).toBe(true);
-    expect(rows.filter((row) => row.status === "unsupported-in-scope")).toHaveLength(6);
+    expect(deferred.map((row) => row.sourceDefinitionId)).toEqual([
+      "move-aoyosumu-tranquil-strike",
+      "move-freestyle-underdog-evasion",
+    ]);
+    expect(
+      deferred.every(
+        (row) =>
+          row.capabilityId === "set-combat-result.v1" &&
+          row.executor === "combat-result-override" &&
+          row.focusedCoverage === "progress-fight.test.ts",
+      ),
+    ).toBe(true);
+    expect(rows.filter((row) => row.status === "unsupported-in-scope")).toHaveLength(4);
+  });
+
+  it("classifies blocked-damage floating snapshots through the generic lifecycle", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-haokiru-display-of-endurance" &&
+        candidate.effectIndex === 1,
+    );
+
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "create-floating-effect.v1",
+      executor: "floating-effect-lifecycle",
+      focusedCoverage: "basic-attack.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
+    });
   });
 
   it("classifies action-phase extra-action allowances with the durable scheduler", () => {
@@ -100,6 +135,44 @@ describe("combat capability matrix", () => {
           row.capabilityId === "grant-extra-action.v2" &&
           row.executor === "extra-action-scheduler",
       ),
+    ).toBe(true);
+  });
+
+  it("classifies optional post-defense rerolls through the serialized generic reaction", () => {
+    const matrix = createCombatCapabilityMatrix();
+    const sourceIds = [
+      "move-akaikaru-swift-reaction",
+      "move-aoyosumu-zen-explosion",
+      "move-kurokonwaku-second-chance",
+    ];
+    const rows = matrix.occurrences.filter(
+      (row) => sourceIds.includes(row.sourceDefinitionId) && row.effectType === "reroll",
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(
+      rows.every(
+        (row) =>
+          row.status === "supported-generic" &&
+          row.capabilityId === "reroll.v1" &&
+          row.executor === "reroll-reaction" &&
+          row.focusedCoverage.includes("basic-attack.test.ts"),
+      ),
+    ).toBe(true);
+  });
+
+  it("classifies representable on-deactivated listeners through the generic trigger boundary", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter((row) =>
+      row.variant.includes("trigger=on-deactivated"),
+    );
+    expect(rows).toHaveLength(4);
+    expect(
+      rows.filter((row) => row.status === "supported-generic").map((row) => row.effectType),
+    ).toEqual(["lock", "modify-cost"]);
+    expect(
+      rows
+        .filter((row) => row.status === "unsupported-in-scope")
+        .every((row) => row.prerequisite === "generic pending-choice compilation and resolution"),
     ).toBe(true);
   });
 
@@ -156,6 +229,30 @@ describe("combat capability matrix", () => {
     ]);
   });
 
+  it("classifies exact post-defense critical and counter negations", () => {
+    const matrix = createCombatCapabilityMatrix();
+    const rows = matrix.occurrences.filter(
+      (row) =>
+        row.sourceDefinitionId === "move-kurokonwaku-cancellation-mastery" &&
+        row.effectType === "negate",
+    );
+
+    expect(rows).toHaveLength(4);
+    expect(rows.filter((row) => [3, 4].includes(row.effectIndex))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "supported-generic",
+          capabilityId: "negate.v1",
+          executor: "negation",
+          focusedCoverage: "progress-fight.test.ts",
+        }),
+      ]),
+    );
+    expect(rows.find((row) => row.effectIndex === 2)).toMatchObject({
+      status: "unsupported-in-scope",
+    });
+  });
+
   it("classifies successful-hit-count effects as generic executor coverage", () => {
     const matrix = createCombatCapabilityMatrix();
     const sourceIds = new Set([
@@ -195,6 +292,37 @@ describe("combat capability matrix", () => {
         (row) => row.capabilityId === "damage-modifier.v1" && row.executor === "damage-modifier",
       ),
     ).toBe(true);
+  });
+
+  it("classifies combat-limited action and upkeep damage modifiers generically", () => {
+    const matrix = createCombatCapabilityMatrix();
+    const rows = matrix.occurrences.filter(
+      (row) =>
+        (row.sourceDefinitionId === "move-afterlife-special-fighting-pose-1" &&
+          row.effectIndex === 0) ||
+        (row.sourceDefinitionId === "move-midorikatai-war-cry" && row.effectIndex === 0) ||
+        (row.sourceDefinitionId === "move-aoyosumu-quiet-preparation" && row.effectIndex === 0),
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        sourceDefinitionId: "move-afterlife-special-fighting-pose-1",
+        status: "supported-generic",
+        capabilityId: "damage-modifier.v1",
+        executor: "damage-modifier",
+      }),
+      expect.objectContaining({
+        sourceDefinitionId: "move-aoyosumu-quiet-preparation",
+        status: "unsupported-in-scope",
+        prerequisite: "typed compiled damage context and resolution-local state",
+      }),
+      expect.objectContaining({
+        sourceDefinitionId: "move-midorikatai-war-cry",
+        status: "supported-generic",
+        capabilityId: "damage-modifier.v1",
+        executor: "damage-modifier",
+      }),
+    ]);
   });
 
   it("classifies prior-action conditions as generic executor coverage", () => {
@@ -238,7 +366,10 @@ describe("combat capability matrix", () => {
         row.variant.includes("trigger=on-damage") &&
         row.status === "supported-generic",
     );
-    expect(rows.map((row) => row.sourceDefinitionId)).toEqual(["move-haokiru-advanced-behavior"]);
+    expect(rows.map((row) => row.sourceDefinitionId)).toEqual([
+      "move-haokiru-advanced-behavior",
+      "move-midorikatai-critical-mass-mastery",
+    ]);
   });
 
   it("classifies resource-comparison conditions across cost, damage, and resource effects", () => {
@@ -329,9 +460,14 @@ describe("combat capability matrix", () => {
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(14);
+    expect(rows).toHaveLength(16);
     expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
+    expect(
+      rows.some(
+        (row) => row.sourceDefinitionId === "move-afterlife-solar-flare" && row.effectIndex === 2,
+      ),
+    ).toBe(true);
     expect(
       rows.some(
         (row) =>
@@ -400,6 +536,22 @@ describe("combat capability matrix", () => {
     });
   });
 
+  it("classifies Bloodletter's turn-limited resource event generically", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-kurokonwaku-bloodletter",
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        effectType: "modify-resource",
+        variant: expect.stringContaining("duration=turns"),
+        status: "supported-generic",
+        capabilityId: "modify-resource.v1",
+        executor: "resource-change",
+      }),
+    ]);
+  });
+
   it("classifies standard roll-cap bypass effects through the generic roll executor", () => {
     const matrix = createCombatCapabilityMatrix();
     const rows = matrix.occurrences.filter(
@@ -446,14 +598,22 @@ describe("combat capability matrix", () => {
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
     expect(rows).toHaveLength(19);
-    expect(supported).toHaveLength(11);
-    expect(unsupported).toHaveLength(8);
+    expect(supported).toHaveLength(14);
+    expect(unsupported).toHaveLength(5);
     expect(
       supported.every(
         (row) =>
           row.capabilityId === "grant-extra-action.v2" &&
           row.executor === "extra-action-scheduler" &&
           row.focusedCoverage === "progress-fight.test.ts",
+      ),
+    ).toBe(true);
+    expect(
+      supported.some(
+        (row) =>
+          row.sourceDefinitionId === "move-kiihakai-synergy" &&
+          row.effectIndex === 0 &&
+          row.trigger === "on-roll-result",
       ),
     ).toBe(true);
     expect(unsupported.every((row) => row.prerequisite !== null)).toBe(true);
@@ -465,6 +625,39 @@ describe("combat capability matrix", () => {
           row.executor === "extra-action-scheduler",
       ),
     ).toBe(true);
+    expect(
+      supported.some(
+        (row) =>
+          row.sourceDefinitionId === "move-aoyosumu-technique-mastery" &&
+          row.trigger === "passive" &&
+          row.executor === "extra-action-scheduler",
+      ),
+    ).toBe(true);
+  });
+
+  it("classifies current-attack combat outcomes without claiming deferred selectors", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.effectType === "grant-combat-outcome",
+    );
+    const supported = rows.filter((row) => row.status === "supported-generic");
+    const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
+
+    expect(rows).toHaveLength(5);
+    expect(supported).toHaveLength(4);
+    expect(unsupported).toHaveLength(1);
+    expect(
+      supported.every(
+        (row) =>
+          row.capabilityId === "grant-combat-outcome.v1" &&
+          row.executor === "combat-outcome-status" &&
+          row.focusedCoverage === "progress-fight.test.ts, move-effects-runtime.test.ts",
+      ),
+    ).toBe(true);
+    expect(unsupported[0]).toMatchObject({
+      sourceDefinitionId: "move-kiihakai-ki-barbs",
+      effectIndex: 2,
+      prerequisite: "typed executor accounting and compiled effect-plan validation",
+    });
   });
 
   it("classifies exact damage and roll protection through the v2 move-modification executor", () => {
@@ -641,6 +834,50 @@ describe("combat capability matrix", () => {
     );
   });
 
+  it("classifies Orange Burst's post-success damage/deactivation group generically", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-kiihakai-orange-burst",
+    );
+
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          effectIndex: 0,
+          status: "supported-generic",
+          capabilityId: "damage-modifier.v1",
+        }),
+        expect.objectContaining({
+          effectIndex: 1,
+          status: "supported-generic",
+          capabilityId: "deactivate.v1",
+        }),
+      ]),
+    );
+  });
+
+  it("classifies Sixty Second Meltdown's grouped extra-action cost effects generically", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-kurokonwaku-sixty-second-meltdown",
+    );
+
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          effectIndex: 0,
+          status: "supported-generic",
+          capabilityId: "grant-extra-action.v2",
+          executor: "extra-action-scheduler",
+        }),
+        expect.objectContaining({
+          effectIndex: 1,
+          status: "supported-generic",
+          capabilityId: "modify-cost.v1",
+          executor: "cost-modifier",
+        }),
+      ]),
+    );
+  });
+
   it("classifies every exact critical-threshold occurrence through the generic attack resolver", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) => row.effectType === "modify-critical-threshold",
@@ -660,5 +897,20 @@ describe("combat capability matrix", () => {
           row.executor === "critical-threshold",
       ),
     ).toBe(true);
+  });
+
+  it("classifies Critical Mass Master's critical on-damage modifier generically", () => {
+    expect(
+      createCombatCapabilityMatrix().occurrences.find(
+        (row) =>
+          row.sourceDefinitionId === "move-midorikatai-critical-mass-mastery" &&
+          row.effectIndex === 2,
+      ),
+    ).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "damage-modifier.v1",
+      executor: "damage-modifier",
+      focusedCoverage: "basic-attack.test.ts, progress-fight.test.ts",
+    });
   });
 });

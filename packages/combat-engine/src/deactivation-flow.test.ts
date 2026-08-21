@@ -31,6 +31,10 @@ const dependencies = () =>
         pendingDecisionIdSchema.parse("pending-decision:deactivation-2"),
       ],
       resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:deactivation-1")],
+      activeEffectIds: [
+        "active-effect:redirected-energy-1" as never,
+        "active-effect:redirected-energy-2" as never,
+      ],
     },
   );
 
@@ -92,6 +96,26 @@ const actionStateWithConstants = () => {
           duration: "combat" as const,
         },
       ],
+    } satisfies ActiveFightState,
+  };
+};
+
+const actionStateWithRedirectedEnergy = () => {
+  const result = actionStateWithConstants();
+  return {
+    ...result,
+    state: {
+      ...result.state,
+      combatants: {
+        ...result.state.combatants,
+        [defenderId]: {
+          ...result.state.combatants[defenderId],
+          moveIds: [
+            ...result.state.combatants[defenderId].moveIds,
+            "move-kiihakai-redirected-energy",
+          ],
+        },
+      },
     } satisfies ActiveFightState,
   };
 };
@@ -174,6 +198,56 @@ describe("constant-skill deactivation decisions", () => {
         deps,
       ),
     ).toMatchObject({ ok: false, error: { type: "stale-decision" } });
+  });
+
+  it("dispatches Redirected Energy after a constant skill deactivation", () => {
+    const { deps, state } = actionStateWithRedirectedEnergy();
+    const attack = value(
+      submitCombatDecision(
+        state,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:redirected-energy-attack"),
+          actorId: attackerId,
+          expectedStateVersion: state.version,
+          moveId: "move-akaikaru-back-brain-kick",
+          targetCombatantId: defenderId,
+        },
+        deps,
+      ),
+    );
+    const pending = active(attack.state).pendingDecision;
+    if (pending === undefined) throw new Error("Expected a deactivation selection.");
+    const transition = value(
+      submitCombatDecision(
+        active(attack.state),
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:redirected-energy-choice"),
+          actorId: attackerId,
+          expectedStateVersion: active(attack.state).version,
+          pendingDecisionId: pending.id,
+          optionId: pending.options[0].id,
+        },
+        deps,
+      ),
+    );
+    const resolved = active(transition.state);
+
+    expect(resolved.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-next-action",
+          sourceDefinitionId: "move-kiihakai-redirected-energy",
+          targetCombatantId: defenderId,
+          scope: "next-action",
+          selector: expect.objectContaining({ styleId: "style-kiihakai" }),
+          modifier: { type: "cost", operation: "add", amount: 0 },
+        }),
+      ]),
+    );
+    expect(transition.events).toEqual([expect.objectContaining({ type: "effect-deactivated" })]);
+    expect(validateFightState(resolved)).toEqual([]);
   });
 
   it("rejects illegal and stale selection responses without changing the suspended state", () => {

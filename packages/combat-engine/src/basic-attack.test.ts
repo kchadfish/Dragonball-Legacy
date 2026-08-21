@@ -520,7 +520,7 @@ describe("basic attacks", () => {
     expect(transition.state.combatants[defenderId].hitPoints.current).toBe(91);
   });
 
-  it("does not approximate an unsupported critical on-damage replacement", () => {
+  it("applies a generic critical on-damage multiplier from the public attack transition", () => {
     const { state, dependencies } = createActionState([30, 1]);
     const armed: ActiveFightState = {
       ...state,
@@ -556,7 +556,7 @@ describe("basic attacks", () => {
       expect.objectContaining({ type: "attack-resolved", critical: true }),
     );
     expect(transition.events).toContainEqual(
-      expect.objectContaining({ type: "damage-applied", amount: 20 }),
+      expect.objectContaining({ type: "damage-applied", amount: 30 }),
     );
   });
 
@@ -1715,6 +1715,84 @@ describe("basic attacks", () => {
     expect(second.state.activeEffects).toEqual([]);
   });
 
+  it("delays following-action suppression and consumes it after the matching attack", () => {
+    const suppressionId = activeEffectIdSchema.parse("active-effect:following-suppression");
+    const { state, dependencies } = createActionState(
+      [20, 1, 20, 1, 20, 1, 20, 1],
+      ["active-effect:sword-modifier-1" as ActiveEffectId],
+    );
+    const armed: ActiveFightState = {
+      ...state,
+      activeCombatantId: defenderId,
+      phase: "action",
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-afterlife-sword-blast"],
+          ki: { ...state.combatants[defenderId].ki, current: 10 },
+        },
+      },
+      activeEffects: [
+        {
+          id: suppressionId,
+          type: "suppress",
+          sourceCombatantId: attackerId,
+          targetCombatantId: defenderId,
+          sourceDefinitionId: "move-haokiru-soul-breaker",
+          aspects: ["all-effects"],
+          duration: { type: "following-action", ownerCombatantId: defenderId, remaining: 2 },
+        },
+      ],
+    };
+    const first = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:following-suppression-1"),
+          actorId: defenderId,
+          expectedStateVersion: armed.version,
+          moveId: "move-afterlife-sword-blast",
+          targetCombatantId: attackerId,
+        },
+        dependencies,
+      ),
+    );
+    expect(first.state.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "suppress",
+          duration: { type: "following-action", ownerCombatantId: defenderId, remaining: 1 },
+        }),
+        expect.objectContaining({ type: "modify-next-action" }),
+      ]),
+    );
+
+    const second = requireTransition(
+      submitCombatDecision(
+        {
+          ...requireActiveState(first.state),
+          phase: "action",
+          activeCombatantId: defenderId,
+          turnNumber: armed.turnNumber + 1,
+        },
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:following-suppression-2"),
+          actorId: defenderId,
+          expectedStateVersion: first.state.version,
+          moveId: "move-afterlife-sword-blast",
+          targetCombatantId: attackerId,
+        },
+        dependencies,
+      ),
+    );
+    expect(second.state.activeEffects).toEqual([
+      expect.objectContaining({ type: "modify-next-action" }),
+    ]);
+  });
+
   it("retains a selector-scoped roll modifier when the next attack does not match", () => {
     const { state, dependencies } = createActionState([10, 1]);
     const armed: ActiveFightState = {
@@ -2157,6 +2235,125 @@ describe("basic attacks", () => {
         expect.objectContaining({ type: "attack-rolled", naturalResult: 12 }),
         expect.objectContaining({ type: "move-used", moveId: "move-aoyosumu-defiant-stance" }),
         expect.objectContaining({ type: "attack-resolved", outcome: "stopped" }),
+      ]),
+    );
+  });
+
+  it("resolves Display of Endurance from the finalized blocked attack damage", () => {
+    const { state, dependencies } = createActionState(
+      [20, 20, 1, 30, 1, 30, 1, ...Array.from({ length: 20 }, () => 20)],
+      [activeEffectIdSchema.parse("active-effect:display-endurance-heal")],
+    );
+    const blockState: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-haokiru-double-arm-cannon"],
+        },
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          ki: { ...state.combatants[defenderId].ki, current: 10 },
+          moveIds: ["move-haokiru-display-of-endurance", "move-haokiru-double-arm-cannon"],
+        },
+      },
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        blockState,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:display-of-endurance-attack"),
+          actorId: attackerId,
+          expectedStateVersion: blockState.version,
+          moveId: "move-haokiru-double-arm-cannon",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const pending = requireActiveState(declared.state).pendingDecision;
+    if (pending === undefined) throw new Error("Expected a Display of Endurance decision.");
+    expect(pending.options).toContainEqual({
+      id: "use-block:move-haokiru-display-of-endurance",
+      type: "use-block",
+      moveId: "move-haokiru-display-of-endurance",
+    });
+
+    const resolved = requireTransition(
+      submitCombatDecision(
+        declared.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:display-of-endurance-block"),
+          actorId: defenderId,
+          expectedStateVersion: declared.state.version,
+          pendingDecisionId: pending.id,
+          optionId: "use-block:move-haokiru-display-of-endurance",
+        },
+        dependencies,
+      ),
+    );
+
+    expect(resolved.state.combatants[defenderId]).toMatchObject({
+      hitPoints: { current: 91, maximum: 100 },
+      ki: { current: 8, maximum: 10 },
+      moveUses: { "move-haokiru-display-of-endurance": 1 },
+    });
+    expect(resolved.state.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "floating-effect",
+          sourceDefinitionId: "move-haokiru-display-of-endurance",
+          blockedAttackDamage: 6,
+        }),
+      ]),
+    );
+    expect(resolved.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "attack-resolved", outcome: "successful" }),
+      ]),
+    );
+
+    const upkeep = requireActiveState(
+      requireTransition(advanceFight(resolved.state, dependencies)).state,
+    );
+    const defenderAction = requireActiveState(
+      requireTransition(advanceFight(upkeep, dependencies)).state,
+    );
+    expect(defenderAction).toMatchObject({ phase: "action", activeCombatantId: defenderId });
+    expect(defenderAction.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          floatingEffectId: "display-of-endurance-blocked-damage-heal",
+          blockedAttackDamage: 6,
+        }),
+      ]),
+    );
+    const nextAttack = requireTransition(
+      submitCombatDecision(
+        defenderAction,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:display-of-endurance-next-attack"),
+          actorId: defenderId,
+          expectedStateVersion: defenderAction.version,
+          moveId: "move-haokiru-double-arm-cannon",
+          targetCombatantId: attackerId,
+        },
+        dependencies,
+      ),
+    );
+    expect(nextAttack.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "attack-resolved", outcome: "successful" }),
+      ]),
+    );
+    expect(nextAttack.state.combatants[defenderId].hitPoints.current).toBe(100);
+    expect(nextAttack.state.activeEffects).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ floatingEffectId: "display-of-endurance-blocked-damage-heal" }),
       ]),
     );
   });

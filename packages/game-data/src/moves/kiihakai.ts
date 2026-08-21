@@ -1794,6 +1794,8 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "grant-extra-action",
         phase: "action-phase",
+        moveCategory: "skill",
+        constant: true,
         conditions: [
           {
             type: "roll-threshold",

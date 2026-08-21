@@ -28,14 +28,14 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 790 `supported-generic`, 201
+The generated capability matrix records 822 `supported-generic`, 169
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 202 remaining in-scope occurrences through the later
+requires closing the 169 remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
 The next implementation priority is the highest-volume ready prerequisite
 identified in the latest dated entry below.
@@ -69,14 +69,15 @@ The following behaviors are present in the worktree and have focused tests:
   source-expression rejection where a resolver is not yet available.
 - A serializable suspension/resume path for post-roll reactions. It covers
   optional reaction decisions, deterministic replay-safe rolls, and the
-  currently implemented Heroic Tunic, Close Shave, Energy Redirection, and
-  Second Chance paths.
+  currently implemented Heroic Tunic, Close Shave, Energy Redirection, Swift
+  Reaction, Zen Explosion, and Second Chance paths.
 - Status lifecycle and action consequences for BREAK, SEVER, STUN, and
   PETRIFIED, including expiry and prevention of actions where applicable.
 - Declarative effect evaluation for the implemented trigger paths, including
   typed conditions, resource changes, damage and cost modifiers, roll changes,
   status application, forced actions, locks, move-use/status prevention, and
-  active-effect lifecycle handling.
+  active-effect lifecycle handling, including generic post-deactivation
+  listeners for representable lock and cost effects.
 - Lock enforcement in legal-decision enumeration, direct submissions, and
   blocks. Implemented durations include combat, turns, roll threshold,
   resource threshold, combat result, and deterministic turn-start-roll
@@ -126,6 +127,121 @@ effect-type-level executor registration as proof that every variant is
 supported.
 
 ## Immediate resume point
+
+### Latest implementation slice (2026-08-21) - following-action suppression
+
+The generic `suppress.v1` executor now accepts a positive declarative
+`following-action` offset. The runtime persists the offset as a serializable
+remaining-action counter, does not suppress the earlier matching attack, then
+consumes the suppression after the scheduled matching attack. State references,
+counter bounds, and transition versions remain invariant checked. This closes
+Soul Breaker's exact `following-action` successful-effect suppression without
+source-text execution or a move-name branch.
+
+Focused public coverage in `basic-attack.test.ts` verifies the delayed
+suppression, the earlier attack remaining eligible, and consumption after the
+matching attack. `move-effects-runtime.test.ts` verifies declarative offset
+resolution, and `effect-executors.test.ts` verifies positive-offset compilation
+and rejection of zero offsets. The regenerated matrix now accounts for 822
+`supported-generic`, 169 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences.
+
+The remaining suppress rows are still explicit: they require generic move
+selection, current-resolution suppression, activation-cost/use-limit choices,
+or broader pending-choice scheduling.
+
+### Latest implementation slice (2026-08-21) - blocked-damage floating snapshots
+
+The generic `create-floating-effect.v1` lifecycle now persists an immutable
+`blockedAttackDamage` snapshot when a block effect creates a floating bundle.
+The snapshot is carried through the serializable active-effect state, checked
+by the fight invariants, and supplied to nested effects when the bundle is
+later dispatched. This closes Display of Endurance's exact `on-stopped`
+blocked-damage heal without executing source prose or adding a move-name
+branch. The block response path uses the same typed floating constructor for
+basic and converted attacks.
+
+Focused public coverage in `basic-attack.test.ts` verifies the finalized
+blocked-damage snapshot, deterministic turn progression, the next successful
+converted attack's heal, and one-shot floating-effect consumption.
+`move-effects-runtime.test.ts` verifies the typed nested numeric context, and
+`combat-capability-matrix.test.ts` verifies the converted occurrence's generic
+executor record. The regenerated matrix now accounts for 822
+`supported-generic`, 169 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences.
+
+The remaining five in-scope `create-floating-effect` rows still require exact
+unsupported lifecycle or context capabilities, including per-die
+`on-roll-result` activation and unavailable-condition state; they remain
+explicitly tracked in the matrix.
+
+### Latest implementation slice (2026-08-21) — deferred stopped-result scheduling
+
+The generic `set-combat-result.v1` executor now covers the exact declarative
+`on-stopped` form that sets the next matching attack's current-attack result to
+`STOPPED`. It persists a one-shot, selector-aware `modify-next-action` effect
+with source effect provenance, consumes it during the target's next attack,
+and validates the transition through the existing state invariants. The typed
+`defense-response` condition is evaluated from the deterministic current
+resolution context, so Tranquil Strike's no-block/no-reroll/no-result-modifier
+condition is not approximated.
+
+This closes the converted Tranquil Strike and Underdog Evasion result effects
+without move-name branches. Blocked converted and basic attacks use the same
+active-effect primitive. Focused public coverage in `progress-fight.test.ts`
+verifies creation, forced stopped resolution, consumption, and version
+increments; `combat-capability-matrix.test.ts` verifies both converted rows.
+The regenerated matrix now accounts for 820 `supported-generic`, 171
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences.
+
+The remaining four in-scope `set-combat-result` rows are deliberately not
+approximated: Dazzling Gymnastics and Living Voodoo require matching-die
+semantics, while Manipulation Mastery requires an optional before-defense
+choice and result reversal. The next ranked families are the tied
+five-occurrence `copy-move-effect`, `create-floating-effect`,
+`modify-resource`, and `suppress` slices.
+
+### Latest implementation slice (2026-08-21) — passive extra-action policy
+
+The generic `grant-extra-action.v2` scheduler now materializes the exact
+passive non-CONSTANT Skill policy variant at the owning combatant's upkeep.
+The executor resolves the declarative passive effect, persists a turn-scoped
+allowance with its source definition and effect index, filters legal decisions
+to matching Skill actions, and consumes the allowance through the existing
+immutable transition path. The lifecycle is deterministic and invariant
+checked; no source text or move-name branch is used.
+
+A public `progress-fight.test.ts` scenario covers the two-action boundary,
+same-Skill reuse, legal-decision filtering, turn bounds, and allowance
+consumption. The matrix/compiler test classifies Aoyosumu Technique Mastery's
+passive `grant-extra-action` occurrence as `supported-generic` through the
+shared `extra-action-scheduler`. Its separate `modify-slot-capacity` effect
+remains explicitly unsupported.
+
+The regenerated matrix now accounts for 820 `supported-generic`, 171
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 45 generic pending-choice, 4 typed compiled damage or
+resolution-local state, 119 typed executor or compiled-plan, and 3 typed
+reroll reaction-lifecycle occurrences. The next ranked families are the tied
+five-occurrence `copy-move-effect`, `create-floating-effect`,
+`modify-resource`, and `suppress` slices; catalog closure remains active.
+
+### Previous implementation slice (2026-08-21) — critical on-damage context
+
+The generic `modify-damage.v1` executor now accepts a typed current-attack
+critical result in the `on-damage` resolution context. The finalized action
+record, including the critical outcome, is passed into the existing defensive
+on-damage dispatch before damage is committed. Critical Mass Mastery's 1.5x
+damage multiplier is covered through the public transition, runtime,
+compiler, and matrix tests without source-text evaluation or a move-name
+branch.
+
+The regenerated matrix now accounts for 819 `supported-generic`, 172
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. The four
+remaining typed damage-context rows retain explicit unsupported status because
+they require selected-move storage, activation-cost choice, player-selected
+attack targeting, or skipped-turn scheduling. The next ranked matrix priority
+is the tied five-occurrence typed-executor family led by `copy-move-effect`.
 
 ### Latest implementation slice (2026-08-16) — action-phase extra-action scheduling
 
@@ -1918,6 +2034,387 @@ Midorikatai Not Over Till It's Over remains a documented pending-choice
 exclusion. Every out-of-scope definition retains its approved exclusion, and
 the catalog-closure goal remains active.
 
+## 2026-08-20 turn-window resource-event slice
+
+The generic `modify-resource.v1` executor now supports the exact
+turn-limited `on-resource-gain` and `on-resource-drain` variant when the effect
+has no deferred scope, cap, activation cost, or use limit. Runtime matching
+uses the source definition's most recent successful move action in persisted
+action history, excludes the activation turn, and applies only through the
+declared number of following owner turns. This makes the duration boundary
+explicit and replay-safe instead of treating a duration-bearing resource event
+as an immediate unbounded change.
+
+Bloodletter is covered through `createFight`, `advanceFight`, and
+`submitCombatDecision`: after a successful Bloodletter, the owner's following
+Cannonball drains 3 KI rather than 2, emits one resource event, advances the
+state version once, and leaves no hidden lifecycle state. The compiler,
+runtime, matrix, and public transition tests all use the generic source and
+effect path; no move-name branch or source-text evaluation participates.
+
+The regenerated matrix now records 796 `supported-generic`, 195
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 7 typed compiled damage or
+resolution-local state, 133 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor slice is
+`negate` at 7 occurrences; the remaining resource rows still require pending
+choices, stored-roll context, roll-modification dispatch, SP context, blocked-
+attack damage context, power-up scheduling, or resource-event lifecycle
+variants beyond this exact turn-window capability. Every out-of-scope
+definition retains its approved exclusion, and the catalog-closure goal
+remains active.
+
+## 2026-08-20 combat-result negation slice
+
+The generic `negate.v1` executor now supports the exact post-defense
+`on-combat-result` branch for an opponent's critical or counter when the
+converted effect has a KI activation cost, including the typed
+`triggering-move-ki-cost` expression and minimum-cost invariant. The runtime
+dispatches the matching outcome from the persisted post-defense roll, exposes
+one serialized activation option for the owning source effect, deducts the
+evaluated cost through the versioned reaction transition, and resumes the
+attack with the selected critical or counter result prevented. The outcome,
+source definition, effect index, and state version remain explicit; no source
+text or move-name branch participates in execution.
+
+Cancellation Mastery's critical branch is covered through the public
+`createFight`, `advanceFight`, and `submitCombatDecision` boundary with
+deterministic natural rolls. Compiler and matrix tests cover both the critical
+and counter rows. The Kurokonwaku stun row, on-move-use negations, and other
+negation lifecycles remain explicitly unsupported because they require status,
+move-selection, or different trigger context that this tranche does not
+possess; none is approximated.
+
+The regenerated matrix now records 798 `supported-generic`, 193
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 7 typed compiled damage or
+resolution-local state, 131 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor slices
+are `modify-damage` at 7 and `create-floating-effect` at 6 occurrences.
+Every out-of-scope definition retains its approved exclusion, and the
+catalog-closure goal remains active.
+
+## 2026-08-21 generic damage-modifier lifecycle slice
+
+The generic `modify-damage` executor now supports the exact action-phase and
+upkeep-phase durable variants with positive combat-scoped use limits. The
+runtime preserves source effect provenance, enforces `stacking=prevent` from
+durable state, and accounts for each accepted upkeep activation in the
+persisted source move's combat use count. These transitions remain
+deterministic, versioned, and invariant-checked; they use the existing
+`modify-next-action` primitive rather than move-name dispatch.
+
+Special Fighting Pose 1 and Midorikatai War Cry are now covered through the
+generic compiler and public fight transitions. War Cry's two combat-limited
+upkeep activations are each materialized once, do not stack, and do not
+activate a third time. Focused compiler, matrix, and public transition tests
+cover the capability and its boundaries.
+
+Quiet Preparation remains unsupported because its activation cost requires a
+serialized pending choice and its source describes a counter-phase zero-cost
+activation that cannot be silently treated as the typed action-phase effect.
+Kiihakai Power Boost remains unsupported because its damage effect requires
+the persisted prior-turn `turn-skipped` restriction and compiled damage
+context. Neither mechanic is approximated, and no source-text semantics are
+executed.
+
+The regenerated matrix now records 800 `supported-generic`, 191
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 131 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked ready slices are
+`create-floating-effect`, `grant-extra-action`, and `modify-resource` under
+typed executor accounting; catalog closure remains active.
+
+## 2026-08-21 floating target-relation slice
+
+The generic `create-floating-effect.v1` executor now supports nested
+`target-relation` conditions when the relation is the exact
+`same-as-source-effect-target` form. The runtime records the relation target
+as a durable combatant ID when the bundle is created, carries it through the
+versioned active-effect transition, and supplies the in-progress action target
+to the nested condition evaluator. Invalid relation references are rejected
+by the existing fight-state invariant validation.
+
+Solar Flare is covered through `createFight`, `advanceFight`, and
+`submitCombatDecision`: its same-turn bundle retains the opponent, changes the
+matching single-die Kamehameha attack to 1d35 and its defense to 1d25, and is
+consumed after that next action. The compiler, runtime, matrix, and public
+transition tests all exercise the generic path. No source text or move-name
+branch participates in execution.
+
+The remaining five typed `create-floating-effect` rows are still explicitly
+unsupported: Akaikaru Backflip Kick's per-die creation, Freestyle Monkey
+Sweep's activation-unavailable condition, Haokiru Display of Endurance's
+blocked-attack damage amount, Kurokonwaku Vampiric Lust's nested resource
+shape, and Midorikatai Fall 7 Times Get Up 8's unresolved relative roll
+threshold. The regenerated matrix now records 801 `supported-generic`, 190
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 5 typed compiled damage or
+resolution-local state, 130 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor family
+is `grant-extra-action` at six occurrences, with each row requiring a distinct
+upkeep, activation-cost, passive-policy, or per-die scheduling context rather
+than a blanket approximation. The catalog-closure goal remains active.
+
+## 2026-08-21 on-roll-result extra-action slice
+
+The generic `grant-extra-action.v1` executor now supports the exact
+`on-roll-result` variant where a typed single-die attack selector and an
+at-least attack-roll threshold are both present. Kiihakai Synergy's converted
+effect now records its canonical `skill` and `constant` selectors in structured
+game data; the runtime evaluates the persisted completed attack roll and
+dispatches active constant source effects without reading source prose or
+branching on the move name. Extra-action applications retain their typed source
+definition ID, so the durable action and combat-use accounting remain attached
+to Synergy rather than the triggering attack.
+
+Synergy is covered through the public `createFight`, `advanceFight`, and
+`submitCombatDecision` boundary with a deterministic threshold roll. A
+single-die Focus Buster attack at 25 grants one remaining constant-skill action,
+while the legal action set exposes the selected constant skill and does not
+silently broaden the result to other move categories. The transition remains
+versioned and invariant-checked; the existing compiler and matrix tests cover
+the accepted condition shape and its occurrence record.
+
+The remaining five typed `grant-extra-action` rows are explicitly unsupported:
+Kiihakai Synergy's other scheduling context still needs its end-phase
+activation boundary, while the remaining rows require activation-cost choices,
+upkeep scheduling, passive action-policy context, or per-die scheduling data
+that is not fully represented by the current typed effect contract. Basic
+attacks are not inferred as move-selector matches when no typed
+`MoveDefinition` triggering context exists. These mechanics remain visible in
+the matrix and are not approximated.
+
+The regenerated matrix now records 802 `supported-generic`, 189
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 5 typed compiled damage or
+resolution-local state, 129 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor family
+is `modify-resource` at six occurrences; catalog closure remains active.
+
+## 2026-08-21 current-attack combat-outcome slice
+
+The generic `grant-combat-outcome.v1` executor now supports the exact
+current-attack form: after a successful source attack, a typed `break`,
+`sever`, or `stun` outcome is materialized as the corresponding opponent
+status through the existing status lifecycle. `combat-turn` exact matching is
+also available as a typed runtime condition. The compiler rejects selectors,
+deferred scopes, durations, activation choices, and other separate lifecycles
+for this slice; the runtime consumes only the structured effect and persisted
+turn/roll context, never source text.
+
+Guldo Special's BREAK and SEVER thresholds, Akaikaru Delta Storm's last-die
+SEVER threshold, and Midorikatai Breaker Breaker's first-turn BREAK are covered
+by compiler, runtime, matrix, and public `createFight`, `advanceFight`, and
+`submitCombatDecision` tests. The public transition preserves source
+provenance, applies the one-turn status, advances the state version once, and
+emits the typed status event under invariant validation. No move-name branch is
+used.
+
+Kiihakai Ki Barbs remains explicitly unsupported: its STUN outcome is attached
+to a future-turn Advanced Attack or Signature Technique selected by a typed
+selector and requires all dice to succeed. Supporting it needs durable
+next-action selector scheduling and the corresponding multi-die resolution
+context; treating it as an immediate current-attack outcome would change the
+rule and is not allowed.
+
+The regenerated matrix now records 806 `supported-generic`, 185
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 125 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked typed-executor family
+is `modify-resource` at six occurrences; catalog closure remains active.
+
+## Blocked attack damage numeric context — Display of Endurance
+
+The generic numeric evaluator now supports the typed `blocked-attack-damage`
+expression. A block transition resolves block effects only after the attack
+roll has produced its finalized damage, then supplies that value to the
+generic resource executor. The value is rounded with the established numeric
+evaluation rule, and the transition continues to use the existing version,
+event-sequence, and invariant validation paths.
+
+Display of Endurance's immediate `on-stopped` HP loss is covered by runtime,
+compiler/matrix, and public `submitCombatDecision` tests using a deterministic
+two-die energy attack. The nested next-attack heal remains explicitly
+unsupported: its effect would need a durable snapshot of the blocked damage
+across the floating effect lifecycle. No source text or move-name branch is
+used, and missing phase-local context returns no resource change.
+
+The regenerated matrix now records 807 `supported-generic`, 184
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 49 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 124 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. The next ranked family is the
+generic pending-choice `modify-damage` slice at six occurrences; catalog
+closure remains active.
+
+## 2026-08-21 post-roll on-success pending-choice slice
+
+The generic pending-effect transition now supports the exact grouped
+`on-success` choice whose selected effects contain a current-action damage
+replacement and a CONSTANT Skill deactivation. The attack resolves its
+natural rolls once, emits those factual roll events before suspending, and
+retains the natural rolls, block and pre-roll item selections, result
+overrides, and prior effect selections in the serializable resolution frame.
+Declining or accepting the group resumes through the normal attack transition;
+the accepted damage replacement is applied once and any eligible deactivation
+continues through the existing generic move-selection frame.
+
+Kiihakai Orange Burst is covered through `createFight`, `advanceFight`, and
+`submitCombatDecision`. The public test verifies the serialized post-roll
+choice, exact natural-roll preservation, 20% Power damage, single KI payment,
+state-version advancement, and absence of duplicate roll events on resume.
+Compiler and matrix tests cover both effects in the atomic group. This slice
+uses only typed trigger, effect, and lifecycle shapes; it does not read source
+text or branch on the move name.
+
+The regenerated matrix now records 809 `supported-generic`, 182
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 47 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 124 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. Other on-success choices remain
+unsupported when their effect family, activation selection, or deferred
+scheduling context is not covered by this exact group contract; catalog
+closure remains active.
+
+## 2026-08-21 counted next-actions cost slice
+
+The generic `modify-next-action` primitive now supports a counted `cost`
+modifier with explicit add/set operation, optional finite minimum and maximum
+bounds, and deterministic remaining-count consumption. `modify-cost` effects
+with `scope: next-actions` are converted into durable invariant-checked
+combat effects; each matching action applies the modifier and decrements the
+count, removing the effect at zero. The current-action cost path and legacy
+advanced-attack cost path remain separate, so unsupported variants are not
+silently broadened.
+
+Kurokonwaku Sixty Second Meltdown's grouped `on-success` choice is covered
+end-to-end. Accepting the group creates two more action-phase advanced-attack
+allowances and a two-action `-1 KI` cost modifier bounded at 1. A public
+deterministic transition test verifies the serialized choice, one-time attack
+cost payment, durable effect shape, second-action cost, state-version
+advancement, and counted remainder. Executor and matrix tests identify both
+converted effects as generic coverage. The implementation uses typed effect
+shape and lifecycle state only; it does not execute source text or branch on
+the move name.
+
+The regenerated matrix now records 811 `supported-generic`, 180
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 45 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 124 typed executor or compiled-plan, and 6 typed
+reroll reaction-lifecycle occurrences. Other counted cost variants and
+on-success choices remain unsupported until their exact selector, prevention,
+or scheduling semantics have a generic contract; catalog closure remains
+active.
+
+## 2026-08-21 optional post-defense reroll slice
+
+The generic `reroll.v1` reaction executor now receives matrix coverage for
+optional post-defense rerolls when the typed effect plan and serialized
+post-defense reaction frame are both supported. Swift Reaction, Zen Explosion,
+and Second Chance already resolve through that public transition path; the
+matrix previously rejected them solely because `optional: true` was checked
+before pending-choice-aware compilation. The correction preserves selector,
+threshold, use-limit, activation-cost, and state-version behavior instead of
+flattening those details into an automatic effect.
+
+Focused public transitions cover all three choices, including Swift Reaction's
+KI payment and move selector, Zen Explosion's defense threshold, and Second
+Chance's bounded use limit and persisted defense replacement. The matrix test
+asserts all three rows use `reroll.v1` and the `reroll-reaction` executor. Future
+roll and stored-roll rerolls remain explicitly unsupported because their
+durable listener context is not present; no source text or move-name dispatch
+is used.
+
+The regenerated matrix now records 814 `supported-generic`, 177
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 45 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 124 typed executor or compiled-plan, and 3 typed
+reroll reaction-lifecycle occurrences. Catalog closure remains active.
+
+## 2026-08-21 on-deactivated trigger slice
+
+The generic deactivation boundary now dispatches typed `on-deactivated`
+listeners after each constant skill is durably marked deactivated. The
+deactivated move is retained as `triggeringMove`, so numeric expressions such
+as Redirected Energy's `triggering-move-ki-cost` resolve from the actual skill
+being deactivated. Representable lock and cost applications enter the normal
+active-effect lifecycle; cost listeners use a selector-aware `next-action`
+modifier and are consumed by the ordinary attack transition.
+
+A public transition test covers the deactivation selection, state-versioned
+resume, factual deactivation event, invariant validation, and Redirected
+Energy's durable selector/cost effect. The matrix/compiler tests classify
+Unquenchable Bloodthirst and Redirected Energy as generic coverage. Fierce
+Focus's two optional `negate-deactivation` effects remain unsupported because
+prevention must be selected before mutation through a serialized choice; they
+are not silently applied after deactivation. No source text or move-name
+branch is executable.
+
+The regenerated matrix now records 816 `supported-generic`, 175
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 45 generic pending-choice, 5 typed compiled damage
+or resolution-local state, 122 typed executor or compiled-plan, and 3 typed
+reroll reaction-lifecycle occurrences. The next ranked family is
+`set-combat-result`; catalog closure remains active.
+
+## 2026-08-21 critical on-damage context slice
+
+The generic `modify-damage.v1` executor now accepts a typed current-attack
+critical result in the `on-damage` resolution context. The finalized action
+record, including the critical outcome, is passed into the existing defensive
+on-damage dispatch before damage is committed; the effect remains a declarative
+`damage-percent` multiplier and uses the ordinary immutable damage pipeline.
+Compiler validation no longer rejects this exact critical-result form, and the
+transition remains deterministic, state-versioned, and invariant-checked.
+
+Midorikatai Critical Mass Mastery's 1.5x damage reduction is covered through
+the public attack transition, the runtime condition/effect path, the compiled
+executor, and the generated matrix. The implementation does not read source
+text or branch on the move name. The four remaining typed damage-context rows
+stay explicitly unsupported: Impulsive requires durable selected-move storage,
+Quiet Preparation requires an activation-cost choice and counter-phase
+boundary, Lights Out Strike requires a player-selected opponent attack, and
+Power Boost requires persisted skipped-turn scheduling. None is broadened by
+this slice.
+
+The regenerated matrix now records 819 `supported-generic`, 172
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 45 generic pending-choice, 4 typed compiled damage or
+resolution-local state, 120 typed executor or compiled-plan, and 3 typed reroll
+reaction-lifecycle occurrences. The next ranked families are the tied
+five-occurrence `copy-move-effect`, `create-floating-effect`,
+`grant-extra-action`, `modify-resource`, `modify-cost`, and `negate` slices;
+catalog closure remains active.
+
+## 2026-08-21 passive extra-action policy slice
+
+The generic `grant-extra-action.v2` executor now covers passive policies that
+grant a positive number of non-CONSTANT Skill actions for the current turn.
+At upkeep, the engine evaluates the passive declarative effect for the active
+combatant and persists an `ActiveExtraActionEffect` with the resolved count,
+turn bounds, source definition, and source effect index. The ordinary public
+legal-decision and consumption transitions enforce the declared Skill-only
+policy and decrement the allowance without bypassing state versioning or
+invariant validation.
+
+Focused public coverage verifies that Technique Mastery permits two uses of
+the same non-CONSTANT Skill, rejects other action categories while the policy
+is available, and removes the allowance after the second use. The capability
+matrix and compiler tests cover the generic executor classification. The
+separate slot-capacity effect on the same definition remains unsupported and
+is not inferred from this scheduler capability.
+
+The regenerated matrix now records 820 `supported-generic`, 171
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 45 generic pending-choice, 4 typed compiled damage or
+resolution-local state, 119 typed executor or compiled-plan, and 3 typed
+reroll reaction-lifecycle occurrences. The next ranked families are the tied
+five-occurrence `copy-move-effect`, `create-floating-effect`,
+`modify-resource`, and `suppress` slices; catalog closure remains active.
+
 ## Handoff prompt
 
 > Resume the combat-engine goal from the current worktree. Read
@@ -1930,8 +2427,12 @@ the catalog-closure goal remains active.
 > Saiyans, Hybrid-Saiyans, Namekians, Changelings, and Bio-Androids only. Do
 > not treat converted source text as executable semantics, silently approximate
 > unsupported mechanics, or add move-name branches where a generic primitive
-> fits. Run focused checks during work and `npm run quality` as the single
-> repository gate before handoff; do not run `npm run check` separately first.
+> fits. Run `npm run check:focused` during work and before handoff. For combat
+> calculations or game-rule changes, run `npm run check:focused -- --coverage`
+> as well. The focused checker expands combat and game-data changes to their
+> transitive package typechecks, tests, validators, and capability-matrix
+> coverage; it falls back to a repository-wide gate for infrastructure or
+> unmapped changes.
 > Do not mark the goal complete until the capability matrix accounts for every
 > in-scope converted effect with generic or named executor coverage and every
 > out-of-scope definition with a documented approved exclusion.

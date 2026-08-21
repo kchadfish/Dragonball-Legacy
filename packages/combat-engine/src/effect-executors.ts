@@ -12,6 +12,7 @@ export const registeredEffectTypes = [
   "create-floating-effect",
   "deactivate",
   "force-action",
+  "grant-combat-outcome",
   "grant-extra-action",
   "lock",
   "modify-cost",
@@ -121,6 +122,8 @@ const supportedTriggers = new Set([
   "on-stopped",
   "on-success",
   "on-damage",
+  "on-deactivated",
+  "on-combat-result",
   "on-move-use",
   "on-power-up",
   "on-resource-gain",
@@ -156,6 +159,7 @@ const supportedTargets = new Set(["self", "opponent", "participants"]);
 
 const supportedConditions = new Set<EffectCondition["type"]>([
   "combat-result",
+  "defense-response",
   "successful-hit-count",
   "roll-threshold",
   "roll-comparison",
@@ -177,6 +181,7 @@ const supportedConditions = new Set<EffectCondition["type"]>([
   "resource-change",
   "move-effect-active",
   "move-effect-inactive",
+  "target-relation",
   "move-modification",
   "active-move-count",
   "moveset-move-count",
@@ -185,6 +190,7 @@ const supportedConditions = new Set<EffectCondition["type"]>([
   "location",
   "transformation-mastery",
   "prior-turn-restriction",
+  "combat-turn",
   "moveset",
   "stored-roll-threshold",
 ]);
@@ -212,7 +218,9 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "active-move-count",
   "active-move-effect-text-count",
   "damage-percent",
+  "blocked-attack-damage",
   "triggering-move-base-ki-cost",
+  "triggering-move-ki-cost",
   "resource-percent-per-successful-hit",
   "resource-percent-per-successful-roll-threshold",
   "stat-difference-percent",
@@ -263,7 +271,10 @@ const conditionIssues = (
 ) => {
   const issues: EffectCompilationIssue[] = [];
   for (const condition of effect.conditions ?? []) {
-    if (!supportedConditions.has(condition.type))
+    if (
+      !supportedConditions.has(condition.type) &&
+      !(condition.type === "combat-outcome" && effect.trigger === "on-combat-result")
+    )
       issues.push(
         issue(
           "unsupported-condition",
@@ -523,28 +534,67 @@ const modifyDamageIssues = (
   if (numeric !== undefined) issues.push(numeric);
   const capNumeric = numericIssue(effect.cap?.value, sourceDefinitionId, effectIndex, "cap.value");
   if (capNumeric !== undefined) issues.push(capNumeric);
-  if (effect.activationCost !== undefined || effect.useLimit !== undefined)
-    issues.push(
-      issue(
-        "requires-pending-choice",
-        sourceDefinitionId,
-        effectIndex,
-        "Damage responses with activation costs or use limits require a serialized pending choice.",
-      ),
-    );
-  if (
-    effect.trigger === "on-damage" &&
-    effect.operation === "multiply" &&
-    effect.conditions?.some(
-      (condition) => condition.type === "combat-result" && condition.result === "critical",
-    )
-  )
+  issues.push(...modifyDamageUseLimitIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...modifyDamageLifecycleIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...modifyDamageDurationIssues(effect.duration, sourceDefinitionId, effectIndex));
+  return issues;
+};
+
+const modifyDamageUseLimitIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-damage" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): EffectCompilationIssue[] => {
+  if (effect.useLimit === undefined) return [];
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.trigger !== "action-phase" && effect.trigger !== "upkeep-phase")
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Critical on-damage replacement requires an explicit critical-multiplier resolution context.",
+        "Damage use limits are supported only when an action or upkeep transition creates the durable modifier.",
+      ),
+    );
+  if (effect.useLimit.scope !== "combat")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Damage modifiers support combat-scoped use limits only.",
+      ),
+    );
+  const count = effect.useLimit.count;
+  const validCount =
+    typeof count === "number"
+      ? Number.isInteger(count) && count >= 1
+      : count.type === "literal" && Number.isInteger(count.value) && count.value >= 1;
+  if (!validCount)
+    issues.push(
+      issue(
+        "unsupported-numeric-expression",
+        sourceDefinitionId,
+        effectIndex,
+        "Damage use limits require a positive literal count.",
+      ),
+    );
+  return issues;
+};
+
+const modifyDamageLifecycleIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-damage" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): EffectCompilationIssue[] => {
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.activationCost !== undefined)
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Damage responses with activation costs require a serialized pending choice.",
       ),
     );
   if (effect.operation !== undefined && !["add", "multiply", "set"].includes(effect.operation))
@@ -580,7 +630,6 @@ const modifyDamageIssues = (
     );
     if (countIssue !== undefined) issues.push(countIssue);
   }
-  issues.push(...modifyDamageDurationIssues(effect.duration, sourceDefinitionId, effectIndex));
   return issues;
 };
 
@@ -792,14 +841,19 @@ const modifyResourceIssues = (
       effect.trigger === "on-resource-gain" ||
       effect.trigger === "on-resource-drain") &&
     ((effect.scope !== undefined && effect.scope.type !== "current-action") ||
-      effect.duration !== undefined)
+      (effect.duration !== undefined &&
+        !(
+          (effect.trigger === "on-resource-gain" || effect.trigger === "on-resource-drain") &&
+          effect.duration.type === "turns" &&
+          effect.scope === undefined
+        )))
   )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Power-up and resource-event resource changes require explicit durable scheduling and caps.",
+        "Power-up and resource-event resource changes require explicit durable scheduling; only turn-limited resource-event changes are supported here.",
       ),
     );
   if (
@@ -956,13 +1010,26 @@ const suppressLifecycleIssues = (
   effectIndex: number,
 ) => {
   const issues: EffectCompilationIssue[] = [];
-  if (effect.scope !== undefined && effect.scope.type !== "next-action")
+  if (
+    effect.scope !== undefined &&
+    effect.scope.type !== "next-action" &&
+    effect.scope.type !== "following-action"
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
         `Suppress scope ${effect.scope.type} requires a resolution-local or multi-action scheduler.`,
+      ),
+    );
+  if (effect.scope?.type === "following-action" && effect.scope.offset < 1)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Suppress following-action offsets must be positive integers.",
       ),
     );
   if (effect.scope !== undefined && effect.duration !== undefined)
@@ -1069,6 +1136,44 @@ const negateIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger === "on-combat-result") {
+    const outcomeConditions = (effect.conditions ?? []).filter(
+      (condition): condition is Extract<EffectCondition, { readonly type: "combat-outcome" }> =>
+        condition.type === "combat-outcome",
+    );
+    if (
+      effect.target !== "opponent" ||
+      effect.aspects !== undefined ||
+      effect.selector !== undefined ||
+      effect.scope !== undefined ||
+      effect.duration !== undefined ||
+      effect.stacking !== undefined ||
+      effect.useLimit !== undefined ||
+      effect.selectionLimit !== undefined ||
+      effect.cooldown !== undefined ||
+      effect.activationCost?.resource !== "ki" ||
+      effect.activationCost.operation !== "lose" ||
+      outcomeConditions.length !== 1 ||
+      outcomeConditions[0]?.actor !== "opponent" ||
+      (outcomeConditions[0]?.outcome !== "critical" && outcomeConditions[0]?.outcome !== "counter")
+    )
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Combat-result negation supports only opponent critical or counter outcomes with a KI activation cost and no durable selector or lifecycle.",
+        ),
+      );
+    for (const [value, path] of [
+      [effect.activationCost?.amount, "activationCost.amount"],
+      [effect.activationCost?.minimum, "activationCost.minimum"],
+    ] as const) {
+      const numericIssueResult = numericIssue(value, sourceDefinitionId, effectIndex, path);
+      if (numericIssueResult !== undefined) issues.push(numericIssueResult);
+    }
+    return issues;
+  }
   if (effect.trigger !== "action-phase")
     issues.push(
       issue(
@@ -1176,13 +1281,29 @@ const extraActionSchedulingIssues = (
         "Extra-action cooldown, selection, and stacking metadata require a shared scheduling lifecycle.",
       ),
     );
-  if (effect.trigger === "on-roll-result")
+  if (
+    effect.trigger === "on-roll-result" &&
+    !(
+      effect.conditions?.some(
+        (condition) =>
+          condition.type === "roll-threshold" &&
+          condition.roll === "attack" &&
+          condition.comparison === "at-least",
+      ) === true &&
+      effect.conditions?.some(
+        (condition) =>
+          condition.type === "move-selector" &&
+          condition.subject === "source" &&
+          condition.attackRoll?.dice === 1,
+      ) === true
+    )
+  )
     issues.push(
       issue(
         "unsupported-trigger",
         sourceDefinitionId,
         effectIndex,
-        "On-roll-result extra actions require a persisted per-die action allowance.",
+        "On-roll-result extra actions require a single-die attack selector and persisted attack-roll threshold.",
       ),
     );
   if (effect.phase !== "action-phase")
@@ -1233,11 +1354,17 @@ const extraActionCountIssues = (
           "Maximum extra actions require a positive integer count.",
         ),
       );
+    const onSuccessCurrentAction =
+      effect.trigger === "on-success" &&
+      effect.target === "self" &&
+      effect.phase === "action-phase" &&
+      effect.scope?.type === "current-action";
     if (
-      effect.trigger !== "passive" ||
-      effect.moveCategory !== "skill" ||
-      effect.constant !== false ||
-      effect.scope !== undefined
+      !onSuccessCurrentAction &&
+      (effect.trigger !== "passive" ||
+        effect.moveCategory !== "skill" ||
+        effect.constant !== false ||
+        effect.scope !== undefined)
     )
       issues.push(
         issue(
@@ -1303,6 +1430,16 @@ const setCombatResultIssues = (
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const isAfterDefensePerDie =
     effect.trigger === "after-defense-roll" && effect.resultScope === "matching-die";
+  const isDeferredStoppedAttack =
+    effect.trigger === "on-stopped" &&
+    effect.result === "stopped" &&
+    effect.resultScope === "current-attack" &&
+    effect.scope?.type === "next-action" &&
+    effect.duration === undefined &&
+    effect.useLimit === undefined &&
+    effect.activationCost === undefined &&
+    effect.activationGroup === undefined &&
+    effect.optional !== true;
   if (effect.resultScope !== "current-attack" && !isAfterDefensePerDie)
     issues.push(
       issue(
@@ -1334,7 +1471,7 @@ const setCombatResultIssues = (
         "Current-attack critical overrides require an on-success trigger or a post-defense reaction.",
       ),
     );
-  if (effect.result === "stopped" && !isAfterDefensePerDie)
+  if (effect.result === "stopped" && !isAfterDefensePerDie && !isDeferredStoppedAttack)
     issues.push(
       issue(
         "unsupported-variant",
@@ -1754,6 +1891,44 @@ const applyStatusIssues = (
         sourceDefinitionId,
         effectIndex,
         `Status duration ${effect.duration.type} has no active-status lifecycle executor.`,
+      ),
+    );
+  return issues;
+};
+
+const grantCombatOutcomeIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "grant-combat-outcome" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger !== "on-success" || effect.target !== "opponent")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Combat outcomes currently apply only to the opponent after the source attack succeeds.",
+      ),
+    );
+  if (
+    effect.selector !== undefined ||
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.requireAllDiceSuccess !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.stacking !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Combat outcomes currently resolve as one immediate current-attack status without selection or a separate lifecycle.",
       ),
     );
   return issues;
@@ -2182,22 +2357,10 @@ const floatingUseLimitIssues = (
     typeof effect.useLimit.count === "number"
       ? undefined
       : numericIssue(effect.useLimit.count, sourceDefinitionId, effectIndex, "useLimit.count");
-  const isOne =
-    typeof effect.useLimit.count === "number"
-      ? effect.useLimit.count === 1
-      : effect.useLimit.count.type === "literal" && effect.useLimit.count.value === 1;
-  const hasUnsupportedLifecycle =
-    effect.useLimit.scope === "combat"
-      ? !isOne ||
-        (effect.scope !== undefined && effect.scope.type !== "combat") ||
-        effect.duration !== undefined ||
-        (effect.termination?.length ?? 0) > 0
-      : !isOne ||
-        (effect.scope !== undefined &&
-          effect.scope.type !== "combat" &&
-          effect.scope?.type !== "next-action" &&
-          effect.scope?.type !== "next-turn") ||
-        effect.duration?.type !== "until-roll-threshold";
+  const hasUnsupportedLifecycle = floatingUseLimitHasUnsupportedLifecycle(
+    effect,
+    floatingUseLimitIsSingle(effect.useLimit),
+  );
   return [
     ...(countIssue === undefined ? [] : [countIssue]),
     ...(hasUnsupportedLifecycle
@@ -2212,6 +2375,86 @@ const floatingUseLimitIssues = (
       : []),
   ];
 };
+
+const floatingUseLimitIsSingle = (
+  useLimit: NonNullable<
+    Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>["useLimit"]
+  >,
+) =>
+  typeof useLimit.count === "number"
+    ? useLimit.count === 1
+    : useLimit.count.type === "literal" && useLimit.count.value === 1;
+
+const floatingUseLimitHasUnsupportedLifecycle = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
+  isSingle: boolean,
+) => {
+  const useLimit = effect.useLimit;
+  if (useLimit === undefined) return false;
+  if (useLimit.scope === "combat")
+    return (
+      !isSingle ||
+      (effect.scope !== undefined && effect.scope.type !== "combat") ||
+      effect.duration !== undefined ||
+      (effect.termination?.length ?? 0) > 0
+    );
+  return (
+    !isSingle ||
+    (effect.scope !== undefined &&
+      effect.scope.type !== "combat" &&
+      effect.scope.type !== "next-action" &&
+      effect.scope.type !== "next-turn") ||
+    effect.duration?.type !== "until-roll-threshold"
+  );
+};
+
+const floatingNestedEffectIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  (effect.effects ?? []).flatMap((nestedEffect, nestedIndex) => {
+    if (nestedEffect.type === "create-floating-effect")
+      return [
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          `Nested floating effect ${nestedIndex} is not supported; floating bundles must be flat.`,
+        ),
+      ];
+    if (
+      nestedEffect.type === "modify-resource" &&
+      (nestedEffect.amount === undefined ||
+        nestedEffect.cap !== undefined ||
+        nestedEffect.prevention !== undefined ||
+        nestedEffect.exclusions !== undefined)
+    )
+      return [
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          `Nested effect ${nestedIndex}: resource modifiers with omitted amounts, caps, prevention, or exclusions are not represented by the floating lifecycle.`,
+        ),
+      ];
+    const nestedCompilation = compileEffectPlan({
+      sourceDefinitionId,
+      effectIndex: nestedIndex,
+      effect: nestedEffect,
+      allowFloatingOnMoveUse: true,
+    });
+    return nestedCompilation.ok
+      ? []
+      : nestedCompilation.issues.map((nestedIssue) =>
+          issue(
+            nestedIssue.code,
+            sourceDefinitionId,
+            effectIndex,
+            `Nested effect ${nestedIndex}: ${nestedIssue.message}`,
+          ),
+        );
+  });
 
 function createFloatingIssues(
   effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
@@ -2263,53 +2506,7 @@ function createFloatingIssues(
         "Floating creation from on-roll-result requires persisting per-die effect activations.",
       ),
     );
-  for (const [nestedIndex, nestedEffect] of (effect.effects ?? []).entries()) {
-    if (nestedEffect.type === "create-floating-effect") {
-      issues.push(
-        issue(
-          "unsupported-variant",
-          sourceDefinitionId,
-          effectIndex,
-          `Nested floating effect ${nestedIndex} is not supported; floating bundles must be flat.`,
-        ),
-      );
-      continue;
-    }
-    if (
-      nestedEffect.type === "modify-resource" &&
-      (nestedEffect.amount === undefined ||
-        nestedEffect.cap !== undefined ||
-        nestedEffect.prevention !== undefined ||
-        nestedEffect.exclusions !== undefined)
-    ) {
-      issues.push(
-        issue(
-          "unsupported-variant",
-          sourceDefinitionId,
-          effectIndex,
-          `Nested effect ${nestedIndex}: resource modifiers with omitted amounts, caps, prevention, or exclusions are not represented by the floating lifecycle.`,
-        ),
-      );
-      continue;
-    }
-    const nestedCompilation = compileEffectPlan({
-      sourceDefinitionId,
-      effectIndex: nestedIndex,
-      effect: nestedEffect,
-      allowFloatingOnMoveUse: true,
-    });
-    if (!nestedCompilation.ok)
-      issues.push(
-        ...nestedCompilation.issues.map((nestedIssue) =>
-          issue(
-            nestedIssue.code,
-            sourceDefinitionId,
-            effectIndex,
-            `Nested effect ${nestedIndex}: ${nestedIssue.message}`,
-          ),
-        ),
-      );
-  }
+  issues.push(...floatingNestedEffectIssues(effect, sourceDefinitionId, effectIndex));
   return issues;
 }
 
@@ -2502,6 +2699,7 @@ export const effectExecutorRegistry = {
   "create-floating-effect": createExecutor("create-floating-effect", createFloatingIssues),
   deactivate: createExecutor("deactivate"),
   "force-action": createExecutor("force-action"),
+  "grant-combat-outcome": createExecutor("grant-combat-outcome", grantCombatOutcomeIssues),
   lock: createExecutor("lock", lockIssues),
   "modify-cost": createExecutor("modify-cost"),
   "modify-critical-threshold": createExecutor(

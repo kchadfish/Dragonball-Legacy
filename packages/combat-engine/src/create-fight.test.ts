@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CreateFightInput, FightState } from "./index.js";
 import { createFight } from "./index.js";
 import {
+  activeEffectIdSchema,
   combatantIdSchema,
   combatDecisionIdSchema,
   combatEventIdSchema,
@@ -325,6 +326,34 @@ describe("createFight", () => {
 });
 
 describe("validateFightState", () => {
+  it("rejects a floating relation target that is not an active combatant", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+
+    const invalidState = {
+      ...createdFight.value.state,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:invalid-floating-relation"),
+          type: "floating-effect",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          targetRelationCombatantId: combatantIdSchema.parse("combatant:unknown"),
+          sourceDefinitionId: "move-afterlife-solar-flare",
+          floatingEffectId: "solar-flare-same-turn-single-die-follow-up",
+          effects: [],
+          termination: [],
+          scope: { type: "combat" },
+          createdOnTurn: 1,
+        },
+      ],
+    } as FightState;
+
+    expect(validateFightState(invalidState)).toContainEqual(
+      expect.objectContaining({ type: "invalid-active-effect" }),
+    );
+  });
+
   it("identifies broken state counters, resources, and active combatant ownership", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");

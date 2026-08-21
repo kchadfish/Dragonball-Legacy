@@ -463,6 +463,14 @@ const hasValidNextActionModifierDetails = (
     effect.modifier.operation === "gain" ||
     effect.modifier.operation === "lose" ||
     effect.modifier.operation === "set";
+  const validCostOperation =
+    effect.modifier.type !== "cost" ||
+    effect.modifier.operation === "add" ||
+    effect.modifier.operation === "set";
+  const validCostBounds =
+    effect.modifier.type !== "cost" ||
+    ((effect.modifier.minimum === undefined || Number.isFinite(effect.modifier.minimum)) &&
+      (effect.modifier.maximum === undefined || Number.isFinite(effect.modifier.maximum)));
   const validRollCap = (
     cap: NonNullable<Extract<ActiveCombatEffect, { type: "modify-roll" }>["cap"]>,
   ) =>
@@ -470,10 +478,18 @@ const hasValidNextActionModifierDetails = (
       ? cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll"
       : Number.isFinite(cap.value) &&
         (cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll");
+  const validCombatResult =
+    effect.modifier.type !== "combat-result" ||
+    ((effect.modifier.result === "successful" || effect.modifier.result === "stopped") &&
+      effect.modifier.resultScope === "current-attack" &&
+      scope === "next-action");
   return (
     validDamageOperation &&
     validDamageBasis &&
     validResourceOperation &&
+    validCostOperation &&
+    validCostBounds &&
+    validCombatResult &&
     (effect.modifier.type === "damage" ||
       (effect.modifier.type === "stat" &&
         (effect.modifier.stat === "dexterity" || effect.modifier.stat === "dexterity-bonus") &&
@@ -495,8 +511,10 @@ const hasValidNextActionModifierDetails = (
         (effect.modifier.cap === undefined || validRollCap(effect.modifier.cap))) ||
       (effect.modifier.type === "resource" &&
         (effect.modifier.resource === "hp" || effect.modifier.resource === "ki") &&
-        effect.modifier.basis === "damage-percent")) &&
-    Number.isFinite(effect.modifier.amount) &&
+        effect.modifier.basis === "damage-percent") ||
+      effect.modifier.type === "cost" ||
+      effect.modifier.type === "combat-result") &&
+    (effect.modifier.type === "combat-result" || Number.isFinite(effect.modifier.amount)) &&
     typeof effect.sourceDefinitionId === "string" &&
     effect.sourceDefinitionId.length > 0 &&
     validScope &&
@@ -567,6 +585,7 @@ const hasValidSuppressionEffectDetails = (
     effect.duration.type === "combat" ||
     (effect.duration.type === "turns" && validCounter(effect.duration.remaining, 1)) ||
     (effect.duration.type === "next-actions" && validCounter(effect.duration.remaining, 1)) ||
+    (effect.duration.type === "following-action" && validCounter(effect.duration.remaining, 1)) ||
     (effect.duration.type === "until-roll-threshold" &&
       effect.duration.roll === "attack" &&
       (effect.duration.comparison === "at-least" || effect.duration.comparison === "at-most") &&
@@ -584,7 +603,11 @@ const hasValidSuppressionCombatantReferences = (
   state: FightState,
   effect: Extract<ActiveCombatEffect, { type: "suppress" }>,
 ) => {
-  if (effect.duration.type === "turns" || effect.duration.type === "next-actions")
+  if (
+    effect.duration.type === "turns" ||
+    effect.duration.type === "next-actions" ||
+    effect.duration.type === "following-action"
+  )
     return isActiveCombatant(state, effect.duration.ownerCombatantId);
   if (effect.duration.type === "until-roll-threshold")
     return isActiveCombatant(state, effect.duration.combatantId);
@@ -675,6 +698,8 @@ const hasValidFloatingEffectDetails = (
     effect.floatingEffectId.length > 0 &&
     effect.sourceDefinitionId.length > 0 &&
     (effect.sourceEffectIndex === undefined || validCounter(effect.sourceEffectIndex, 0)) &&
+    (effect.blockedAttackDamage === undefined ||
+      validNonnegativeNumber(effect.blockedAttackDamage)) &&
     validCounter(effect.createdOnTurn, 1) &&
     (effect.scope.type === "combat" ||
       effect.scope.type === "next-action" ||
@@ -909,8 +934,18 @@ const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
 };
 
 const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatEffect) => {
-  if (effect.type === "floating-effect" && effect.duration !== undefined)
-    return isActiveCombatant(state, effect.duration.combatantId);
+  if (
+    effect.type === "floating-effect" &&
+    effect.duration !== undefined &&
+    !isActiveCombatant(state, effect.duration.combatantId)
+  )
+    return false;
+  if (
+    effect.type === "floating-effect" &&
+    effect.targetRelationCombatantId !== undefined &&
+    !isActiveCombatant(state, effect.targetRelationCombatantId)
+  )
+    return false;
   if (effect.type === "scheduled-resource")
     return (
       isActiveCombatant(state, effect.timing.combatantId) &&
@@ -1040,6 +1075,55 @@ const validAttackResolutionFrame = (
     frame.attackerId !== frame.targetCombatantId;
   if (!common || frame.stage !== "awaiting-effect-choice") return common;
   if (state.status !== "active") return false;
+  const postRollChoice = frame.effectTrigger === "on-success";
+  const naturalRollsValid =
+    !postRollChoice ||
+    (frame.naturalRolls !== undefined &&
+      frame.naturalRolls.length > 0 &&
+      frame.naturalRolls.every(
+        (roll) =>
+          Number.isInteger(roll.attack) &&
+          roll.attack >= 1 &&
+          (roll.defense === undefined || (Number.isInteger(roll.defense) && roll.defense >= 1)),
+      ));
+  const rollArraysValid =
+    (frame.resultOverrides === undefined ||
+      (frame.naturalRolls !== undefined &&
+        frame.resultOverrides.length === frame.naturalRolls.length)) &&
+    (frame.numericResultOverrides === undefined ||
+      (frame.naturalRolls !== undefined &&
+        frame.numericResultOverrides.length === frame.naturalRolls.length));
+  const blockValid =
+    frame.block === undefined ||
+    (Number.isInteger(frame.block.cost) &&
+      frame.block.cost >= 0 &&
+      MOVE_DEFINITIONS.some((move) => move.id === frame.block!.blockId));
+  const blockedDiceValid =
+    frame.blockedDice === undefined ||
+    (Number.isInteger(frame.blockedDice) &&
+      frame.blockedDice >= 0 &&
+      (frame.naturalRolls === undefined || frame.blockedDice <= frame.naturalRolls.length));
+  const validIndexList = (indices: readonly number[] | undefined) =>
+    indices === undefined ||
+    (indices.every((index) => Number.isInteger(index) && index >= 0) &&
+      new Set(indices).size === indices.length);
+  const overrideValuesValid =
+    (frame.numericResultOverrides === undefined ||
+      frame.numericResultOverrides.every(
+        (override) =>
+          override === undefined ||
+          (Number.isFinite(override.attack ?? 0) && Number.isFinite(override.defense ?? 0)),
+      )) &&
+    (frame.resultOverrides === undefined ||
+      frame.resultOverrides.every(
+        (result) => result === undefined || result === "stopped" || result === "successful",
+      ));
+  const serializedReactionReferencesValid =
+    (frame.block === undefined ||
+      combatDecisionIdSchema.safeParse(frame.block.responseDecisionId).success) &&
+    (frame.defenseItem === undefined ||
+      (frame.defenseItem.itemId.length > 0 &&
+        combatDecisionIdSchema.safeParse(frame.defenseItem.responseDecisionId).success));
   return (
     pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
     state.pendingDecision?.id === frame.pendingDecisionId &&
@@ -1050,7 +1134,16 @@ const validAttackResolutionFrame = (
     frame.resolvedEffectIndices.length === 0 &&
     frame.enabledEffectIndices.length === 0 &&
     frame.effectIndices.every((index) => Number.isInteger(index) && index >= 0) &&
-    new Set(frame.effectIndices).size === frame.effectIndices.length
+    new Set(frame.effectIndices).size === frame.effectIndices.length &&
+    naturalRollsValid &&
+    rollArraysValid &&
+    blockValid &&
+    blockedDiceValid &&
+    validIndexList(frame.priorEnabledOptionalEffectIndices) &&
+    validIndexList(frame.priorResolvedOptionalEffectIndices) &&
+    validIndexList(frame.enabledAfterDefenseEffectIndices) &&
+    overrideValuesValid &&
+    serializedReactionReferencesValid
   );
 };
 

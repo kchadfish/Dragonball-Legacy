@@ -173,6 +173,11 @@ export interface PendingDecisionOption {
     readonly sourceEffectIndex: number;
     readonly dieIndex: number;
   };
+  readonly combatResultNegation?: {
+    readonly sourceDefinitionId: MoveId;
+    readonly sourceEffectIndex: number;
+    readonly outcome: "critical" | "counter";
+  };
   readonly selectedNumericValue?: number;
 }
 
@@ -326,6 +331,18 @@ type ActiveNextActionModifier =
       readonly operation: "drain" | "gain" | "lose" | "set";
       readonly amount: number;
       readonly basis: "damage-percent";
+    }
+  | {
+      readonly type: "cost";
+      readonly operation: "add" | "set";
+      readonly amount: number;
+      readonly minimum?: number;
+      readonly maximum?: number;
+    }
+  | {
+      readonly type: "combat-result";
+      readonly result: "successful" | "stopped";
+      readonly resultScope: "current-attack";
     };
 
 /** A resolved move effect that modifies its owner's immediately following action. */
@@ -335,6 +352,7 @@ export interface ActiveNextActionModifierEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex?: number;
   readonly selector?: MoveSelectorCondition;
   /** The first matching action/roll at or after this scope becomes eligible. */
   readonly scope?:
@@ -389,6 +407,11 @@ export interface ActiveSuppressionEffect {
         readonly remaining: number;
       }
     | {
+        readonly type: "following-action";
+        readonly ownerCombatantId: CombatantId;
+        readonly remaining: number;
+      }
+    | {
         readonly type: "until-roll-threshold";
         readonly combatantId: CombatantId;
         readonly roll: "attack";
@@ -404,6 +427,7 @@ export interface ActiveDamageModifierEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex?: number;
   readonly selector?: MoveSelectorCondition;
   readonly operation: "add" | "multiply" | "set";
   /** Power-percent is resolved to damage points; damage-percent scales resolved damage. */
@@ -613,8 +637,12 @@ export interface ActiveFloatingEffect {
   readonly type: "floating-effect";
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
+  /** Target retained for nested target-relation conditions, when distinct from the bundle recipient. */
+  readonly targetRelationCombatantId?: CombatantId;
   readonly sourceDefinitionId: MoveId;
   readonly sourceEffectIndex?: number;
+  /** Immutable damage snapshot captured when a blocked-attack bundle is created. */
+  readonly blockedAttackDamage?: number;
   readonly floatingEffectId: string;
   readonly effects: readonly EffectDefinition[];
   readonly termination: readonly {
@@ -857,6 +885,32 @@ export type ResolutionFrame =
       readonly resolvedEffectIndices: readonly number[];
       readonly enabledEffectIndices: readonly number[];
       readonly selectedNumericValues?: Readonly<Record<string, number>>;
+      /** The trigger whose grouped effects are awaiting the acting player's choice. */
+      readonly effectTrigger?: "before-attack-roll" | "on-success";
+      /** Natural rolls are retained when the choice occurs after the attack roll. */
+      readonly naturalRolls?: readonly { readonly attack: number; readonly defense?: number }[];
+      readonly blockedDice?: number;
+      readonly block?: {
+        readonly blockId: MoveId;
+        readonly cost: number;
+        readonly responseDecisionId: CombatDecisionId;
+      };
+      readonly defenseItem?: {
+        readonly itemId: ItemId;
+        readonly responseDecisionId: CombatDecisionId;
+      };
+      readonly defenseResultModifier?: number;
+      readonly preventCritical?: boolean;
+      readonly preventCounter?: boolean;
+      readonly resultOverrides?: readonly ("stopped" | "successful" | undefined)[];
+      readonly numericResultOverrides?: readonly (
+        { readonly attack?: number; readonly defense?: number } | undefined
+      )[];
+      readonly priorEnabledOptionalEffectIndices?: readonly number[];
+      readonly priorResolvedOptionalEffectIndices?: readonly number[];
+      readonly enabledAfterDefenseEffectIndices?: readonly number[];
+      /** Roll events are already emitted when this is false. */
+      readonly includeRollEvents?: boolean;
     }
   | {
       readonly id: ResolutionFrameId;

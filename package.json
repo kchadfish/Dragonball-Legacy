@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "check:focused": "tsx scripts/check-focused.ts",
     "duplicates": "jscpd apps packages --config .jscpd.json",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "generate:game-data": "tsx scripts/generate-game-data.ts && prettier --write packages/game-data/src/*-definitions.ts packages/game-data/src/reference-documents.ts packages/game-data/src/move-source-definitions.ts",

@@ -57,7 +57,7 @@ export interface CombatCapabilityMatrixRow {
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-14";
+  readonly generatedAt: "2026-08-21";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -83,7 +83,7 @@ const genericExecutors: Readonly<
   "apply-status": { executor: "status-lifecycle", test: "move-effects-runtime.test.ts" },
   "create-floating-effect": {
     executor: "floating-effect-lifecycle",
-    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    test: "basic-attack.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
   },
   deactivate: { executor: "constant-lifecycle", test: "deactivation-flow.test.ts" },
   "force-action": { executor: "forced-action", test: "progress-fight.test.ts" },
@@ -91,6 +91,11 @@ const genericExecutors: Readonly<
     executor: "extra-action-scheduler",
     test: "progress-fight.test.ts",
     capabilityId: "grant-extra-action.v2",
+  },
+  "grant-combat-outcome": {
+    executor: "combat-outcome-status",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    capabilityId: "grant-combat-outcome.v1",
   },
   lock: { executor: "action-lock", test: "progress-fight.test.ts" },
   "modify-cost": { executor: "cost-modifier", test: "move-effects-runtime.test.ts" },
@@ -116,7 +121,7 @@ const genericExecutors: Readonly<
   },
   "modify-stat": { executor: "stat-modifier", test: "progress-fight.test.ts" },
   negate: {
-    executor: "attack-prevention-negation",
+    executor: "negation",
     test: "progress-fight.test.ts",
     capabilityId: "negate.v1",
   },
@@ -167,7 +172,7 @@ const genericExecutors: Readonly<
   },
   suppress: {
     executor: "suppression-lifecycle",
-    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    test: "basic-attack.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
   },
 };
 
@@ -301,7 +306,13 @@ const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
     effect.trigger === "upkeep-phase" &&
     effect.target === "self" &&
     effect.activationCost === undefined &&
-    effect.useLimit === undefined
+    (effect.useLimit === undefined ||
+      (effect.useLimit.scope === "combat" &&
+        (typeof effect.useLimit.count === "number"
+          ? Number.isInteger(effect.useLimit.count) && effect.useLimit.count >= 1
+          : effect.useLimit.count.type === "literal" &&
+            Number.isInteger(effect.useLimit.count.value) &&
+            effect.useLimit.count.value >= 1)))
   )
     return true;
   if (
@@ -348,23 +359,73 @@ const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
 
 const isSupportedExtraActionOccurrence = (occurrence: Occurrence) => {
   const effect = occurrence.effect;
+  const onRollResultSupported =
+    effect.trigger !== "on-roll-result" ||
+    ((effect.conditions ?? []).some((condition) => {
+      const candidate = condition as Record<string, unknown>;
+      return (
+        condition.type === "roll-threshold" &&
+        candidate.roll === "attack" &&
+        candidate.comparison === "at-least"
+      );
+    }) &&
+      (effect.conditions ?? []).some((condition) => {
+        const candidate = condition as Record<string, unknown>;
+        const attackRoll = candidate.attackRoll as Record<string, unknown> | undefined;
+        return (
+          condition.type === "move-selector" &&
+          candidate.subject === "source" &&
+          attackRoll?.dice === 1
+        );
+      }));
   return (
     effect.type === "grant-extra-action" &&
     effect.target === "self" &&
-    (effect.trigger === "on-success" ||
+    (effect.trigger === "passive" ||
+      effect.trigger === "on-success" ||
       effect.trigger === "on-stopped" ||
-      (effect.trigger === "action-phase" && occurrence.origin === "move")) &&
+      (effect.trigger === "action-phase" && occurrence.origin === "move") ||
+      effect.trigger === "on-roll-result") &&
+    onRollResultSupported &&
     effect.phase === "action-phase" &&
     (effect.scope === undefined ||
       effect.scope.type === "current-action" ||
       effect.scope.type === "next-turn") &&
     effect.duration === undefined &&
+    (effect.trigger !== "passive" ||
+      (effect.moveCategory === "skill" &&
+        effect.constant === false &&
+        effect.maximumActions?.type === "literal" &&
+        Number.isInteger(effect.maximumActions.value) &&
+        effect.maximumActions.value >= 1 &&
+        effect.scope === undefined)) &&
     effect.activationGroup === undefined &&
     effect.optional !== true &&
     effect.activationCost === undefined &&
     effect.cooldown === undefined &&
     effect.selectionLimit === undefined &&
     effect.stacking === undefined
+  );
+};
+
+const isSupportedCombatOutcomeOccurrence = (occurrence: Occurrence) => {
+  const effect = occurrence.effect;
+  return (
+    effect.type === "grant-combat-outcome" &&
+    effect.trigger === "on-success" &&
+    effect.target === "opponent" &&
+    effect.selector === undefined &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.optional !== true &&
+    effect.activationGroup === undefined &&
+    effect.requireAllDiceSuccess === undefined &&
+    effect.useLimit === undefined &&
+    effect.activationCost === undefined &&
+    effect.stacking === undefined &&
+    effect.selectionLimit === undefined &&
+    effect.cooldown === undefined &&
+    effect.exclusiveActivationGroup === undefined
   );
 };
 
@@ -390,7 +451,9 @@ const isSupportedPendingChoiceOccurrence = (
 ) => {
   const effect = occurrence.effect;
   if (
-    (effect.trigger !== "before-attack-roll" && effect.trigger !== "after-defense-roll") ||
+    (effect.trigger !== "before-attack-roll" &&
+      effect.trigger !== "after-defense-roll" &&
+      effect.trigger !== "on-success") ||
     (effect.target !== "self" && effect.target !== "opponent")
   )
     return false;
@@ -404,6 +467,41 @@ const isSupportedPendingChoiceOccurrence = (
         : candidate.effect.activationGroup === effect.activationGroup),
   );
   if (groupOccurrences.length === 0) return false;
+  if (effect.trigger === "on-success") {
+    const damageReplacement = groupOccurrences.some(
+      (candidate) =>
+        candidate.effect.type === "modify-damage" &&
+        candidate.effect.target === "self" &&
+        candidate.effect.operation === "set" &&
+        candidate.effect.scope?.type === "current-action",
+    );
+    const orangeBurstGroup =
+      damageReplacement &&
+      groupOccurrences.every(
+        (candidate) =>
+          candidate.effect.type === "modify-damage" || candidate.effect.type === "deactivate",
+      );
+    const extraActionGroup =
+      groupOccurrences.some((candidate) => candidate.effect.type === "grant-extra-action") &&
+      groupOccurrences.every((candidate) => {
+        const candidateEffect = candidate.effect;
+        return (
+          (candidateEffect.type === "grant-extra-action" &&
+            candidateEffect.target === "self" &&
+            candidateEffect.phase === "action-phase" &&
+            (candidateEffect.scope === undefined ||
+              candidateEffect.scope.type === "current-action" ||
+              candidateEffect.scope.type === "next-turn") &&
+            candidateEffect.activationCost === undefined) ||
+          (candidateEffect.type === "modify-cost" &&
+            candidateEffect.target === "self" &&
+            candidateEffect.operation === "add" &&
+            candidateEffect.scope?.type === "next-actions" &&
+            candidateEffect.selector === undefined)
+        );
+      });
+    if (!orangeBurstGroup && !extraActionGroup) return false;
+  }
   return groupOccurrences.every(
     (candidate) =>
       candidate.origin !== "item" &&
@@ -480,7 +578,16 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
           allowPendingChoice: pendingChoiceSupported || activationSupported,
         });
   if (effectType === "modify-damage") {
-    if (isSupportedDamageOccurrence(occurrence) && compilation?.ok === true) {
+    const supportedOnSuccessChoice =
+      pendingChoiceSupported &&
+      occurrence.effect.trigger === "on-success" &&
+      occurrence.effect.target === "self" &&
+      occurrence.effect.scope?.type === "current-action" &&
+      occurrence.effect.operation === "set";
+    if (
+      (isSupportedDamageOccurrence(occurrence) || supportedOnSuccessChoice) &&
+      compilation?.ok === true
+    ) {
       return {
         status: "supported-generic" as const,
         capabilityId: "damage-modifier.v1",
@@ -506,7 +613,11 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       approvedExclusion: null,
     };
   }
-  if (effectType === "grant-extra-action" && !isSupportedExtraActionOccurrence(occurrence)) {
+  if (
+    effectType === "grant-extra-action" &&
+    !isSupportedExtraActionOccurrence(occurrence) &&
+    !pendingChoiceSupported
+  ) {
     return {
       status: "unsupported-in-scope" as const,
       capabilityId: null,
@@ -518,7 +629,23 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       approvedExclusion: null,
     };
   }
-  if (effectType === "reroll" && !isSupportedRerollOccurrence(occurrence)) {
+  if (effectType === "grant-combat-outcome" && !isSupportedCombatOutcomeOccurrence(occurrence)) {
+    return {
+      status: "unsupported-in-scope" as const,
+      capabilityId: null,
+      executor: null,
+      focusedCoverage: null,
+      reason:
+        "This combat-outcome variant requires a future-action selector, deferred scope, optionality, or another unsupported lifecycle.",
+      prerequisite: "typed executor accounting and compiled effect-plan validation",
+      approvedExclusion: null,
+    };
+  }
+  if (
+    effectType === "reroll" &&
+    !isSupportedRerollOccurrence(occurrence) &&
+    !pendingChoiceSupported
+  ) {
     return {
       status: "unsupported-in-scope" as const,
       capabilityId: null,
@@ -603,7 +730,7 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-14",
+    generatedAt: "2026-08-21",
     activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
       raceId.slice(5, -1),
     ),

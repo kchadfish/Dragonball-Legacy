@@ -47,6 +47,30 @@ describe("declarative effect executor registry", () => {
     });
   });
 
+  it("compiles current-attack combat outcomes and rejects deferred selectors", () => {
+    for (const [moveId, effectIndex] of [
+      ["move-afterlife-guldo-special", 0],
+      ["move-afterlife-guldo-special", 1],
+      ["move-akaikaru-delta-storm", 0],
+      ["move-midorikatai-breaker-breaker", 0],
+    ] as const) {
+      const { move, effect } = effectAt(moveId, effectIndex);
+      expect(
+        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+        `${moveId}#${effectIndex}`,
+      ).toMatchObject({ ok: true, value: { type: "grant-combat-outcome" } });
+    }
+
+    const deferred = effectAt("move-kiihakai-ki-barbs", 2);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: deferred.move.id,
+        effectIndex: 2,
+        effect: deferred.effect,
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
   it("compiles exact stored rolls and only their faithfully executable immediate consumers", () => {
     for (const moveId of [
       "move-afterlife-solar-flare",
@@ -303,6 +327,16 @@ describe("declarative effect executor registry", () => {
     });
   });
 
+  it("compiles Bloodletter's typed turn-limited resource-event change", () => {
+    const { move, effect } = effectAt("move-kurokonwaku-bloodletter", 0);
+    expect(
+      compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 0, effect }),
+    ).toMatchObject({
+      ok: true,
+      value: { type: "modify-resource", sourceDefinitionId: move.id, effectIndex: 0 },
+    });
+  });
+
   it("compiles Psycho Driver's deferred damage-based resource change", () => {
     const { move, effect } = effectAt("move-kurokonwaku-psycho-driver", 0);
     const compiled = compileEffectPlan({
@@ -364,6 +398,28 @@ describe("declarative effect executor registry", () => {
     });
   });
 
+  it("compiles combat-limited action and upkeep damage modifiers as one generic capability", () => {
+    for (const [moveId, effectIndex] of [
+      ["move-afterlife-special-fighting-pose-1", 0],
+      ["move-midorikatai-war-cry", 0],
+    ] as const) {
+      const { move, effect } = effectAt(moveId, effectIndex);
+      expect(
+        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+        `${moveId}#${effectIndex}`,
+      ).toMatchObject({ ok: true, value: { type: "modify-damage" } });
+    }
+
+    const { move, effect } = effectAt("move-midorikatai-war-cry", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 0,
+        effect: { ...effect, useLimit: { scope: "turn", count: 1, sourceText: "test" } },
+      }),
+    ).toMatchObject({ ok: false, issues: [{ code: "unsupported-variant" }] });
+  });
+
   it("rejects an optional activation-group effect instead of compiling it as automatic work", () => {
     const { move, effect } = effectAt("move-kiihakai-orange-burst", 0);
     const compiled = compileEffectPlan({
@@ -381,6 +437,36 @@ describe("declarative effect executor registry", () => {
         effectIndex: 0,
       }),
     );
+  });
+
+  it("compiles Orange Burst's grouped post-success damage and deactivation effects when enabled", () => {
+    for (const effectIndex of [0, 1] as const) {
+      const { move, effect } = effectAt("move-kiihakai-orange-burst", effectIndex);
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+        `${move.id}#${effectIndex}`,
+      ).toMatchObject({ ok: true });
+    }
+  });
+
+  it("compiles Sixty Second Meltdown's grouped extra-action cost effects when enabled", () => {
+    for (const effectIndex of [0, 1] as const) {
+      const { move, effect } = effectAt("move-kurokonwaku-sixty-second-meltdown", effectIndex);
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+        `${move.id}#${effectIndex}`,
+      ).toMatchObject({ ok: true });
+    }
   });
 
   it("rejects an effect discriminant without a registered executor", () => {
@@ -433,10 +519,19 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true });
 
     const deferred = effectAt("move-aoyosumu-tranquil-strike", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: deferred.move.id,
+        effectIndex: 0,
+        effect: deferred.effect,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const stillPerDie = effectAt("move-kurokonwaku-living-voodoo", 0);
     const rejected = compileEffectPlan({
-      sourceDefinitionId: deferred.move.id,
+      sourceDefinitionId: stillPerDie.move.id,
       effectIndex: 0,
-      effect: deferred.effect,
+      effect: stillPerDie.effect,
     });
     expect(rejected).toMatchObject({ ok: false });
     if (rejected.ok) return;
@@ -491,7 +586,7 @@ describe("declarative effect executor registry", () => {
     expect(immediate).toMatchObject({ ok: false });
   });
 
-  it("compiles durable suppressions and rejects resolution-local variants", () => {
+  it("compiles durable and following-action suppressions", () => {
     const supported = effectAt("move-kurokonwaku-dismissive-kick", 0);
     expect(
       compileEffectPlan({
@@ -510,20 +605,14 @@ describe("declarative effect executor registry", () => {
       }),
     ).toMatchObject({ ok: true });
 
-    const currentResolution = effectAt("move-aoyosumu-breakout", 1);
-    const rejected = compileEffectPlan({
-      sourceDefinitionId: currentResolution.move.id,
-      effectIndex: 1,
-      effect: currentResolution.effect,
-    });
-    expect(rejected).toMatchObject({ ok: false });
-    if (rejected.ok) return;
-    expect(rejected.issues).toContainEqual(
-      expect.objectContaining({
-        code: "unsupported-variant",
-        sourceDefinitionId: currentResolution.move.id,
+    const followingAction = effectAt("move-haokiru-soul-breaker", 3);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: followingAction.move.id,
+        effectIndex: 3,
+        effect: followingAction.effect,
       }),
-    );
+    ).toMatchObject({ ok: true });
 
     const compileVariant = (effect: unknown) =>
       compileEffectPlan({
@@ -540,6 +629,13 @@ describe("declarative effect executor registry", () => {
       compileVariant({
         ...supported.effect,
         scope: { type: "following-action", offset: 2, sourceText: "test" },
+        duration: undefined,
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      compileVariant({
+        ...supported.effect,
+        scope: { type: "following-action", offset: 0, sourceText: "test" },
         duration: undefined,
       }),
     ).toMatchObject({ ok: false });
@@ -624,6 +720,15 @@ describe("declarative effect executor registry", () => {
         sourceDefinitionId: costed.move.id,
         effectIndex: 0,
         effect: costed.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "create-floating-effect" } });
+
+    const solarFlare = effectAt("move-afterlife-solar-flare", 2);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: solarFlare.move.id,
+        effectIndex: 2,
+        effect: solarFlare.effect,
       }),
     ).toMatchObject({ ok: true, value: { type: "create-floating-effect" } });
   });
@@ -743,6 +848,17 @@ describe("declarative effect executor registry", () => {
     }
   });
 
+  it("compiles Critical Mass Master's typed critical on-damage modifier", () => {
+    const { move, effect } = effectAt("move-midorikatai-critical-mass-mastery", 2);
+
+    expect(
+      compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 2, effect }),
+    ).toMatchObject({
+      ok: true,
+      value: { type: "modify-damage", definition: { operation: "multiply" } },
+    });
+  });
+
   it("compiles exact after-defense rerolls and rejects unresolved reroll lifecycles", () => {
     for (const [moveId, effectIndex] of [
       ["move-akaikaru-swift-reaction", 0],
@@ -774,6 +890,61 @@ describe("declarative effect executor registry", () => {
     }
   });
 
+  it("compiles only the exact post-defense critical and counter negation variants", () => {
+    for (const effectIndex of [3, 4]) {
+      const { move, effect } = effectAt("move-kurokonwaku-cancellation-mastery", effectIndex);
+      expect(
+        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+        `${move.id}#${effectIndex}`,
+      ).toMatchObject({ ok: true, value: { type: "negate" } });
+    }
+
+    const stun = effectAt("move-kurokonwaku-cancellation-mastery", 2);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: stun.move.id,
+        effectIndex: 2,
+        effect: stun.effect,
+      }),
+    ).toMatchObject({
+      ok: false,
+      issues: expect.arrayContaining([expect.objectContaining({ code: "unsupported-variant" })]),
+    });
+  });
+
+  it("compiles Display of Endurance's persisted blocked-damage follow-up", () => {
+    const immediate = effectAt("move-haokiru-display-of-endurance", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: immediate.move.id,
+        effectIndex: 0,
+        effect: immediate.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "modify-resource" } });
+
+    const floating = effectAt("move-haokiru-display-of-endurance", 1);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: floating.move.id,
+        effectIndex: 1,
+        effect: floating.effect,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        type: "create-floating-effect",
+        definition: {
+          effects: [
+            expect.objectContaining({
+              type: "modify-resource",
+              amount: { type: "blocked-attack-damage", multiplier: 1 },
+            }),
+          ],
+        },
+      },
+    });
+  });
+
   it("keeps the runtime registry exhaustively named", () => {
     expect(Object.keys(effectExecutorRegistry).sort()).toEqual([
       "activate",
@@ -781,6 +952,7 @@ describe("declarative effect executor registry", () => {
       "create-floating-effect",
       "deactivate",
       "force-action",
+      "grant-combat-outcome",
       "grant-extra-action",
       "lock",
       "modify-cost",

@@ -41,6 +41,8 @@ export interface NumericExpressionContext {
   readonly triggeringMoveOwner?: "self" | "opponent";
   /** Final damage dealt by the current attack when a resource effect consumes it. */
   readonly currentDamage?: number;
+  /** Damage dealt by the attack stopped by the current block resolution. */
+  readonly blockedAttackDamage?: number;
   /** Values selected through a pending declarative numeric choice. */
   readonly selectedNumericValues?: Readonly<Record<string, number>>;
 }
@@ -377,6 +379,16 @@ const durableExpressionHandlers: Partial<
       ? undefined
       : evaluateDurableNumericExpression(cost, moveContext);
   },
+  "triggering-move-ki-cost": (expression, context) => {
+    if (!isType(expression, "triggering-move-ki-cost")) return undefined;
+    const moveContext = triggeringMoveContext(context);
+    const cost = moveContext?.triggeringMove?.mechanics.kiCost;
+    const baseCost =
+      moveContext === undefined || cost === undefined
+        ? undefined
+        : evaluateDurableNumericExpression(cost, moveContext);
+    return baseCost === undefined ? undefined : baseCost + (expression.addition ?? 0);
+  },
   "resource-percent-per-successful-hit": (expression, context) => {
     if (!isType(expression, "resource-percent-per-successful-hit")) return undefined;
     if (context.successfulHitCount === undefined) return undefined;
@@ -415,6 +427,10 @@ const durableExpressionHandlers: Partial<
   },
   "damage-percent": (expression) =>
     isType(expression, "damage-percent") ? expression.percent : undefined,
+  "blocked-attack-damage": (expression, context) =>
+    isType(expression, "blocked-attack-damage") && context.blockedAttackDamage !== undefined
+      ? Math.round(context.blockedAttackDamage * expression.multiplier)
+      : undefined,
   "stat-difference-percent": (expression, context) => {
     if (!isType(expression, "stat-difference-percent")) return undefined;
     if (expression.stat !== "dexterity-bonus") return undefined;

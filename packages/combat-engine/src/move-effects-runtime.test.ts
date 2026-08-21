@@ -33,6 +33,45 @@ const context = {
 };
 
 describe("converted move effects", () => {
+  it("resolves counted next-actions cost modifiers as typed applications", () => {
+    const move = moves.get("move-kurokonwaku-sixty-second-meltdown");
+    if (move === undefined) throw new Error("Expected Sixty Second Meltdown.");
+
+    const effects = moveEffectsForTrigger(move, "on-success", {
+      ...context,
+      triggeringMove: move,
+      rolls: [
+        {
+          attackNaturalResult: 20,
+          attackResult: 20,
+          defenseNaturalResult: 1,
+          defenseResult: 1,
+          outcome: "successful" as const,
+        },
+      ],
+      enabledOptionalEffectIndices: [0, 1],
+    });
+
+    expect(effects.extraActions).toEqual([
+      expect.objectContaining({
+        sourceDefinitionId: move.id,
+        maximumActions: 2,
+        phase: "action",
+        moveCategory: "advanced-attack",
+      }),
+    ]);
+    expect(effects.costModifications).toEqual([
+      {
+        target: "self",
+        operation: "add",
+        amount: -1,
+        minimum: 1,
+        scope: "next-actions",
+        remaining: 2,
+      },
+    ]);
+  });
+
   it("resolves the selected Straining Bodyslam activation group before the attack roll", () => {
     const move = moves.get("move-freestyle-straining-bodyslam");
     if (move === undefined) throw new Error("Expected Straining Bodyslam.");
@@ -378,6 +417,51 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("resolves blocked attack damage only when the block phase supplies it", () => {
+    const display = moves.get("move-haokiru-display-of-endurance");
+    if (display === undefined) throw new Error("Expected Display of Endurance.");
+
+    const stopped = stoppedMoveEffects(display, { ...context, blockedAttackDamage: 7 });
+    expect(stopped.resources).toEqual([
+      expect.objectContaining({ resource: "hp", operation: "lose", amount: 4 }),
+    ]);
+    expect(stopped.floatingEffects).toEqual([
+      expect.objectContaining({
+        floatingEffectId: "display-of-endurance-blocked-damage-heal",
+        blockedAttackDamage: 7,
+      }),
+    ]);
+    const doubleArmCannon = moves.get("move-haokiru-double-arm-cannon");
+    if (doubleArmCannon === undefined) throw new Error("Expected Double Arm Cannon.");
+    expect(
+      successfulMoveEffects(doubleArmCannon, {
+        ...context,
+        includeActiveFloatingEffects: true,
+        activeEffects: [
+          {
+            id: "active-effect:display-endurance-heal" as never,
+            type: "floating-effect",
+            sourceCombatantId: self.id,
+            targetCombatantId: self.id,
+            sourceDefinitionId: display.id,
+            sourceEffectIndex: 1,
+            floatingEffectId: stopped.floatingEffects[0]!.floatingEffectId,
+            effects: stopped.floatingEffects[0]!.effects,
+            termination: stopped.floatingEffects[0]!.termination,
+            scope: { type: "combat" },
+            blockedAttackDamage: 7,
+            createdOnTurn: 5,
+          },
+        ],
+      }).resources,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resource: "hp", operation: "gain", amount: 7 }),
+      ]),
+    );
+    expect(stoppedMoveEffects(display, context).resources).toEqual([]);
+  });
+
   it("retains next-action and next-roll stat scopes as typed applications", () => {
     const naginata = moves.get("move-akaikaru-naginata");
     const dazzlingGymnastics = moves.get("move-akaikaru-dazzling-gymnastics");
@@ -436,6 +520,14 @@ describe("converted move effects", () => {
         target: "opponent",
         aspects: ["successful-effects"],
         duration: { type: "next-actions", remaining: 1 },
+      }),
+    ]);
+    const soulBreaker = moves.get("move-haokiru-soul-breaker");
+    if (soulBreaker === undefined) throw new Error("Expected Soul Breaker data.");
+    expect(moveEffectsForTrigger(soulBreaker, "on-success", context).suppressions).toEqual([
+      expect.objectContaining({
+        aspects: ["successful-effects"],
+        duration: { type: "following-action", remaining: 2 },
       }),
     ]);
 
@@ -550,6 +642,7 @@ describe("converted move effects", () => {
         moveCategory: "advanced-attack",
         sourceMoveOnly: true,
         scope: "current-turn",
+        sourceDefinitionId: "move-akaikaru-chained-strikes",
         useLimit: expect.objectContaining({ scope: "turn", count: 1 }),
         effectIndex: 0,
       },
@@ -672,6 +765,61 @@ describe("converted move effects", () => {
           },
         ],
       }).resolutionPreventions,
+    ).toEqual([]);
+  });
+
+  it("matches a floating bundle only when the current attack targets its retained target", () => {
+    const solarFlare = moves.get("move-afterlife-solar-flare");
+    const triggeringMove = moves.get("move-afterlife-kamehameha");
+    const nestedBundle = solarFlare?.effects?.[2];
+    if (
+      solarFlare === undefined ||
+      triggeringMove === undefined ||
+      nestedBundle?.type !== "create-floating-effect"
+    )
+      throw new Error("Expected Solar Flare's same-target floating bundle.");
+
+    const activeFloating = {
+      id: "active-effect:solar-flare-same-target" as never,
+      type: "floating-effect" as const,
+      sourceCombatantId: self.id,
+      targetCombatantId: opponent.id,
+      sourceDefinitionId: solarFlare.id,
+      sourceEffectIndex: 2,
+      floatingEffectId: nestedBundle.floatingEffectId,
+      effects: nestedBundle.effects ?? [],
+      termination: [],
+      scope: { type: "next-action" as const },
+      createdOnTurn: context.turnNumber,
+    };
+    const currentAction = {
+      type: "use-move" as const,
+      decisionId: "decision:solar-flare-same-target" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: triggeringMove.id,
+      turnNumber: context.turnNumber,
+      phase: "action" as const,
+    };
+
+    expect(
+      moveEffectsForTrigger(solarFlare, "before-attack-roll", {
+        ...context,
+        triggeringMove,
+        currentAction,
+        activeEffects: [activeFloating],
+        includeActiveFloatingEffects: true,
+      }).rollDefinitions,
+    ).toEqual([expect.objectContaining({ target: "self", sides: 35 })]);
+
+    expect(
+      moveEffectsForTrigger(solarFlare, "before-attack-roll", {
+        ...context,
+        triggeringMove,
+        currentAction: { ...currentAction, targetCombatantId: self.id },
+        activeEffects: [activeFloating],
+        includeActiveFloatingEffects: true,
+      }).rollDefinitions,
     ).toEqual([]);
   });
 
@@ -1108,7 +1256,14 @@ describe("converted move effects", () => {
     ]);
     expect(
       moveEffectsForTrigger(criticalMass, "on-damage", responseContext).damageModifications,
-    ).toEqual([]);
+    ).toEqual([
+      expect.objectContaining({
+        operation: "multiply",
+        amount: 150,
+        basis: "damage-percent",
+        target: "opponent",
+      }),
+    ]);
     expect(
       moveEffectsForTrigger(muscleInfusion, "on-damage", responseContext).damageModifications,
     ).toEqual([]);
@@ -1407,7 +1562,8 @@ describe("converted move effects", () => {
   it("emits converted successful resource and status changes when their condition matches", () => {
     const lightGrenade = moves.get("move-afterlife-light-grenade");
     const meteorSmash = moves.get("move-afterlife-meteor-smash");
-    if (lightGrenade === undefined || meteorSmash === undefined)
+    const breakerBreaker = moves.get("move-midorikatai-breaker-breaker");
+    if (lightGrenade === undefined || meteorSmash === undefined || breakerBreaker === undefined)
       throw new Error("Expected move data.");
 
     expect(successfulMoveEffects(lightGrenade, context).resources).toEqual([
@@ -1426,6 +1582,17 @@ describe("converted move effects", () => {
         status: expect.objectContaining({ statusId: "stun" }),
       }),
     ]);
+    expect(successfulMoveEffects(breakerBreaker, { ...context, turnNumber: 1 }).statuses).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        status: expect.objectContaining({
+          statusId: "break",
+          sourceDefinitionId: breakerBreaker.id,
+          duration: expect.objectContaining({ type: "turns", remaining: 1 }),
+        }),
+      }),
+    ]);
+    expect(successfulMoveEffects(breakerBreaker, context).statuses).toEqual([]);
   });
 
   it("emits typed current-attack result overrides without executing source prose", () => {
