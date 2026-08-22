@@ -53,6 +53,117 @@ describe("combat capability matrix", () => {
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
   });
 
+  it("classifies the exact Flashback copied attack through the generic executor", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-kurokonwaku-flashback" &&
+        candidate.effectType === "copy-move-effect",
+    );
+
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "copy-move-effect.v1",
+      executor: "copied-attack-action",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+    });
+  });
+
+  it("classifies the stopped-fraction lock while retaining Anger's unsupported source cost", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-freestyle-anger-manipulation",
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        effectIndex: 1,
+        status: "supported-generic",
+        capabilityId: "lock.v1",
+        executor: "action-lock",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        effectIndex: 0,
+        status: "unsupported-in-scope",
+        reason: expect.stringContaining("source-move-ki-cost"),
+      }),
+    );
+  });
+
+  it("classifies Energy Slasher's next-turn resource schedule through the generic executor", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-kiihakai-energy-slasher" &&
+        candidate.effectIndex === 0,
+    );
+
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "modify-resource.v1",
+      executor: "resource-change",
+      focusedCoverage: "progress-fight.test.ts",
+    });
+  });
+
+  it("classifies both Ki Barbs alternatives through the pending damage executor", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.sourceDefinitionId === "move-kiihakai-ki-barbs",
+    );
+
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        effectIndex: 0,
+        status: "supported-generic",
+        capabilityId: "damage-modifier.v1",
+        executor: "damage-modifier",
+        focusedCoverage: "basic-attack.test.ts, progress-fight.test.ts",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        effectIndex: 1,
+        status: "supported-generic",
+        capabilityId: "damage-modifier.v1",
+        executor: "damage-modifier",
+        focusedCoverage: "basic-attack.test.ts, progress-fight.test.ts",
+      }),
+    );
+  });
+
+  it("classifies Channeling Master's optional Signature cost through the pending cost executor", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-haokiru-channeling-mastery" &&
+        candidate.effectIndex === 3,
+    );
+
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "modify-cost.v1",
+      executor: "cost-modifier",
+      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    });
+  });
+
+  it("classifies Creationist's exclusive cost-modified alternatives through the pending cost executor", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-haokiru-creationist" &&
+        candidate.effectIndex !== undefined,
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.every(
+        (row) =>
+          row.status === "supported-generic" &&
+          row.capabilityId === "modify-cost.v1" &&
+          row.executor === "cost-modifier",
+      ),
+    ).toBe(true);
+  });
+
   it("classifies after-defense per-die combat-result reactions through the generic executor", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) => row.effectType === "set-combat-result",
@@ -249,7 +360,9 @@ describe("combat capability matrix", () => {
       ]),
     );
     expect(rows.find((row) => row.effectIndex === 2)).toMatchObject({
-      status: "unsupported-in-scope",
+      status: "supported-generic",
+      capabilityId: "negate.v1",
+      executor: "negation",
     });
   });
 
@@ -496,7 +609,7 @@ describe("combat capability matrix", () => {
         row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(5);
     expect(
       rows.every(
         (row) =>
@@ -598,8 +711,8 @@ describe("combat capability matrix", () => {
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
     expect(rows).toHaveLength(19);
-    expect(supported).toHaveLength(14);
-    expect(unsupported).toHaveLength(5);
+    expect(supported).toHaveLength(16);
+    expect(unsupported).toHaveLength(3);
     expect(
       supported.every(
         (row) =>
@@ -630,6 +743,22 @@ describe("combat capability matrix", () => {
         (row) =>
           row.sourceDefinitionId === "move-aoyosumu-technique-mastery" &&
           row.trigger === "passive" &&
+          row.executor === "extra-action-scheduler",
+      ),
+    ).toBe(true);
+    expect(
+      supported.some(
+        (row) =>
+          row.sourceDefinitionId === "move-afterlife-destructo-disc" &&
+          row.scope === "next-turn" &&
+          row.executor === "extra-action-scheduler",
+      ),
+    ).toBe(true);
+    expect(
+      supported.some(
+        (row) =>
+          row.sourceDefinitionId === "move-aoyosumu-sky-dance-technique" &&
+          row.scope === "next-turn" &&
           row.executor === "extra-action-scheduler",
       ),
     ).toBe(true);

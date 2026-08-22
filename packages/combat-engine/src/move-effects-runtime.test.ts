@@ -72,6 +72,139 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("resolves Channeling Mastery's selected Signature cost and typed HP activation", () => {
+    const mastery = moves.get("move-haokiru-channeling-mastery");
+    const triggeringMove = moves.get("move-afterlife-spirit-bomb");
+    if (mastery === undefined || triggeringMove === undefined)
+      throw new Error("Expected Channeling Mastery and Spirit Bomb.");
+
+    const effects = moveEffectsForTrigger(mastery, "on-move-use", {
+      ...context,
+      triggeringMove,
+      triggeringMoveOwner: "self",
+      activeEffects: [],
+      enabledOptionalEffectIndices: [3],
+    });
+
+    expect(effects.currentActionCostModifications).toEqual([
+      {
+        target: "self",
+        operation: "add",
+        amount: -3,
+        minimum: 3,
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "signature",
+          sourceText: "When you perform a Signature Technique",
+        },
+        sourceDefinitionId: mastery.id,
+        sourceEffectIndex: 3,
+        sourceCombatantId: self.id,
+        activationCost: { resource: "hp", amount: 5 },
+      },
+    ]);
+  });
+
+  it("normalizes grouped Rollback Barrage reactivation into a bounded application", () => {
+    const rollback = moves.get("move-kiihakai-rollback-barrage");
+    if (rollback === undefined) throw new Error("Expected Rollback Barrage.");
+
+    const effects = moveEffectsForTrigger(rollback, "on-success", {
+      ...context,
+      successfulHitCount: 5,
+      enabledOptionalEffectIndices: [0],
+    });
+
+    expect(effects.activations).toEqual([
+      expect.objectContaining({
+        selector: expect.objectContaining({ category: "skill", constant: true }),
+        selectionLimit: 2,
+        reactivationOnly: true,
+        optional: true,
+      }),
+    ]);
+  });
+
+  it("emits a typed source move-removal application without interpreting source prose", () => {
+    const move = moves.get("move-freestyle-nullifying-sphere");
+    if (move === undefined) throw new Error("Expected Nullifying Sphere.");
+
+    const effects = moveEffectsForTrigger(move, "action-phase", {
+      ...context,
+      self: { ...self, moveIds: [move.id, "move-afterlife-spirit-bomb"] },
+      opponent: { ...opponent, moveIds: ["move-afterlife-spirit-bomb"] },
+    });
+
+    expect(effects.moveRemovals).toEqual([{ target: "self", move: "source", effectIndex: 0 }]);
+  });
+
+  it("serializes Creationist's exclusive on-cost-modified alternatives", () => {
+    const creationist = moves.get("move-haokiru-creationist");
+    const triggeringMove = moves.get("move-haokiru-focused-spirit-cutter");
+    if (creationist === undefined || triggeringMove === undefined)
+      throw new Error("Expected Creationist and a Haokiru cost-modified attack.");
+
+    const pending = moveEffectsForTrigger(creationist, "on-cost-modified", {
+      ...context,
+      triggeringMove,
+      triggeringMoveOwner: "self",
+      collectPendingChoices: true,
+    });
+    expect(pending.pendingEffectChoices.map((choice) => choice.effectIndices)).toEqual([[0], [1]]);
+
+    expect(
+      moveEffectsForTrigger(creationist, "on-cost-modified", {
+        ...context,
+        triggeringMove,
+        triggeringMoveOwner: "self",
+        enabledOptionalEffectIndices: [0],
+      }).currentActionCostModifications,
+    ).toEqual([expect.objectContaining({ operation: "add", amount: 0, minimum: 0 })]);
+    expect(
+      moveEffectsForTrigger(creationist, "on-cost-modified", {
+        ...context,
+        triggeringMove,
+        triggeringMoveOwner: "self",
+        enabledOptionalEffectIndices: [1],
+      }).currentActionCostModifications,
+    ).toEqual([expect.objectContaining({ operation: "add", amount: -1 })]);
+  });
+
+  it("resolves source-aware prior activation and calculated-cost modifiers", () => {
+    const shadowStalker = moves.get("move-kurokonwaku-shadow-stalker");
+    const impulsive = moves.get("move-akaikaru-impulsive");
+    const sweetDreams = moves.get("move-kurokonwaku-sweet-dreams");
+    if (shadowStalker === undefined || impulsive === undefined || sweetDreams === undefined)
+      throw new Error("Expected source-aware cost test moves.");
+
+    expect(
+      moveEffectsForTrigger(shadowStalker, "passive", {
+        ...context,
+        self: { ...self, moveUses: { [shadowStalker.id]: 2 } },
+      }).currentActionCostModifications,
+    ).toEqual([expect.objectContaining({ operation: "add", amount: 2, target: "self" })]);
+
+    expect(
+      moveEffectsForTrigger(impulsive, "on-move-use", {
+        ...context,
+        self: { ...self, moveUses: { [impulsive.id]: 3 } },
+        triggeringMove: impulsive,
+        triggeringMoveOwner: "self",
+      }).currentActionCostModifications,
+    ).toEqual([expect.objectContaining({ operation: "add", amount: 6, target: "self" })]);
+
+    expect(
+      moveEffectsForTrigger(sweetDreams, "passive", {
+        ...context,
+        triggeringMove: sweetDreams,
+        triggeringMoveOwner: "self",
+      }).currentActionCostModifications,
+    ).toEqual([
+      expect.objectContaining({ operation: "set", amount: 4, minimum: 3, target: "self" }),
+    ]);
+  });
+
   it("resolves the selected Straining Bodyslam activation group before the attack roll", () => {
     const move = moves.get("move-freestyle-straining-bodyslam");
     if (move === undefined) throw new Error("Expected Straining Bodyslam.");
@@ -219,6 +352,60 @@ describe("converted move effects", () => {
         status: expect.objectContaining({ statusId: "stun" }),
       }),
     ]);
+  });
+
+  it("reindexes stored move selections and gates Impulsive modifiers to the selected move", () => {
+    const impulsive = moves.get("move-akaikaru-impulsive");
+    const backBrainKick = moves.get("move-akaikaru-back-brain-kick");
+    const backflipKick = moves.get("move-akaikaru-backflip-kick");
+    if (impulsive === undefined || backBrainKick === undefined || backflipKick === undefined)
+      throw new Error("Expected Impulsive selection moves.");
+
+    const upkeepEffects = moveEffectsForTrigger(impulsive, "upkeep-phase", {
+      ...context,
+      self: {
+        ...self,
+        moveIds: [impulsive.id, backBrainKick.id, backflipKick.id],
+      },
+    });
+    expect(upkeepEffects.storedMoveSelectionRequests).toEqual([
+      {
+        target: "self",
+        sourceDefinitionId: impulsive.id,
+        effectIndex: 1,
+        storageKey: "impulsive-advanced-attack-index",
+        selectionKey: "impulsive-selected-advanced-attack",
+        selector: expect.objectContaining({ category: "advanced-attack" }),
+        ordering: "character-sheet-top-to-bottom",
+        reindex: "on-moveset-change",
+      },
+    ]);
+
+    const selectedContext = {
+      ...context,
+      self: {
+        ...self,
+        moveIds: [impulsive.id, backBrainKick.id, backflipKick.id],
+        storedMoveSelections: {
+          "impulsive-selected-advanced-attack": {
+            sourceDefinitionId: impulsive.id,
+            selectionKey: "impulsive-selected-advanced-attack",
+            moveId: backflipKick.id,
+            selectedOnTurn: context.turnNumber,
+          },
+        },
+      },
+      triggeringMove: backflipKick,
+    };
+    expect(
+      moveEffectsForTrigger(impulsive, "passive", selectedContext).damageModifications,
+    ).toEqual([expect.objectContaining({ amount: 2, operation: "add", basis: "power-percent" })]);
+    expect(
+      moveEffectsForTrigger(impulsive, "passive", {
+        ...selectedContext,
+        triggeringMove: backBrainKick,
+      }).damageModifications,
+    ).toEqual([]);
   });
 
   it("resolves reroll applications with dynamic limits and typed bonuses", () => {
@@ -400,6 +587,59 @@ describe("converted move effects", () => {
     expect(successfulMoveEffects(rapture, { ...context, currentDamage: 15 }).resources).toEqual([
       expect.objectContaining({ resource: "hp", amount: 4 }),
     ]);
+  });
+
+  it("applies a stopped-fraction lock only when the persisted attack rolls cross the strict half boundary", () => {
+    const anger = moves.get("move-freestyle-anger-manipulation");
+    const firestorm = moves.get("move-akaikaru-firestorm");
+    if (anger === undefined || firestorm === undefined)
+      throw new Error("Expected Anger Manipulation test moves.");
+
+    const stoppedRolls = [
+      { attackNaturalResult: 10, attackResult: 10, outcome: "stopped" as const },
+      { attackNaturalResult: 11, attackResult: 11, outcome: "stopped" as const },
+      { attackNaturalResult: 12, attackResult: 12, outcome: "successful" as const },
+    ];
+    expect(
+      stoppedMoveEffects(anger, {
+        ...context,
+        triggeringMove: firestorm,
+        triggeringMoveOwner: "self",
+        rolls: stoppedRolls,
+      }).locks,
+    ).toEqual([
+      expect.objectContaining({
+        target: "self",
+        affectedType: "attack",
+        duration: { type: "turns", remaining: 1 },
+      }),
+    ]);
+
+    expect(
+      stoppedMoveEffects(anger, {
+        ...context,
+        triggeringMove: firestorm,
+        triggeringMoveOwner: "self",
+        rolls: [
+          stoppedRolls[0]!,
+          { ...stoppedRolls[1]!, outcome: "successful" as const },
+          stoppedRolls[2]!,
+        ],
+      }).locks,
+    ).toEqual([]);
+    expect(
+      stoppedMoveEffects(anger, {
+        ...context,
+        triggeringMove: firestorm,
+        triggeringMoveOwner: "self",
+        rolls: [
+          stoppedRolls[0]!,
+          stoppedRolls[1]!,
+          { ...stoppedRolls[2]!, outcome: "blocked" as const },
+          { attackNaturalResult: 13, attackResult: 13, outcome: "successful" as const },
+        ],
+      }).locks,
+    ).toEqual([]);
   });
 
   it("resolves typed stat modifiers without interpreting source prose", () => {
@@ -644,6 +884,36 @@ describe("converted move effects", () => {
         scope: "current-turn",
         sourceDefinitionId: "move-akaikaru-chained-strikes",
         useLimit: expect.objectContaining({ scope: "turn", count: 1 }),
+        effectIndex: 0,
+      },
+    ]);
+  });
+
+  it("dispatches a next-turn upkeep extra action with its declared phase", () => {
+    const destructoDisc = moves.get("move-afterlife-destructo-disc");
+    if (destructoDisc === undefined) throw new Error("Expected Destructo Disc data.");
+
+    expect(
+      moveEffectsForTrigger(destructoDisc, "on-success", {
+        ...context,
+        rolls: [
+          {
+            attackNaturalResult: 20,
+            attackResult: 20,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "successful",
+          },
+        ],
+      }).extraActions,
+    ).toEqual([
+      {
+        target: "self",
+        phase: "upkeep",
+        moveCategory: "power-up",
+        sourceMoveOnly: false,
+        scope: "next-turn",
+        sourceDefinitionId: "move-afterlife-destructo-disc",
         effectIndex: 0,
       },
     ]);

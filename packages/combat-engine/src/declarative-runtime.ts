@@ -31,6 +31,8 @@ export interface NumericExpressionContext {
   readonly activeEffects?: readonly ActiveCombatEffect[];
   readonly moves: ReadonlyMap<string, MoveDefinition>;
   readonly moveActivationCounts?: ReadonlyMap<string, number>;
+  /** The declarative move whose numeric effect is being resolved. */
+  readonly sourceMoveId?: string;
   readonly paidActivationCost?: number;
   /** Dice and move context for expressions owned by the current resolution phase. */
   readonly rolls?: readonly {
@@ -282,9 +284,28 @@ const durableExpressionHandlers: Partial<
     isType(expression, "move-activation-count")
       ? (context.moveActivationCounts?.get(expression.moveId) ?? 0) * expression.perActivation
       : undefined,
+  "prior-move-activation-count": (expression, context) => {
+    if (!isType(expression, "prior-move-activation-count")) return undefined;
+    if (expression.move !== "source" || context.sourceMoveId === undefined) return undefined;
+    return (context.self.moveUses[context.sourceMoveId] ?? 0) * expression.perActivation;
+  },
+  "source-move-calculated-ki-cost": (expression, context) => {
+    if (!isType(expression, "source-move-calculated-ki-cost")) return undefined;
+    if (context.sourceMoveId === undefined) return undefined;
+    const sourceMove = context.moves.get(context.sourceMoveId);
+    const kiCost = sourceMove?.mechanics.kiCost;
+    return kiCost === undefined ? undefined : evaluateDurableNumericExpression(kiCost, context);
+  },
   "successful-hit-count": (expression, context) =>
     isType(expression, "successful-hit-count") && context.successfulHitCount !== undefined
       ? context.successfulHitCount * (expression.perHit ?? 1)
+      : undefined,
+  "successful-hit-count-groups": (expression, context) =>
+    isType(expression, "successful-hit-count-groups") &&
+    context.successfulHitCount !== undefined &&
+    Number.isInteger(expression.groupSize) &&
+    expression.groupSize >= 1
+      ? Math.floor(context.successfulHitCount / expression.groupSize)
       : undefined,
   "consecutive-combat-results": (expression, context) =>
     isType(expression, "consecutive-combat-results")

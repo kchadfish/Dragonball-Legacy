@@ -68,6 +68,14 @@ export interface StoredRoll {
   readonly storedOnTurn: number;
 }
 
+/** A move selected from a retained declarative roll for later effect conditions. */
+export interface StoredMoveSelection {
+  readonly sourceDefinitionId: MoveId;
+  readonly selectionKey: string;
+  readonly moveId: MoveId;
+  readonly selectedOnTurn: number;
+}
+
 export interface CombatantState {
   readonly id: CombatantId;
   readonly hitPoints: CombatResources;
@@ -84,6 +92,8 @@ export interface CombatantState {
   readonly moveUseLimitModifiers?: Readonly<Record<MoveId, number>>;
   /** Combat-local named rolls; a later roll with the same key replaces the prior value. */
   readonly storedRolls?: Readonly<Record<string, StoredRoll>>;
+  /** Combat-local named move selections; a later selection with the same key replaces the prior value. */
+  readonly storedMoveSelections?: Readonly<Record<string, StoredMoveSelection>>;
   /** Per-fight consumption counts for combat-usable inventory items. */
   readonly itemUses?: Readonly<Record<ItemId, number>>;
   readonly activeStatuses: readonly ActiveStatus[];
@@ -176,7 +186,7 @@ export interface PendingDecisionOption {
   readonly combatResultNegation?: {
     readonly sourceDefinitionId: MoveId;
     readonly sourceEffectIndex: number;
-    readonly outcome: "critical" | "counter";
+    readonly outcome: "stun" | "critical" | "counter";
   };
   readonly selectedNumericValue?: number;
 }
@@ -470,6 +480,7 @@ export interface ActiveForcedActionEffect {
   readonly allowedTags?: readonly string[];
   readonly allowPass: boolean;
   readonly fallback?: "basic-attack";
+  readonly selectedMoveStorageKey?: string;
 }
 
 /** A durable restriction on the target's choices during one or more future turns. */
@@ -738,6 +749,19 @@ export interface ActiveScheduledResourceEffect {
   };
 }
 
+/** A move removed from a combatant's current combat-local moveset. */
+export interface ActiveMoveRemovalEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "remove-move-from-combat";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly moveId: MoveId;
+  readonly removedFromIndex: number;
+  readonly duration: "combat";
+}
+
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
@@ -760,7 +784,8 @@ export type ActiveCombatEffect =
   | ActiveConstantEffect
   | ActiveFloatingEffect
   | ActiveExtraActionEffect
-  | ActiveScheduledResourceEffect;
+  | ActiveScheduledResourceEffect
+  | ActiveMoveRemovalEffect;
 
 /**
  * A completed player action, retained as minimal rule-relevant history rather
@@ -823,6 +848,15 @@ export type CombatActionRecord =
  * Serializable suspended work. Concrete stages are intentionally narrow and
  * will be widened only by the attack, counter, and effect-resolution slices.
  */
+export interface CopiedMoveAttackReference {
+  readonly type: "move";
+  readonly moveId: MoveId;
+  /** The immutable source move snapshot used to reconstruct a copied attack. */
+  readonly copiedFromMoveId?: MoveId;
+  /** The declarative additive Power percentage applied by the copying move. */
+  readonly copiedDamageBonusPercent?: number;
+}
+
 export type ResolutionFrame =
   | {
       readonly id: ResolutionFrameId;
@@ -844,9 +878,13 @@ export type ResolutionFrame =
       readonly pendingDecisionId: PendingDecisionId;
       readonly attack:
         | { readonly type: "basic-attack"; readonly basicAttack: BasicAttackType }
-        | { readonly type: "move"; readonly moveId: MoveId };
+        | CopiedMoveAttackReference;
       readonly enabledOptionalEffectIndices?: readonly number[];
       readonly resolvedOptionalEffectIndices?: readonly number[];
+      /** Selected on-move-use cost listener source and effects, retained through defense. */
+      readonly costEffectSourceDefinitionId?: MoveId;
+      readonly costEffectIndices?: readonly number[];
+      readonly costEffectTrigger?: "on-move-use" | "on-cost-modified";
     }
   | {
       readonly id: ResolutionFrameId;
@@ -861,7 +899,7 @@ export type ResolutionFrame =
       readonly reactionCombatantId: CombatantId;
       readonly attack:
         | { readonly type: "basic-attack"; readonly basicAttack: BasicAttackType }
-        | { readonly type: "move"; readonly moveId: MoveId };
+        | CopiedMoveAttackReference;
       /** All rolled dice are persisted before an after-roll reaction can modify resolution. */
       readonly naturalRolls: readonly { readonly attack: number; readonly defense: number }[];
       /** Declarative after-defense effects resolved from the persisted roll results. */
@@ -880,13 +918,18 @@ export type ResolutionFrame =
       readonly returnPhase: "action" | "counter";
       readonly stage: "awaiting-effect-choice";
       readonly pendingDecisionId: PendingDecisionId;
-      readonly attack: { readonly type: "move"; readonly moveId: MoveId };
+      readonly attack: CopiedMoveAttackReference;
       readonly effectIndices: readonly number[];
+      /** Alternative effect-index sets for an exclusive activation group. */
+      readonly effectAlternatives?: readonly (readonly number[])[];
       readonly resolvedEffectIndices: readonly number[];
       readonly enabledEffectIndices: readonly number[];
+      /** Source move for a selected cost listener that is not the attack move. */
+      readonly effectSourceDefinitionId?: MoveId;
       readonly selectedNumericValues?: Readonly<Record<string, number>>;
       /** The trigger whose grouped effects are awaiting the acting player's choice. */
-      readonly effectTrigger?: "before-attack-roll" | "on-success";
+      readonly effectTrigger?:
+        "before-attack-roll" | "on-success" | "on-move-use" | "on-cost-modified";
       /** Natural rolls are retained when the choice occurs after the attack roll. */
       readonly naturalRolls?: readonly { readonly attack: number; readonly defense?: number }[];
       readonly blockedDice?: number;
@@ -914,6 +957,18 @@ export type ResolutionFrame =
     }
   | {
       readonly id: ResolutionFrameId;
+      readonly type: "effect-choice";
+      readonly decisionId: CombatDecisionId;
+      readonly actorId: CombatantId;
+      readonly targetCombatantId: CombatantId;
+      readonly returnPhase: "end";
+      readonly pendingDecisionId: PendingDecisionId;
+      readonly sourceDefinitionId: MoveId;
+      readonly effectIndices: readonly number[];
+      readonly effectTrigger: "on-power-up";
+    }
+  | {
+      readonly id: ResolutionFrameId;
       readonly type: "effect";
       readonly sourceCombatantId: CombatantId;
       readonly targetCombatantId: CombatantId;
@@ -928,6 +983,8 @@ export type ResolutionFrame =
       readonly remainingSelections?: number;
       /** Whether this serialized selection may be declined by its acting combatant. */
       readonly optional?: boolean;
+      /** Whether activation choices must reuse constants in the deactivated lifecycle. */
+      readonly reactivationOnly?: boolean;
     };
 
 interface FightStateBase {
@@ -1251,6 +1308,23 @@ export interface RollStoredEvent extends CombatEventBase {
   readonly sides: number;
 }
 
+/** A deterministic move selection retained from a declarative stored roll. */
+export interface MoveSelectionUpdatedEvent extends CombatEventBase {
+  readonly type: "move-selection-updated";
+  readonly combatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly storageKey: string;
+  readonly selectionKey: string;
+  readonly moveId?: MoveId;
+}
+
+export interface MoveRemovedFromCombatEvent extends CombatEventBase {
+  readonly type: "move-removed-from-combat";
+  readonly combatantId: CombatantId;
+  readonly moveId: MoveId;
+  readonly activeEffectId: ActiveEffectId;
+}
+
 export interface StatusAppliedEvent extends CombatEventBase {
   readonly type: "status-applied";
   readonly sourceCombatantId: CombatantId;
@@ -1345,6 +1419,8 @@ export type CombatEvent =
   | EffectNegatedEvent
   | EffectRolledEvent
   | RollStoredEvent
+  | MoveSelectionUpdatedEvent
+  | MoveRemovedFromCombatEvent
   | StatusAppliedEvent
   | StatusRemovedEvent
   | TransformationActivatedEvent

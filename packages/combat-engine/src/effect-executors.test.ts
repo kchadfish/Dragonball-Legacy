@@ -47,6 +47,53 @@ describe("declarative effect executor registry", () => {
     });
   });
 
+  it("compiles Rollback Barrage's grouped reactivation variant", () => {
+    const { move, effect } = effectAt("move-kiihakai-rollback-barrage", 0);
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: 0,
+      effect,
+      allowPendingChoice: true,
+    });
+
+    expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
+  });
+
+  it("compiles only the exact last-unrestricted copied attack variant", () => {
+    const flashback = firstEffectOfType("move-kurokonwaku-flashback", "copy-move-effect");
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: flashback.move.id,
+        effectIndex: flashback.move.effects!.indexOf(flashback.effect),
+        effect: flashback.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "copy-move-effect" } });
+
+    const followUp = firstEffectOfType("move-akaikaru-follow-up", "copy-move-effect");
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: followUp.move.id,
+      effectIndex: followUp.move.effects!.indexOf(followUp.effect),
+      effect: followUp.effect,
+    });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok)
+      expect(rejected.issues.some((issue) => issue.code === "unsupported-variant")).toBe(true);
+  });
+
+  it("compiles Anger Manipulation's stopped-fraction lock while preserving its unresolved cost", () => {
+    const anger = moveWithId("move-freestyle-anger-manipulation");
+    const lock = anger.effects?.[1];
+    const resource = anger.effects?.[0];
+    if (lock === undefined || resource === undefined) throw new Error("Missing Anger effects.");
+
+    expect(
+      compileEffectPlan({ sourceDefinitionId: anger.id, effectIndex: 1, effect: lock }),
+    ).toMatchObject({ ok: true, value: { type: "lock" } });
+    expect(
+      compileEffectPlan({ sourceDefinitionId: anger.id, effectIndex: 0, effect: resource }),
+    ).toMatchObject({ ok: false });
+  });
+
   it("compiles current-attack combat outcomes and rejects deferred selectors", () => {
     for (const [moveId, effectIndex] of [
       ["move-afterlife-guldo-special", 0],
@@ -89,6 +136,7 @@ describe("declarative effect executor registry", () => {
     for (const [moveId, effectIndex] of [
       ["move-afterlife-solar-flare", 1],
       ["move-haokiru-healing-ray", 4],
+      ["move-akaikaru-impulsive", 1],
     ] as const) {
       const { move, effect } = effectAt(moveId, effectIndex);
       expect(compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect })).toMatchObject(
@@ -113,6 +161,27 @@ describe("declarative effect executor registry", () => {
         effect: initialSkip.effect,
       }),
     ).toMatchObject({ ok: true, value: { type: "skip-action" } });
+  });
+
+  it("compiles source move removal and rejects selector-driven target removal", () => {
+    const source = effectAt("move-freestyle-nullifying-sphere", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: source.move.id,
+        effectIndex: 0,
+        effect: source.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "remove-move-from-combat" } });
+
+    const selected = effectAt("move-freestyle-straining-concussion-wave", 1);
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: selected.move.id,
+      effectIndex: 1,
+      effect: selected.effect,
+    });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok)
+      expect(rejected.issues.some((issue) => issue.code === "requires-pending-choice")).toBe(true);
   });
 
   it("compiles exact future-turn action restrictions and rejects choice or turn-end lifecycles", () => {
@@ -268,6 +337,77 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "modify-resource" } });
   });
 
+  it("compiles each Ki Barbs damage alternative only when pending choice is explicit", () => {
+    const move = moveWithId("move-kiihakai-ki-barbs");
+    for (const effectIndex of [0, 1]) {
+      const effect = move.effects?.[effectIndex];
+      if (effect === undefined) throw new Error(`Missing Ki Barbs effect ${effectIndex}.`);
+      const rejected = compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex,
+        effect,
+      });
+      expect(rejected.ok).toBe(false);
+      if (!rejected.ok)
+        expect(rejected.issues.some((issue) => issue.code === "requires-pending-choice")).toBe(
+          true,
+        );
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+      ).toMatchObject({ ok: true, value: { type: "modify-damage" } });
+    }
+  });
+
+  it("compiles Channeling Mastery's optional Signature cost choice only with pending state", () => {
+    const move = moveWithId("move-haokiru-channeling-mastery");
+    const effect = move.effects?.[3];
+    if (effect === undefined) throw new Error("Missing Channeling Mastery cost effect.");
+
+    const rejected = compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 3, effect });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok)
+      expect(rejected.issues.some((issue) => issue.code === "requires-pending-choice")).toBe(true);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 3,
+        effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "modify-cost" } });
+  });
+
+  it("compiles Creationist's exclusive cost-modified alternatives only with pending state", () => {
+    const move = moveWithId("move-haokiru-creationist");
+    for (const effectIndex of [0, 1]) {
+      const effect = move.effects?.[effectIndex];
+      if (effect === undefined) throw new Error(`Missing Creationist effect ${effectIndex}.`);
+      const rejected = compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex,
+        effect,
+      });
+      expect(rejected.ok).toBe(false);
+      if (!rejected.ok)
+        expect(rejected.issues.some((issue) => issue.code === "requires-pending-choice")).toBe(
+          true,
+        );
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+      ).toMatchObject({ ok: true, value: { type: "modify-cost" } });
+    }
+  });
+
   it("compiles floating bundles with an attack roll threshold duration", () => {
     const supported = effectAt("move-kiihakai-the-rising-sun", 0);
     expect(
@@ -329,6 +469,16 @@ describe("declarative effect executor registry", () => {
 
   it("compiles Bloodletter's typed turn-limited resource-event change", () => {
     const { move, effect } = effectAt("move-kurokonwaku-bloodletter", 0);
+    expect(
+      compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 0, effect }),
+    ).toMatchObject({
+      ok: true,
+      value: { type: "modify-resource", sourceDefinitionId: move.id, effectIndex: 0 },
+    });
+  });
+
+  it("compiles Energy Slasher's durable next-turn power-up resource change", () => {
+    const { move, effect } = effectAt("move-kiihakai-energy-slasher", 0);
     expect(
       compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 0, effect }),
     ).toMatchObject({
@@ -733,7 +883,7 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "create-floating-effect" } });
   });
 
-  it("compiles same-turn source-move extra actions and rejects scheduled variants", () => {
+  it("compiles same-turn and next-turn upkeep extra actions", () => {
     const supported = effectAt("move-akaikaru-chained-strikes", 0);
     expect(
       compileEffectPlan({
@@ -744,16 +894,24 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true });
 
     const scheduled = effectAt("move-afterlife-destructo-disc", 0);
-    const rejected = compileEffectPlan({
+    const compiledScheduled = compileEffectPlan({
       sourceDefinitionId: scheduled.move.id,
       effectIndex: 0,
       effect: scheduled.effect,
     });
-    expect(rejected).toMatchObject({ ok: false });
-    if (rejected.ok) return;
-    expect(rejected.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "unsupported-variant" })]),
-    );
+    expect(compiledScheduled).toMatchObject({
+      ok: true,
+      value: { type: "grant-extra-action" },
+    });
+
+    const upkeepSkill = effectAt("move-aoyosumu-sky-dance-technique", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: upkeepSkill.move.id,
+        effectIndex: 0,
+        effect: upkeepSkill.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "grant-extra-action" } });
   });
 
   it("compiles exact on-move-use lifecycle variants and rejects other trigger owners", () => {
@@ -890,7 +1048,7 @@ describe("declarative effect executor registry", () => {
     }
   });
 
-  it("compiles only the exact post-defense critical and counter negation variants", () => {
+  it("compiles the exact post-defense stun, critical, and counter negation variants", () => {
     for (const effectIndex of [3, 4]) {
       const { move, effect } = effectAt("move-kurokonwaku-cancellation-mastery", effectIndex);
       expect(
@@ -906,10 +1064,7 @@ describe("declarative effect executor registry", () => {
         effectIndex: 2,
         effect: stun.effect,
       }),
-    ).toMatchObject({
-      ok: false,
-      issues: expect.arrayContaining([expect.objectContaining({ code: "unsupported-variant" })]),
-    });
+    ).toMatchObject({ ok: true, value: { type: "negate" } });
   });
 
   it("compiles Display of Endurance's persisted blocked-damage follow-up", () => {
@@ -949,6 +1104,7 @@ describe("declarative effect executor registry", () => {
     expect(Object.keys(effectExecutorRegistry).sort()).toEqual([
       "activate",
       "apply-status",
+      "copy-move-effect",
       "create-floating-effect",
       "deactivate",
       "force-action",
@@ -971,9 +1127,11 @@ describe("declarative effect executor registry", () => {
       "prevent-resource-modification",
       "prevent-roll-modification",
       "prevent-status",
+      "remove-move-from-combat",
       "reroll",
       "roll-and-store",
       "schedule-effect",
+      "select-move-by-stored-roll",
       "set-combat-result",
       "set-resolution-threshold",
       "set-roll-definition",

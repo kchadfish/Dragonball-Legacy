@@ -10,6 +10,7 @@ export const registeredEffectTypes = [
   "activate",
   "apply-status",
   "create-floating-effect",
+  "copy-move-effect",
   "deactivate",
   "force-action",
   "grant-combat-outcome",
@@ -24,6 +25,7 @@ export const registeredEffectTypes = [
   "modify-roll",
   "modify-stat",
   "negate",
+  "remove-move-from-combat",
   "prevent-combat-result",
   "prevent-move-modification",
   "prevent-move-use",
@@ -33,6 +35,7 @@ export const registeredEffectTypes = [
   "prevent-status",
   "reroll",
   "roll-and-store",
+  "select-move-by-stored-roll",
   "schedule-effect",
   "set-combat-result",
   "set-resolution-threshold",
@@ -125,6 +128,7 @@ const supportedTriggers = new Set([
   "on-deactivated",
   "on-combat-result",
   "on-move-use",
+  "on-cost-modified",
   "on-power-up",
   "on-resource-gain",
   "on-resource-drain",
@@ -151,6 +155,7 @@ const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
   "prevent-roll-modification",
   "prevent-status",
   "roll-and-store",
+  "select-move-by-stored-roll",
   "set-resolution-threshold",
   "suppress",
 ]);
@@ -193,6 +198,8 @@ const supportedConditions = new Set<EffectCondition["type"]>([
   "combat-turn",
   "moveset",
   "stored-roll-threshold",
+  "stored-move-selection",
+  "stopped-hit-fraction",
 ]);
 
 const supportedNumericExpressions = new Set<NumericExpression["type"]>([
@@ -210,8 +217,11 @@ const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "consecutive-combat-results",
   "combat-result-count",
   "move-activation-count",
+  "prior-move-activation-count",
+  "source-move-calculated-ki-cost",
   "paid-activation-cost",
   "successful-hit-count",
+  "successful-hit-count-groups",
   "prior-roll-result",
   "prior-attack-damage-percent",
   "completed-combat-turn-count",
@@ -253,6 +263,19 @@ const numericIssue = (
         `${field} uses unsupported numeric expression ${expression.type}.`,
       );
 
+const isOnMoveUseCostChoice = <T extends RegisteredEffectDefinition>(effect: T) =>
+  effect.trigger === "on-move-use" &&
+  effect.type === "modify-cost" &&
+  effect.target === "self" &&
+  effect.optional === true &&
+  effect.selector !== undefined &&
+  (effect.scope === undefined || effect.scope.type === "current-action") &&
+  effect.duration === undefined &&
+  effect.useLimit === undefined &&
+  effect.cooldown === undefined &&
+  effect.stacking === undefined &&
+  effect.activationCost !== undefined;
+
 const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(effect: T) =>
   effect.trigger === "on-move-use" &&
   !(
@@ -261,7 +284,11 @@ const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(eff
       effect.scope?.type === "next-turn") ||
     (effect.type === "modify-cost" &&
       effect.target === "self" &&
-      effect.scope?.type === "current-action")
+      (effect.scope?.type === "current-action" ||
+        (effect.scope === undefined &&
+          effect.selector !== undefined &&
+          effect.activationCost !== undefined))) ||
+    isOnMoveUseCostChoice(effect)
   );
 
 const conditionIssues = (
@@ -350,6 +377,15 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
         "On-move-use currently dispatches only durable self follow-ups and current-action self cost modifiers.",
       ),
     );
+  if (isOnMoveUseCostChoice(effect))
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Optional on-move-use cost modifiers require a serialized activation choice.",
+      ),
+    );
   if (
     effect.trigger === "start-combat" &&
     effect.type !== "lock" &&
@@ -383,17 +419,65 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
         "Executable effects require a self, opponent, or participants target.",
       ),
     );
-  if (effect.optional === true || effect.activationGroup !== undefined)
+  if (
+    effect.optional === true ||
+    effect.activationGroup !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
     issues.push(
       issue(
         "requires-pending-choice",
         sourceDefinitionId,
         effectIndex,
-        "Optional or activation-group effects require a serialized pending choice.",
+        "Optional, activation-group, or exclusive-activation effects require a serialized pending choice.",
       ),
     );
   issues.push(...conditionIssues(effect, sourceDefinitionId, effectIndex));
   issues.push(...requirementIssues(effect, sourceDefinitionId, effectIndex));
+  return issues;
+};
+
+const copyMoveEffectIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "copy-move-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const unsupported = (message: string) =>
+    issues.push(issue("unsupported-variant", sourceDefinitionId, effectIndex, message));
+
+  if (effect.trigger !== "action-phase" || effect.target !== "self")
+    unsupported("Only self action-phase copied attacks are executable in the current runtime.");
+  if (
+    effect.sourceMove.type !== "last-prior-move" ||
+    effect.sourceMove.actor !== "self" ||
+    effect.sourceMove.restriction !== "unrestricted"
+  )
+    unsupported("Only the last unrestricted self move source is currently executable.");
+  if (effect.effectResult !== "successful" || effect.resolveAs !== "source-move")
+    unsupported("Copied attacks must resolve as the selected source move on success.");
+  if (
+    effect.damage?.type !== "add-percent" ||
+    effect.damage.value.type !== "literal" ||
+    !Number.isFinite(effect.damage.value.value)
+  )
+    unsupported("Copied attacks currently require a finite literal additive power-percent bonus.");
+  if (effect.cost?.type !== "selected-move-base-cost")
+    unsupported("Copied attacks currently require the selected source move base Ki cost.");
+  if (effect.ignoreRequirements !== undefined || effect.copies !== undefined)
+    unsupported("Requirement bypasses and copied source modifiers require a distinct executor.");
+  if (
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined
+  )
+    unsupported(
+      "Copied attacks with lifecycle, activation, or selection modifiers require a distinct executor.",
+    );
   return issues;
 };
 
@@ -421,10 +505,23 @@ const activateIssues = (
         "Activation selection currently targets only the activating combatant.",
       ),
     );
+  const groupedReactivation =
+    effect.repeatCount?.type === "successful-hit-count-groups" &&
+    Number.isInteger(effect.repeatCount.groupSize) &&
+    effect.repeatCount.groupSize >= 1 &&
+    effect.ignoreRequirements === true;
+  if (effect.repeatCount !== undefined && !groupedReactivation)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Activation repeat counts require successful-hit-count groups with a positive integer group size and requirement bypass semantics.",
+      ),
+    );
   if (
     effect.asIf !== undefined ||
-    effect.repeatCount !== undefined ||
-    effect.ignoreRequirements === true ||
+    (effect.ignoreRequirements === true && !groupedReactivation) ||
     effect.selectionKey !== undefined ||
     effect.repeatUntil !== undefined ||
     effect.activationCost !== undefined
@@ -434,19 +531,27 @@ const activateIssues = (
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Activation selection supports one ordinary CONSTANT Skill choice without repeat or alternate activation semantics.",
+        groupedReactivation
+          ? "Repeated activation supports only the exact successful-hit-count group reactivation variant."
+          : "Activation selection supports one ordinary CONSTANT Skill choice without repeat or alternate activation semantics.",
       ),
     );
   const selectorIsConstant =
     effect.selector.constant === true ||
     (effect.selector.ids !== undefined && effect.selector.ids.length > 0);
-  if (!selectorIsConstant || effect.selector.subject !== "source")
+  if (
+    !selectorIsConstant ||
+    effect.selector.subject !== "source" ||
+    (groupedReactivation && effect.selector.constant !== true)
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Activation selection requires a source CONSTANT Skill selector.",
+        groupedReactivation
+          ? "Repeated activation requires a source CONSTANT Skill selector."
+          : "Activation selection requires a source CONSTANT Skill selector.",
       ),
     );
   return issues;
@@ -792,6 +897,104 @@ const deferredDamageResourceIssues = (
   return [];
 };
 
+const isDurableScheduledAmount = (
+  amount: NumericExpression,
+): amount is Extract<
+  NumericExpression,
+  { readonly type: "literal" | "resource-percent" | "stat-percent" }
+> =>
+  amount.type === "literal" || amount.type === "resource-percent" || amount.type === "stat-percent";
+
+const powerUpNextTurnResourceIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.trigger !== "on-power-up" || effect.scope?.type !== "next-turn") return [];
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.target !== "self" || effect.scope.subject !== "self")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Next-turn power-up resource scheduling currently requires a self-targeted self subject.",
+      ),
+    );
+  if (effect.amount === undefined || !isDurableScheduledAmount(effect.amount))
+    issues.push(
+      issue(
+        "unsupported-numeric-expression",
+        sourceDefinitionId,
+        effectIndex,
+        "Next-turn power-up resource scheduling requires a durable literal, stat-percent, or resource-percent amount.",
+      ),
+    );
+  if (
+    effect.cap !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.duration !== undefined ||
+    effect.useLimit !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Next-turn power-up resource scheduling does not approximate caps, costs, durations, or limits.",
+      ),
+    );
+  return issues;
+};
+
+const modifyCostIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-cost" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const amountIssue = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
+  const minimumIssue = numericIssue(effect.minimum, sourceDefinitionId, effectIndex, "minimum");
+  const maximumIssue = numericIssue(effect.maximum, sourceDefinitionId, effectIndex, "maximum");
+  if (amountIssue !== undefined) issues.push(amountIssue);
+  if (minimumIssue !== undefined) issues.push(minimumIssue);
+  if (maximumIssue !== undefined) issues.push(maximumIssue);
+  if (effect.trigger === "on-cost-modified") {
+    if (effect.target !== "self")
+      issues.push(
+        issue(
+          "unsupported-target",
+          sourceDefinitionId,
+          effectIndex,
+          "Cost-modified reactions currently target their owning combatant.",
+        ),
+      );
+    if (effect.scope !== undefined && effect.scope.type !== "current-action")
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Cost-modified reactions apply only to the current action.",
+        ),
+      );
+    if (
+      effect.duration !== undefined ||
+      effect.useLimit !== undefined ||
+      effect.cooldown !== undefined
+    )
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Cost-modified reactions do not approximate durable or repeated lifecycle metadata.",
+        ),
+      );
+  }
+  return issues;
+};
+
 const modifyResourceIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource" }>,
   sourceDefinitionId: string,
@@ -808,6 +1011,7 @@ const modifyResourceIssues = (
   if (amountIssue !== undefined) issues.push(amountIssue);
   if (capValueIssue !== undefined) issues.push(capValueIssue);
   issues.push(...deferredDamageResourceIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...powerUpNextTurnResourceIssues(effect, sourceDefinitionId, effectIndex));
   if (
     effect.trigger === "start-combat" &&
     (effect.scope !== undefined || effect.duration !== undefined || effect.useLimit !== undefined)
@@ -840,7 +1044,9 @@ const modifyResourceIssues = (
     (effect.trigger === "on-power-up" ||
       effect.trigger === "on-resource-gain" ||
       effect.trigger === "on-resource-drain") &&
-    ((effect.scope !== undefined && effect.scope.type !== "current-action") ||
+    ((effect.scope !== undefined &&
+      effect.scope.type !== "current-action" &&
+      !(effect.trigger === "on-power-up" && effect.scope.type === "next-turn")) ||
       (effect.duration !== undefined &&
         !(
           (effect.trigger === "on-resource-gain" || effect.trigger === "on-resource-drain") &&
@@ -1155,7 +1361,7 @@ const negateIssues = (
       effect.activationCost.operation !== "lose" ||
       outcomeConditions.length !== 1 ||
       outcomeConditions[0]?.actor !== "opponent" ||
-      (outcomeConditions[0]?.outcome !== "critical" && outcomeConditions[0]?.outcome !== "counter")
+      !["stun", "critical", "counter"].includes(outcomeConditions[0]?.outcome ?? "")
     )
       issues.push(
         issue(
@@ -1306,13 +1512,15 @@ const extraActionSchedulingIssues = (
         "On-roll-result extra actions require a single-die attack selector and persisted attack-roll threshold.",
       ),
     );
-  if (effect.phase !== "action-phase")
+  const isNextTurnUpkeepAction =
+    effect.phase === "upkeep-phase" && effect.scope?.type === "next-turn";
+  if (effect.phase !== "action-phase" && !isNextTurnUpkeepAction)
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Upkeep extra actions require an explicit upkeep decision boundary.",
+        "Extra actions require an action-phase scheduler or a next-turn upkeep decision boundary.",
       ),
     );
   if (
@@ -1874,6 +2082,44 @@ const rollAndStoreIssues = (
   return issues;
 };
 
+const selectMoveByStoredRollIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "select-move-by-stored-roll" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const unsupported = (message: string) =>
+    issues.push(issue("unsupported-variant", sourceDefinitionId, effectIndex, message));
+  if (effect.target !== "self" || effect.subject !== "self")
+    unsupported("Stored move selections are owned by the source combatant.");
+  if (effect.trigger !== "upkeep-phase")
+    unsupported("Stored move selections currently reindex during upkeep only.");
+  if (effect.selector.subject !== "source")
+    unsupported("Stored move selections require a source-relative move selector.");
+  if (effect.ordering !== "character-sheet-top-to-bottom")
+    unsupported("Stored move selections require character-sheet ordering.");
+  if (effect.reindex !== "on-moveset-change")
+    unsupported("Stored move selections require moveset-change reindexing.");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(effect.storageKey))
+    unsupported("Stored move selections require a stable lowercase hyphenated roll key.");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(effect.selectionKey))
+    unsupported("Stored move selections require a stable lowercase hyphenated selection key.");
+  if (
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.stacking !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    unsupported(
+      "Stored move selections are immediate keyed state writes without a separate lifecycle.",
+    );
+  return issues;
+};
+
 const applyStatusIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "apply-status" }>,
   sourceDefinitionId: string,
@@ -2111,6 +2357,84 @@ const modifyRemainingUsesIssues = (
 const supportedClassificationTags = new Set(
   Object.values(ATTACK_TAG).map((tag) => tag.toUpperCase()),
 );
+
+const removeMoveFromCombatIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "remove-move-from-combat" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.trigger !== "action-phase" && effect.trigger !== "on-success")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Move removal currently resolves from action-phase or on-success transitions only.",
+      ),
+    );
+  if (effect.target !== "self")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Automatic move removal currently targets the source combatant only.",
+      ),
+    );
+  if (effect.move !== "source")
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Removing a target move requires a serialized move selection before execution.",
+      ),
+    );
+  if (effect.selector !== undefined)
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Selector-scoped move removal requires a serialized move selection before execution.",
+      ),
+    );
+  if (effect.scope !== undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Move removal does not support a separate scope in this combat-local executor slice.",
+      ),
+    );
+  if (effect.duration !== undefined && effect.duration.type !== "combat")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        `Move-removal duration ${effect.duration.type} requires a restoration lifecycle that is not yet serialized.`,
+      ),
+    );
+  if (
+    effect.optional === true ||
+    effect.activationCost !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.selectionLimit !== undefined
+  )
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Optional or activation-cost move removal requires a serialized selection and payment frame.",
+      ),
+    );
+  return issues;
+};
 
 const modifyMoveClassificationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-move-classification" }>,
@@ -2565,14 +2889,6 @@ const scheduleAmountIssues = (
       ];
 };
 
-const isDurableScheduledAmount = (
-  amount: NumericExpression,
-): amount is Extract<
-  NumericExpression,
-  { readonly type: "literal" | "resource-percent" | "stat-percent" }
-> =>
-  amount.type === "literal" || amount.type === "resource-percent" || amount.type === "stat-percent";
-
 const scheduleTimingIssues = (
   effect: ScheduleEffectDefinition,
   sourceDefinitionId: string,
@@ -2696,12 +3012,13 @@ const createExecutor = <T extends RegisteredEffectDefinition>(
 export const effectExecutorRegistry = {
   activate: createExecutor("activate", activateIssues),
   "apply-status": createExecutor("apply-status", applyStatusIssues),
+  "copy-move-effect": createExecutor("copy-move-effect", copyMoveEffectIssues),
   "create-floating-effect": createExecutor("create-floating-effect", createFloatingIssues),
   deactivate: createExecutor("deactivate"),
   "force-action": createExecutor("force-action"),
   "grant-combat-outcome": createExecutor("grant-combat-outcome", grantCombatOutcomeIssues),
   lock: createExecutor("lock", lockIssues),
-  "modify-cost": createExecutor("modify-cost"),
+  "modify-cost": createExecutor("modify-cost", modifyCostIssues),
   "modify-critical-threshold": createExecutor(
     "modify-critical-threshold",
     modifyCriticalThresholdIssues,
@@ -2717,6 +3034,7 @@ export const effectExecutorRegistry = {
   "modify-roll": createExecutor("modify-roll", modifyRollIssues),
   "modify-stat": createExecutor("modify-stat", modifyStatIssues),
   negate: createExecutor("negate", negateIssues),
+  "remove-move-from-combat": createExecutor("remove-move-from-combat", removeMoveFromCombatIssues),
   "prevent-combat-result": createExecutor("prevent-combat-result"),
   "prevent-move-modification": createExecutor(
     "prevent-move-modification",
@@ -2732,6 +3050,10 @@ export const effectExecutorRegistry = {
   "prevent-status": createExecutor("prevent-status"),
   reroll: createExecutor("reroll", rerollIssues),
   "roll-and-store": createExecutor("roll-and-store", rollAndStoreIssues),
+  "select-move-by-stored-roll": createExecutor(
+    "select-move-by-stored-roll",
+    selectMoveByStoredRollIssues,
+  ),
   "schedule-effect": createExecutor("schedule-effect", scheduleEffectIssues),
   "set-combat-result": createExecutor("set-combat-result", setCombatResultIssues),
   "set-resolution-threshold": createExecutor("set-resolution-threshold", resolutionThresholdIssues),

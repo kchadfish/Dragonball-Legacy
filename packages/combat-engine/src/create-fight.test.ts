@@ -481,6 +481,59 @@ describe("validateFightState", () => {
     );
   });
 
+  it("accepts canonical stored move selections and rejects unowned selections", () => {
+    const createdFight = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            moveIds: [
+              "move-akaikaru-impulsive",
+              "move-akaikaru-back-brain-kick",
+              "move-akaikaru-backflip-kick",
+            ],
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const combatant = createdFight.value.state.combatants[firstCombatantId];
+    const withSelection = (
+      storedMoveSelections: NonNullable<typeof combatant.storedMoveSelections>,
+    ) =>
+      ({
+        ...createdFight.value.state,
+        combatants: {
+          ...createdFight.value.state.combatants,
+          [firstCombatantId]: { ...combatant, storedMoveSelections },
+        },
+      }) as FightState;
+    const valid = withSelection({
+      "impulsive-selected-advanced-attack": {
+        sourceDefinitionId: "move-akaikaru-impulsive",
+        selectionKey: "impulsive-selected-advanced-attack",
+        moveId: "move-akaikaru-backflip-kick",
+        selectedOnTurn: 1,
+      },
+    });
+    const invalid = withSelection({
+      "impulsive-selected-advanced-attack": {
+        sourceDefinitionId: "move-akaikaru-impulsive",
+        selectionKey: "impulsive-selected-advanced-attack",
+        moveId: "move-not-owned" as never,
+        selectedOnTurn: 1,
+      },
+    });
+
+    expect(validateFightState(valid)).toEqual([]);
+    expect(validateFightState(invalid)).toContainEqual(
+      expect.objectContaining({ type: "invalid-combatant-state", subject: firstCombatantId }),
+    );
+  });
+
   it("identifies invalid temporary state for uses, statuses, transformations, history, and frames", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
