@@ -2905,6 +2905,123 @@ describe("basic attacks", () => {
     );
   });
 
+  it("forces a targeted opponent reroll and expires it after the next attack action", () => {
+    const bracedEffectId = activeEffectIdSchema.parse("active-effect:braced-energy-beam");
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 5],
+      new Date("2026-08-06T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:braced-energy-beam")],
+        combatantIds: [attackerId, defenderId],
+        eventIds: Array.from({ length: 20 }, (_, index) =>
+          combatEventIdSchema.parse(`event:braced-energy-beam-${index + 1}`),
+        ),
+        pendingDecisionIds: [
+          pendingDecisionIdSchema.parse("pending-decision:braced-energy-beam-defense"),
+          pendingDecisionIdSchema.parse("pending-decision:braced-energy-beam-post-roll"),
+        ],
+        resolutionFrameIds: [
+          resolutionFrameIdSchema.parse("resolution-frame:braced-energy-beam-defense"),
+          resolutionFrameIdSchema.parse("resolution-frame:braced-energy-beam-post-roll"),
+        ],
+        activeEffectIds: [bracedEffectId],
+      },
+    );
+    const fight = requireTransition(createFight(input, dependencies));
+    const action = requireActiveState(
+      requireTransition(advanceFight(fight.state, dependencies)).state,
+    );
+    const armed: ActiveFightState = {
+      ...action,
+      activeEffects: [
+        {
+          id: bracedEffectId,
+          type: "reroll",
+          sourceCombatantId: defenderId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-aoyosumu-braced-energy-beam",
+          sourceEffectIndex: 0,
+          roll: "attack",
+          rerollScope: "entire-attack",
+          bonus: 0,
+          conditions: [
+            {
+              type: "roll-threshold",
+              roll: "attack",
+              comparison: "at-least",
+              value: { type: "literal", value: 20 },
+              sourceText: "attack roll result is 20 or higher",
+            },
+          ],
+          optional: false,
+          useLimit: { scope: "turn", remaining: 1 },
+          duration: { type: "next-action", combatantId: attackerId },
+        },
+      ],
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:braced-energy-beam-attack"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveState(declared.state).pendingDecision;
+    if (defense === undefined) throw new Error("Expected Braced Energy Beam defense response.");
+    const rolled = requireTransition(
+      submitCombatDecision(
+        declared.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:braced-energy-beam-roll"),
+          actorId: defenderId,
+          expectedStateVersion: declared.state.version,
+          pendingDecisionId: defense.id,
+          optionId: "roll-defense",
+        },
+        dependencies,
+      ),
+    );
+    const post = requireActiveState(rolled.state).pendingDecision;
+    if (post === undefined) throw new Error("Expected mandatory Braced Energy Beam reroll.");
+    expect(post).toMatchObject({ combatantId: attackerId });
+    expect(post.options).not.toContainEqual({ id: "decline", type: "decline" });
+    const rerollOption = post.options.find((option) => option.id.startsWith("activate-reroll:"));
+    if (rerollOption === undefined) throw new Error("Expected Braced Energy Beam reroll option.");
+
+    const resolved = requireTransition(
+      submitCombatDecision(
+        rolled.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:braced-energy-beam-reroll"),
+          actorId: attackerId,
+          expectedStateVersion: rolled.state.version,
+          pendingDecisionId: post.id,
+          optionId: rerollOption.id,
+        },
+        dependencies,
+      ),
+    );
+    expect(resolved.state.version).toBe(rolled.state.version + 1);
+    expect(resolved.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "attack-rolled", naturalResult: 5 }),
+        expect.objectContaining({ type: "attack-resolved" }),
+      ]),
+    );
+    expect(resolved.state.activeEffects).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: bracedEffectId })]),
+    );
+  });
+
   it("offers Zen Explosion only when the current defense result is at most 7", () => {
     const resolveDefense = (defenseRoll: number, suffix: string) => {
       const dependencies = createTestCombatDependencies(

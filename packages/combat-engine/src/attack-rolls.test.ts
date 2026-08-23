@@ -94,6 +94,45 @@ describe("contested attack rolls", () => {
     ]);
   });
 
+  it("selects the highest attack candidate and the lowest defense candidate", () => {
+    const advantage = resolveContestedAttackRolls(
+      {
+        attack: { dice: 1, sides: 30 },
+        attackerDexterityBonus: 0,
+        defenderDexterityBonus: 0,
+        rollSelection: { roll: "attack", diceCount: 2, selection: "highest" },
+      },
+      new SequenceRandomSource([4, 20, 1]),
+    );
+    const disadvantage = resolveContestedAttackRolls(
+      {
+        attack: { dice: 1, sides: 30 },
+        attackerDexterityBonus: 0,
+        defenderDexterityBonus: 0,
+        rollSelection: { roll: "defense", diceCount: 2, selection: "lowest" },
+      },
+      new SequenceRandomSource([20, 4, 18]),
+    );
+
+    expect(advantage[0]).toMatchObject({ attackNaturalResult: 20, defenseNaturalResult: 1 });
+    expect(disadvantage[0]).toMatchObject({ attackNaturalResult: 20, defenseNaturalResult: 4 });
+  });
+
+  it("replays the selected roll without consuming candidate randomness", () => {
+    expect(
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          rollSelection: { roll: "attack", diceCount: 2, selection: "highest" },
+          naturalRolls: [{ attack: 20, defense: 1 }],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toMatchObject([{ attackNaturalResult: 20, defenseNaturalResult: 1 }]);
+  });
+
   it("enforces stop thresholds at their exact boundary, including cannot-stop ceilings", () => {
     expect(
       resolveContestedAttackRolls(

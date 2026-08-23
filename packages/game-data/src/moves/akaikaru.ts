@@ -1187,7 +1187,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         sourceText: "SUCCESSFUL - You lose (5% Total HP) HP",
       },
       {
-        trigger: "on-roll-modified",
+        trigger: "on-success",
         target: "self",
         type: "modify-roll-modifier",
         modifier: "any",

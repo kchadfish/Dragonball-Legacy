@@ -1879,6 +1879,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             comparison: "at-least",
             value: { type: "literal", value: 2 },
             relativeTo: "attack-roll",
+            relativeOperation: "multiply",
             resultScope: "current-attack",
             selector: {
               type: "move-selector",

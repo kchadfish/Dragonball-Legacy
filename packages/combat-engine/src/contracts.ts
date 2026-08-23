@@ -88,6 +88,8 @@ export interface CombatantState {
   readonly itemIds?: readonly ItemId[];
   readonly transformationIds?: readonly TransformationId[];
   readonly moveUses: Readonly<Record<MoveId, number>>;
+  /** Combat-local counts for immediate declarative effects with their own use limits. */
+  readonly effectUseCounts?: Readonly<Record<string, number>>;
   /** Combat-local positive increases to a move's canonical restricted-use limit. */
   readonly moveUseLimitModifiers?: Readonly<Record<MoveId, number>>;
   /** Combat-local named rolls; a later roll with the same key replaces the prior value. */
@@ -257,6 +259,28 @@ export interface ActiveRollModifierEffect {
       };
 }
 
+/** A durable transformation applied to later declarative roll modifiers. */
+export interface ActiveRollModifierTransformerEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "modify-roll-modifier";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly modifier: "result" | "sides" | "any";
+  readonly multiplier?: number;
+  readonly increment?: number;
+  readonly excludeSourceCategories?: readonly ("mastery" | "skill")[];
+  readonly cap?: ActiveRollModificationCap;
+  readonly duration:
+    | "combat"
+    | {
+        readonly type: "next-roll";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack" | "defense";
+      };
+}
+
 /** A durable reaction that replaces one or more persisted attack dice. */
 export interface ActiveRerollEffect {
   readonly id: ActiveEffectId;
@@ -270,6 +294,7 @@ export interface ActiveRerollEffect {
   readonly selector?: MoveSelectorCondition;
   readonly bonus: number;
   readonly conditions: EffectDefinition["conditions"];
+  readonly optional: boolean;
   readonly activationResource?: "ki";
   readonly activationCost?: number;
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly remaining: number };
@@ -280,6 +305,12 @@ export interface ActiveRerollEffect {
         readonly type: "next-roll";
         readonly combatantId: CombatantId;
         readonly roll: "attack" | "defense";
+      }
+    | {
+        readonly type: "next-rolls";
+        readonly combatantId: CombatantId;
+        readonly roll: "attack" | "defense";
+        readonly remaining: number;
       };
 }
 
@@ -352,7 +383,7 @@ type ActiveNextActionModifier =
   | {
       readonly type: "combat-result";
       readonly result: "successful" | "stopped";
-      readonly resultScope: "current-attack";
+      readonly resultScope: "current-attack" | "matching-die";
     };
 
 /** A resolved move effect that modifies its owner's immediately following action. */
@@ -396,6 +427,25 @@ export interface ActiveStatModifierEffect {
     readonly type: "turns";
     readonly ownerCombatantId: CombatantId;
     readonly remaining: number;
+  };
+}
+
+/** A durable advantage/disadvantage selection for the next matching roll. */
+export interface ActiveRollSelectionEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "set-roll-selection";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly roll: "attack" | "defense";
+  readonly diceCount: number;
+  readonly selection: "highest" | "lowest";
+  readonly selector?: MoveSelectorCondition;
+  readonly duration: {
+    readonly type: "next-roll";
+    readonly combatantId: CombatantId;
+    readonly roll: "attack" | "defense";
   };
 }
 
@@ -765,6 +815,8 @@ export interface ActiveMoveRemovalEffect {
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
+  | ActiveRollModifierTransformerEffect
+  | ActiveRollSelectionEffect
   | ActiveRerollEffect
   | ActiveResolutionThresholdEffect
   | ActiveNextActionModifierEffect
@@ -792,6 +844,14 @@ export type ActiveCombatEffect =
  * than reconstructed from display-oriented combat events.
  */
 export type CombatActionRecord =
+  | {
+      /** An implicit action boundary caused by a status or full-action restriction. */
+      readonly type: "turn-skipped";
+      readonly actorId: CombatantId;
+      readonly turnNumber: number;
+      readonly phase: "action";
+      readonly reason: "status" | "effect";
+    }
   | {
       readonly type: "activate-transformation" | "pass" | "power-up" | "surrender";
       readonly decisionId: CombatDecisionId;
@@ -929,7 +989,7 @@ export type ResolutionFrame =
       readonly selectedNumericValues?: Readonly<Record<string, number>>;
       /** The trigger whose grouped effects are awaiting the acting player's choice. */
       readonly effectTrigger?:
-        "before-attack-roll" | "on-success" | "on-move-use" | "on-cost-modified";
+        "before-attack-roll" | "on-success" | "on-move-use" | "on-cost-modified" | "on-damage";
       /** Natural rolls are retained when the choice occurs after the attack roll. */
       readonly naturalRolls?: readonly { readonly attack: number; readonly defense?: number }[];
       readonly blockedDice?: number;
@@ -970,14 +1030,24 @@ export type ResolutionFrame =
   | {
       readonly id: ResolutionFrameId;
       readonly type: "effect";
+      /** The original action decision that opened a copied-move selection. */
+      readonly decisionId?: CombatDecisionId;
       readonly sourceCombatantId: CombatantId;
       readonly targetCombatantId: CombatantId;
       readonly sourceDefinitionId: string;
       readonly effectIndex: number;
       /** Legacy effect frames omitted this field and represent deactivation. */
-      readonly operation?: "activate" | "deactivate";
+      readonly operation?: "activate" | "deactivate" | "copy-move";
       readonly returnPhase: CombatPhase;
-      readonly trigger: "upkeep" | "action" | "end" | "on-success" | "on-stopped";
+      readonly trigger:
+        | "upkeep"
+        | "action"
+        | "end"
+        | "on-success"
+        | "on-stopped"
+        | "before-attack-roll"
+        | "start-combat"
+        | "on-roll-result";
       readonly pendingDecisionId?: PendingDecisionId;
       readonly eligibleMoveIds?: readonly MoveId[];
       readonly remainingSelections?: number;
@@ -985,6 +1055,10 @@ export type ResolutionFrame =
       readonly optional?: boolean;
       /** Whether activation choices must reuse constants in the deactivated lifecycle. */
       readonly reactivationOnly?: boolean;
+      /** Resolved declarative KI activation cost retained across the pending choice. */
+      readonly activationCost?: { readonly amount: number; readonly minimum?: number };
+      /** Absolute KI activation cost retained across a paired current-cost set effect. */
+      readonly activationCostOverride?: number;
     };
 
 interface FightStateBase {

@@ -12,14 +12,21 @@ interface SourceEffect {
   readonly type?: unknown;
   readonly trigger?: unknown;
   readonly target?: unknown;
-  readonly scope?: { readonly type?: unknown };
+  readonly scope?: { readonly type?: unknown; readonly offset?: unknown };
   readonly duration?: { readonly type?: unknown };
   readonly operation?: unknown;
   readonly amount?: unknown;
+  readonly multiplier?: unknown;
+  readonly increment?: unknown;
   readonly timing?: unknown;
   readonly effect?: unknown;
   readonly cancellation?: unknown;
   readonly repeat?: unknown;
+  readonly repeatUntil?: {
+    readonly type?: unknown;
+    readonly selector?: unknown;
+    readonly fallback?: unknown;
+  };
   readonly percent?: { readonly type?: unknown };
   readonly selector?: unknown;
   readonly activationGroup?: unknown;
@@ -57,7 +64,7 @@ export interface CombatCapabilityMatrixRow {
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-22";
+  readonly generatedAt: "2026-08-23";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -119,10 +126,18 @@ const genericExecutors: Readonly<
     test: "basic-attack.test.ts, progress-fight.test.ts",
     capabilityId: "modify-remaining-uses.v1",
   },
-  "modify-resource": { executor: "resource-change", test: "move-effects-runtime.test.ts" },
+  "modify-resource": {
+    executor: "resource-change",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
   "modify-roll": {
     executor: "roll-modifier",
     test: "attack-rolls.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
+  "modify-roll-modifier": {
+    executor: "roll-modifier-transformer",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
+    capabilityId: "modify-roll-modifier.v1",
   },
   "modify-stat": { executor: "stat-modifier", test: "progress-fight.test.ts" },
   negate: {
@@ -176,6 +191,11 @@ const genericExecutors: Readonly<
   },
   "set-roll-definition": { executor: "roll-definition", test: "attack-rolls.test.ts" },
   "set-roll-result": { executor: "roll-result-override", test: "attack-rolls.test.ts" },
+  "set-roll-selection": {
+    executor: "roll-selection",
+    test: "attack-rolls.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
+    capabilityId: "set-roll-selection.v1",
+  },
   "schedule-effect": {
     executor: "scheduled-resource",
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
@@ -279,6 +299,7 @@ const supportedDamageConditions = new Set([
   "move-use-count",
   "level-comparison",
   "stored-move-selection",
+  "prior-turn-restriction",
 ]);
 
 const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
@@ -353,6 +374,15 @@ const isSupportedDamageOccurrence = (occurrence: Occurrence) => {
     effect.scope?.type === "next-turn" &&
     effect.trigger === "on-power-up" &&
     effect.target === "self"
+  )
+    return true;
+  if (
+    effect.scope?.type === "following-action" &&
+    effect.trigger === "passive" &&
+    effect.target === "self" &&
+    effect.scope.offset === 1 &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "prior-turn-restriction"
   )
     return true;
   if (
@@ -453,10 +483,16 @@ const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
   return (
     effect.type === "reroll" &&
     (effect.trigger === "after-defense-roll" || effect.trigger === "on-success") &&
-    (effect.target === undefined || effect.target === "self") &&
-    effect.scope === undefined &&
+    (effect.target === undefined || effect.target === "self" || effect.target === "opponent") &&
+    (effect.trigger === "after-defense-roll"
+      ? effect.scope === undefined
+      : (effect.scope?.type === "next-action" ||
+          effect.scope?.type === "next-roll" ||
+          effect.scope?.type === "next-rolls") &&
+        effect.duration === undefined) &&
     (effect.duration === undefined || effect.duration.type === "combat") &&
     effect.activationGroup === undefined &&
+    effect.exclusiveActivationGroup === undefined &&
     effect.optional !== true
   );
 };
@@ -475,7 +511,8 @@ const isSupportedPendingChoiceOccurrence = (
       effect.trigger !== "on-success" &&
       effect.trigger !== "on-power-up" &&
       effect.trigger !== "on-move-use" &&
-      effect.trigger !== "on-cost-modified") ||
+      effect.trigger !== "on-cost-modified" &&
+      effect.trigger !== "on-damage") ||
     (effect.target !== "self" && effect.target !== "opponent")
   )
     return false;
@@ -523,7 +560,14 @@ const isSupportedPendingChoiceOccurrence = (
             candidateEffect.selector === undefined)
         );
       });
-    if (!orangeBurstGroup && !extraActionGroup) return false;
+    const rerollGroup = groupOccurrences.every(
+      (candidate) =>
+        candidate.effect.type === "reroll" &&
+        (candidate.effect.scope?.type === "next-action" ||
+          candidate.effect.scope?.type === "next-roll" ||
+          candidate.effect.scope?.type === "next-rolls"),
+    );
+    if (!orangeBurstGroup && !extraActionGroup && !rerollGroup) return false;
   }
   if (effect.trigger === "on-power-up") {
     const powerUpDamageGroup = groupOccurrences.every((candidate) => {
@@ -557,6 +601,20 @@ const isSupportedPendingChoiceOccurrence = (
       );
     });
     if (!costChoiceGroup) return false;
+  }
+  if (effect.trigger === "on-damage") {
+    const damageChoiceGroup = groupOccurrences.every((candidate) => {
+      const candidateEffect = candidate.effect;
+      return (
+        candidateEffect.type === "modify-damage" &&
+        candidateEffect.target === "opponent" &&
+        candidateEffect.operation === "add" &&
+        (candidateEffect.scope === undefined || candidateEffect.scope.type === "current-action") &&
+        candidateEffect.activationCost !== undefined &&
+        candidateEffect.useLimit?.scope === "combat"
+      );
+    });
+    if (!damageChoiceGroup) return false;
   }
   if (effect.trigger === "on-cost-modified") {
     const costChoiceGroup = groupOccurrences.every((candidate) => {
@@ -592,9 +650,20 @@ const isSupportedActivationOccurrence = (occurrence: Occurrence) => {
     Number.isInteger(effect.repeatCount.groupSize) &&
     effect.repeatCount.groupSize >= 1 &&
     effect.ignoreRequirements === true;
+  const repeatUntilSupported =
+    effect.repeatCount === undefined &&
+    effect.ignoreRequirements === undefined &&
+    isRecord(effect.repeatUntil) &&
+    effect.repeatUntil.type === "active-move-count-matches-opponent" &&
+    effect.repeatUntil.fallback === "no-eligible-moves" &&
+    isRecord(effect.repeatUntil.selector) &&
+    effect.repeatUntil.selector.subject === "source";
   if (
     effect.type !== "activate" ||
-    effect.trigger !== "on-success" ||
+    (effect.trigger !== "before-attack-roll" &&
+      effect.trigger !== "on-success" &&
+      effect.trigger !== "start-combat" &&
+      effect.trigger !== "on-roll-result") ||
     effect.target !== "self" ||
     !isRecord(effect.selector) ||
     effect.selector.subject !== "source" ||
@@ -602,16 +671,61 @@ const isSupportedActivationOccurrence = (occurrence: Occurrence) => {
       (effect.selector.category === "skill" && effect.selector.constant === true) ||
       (Array.isArray(effect.selector.ids) && effect.selector.ids.length > 0)
     ) ||
-    effect.selector.styleId !== undefined ||
     effect.asIf !== undefined ||
     (effect.repeatCount !== undefined && !groupedReactivation) ||
     (effect.ignoreRequirements === true && !groupedReactivation) ||
     effect.selectionKey !== undefined ||
-    effect.repeatUntil !== undefined ||
+    (effect.repeatUntil !== undefined && !repeatUntilSupported) ||
     effect.activationCost !== undefined
   )
     return false;
+  if (
+    (effect.trigger === "start-combat" && effect.scope !== undefined) ||
+    (effect.trigger === "on-roll-result" &&
+      (effect.scope?.type !== "next-phase" ||
+        effect.scope.subject !== "self" ||
+        effect.scope.phase !== "end")) ||
+    (effect.trigger === "on-success" && effect.scope !== undefined)
+  )
+    return false;
+  if (
+    effect.conditions?.some(
+      (condition) => condition.type === "resource-change" && condition.timing !== "current-event",
+    )
+  )
+    return false;
   return groupedReactivation ? effect.selector.constant === true : true;
+};
+
+const isSupportedStartCombatActivationCost = (
+  occurrence: Occurrence,
+  occurrences: readonly Occurrence[],
+) => {
+  const effect = occurrence.effect;
+  if (
+    effect.type !== "modify-cost" ||
+    effect.trigger !== "start-combat" ||
+    effect.target !== "self" ||
+    effect.operation !== "set" ||
+    effect.amount.type !== "literal" ||
+    effect.amount.value !== 0 ||
+    effect.selector?.selectionKey === undefined
+  )
+    return false;
+  return occurrences.some(
+    (candidate) =>
+      candidate.sourceDefinitionId === occurrence.sourceDefinitionId &&
+      candidate.effect.type === "activate" &&
+      candidate.effect.trigger === "start-combat" &&
+      candidate.effect.target === "self" &&
+      candidate.effect.selector.selectionKey === effect.selector?.selectionKey &&
+      compileEffectPlan({
+        sourceDefinitionId: candidate.sourceDefinitionId,
+        effectIndex: candidate.effectIndex,
+        effect: candidate.effect as EffectDefinition,
+        allowPendingChoice: true,
+      }).ok,
+  );
 };
 
 const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) => {
@@ -629,6 +743,7 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
   }
   const pendingChoiceSupported = isSupportedPendingChoiceOccurrence(occurrence, occurrences);
   const activationSupported = isSupportedActivationOccurrence(occurrence);
+  const activationCostSupported = isSupportedStartCombatActivationCost(occurrence, occurrences);
   if (
     (occurrence.effect.optional === true ||
       occurrence.effect.activationGroup !== undefined ||
@@ -675,15 +790,31 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
     };
   }
   if (effectType === "activate" && activationSupported && compilation?.ok === true) {
-    const repeated = occurrence.effect.repeatCount !== undefined;
+    const repeated =
+      occurrence.effect.repeatCount !== undefined || occurrence.effect.repeatUntil !== undefined;
     return {
       status: "supported-generic" as const,
       capabilityId: repeated ? "activate.v2" : "activate.v1",
       executor: "constant-activation-selection",
       focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
-      reason: repeated
-        ? "The typed activation executor resolves successful-hit-count groups into a bounded, serialized reactivation sequence."
-        : "The typed activation executor serializes one ordinary CONSTANT Skill choice and charges it on resolution.",
+      reason:
+        occurrence.effect.repeatUntil !== undefined
+          ? "The typed activation executor resolves the opponent-count repeat-until condition into a bounded, serialized CONSTANT Skill selection sequence."
+          : repeated
+            ? "The typed activation executor resolves successful-hit-count groups into a bounded, serialized reactivation sequence."
+            : "The typed activation executor serializes one ordinary CONSTANT Skill choice and charges it on resolution.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
+  if (effectType === "modify-cost" && activationCostSupported && compilation?.ok === true) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "activate.v1",
+      executor: "constant-activation-selection",
+      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
+      reason:
+        "The typed activation-selection executor pairs the start-combat absolute cost override with the serialized CONSTANT Skill choice.",
       prerequisite: null,
       approvedExclusion: null,
     };
@@ -701,10 +832,20 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       occurrence.effect.target === "self" &&
       occurrence.effect.scope?.type === "next-action" &&
       occurrence.effect.operation === "add";
+    const supportedOnDamageChoice =
+      pendingChoiceSupported &&
+      occurrence.effect.trigger === "on-damage" &&
+      occurrence.effect.target === "opponent" &&
+      occurrence.effect.operation === "add" &&
+      (occurrence.effect.scope === undefined ||
+        occurrence.effect.scope.type === "current-action") &&
+      occurrence.effect.activationCost !== undefined &&
+      occurrence.effect.useLimit?.scope === "combat";
     if (
       (isSupportedDamageOccurrence(occurrence) ||
         supportedOnSuccessChoice ||
-        supportedOnPowerUpChoice) &&
+        supportedOnPowerUpChoice ||
+        supportedOnDamageChoice) &&
       compilation?.ok === true
     ) {
       return {
@@ -849,7 +990,7 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-22",
+    generatedAt: "2026-08-23",
     activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
       raceId.slice(5, -1),
     ),

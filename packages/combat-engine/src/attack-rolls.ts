@@ -17,6 +17,12 @@ export interface ContestedAttackRollInput {
   readonly defenseSides?: number;
   /** A declared modifier to the defender's roll result, applied before comparison. */
   readonly defenderResultModifier?: number;
+  /** Selects the best or worst result from a fixed number of candidate dice. */
+  readonly rollSelection?: {
+    readonly roll: "attack" | "defense";
+    readonly diceCount: number;
+    readonly selection: "highest" | "lowest";
+  };
   /** Replays a previously rolled contest while applying a later reaction modifier. */
   readonly naturalRolls?: readonly ContestedAttackNaturalRoll[];
   /** Per-die results declared by a validated after-defense-roll effect. */
@@ -120,6 +126,22 @@ const assertResolutionThresholds = (thresholds: readonly ResolutionThresholdRule
     assertResolutionThresholdShape(threshold);
     assertRelativeResolutionThreshold(threshold);
   }
+};
+
+const assertRollSelection = (
+  selection: ContestedAttackRollInput["rollSelection"],
+  attack: AttackRollDefinition,
+) => {
+  if (selection === undefined) return;
+  if (selection.roll !== "attack" && selection.roll !== "defense")
+    throw new RangeError("Roll selection must name an attack or defense roll.");
+  if (!Number.isInteger(selection.diceCount) || selection.diceCount < 2)
+    throw new RangeError("Roll selection requires at least two candidate dice.");
+  if (selection.selection !== "highest" && selection.selection !== "lowest")
+    throw new RangeError("Roll selection must choose the highest or lowest result.");
+  if (selection.roll === "attack" && selection.diceCount < 2)
+    throw new RangeError("Attack roll selection requires multiple candidate dice.");
+  if (attack.dice < 1) throw new RangeError("Roll selection requires a valid attack.");
 };
 
 const assertNumericResultOverrides = (
@@ -246,12 +268,69 @@ const resolveContestedAttackDie = (
   dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
 ): AttackDieRoll => {
   const persisted = input.naturalRolls?.[index];
-  const attackNaturalResult = persisted?.attack ?? random.integer(1, input.attack.sides);
+  const selection = input.rollSelection;
+  const attackCandidates =
+    persisted === undefined && selection?.roll === "attack"
+      ? Array.from({ length: selection.diceCount }, () => random.integer(1, input.attack.sides))
+      : [persisted?.attack ?? random.integer(1, input.attack.sides)];
+  const attackResults = attackCandidates.map(
+    (natural) =>
+      input.numericResultOverrides?.[index]?.attack ??
+      natural + input.attackerDexterityBonus + (dynamicResultModifier?.attack ?? 0),
+  );
+  const selectedAttackIndex =
+    selection?.selection === "lowest"
+      ? attackResults.reduce(
+          (selected, result, candidate) =>
+            result < attackResults[selected]! ? candidate : selected,
+          0,
+        )
+      : attackResults.reduce(
+          (selected, result, candidate) =>
+            result > attackResults[selected]! ? candidate : selected,
+          0,
+        );
+  const attackNaturalResult = attackCandidates[selectedAttackIndex]!;
   const attackResult =
     input.numericResultOverrides?.[index]?.attack ??
     attackNaturalResult + input.attackerDexterityBonus + (dynamicResultModifier?.attack ?? 0);
   if (index < (input.blockedDice ?? 0)) {
     return { attackNaturalResult, attackResult, outcome: "blocked" };
+  }
+  if (persisted === undefined && selection?.roll === "defense") {
+    const defenseSides = input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides;
+    const defenseCandidates = Array.from({ length: selection.diceCount }, () =>
+      random.integer(1, defenseSides),
+    );
+    const defenseResults = defenseCandidates.map(
+      (natural) =>
+        input.numericResultOverrides?.[index]?.defense ??
+        natural +
+          input.defenderDexterityBonus +
+          (input.defenderResultModifier ?? 0) +
+          (dynamicResultModifier?.defense ?? 0),
+    );
+    const selectedDefenseIndex =
+      selection.selection === "lowest"
+        ? defenseResults.reduce(
+            (selected, result, candidate) =>
+              result < defenseResults[selected]! ? candidate : selected,
+            0,
+          )
+        : defenseResults.reduce(
+            (selected, result, candidate) =>
+              result > defenseResults[selected]! ? candidate : selected,
+            0,
+          );
+    return resolvedUnblockedDie(
+      attackNaturalResult,
+      attackResult,
+      { attack: attackNaturalResult, defense: defenseCandidates[selectedDefenseIndex] },
+      index,
+      input,
+      random,
+      dynamicResultModifier,
+    );
   }
   return resolvedUnblockedDie(
     attackNaturalResult,
@@ -282,6 +361,7 @@ export const resolveContestedAttackRolls = (
     numericResultOverrides,
     beforeDieResultModifier,
     resolutionThresholds,
+    rollSelection,
   }: ContestedAttackRollInput,
   random: RandomSource,
 ): readonly AttackDieRoll[] => {
@@ -301,6 +381,7 @@ export const resolveContestedAttackRolls = (
     numericResultOverrides,
   );
   assertResolutionThresholds(resolutionThresholds);
+  assertRollSelection(rollSelection, attack);
 
   const input: ContestedAttackRollInput = {
     attack,
@@ -314,6 +395,7 @@ export const resolveContestedAttackRolls = (
     numericResultOverrides,
     beforeDieResultModifier,
     resolutionThresholds,
+    rollSelection,
   };
   const rolls: AttackDieRoll[] = [];
   for (let index = 0; index < attack.dice; index += 1) {

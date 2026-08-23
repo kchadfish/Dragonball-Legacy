@@ -205,6 +205,32 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("resolves Shadow Stalker's source-aware KI activation cost", () => {
+    const shadowStalker = moves.get("move-kurokonwaku-shadow-stalker");
+    if (shadowStalker === undefined) throw new Error("Expected Shadow Stalker.");
+
+    expect(
+      moveEffectsForTrigger(shadowStalker, "on-success", {
+        ...context,
+        triggeringMove: shadowStalker,
+        rolls: [
+          {
+            attackNaturalResult: 25,
+            attackResult: 25,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "successful" as const,
+          },
+        ],
+      }).activations,
+    ).toEqual([
+      expect.objectContaining({
+        activationCost: { amount: 2 },
+        sourceDefinitionId: shadowStalker.id,
+      }),
+    ]);
+  });
+
   it("resolves the selected Straining Bodyslam activation group before the attack roll", () => {
     const move = moves.get("move-freestyle-straining-bodyslam");
     if (move === undefined) throw new Error("Expected Straining Bodyslam.");
@@ -282,6 +308,61 @@ describe("converted move effects", () => {
         rolls: [{ ...rolls[0], defenseNaturalResult: 8, defenseResult: 8 }],
       }),
     ).toEqual([]);
+  });
+
+  it("resolves deferred successful rerolls with typed future lifecycles", () => {
+    const bracedEnergyBeam = moves.get("move-aoyosumu-braced-energy-beam");
+    const tigerStrikes = moves.get("move-aoyosumu-tiger-strikes");
+    if (bracedEnergyBeam === undefined || tigerStrikes === undefined)
+      throw new Error("Expected deferred reroll test moves.");
+
+    const successfulRoll = [
+      {
+        attackNaturalResult: 20,
+        attackResult: 20,
+        defenseNaturalResult: 1,
+        defenseResult: 1,
+        outcome: "successful" as const,
+      },
+    ];
+
+    expect(
+      moveEffectsForTrigger(tigerStrikes, "on-success", {
+        ...context,
+        triggeringMove: tigerStrikes,
+        rolls: successfulRoll,
+        enabledOptionalEffectIndices: [0],
+      }).rerolls,
+    ).toEqual([
+      expect.objectContaining({
+        target: "self",
+        roll: "defense",
+        optional: true,
+        duration: { type: "next-roll", roll: "defense" },
+        resultModifier: 3,
+      }),
+    ]);
+
+    expect(
+      moveEffectsForTrigger(bracedEnergyBeam, "on-success", {
+        ...context,
+        triggeringMove: bracedEnergyBeam,
+        rolls: successfulRoll,
+      }).rerolls,
+    ).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        roll: "attack",
+        optional: false,
+        duration: { type: "next-action" },
+        conditions: [
+          expect.objectContaining({
+            type: "roll-threshold",
+            comparison: "at-least",
+          }),
+        ],
+      }),
+    ]);
   });
 
   it("emits stored-roll requests and evaluates immediate thresholds from combat state", () => {
@@ -654,6 +735,73 @@ describe("converted move effects", () => {
         amount: 1,
         duration: { type: "turns", ownerCombatantId: self.id, remaining: 2 },
       },
+    ]);
+  });
+
+  it("retains the triggering move selector on successful-effect negation", () => {
+    const untroubledMind = moves.get("move-aoyosumu-the-untroubled-mind");
+    const triggeringMove = moves.get("move-akaikaru-firestorm");
+    if (untroubledMind === undefined || triggeringMove === undefined)
+      throw new Error("Expected successful-effect negation test moves.");
+
+    const effects = moveEffectsForTrigger(untroubledMind, "on-success", {
+      ...context,
+      currentAction: {
+        type: "use-move",
+        decisionId: "decision:negation-runtime" as never,
+        actorId: opponent.id,
+        targetCombatantId: self.id,
+        moveId: triggeringMove.id,
+        turnNumber: 5,
+        phase: "action",
+        outcome: "successful",
+        critical: false,
+        counter: false,
+      },
+      triggeringMove,
+      triggeringMoveOwner: "opponent",
+    });
+
+    expect(effects.negations).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        aspects: [],
+        selector: expect.objectContaining({ restriction: "unrestricted" }),
+      }),
+    ]);
+  });
+
+  it("resolves a selected successful attack's current-resolution suppression", () => {
+    const breakout = moves.get("move-aoyosumu-breakout");
+    const triggeringMove = moves.get("move-akaikaru-firestorm");
+    if (breakout === undefined || triggeringMove === undefined)
+      throw new Error("Expected current-resolution suppression test moves.");
+
+    const effects = moveEffectsForTrigger(breakout, "on-success", {
+      ...context,
+      currentAction: {
+        type: "use-move",
+        decisionId: "decision:suppression-runtime" as never,
+        actorId: opponent.id,
+        targetCombatantId: self.id,
+        moveId: triggeringMove.id,
+        turnNumber: 5,
+        phase: "action",
+        outcome: "successful",
+        critical: false,
+        counter: false,
+      },
+      triggeringMove,
+      triggeringMoveOwner: "opponent",
+    });
+
+    expect(effects.suppressions).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        aspects: ["all-effects"],
+        duration: { type: "current-resolution" },
+        selector: expect.objectContaining({ category: "advanced-attack" }),
+      }),
     ]);
   });
 
@@ -1537,6 +1685,30 @@ describe("converted move effects", () => {
     expect(
       moveEffectsForTrigger(muscleInfusion, "on-damage", responseContext).damageModifications,
     ).toEqual([]);
+
+    expect(
+      moveEffectsForTrigger(muscleInfusion, "on-damage", {
+        ...responseContext,
+        collectPendingChoices: true,
+      }).pendingEffectChoices,
+    ).toEqual([{ effectIndices: [0], sourceDefinitionId: muscleInfusion.id }]);
+
+    expect(
+      moveEffectsForTrigger(muscleInfusion, "on-damage", {
+        ...responseContext,
+        enabledOptionalEffectIndices: [0],
+      }).damageModifications,
+    ).toEqual([
+      expect.objectContaining({
+        operation: "add",
+        amount: -50,
+        target: "opponent",
+        sourceCombatantId: opponent.id,
+        sourceDefinitionId: muscleInfusion.id,
+        useLimit: { scope: "combat", count: 2 },
+        activationCost: { resource: "ki", amount: 1 },
+      }),
+    ]);
   });
 
   it("applies a converted passive damage expression using durable activation history", () => {
@@ -1948,8 +2120,22 @@ describe("converted move effects", () => {
     } as MoveDefinition;
 
     expect(moveEffectsForTrigger(move, "before-attack-roll", context).rollModifications).toEqual([
-      { target: "self", roll: "attack", modifier: "result", amount: 3 },
-      { target: "self", roll: "attack", modifier: "sides", amount: 2 },
+      {
+        target: "self",
+        roll: "attack",
+        modifier: "result",
+        amount: 3,
+        sourceDefinitionId: "move-afterlife-light-grenade",
+        sourceEffectIndex: 0,
+      },
+      {
+        target: "self",
+        roll: "attack",
+        modifier: "sides",
+        amount: 2,
+        sourceDefinitionId: "move-afterlife-light-grenade",
+        sourceEffectIndex: 1,
+      },
     ]);
   });
 
@@ -2030,6 +2216,8 @@ describe("converted move effects", () => {
         amount: 2,
         scope: "next-rolls",
         remaining: 3,
+        sourceDefinitionId: "move-afterlife-light-grenade",
+        sourceEffectIndex: 0,
       },
     ]);
   });
@@ -2054,6 +2242,54 @@ describe("converted move effects", () => {
 
     expect(moveEffectsForTrigger(move, "before-attack-roll", context).rollDefinitions).toEqual([
       { target: "self", roll: "attack", dice: 2, sides: 20 },
+    ]);
+  });
+
+  it("extracts the exact current-action and next-roll selection applications", () => {
+    const applications = [
+      moveEffectsForTrigger(moves.get("move-akaikaru-bullrush")!, "on-success", {
+        ...context,
+        successfulHitCount: 2,
+      }).rollSelections,
+      moveEffectsForTrigger(moves.get("move-aoyosumu-floating-drop")!, "on-success", {
+        ...context,
+        actionHistory: [
+          {
+            type: "use-move" as const,
+            decisionId: "decision:prior" as never,
+            actorId: self.id,
+            targetCombatantId: opponent.id,
+            moveId: "move-aoyosumu-floating-drop",
+            turnNumber: 4,
+            phase: "action" as const,
+            outcome: "stopped" as const,
+            critical: false,
+            counter: false,
+          },
+        ],
+      }).rollSelections,
+      moveEffectsForTrigger(moves.get("move-kiihakai-fade-attack")!, "passive", context)
+        .rollSelections,
+    ];
+
+    expect(applications).toEqual([
+      [
+        expect.objectContaining({
+          roll: "attack",
+          diceCount: 2,
+          selection: "highest",
+          scope: "next-roll",
+        }),
+      ],
+      [],
+      [
+        expect.objectContaining({
+          roll: "defense",
+          diceCount: 2,
+          selection: "lowest",
+          scope: "current-action",
+        }),
+      ],
     ]);
   });
 

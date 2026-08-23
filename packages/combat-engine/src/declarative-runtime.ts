@@ -289,6 +289,13 @@ const durableExpressionHandlers: Partial<
     if (expression.move !== "source" || context.sourceMoveId === undefined) return undefined;
     return (context.self.moveUses[context.sourceMoveId] ?? 0) * expression.perActivation;
   },
+  "source-move-ki-cost": (expression, context) => {
+    if (!isType(expression, "source-move-ki-cost")) return undefined;
+    if (context.sourceMoveId === undefined) return undefined;
+    const sourceMove = context.moves.get(context.sourceMoveId);
+    const kiCost = sourceMove?.mechanics.kiCost;
+    return kiCost === undefined ? undefined : evaluateDurableNumericExpression(kiCost, context);
+  },
   "source-move-calculated-ki-cost": (expression, context) => {
     if (!isType(expression, "source-move-calculated-ki-cost")) return undefined;
     if (context.sourceMoveId === undefined) return undefined;

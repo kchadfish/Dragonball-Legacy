@@ -139,6 +139,7 @@ describe("FREESTYLE_MOVES", () => {
       expect.arrayContaining([
         expect.objectContaining({
           type: "modify-resource",
+          amount: { type: "triggering-move-ki-cost" },
           conditions: expect.arrayContaining([
             expect.objectContaining({ type: "stopped-hit-fraction" }),
           ]),

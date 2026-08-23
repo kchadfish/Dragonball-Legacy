@@ -556,7 +556,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "modify-resource",
         resource: "ki",
         operation: "gain",
-        amount: { type: "source-move-ki-cost" },
+        amount: { type: "triggering-move-ki-cost" },
         conditions: [
           {
             type: "move-selector",

@@ -47,6 +47,48 @@ describe("declarative effect executor registry", () => {
     });
   });
 
+  it("compiles Vile Energy's bounded active-count activation variant", () => {
+    const { move, effect } = firstEffectOfType("move-freestyle-vile-energy", "activate");
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: move.effects!.indexOf(effect),
+      effect,
+      allowPendingChoice: true,
+    });
+
+    expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
+  });
+
+  it("compiles paired start-combat cost selection and deferred END-phase activation", () => {
+    const fierceCost = effectAt("move-kiihakai-fierce-focus-mastery", 0);
+    const fierceActivation = effectAt("move-kiihakai-fierce-focus-mastery", 1);
+    const synergy = effectAt("move-kiihakai-synergy", 2);
+
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: fierceCost.move.id,
+        effectIndex: 0,
+        effect: fierceCost.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "modify-cost" } });
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: fierceActivation.move.id,
+        effectIndex: 1,
+        effect: fierceActivation.effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "activate" } });
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: synergy.move.id,
+        effectIndex: 2,
+        effect: synergy.effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "activate" } });
+  });
+
   it("compiles Rollback Barrage's grouped reactivation variant", () => {
     const { move, effect } = effectAt("move-kiihakai-rollback-barrage", 0);
     const compiled = compileEffectPlan({
@@ -57,9 +99,37 @@ describe("declarative effect executor registry", () => {
     });
 
     expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
+
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: move.effects!.indexOf(effect),
+        effect: {
+          ...effect,
+          activationCost: {
+            resource: "hp",
+            operation: "lose",
+            amount: { type: "literal", value: 2 },
+          },
+        },
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: false, issues: [{ code: "unsupported-variant" }] });
   });
 
-  it("compiles only the exact last-unrestricted copied attack variant", () => {
+  it("compiles Shadow Stalker's source-aware KI activation cost", () => {
+    const { move, effect } = firstEffectOfType("move-kurokonwaku-shadow-stalker", "activate");
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: move.effects!.indexOf(effect),
+      effect,
+      allowPendingChoice: true,
+    });
+
+    expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
+  });
+
+  it("compiles exact last-unrestricted and selected opponent copied attacks", () => {
     const flashback = firstEffectOfType("move-kurokonwaku-flashback", "copy-move-effect");
     expect(
       compileEffectPlan({
@@ -78,9 +148,18 @@ describe("declarative effect executor registry", () => {
     expect(rejected.ok).toBe(false);
     if (!rejected.ok)
       expect(rejected.issues.some((issue) => issue.code === "unsupported-variant")).toBe(true);
+
+    const mimicry = firstEffectOfType("move-kurokonwaku-mimicry-mastery", "copy-move-effect");
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: mimicry.move.id,
+        effectIndex: mimicry.move.effects!.indexOf(mimicry.effect),
+        effect: mimicry.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "copy-move-effect" } });
   });
 
-  it("compiles Anger Manipulation's stopped-fraction lock while preserving its unresolved cost", () => {
+  it("compiles Anger Manipulation's stopped-fraction reward from its triggering attack cost", () => {
     const anger = moveWithId("move-freestyle-anger-manipulation");
     const lock = anger.effects?.[1];
     const resource = anger.effects?.[0];
@@ -91,7 +170,7 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "lock" } });
     expect(
       compileEffectPlan({ sourceDefinitionId: anger.id, effectIndex: 0, effect: resource }),
-    ).toMatchObject({ ok: false });
+    ).toMatchObject({ ok: true, value: { type: "modify-resource" } });
   });
 
   it("compiles current-attack combat outcomes and rejects deferred selectors", () => {
@@ -677,17 +756,14 @@ describe("declarative effect executor registry", () => {
       }),
     ).toMatchObject({ ok: true });
 
-    const stillPerDie = effectAt("move-kurokonwaku-living-voodoo", 0);
-    const rejected = compileEffectPlan({
-      sourceDefinitionId: stillPerDie.move.id,
-      effectIndex: 0,
-      effect: stillPerDie.effect,
-    });
-    expect(rejected).toMatchObject({ ok: false });
-    if (rejected.ok) return;
-    expect(rejected.issues).toContainEqual(
-      expect.objectContaining({ code: "unsupported-variant" }),
-    );
+    const deferredPerDie = effectAt("move-kurokonwaku-living-voodoo", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: deferredPerDie.move.id,
+        effectIndex: 0,
+        effect: deferredPerDie.effect,
+      }),
+    ).toMatchObject({ ok: true });
   });
 
   it("compiles durable stat modifiers and rejects undispatched trigger variants", () => {
@@ -702,7 +778,7 @@ describe("declarative effect executor registry", () => {
 
     const undispatched = {
       ...supported,
-      effect: { ...supported.effect, trigger: "on-roll-modified" as const },
+      effect: { ...supported.effect, trigger: "turn-end" as const },
     };
     const rejected = compileEffectPlan({
       sourceDefinitionId: undispatched.move.id,
@@ -763,6 +839,15 @@ describe("declarative effect executor registry", () => {
         effect: followingAction.effect,
       }),
     ).toMatchObject({ ok: true });
+
+    const currentResolution = effectAt("move-aoyosumu-breakout", 1);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: currentResolution.move.id,
+        effectIndex: 1,
+        effect: currentResolution.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "suppress" } });
 
     const compileVariant = (effect: unknown) =>
       compileEffectPlan({
@@ -968,6 +1053,69 @@ describe("declarative effect executor registry", () => {
     }
   });
 
+  it("compiles automatic roll-modifier transformations and defers paid choices", () => {
+    for (const [moveId, effectIndex, operation] of [
+      ["move-akaikaru-agile-medley", 0, "increment"],
+      ["move-akaikaru-rolling-thunder", 1, "multiplier"],
+    ] as const) {
+      const { move, effect } = effectAt(moveId, effectIndex);
+      expect(
+        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+        `${moveId}#${effectIndex}`,
+      ).toMatchObject({
+        ok: true,
+        value: {
+          type: "modify-roll-modifier",
+          definition: { modifier: "any", [operation]: expect.anything() },
+        },
+      });
+    }
+
+    const stoicism = firstEffectOfType("move-aoyosumu-stoicism", "modify-roll-modifier");
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: stoicism.move.id,
+      effectIndex: stoicism.move.effects?.indexOf(stoicism.effect) ?? 0,
+      effect: stoicism.effect,
+    });
+    expect(rejected).toMatchObject({ ok: false });
+    if (rejected.ok) return;
+    expect(rejected.issues).toContainEqual(
+      expect.objectContaining({ code: "requires-pending-choice" }),
+    );
+  });
+
+  it("compiles each exact roll-selection lifecycle variant", () => {
+    for (const moveId of [
+      "move-akaikaru-bullrush",
+      "move-aoyosumu-floating-drop",
+      "move-kiihakai-fade-attack",
+    ]) {
+      const { move, effect } = firstEffectOfType(moveId, "set-roll-selection");
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex: move.effects?.indexOf(effect) ?? 0,
+          effect,
+        }),
+        moveId,
+      ).toMatchObject({
+        ok: true,
+        value: { type: "set-roll-selection", definition: { type: "set-roll-selection" } },
+      });
+    }
+
+    const { move, effect } = firstEffectOfType("move-kiihakai-fade-attack", "set-roll-selection");
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: move.effects?.indexOf(effect) ?? 0,
+      effect: {
+        ...effect,
+        scope: { type: "next-roll", roll: "defense", sourceText: "invalid test scope" },
+      },
+    });
+    expect(rejected).toMatchObject({ ok: false });
+  });
+
   it("compiles the exact initial reroll variants and retains their source identity", () => {
     for (const moveId of [
       "move-akaikaru-swift-reaction",
@@ -1017,11 +1165,29 @@ describe("declarative effect executor registry", () => {
     });
   });
 
-  it("compiles exact after-defense rerolls and rejects unresolved reroll lifecycles", () => {
+  it("compiles Muscle Infusion's exact serialized on-damage choice", () => {
+    const { move, effect } = effectAt("move-haokiru-muscle-infusion", 0);
+
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 0,
+        effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { type: "modify-damage", definition: { trigger: "on-damage" } },
+    });
+  });
+
+  it("compiles exact reroll lifecycles and rejects unresolved future-choice variants", () => {
     for (const [moveId, effectIndex] of [
       ["move-akaikaru-swift-reaction", 0],
       ["move-aoyosumu-zen-explosion", 0],
       ["move-kurokonwaku-second-chance", 0],
+      ["move-aoyosumu-braced-energy-beam", 0],
+      ["move-aoyosumu-tiger-strikes", 0],
     ] as const) {
       const { move, effect } = effectAt(moveId, effectIndex);
 
@@ -1034,8 +1200,6 @@ describe("declarative effect executor registry", () => {
     }
 
     for (const [moveId, effectIndex] of [
-      ["move-aoyosumu-braced-energy-beam", 0],
-      ["move-aoyosumu-tiger-strikes", 0],
       ["move-haokiru-willing-sacrifice", 1],
       ["move-kurokonwaku-ki-trap", 2],
     ] as const) {
@@ -1064,6 +1228,13 @@ describe("declarative effect executor registry", () => {
         effectIndex: 2,
         effect: stun.effect,
       }),
+    ).toMatchObject({ ok: true, value: { type: "negate" } });
+  });
+
+  it("compiles successful-effect negation selected by the triggering move", () => {
+    const { move, effect } = effectAt("move-aoyosumu-the-untroubled-mind", 0);
+    expect(
+      compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 0, effect }),
     ).toMatchObject({ ok: true, value: { type: "negate" } });
   });
 
@@ -1118,6 +1289,7 @@ describe("declarative effect executor registry", () => {
       "modify-remaining-uses",
       "modify-resource",
       "modify-roll",
+      "modify-roll-modifier",
       "modify-stat",
       "negate",
       "prevent-combat-result",
@@ -1136,6 +1308,7 @@ describe("declarative effect executor registry", () => {
       "set-resolution-threshold",
       "set-roll-definition",
       "set-roll-result",
+      "set-roll-selection",
       "skip-action",
       "suppress",
     ]);

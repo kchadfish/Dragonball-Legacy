@@ -23,6 +23,7 @@ export const registeredEffectTypes = [
   "modify-remaining-uses",
   "modify-resource",
   "modify-roll",
+  "modify-roll-modifier",
   "modify-stat",
   "negate",
   "remove-move-from-combat",
@@ -41,6 +42,7 @@ export const registeredEffectTypes = [
   "set-resolution-threshold",
   "set-roll-definition",
   "set-roll-result",
+  "set-roll-selection",
   "skip-action",
   "suppress",
 ] as const satisfies readonly EffectDefinition["type"][];
@@ -133,6 +135,7 @@ const supportedTriggers = new Set([
   "on-resource-gain",
   "on-resource-drain",
   "on-resource-threshold",
+  "on-roll-modified",
   "on-roll-result",
   "start-combat",
   "upkeep-phase",
@@ -391,14 +394,22 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
     effect.type !== "lock" &&
     effect.type !== "modify-resource" &&
     effect.type !== "modify-remaining-uses" &&
-    effect.type !== "modify-roll"
+    effect.type !== "modify-roll" &&
+    effect.type !== "activate" &&
+    !(
+      effect.type === "modify-cost" &&
+      effect.operation === "set" &&
+      effect.amount.type === "literal" &&
+      effect.amount.value === 0 &&
+      effect.selector?.selectionKey !== undefined
+    )
   )
     issues.push(
       issue(
         "unsupported-trigger",
         sourceDefinitionId,
         effectIndex,
-        "Start-combat currently dispatches only representable lock and resource effects.",
+        "Start-combat currently dispatches only representable lock, resource, or phase-aware activation effects.",
       ),
     );
   if (effect.trigger === "upkeep-phase" && !supportedUpkeepEffectTypes.has(effect.type))
@@ -437,46 +448,155 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
   return issues;
 };
 
-const copyMoveEffectIssues = (
-  effect: Extract<RegisteredEffectDefinition, { readonly type: "copy-move-effect" }>,
+type CopyMoveEffect = Extract<RegisteredEffectDefinition, { readonly type: "copy-move-effect" }>;
+
+const copyMoveUnsupported = (
   sourceDefinitionId: string,
   effectIndex: number,
-) => {
-  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  const unsupported = (message: string) =>
-    issues.push(issue("unsupported-variant", sourceDefinitionId, effectIndex, message));
+  messages: readonly string[],
+) =>
+  messages.map((message) => issue("unsupported-variant", sourceDefinitionId, effectIndex, message));
 
-  if (effect.trigger !== "action-phase" || effect.target !== "self")
-    unsupported("Only self action-phase copied attacks are executable in the current runtime.");
-  if (
-    effect.sourceMove.type !== "last-prior-move" ||
-    effect.sourceMove.actor !== "self" ||
-    effect.sourceMove.restriction !== "unrestricted"
-  )
-    unsupported("Only the last unrestricted self move source is currently executable.");
-  if (effect.effectResult !== "successful" || effect.resolveAs !== "source-move")
-    unsupported("Copied attacks must resolve as the selected source move on success.");
-  if (
-    effect.damage?.type !== "add-percent" ||
+const copyMoveCommonVariantIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  [
+    ...(effect.trigger !== "action-phase" || effect.target !== "self"
+      ? ["Only self action-phase copied attacks are executable in the current runtime."]
+      : []),
+    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+      ? ["Copied attacks must resolve as the selected source move on success."]
+      : []),
+    ...(effect.cost?.type !== "selected-move-base-cost"
+      ? ["Copied attacks currently require the selected source move base Ki cost."]
+      : []),
+  ].map((message) => issue("unsupported-variant", sourceDefinitionId, effectIndex, message));
+
+const selectedOpponentCopyIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  copyMoveUnsupported(sourceDefinitionId, effectIndex, [
+    ...(effect.ignoreRequirements !== true
+      ? ["Selected opponent attacks must explicitly bypass source requirements."]
+      : []),
+    ...(effect.useLimit?.scope !== "combat" || effect.useLimit.count !== 1
+      ? ["Selected opponent attacks currently require one combat-scoped use."]
+      : []),
+    ...(effect.damage !== undefined || effect.copies !== undefined
+      ? ["Selected opponent attacks do not support additional damage or copy modifiers."]
+      : []),
+  ]);
+
+const lastSelfCopyIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  copyMoveUnsupported(sourceDefinitionId, effectIndex, [
+    ...(effect.damage?.type !== "add-percent" ||
     effect.damage.value.type !== "literal" ||
     !Number.isFinite(effect.damage.value.value)
-  )
-    unsupported("Copied attacks currently require a finite literal additive power-percent bonus.");
-  if (effect.cost?.type !== "selected-move-base-cost")
-    unsupported("Copied attacks currently require the selected source move base Ki cost.");
-  if (effect.ignoreRequirements !== undefined || effect.copies !== undefined)
-    unsupported("Requirement bypasses and copied source modifiers require a distinct executor.");
-  if (
-    effect.scope !== undefined ||
-    effect.duration !== undefined ||
-    effect.useLimit !== undefined ||
-    effect.activationCost !== undefined ||
+      ? ["Copied attacks currently require a finite literal additive power-percent bonus."]
+      : []),
+    ...(effect.ignoreRequirements !== undefined || effect.copies !== undefined
+      ? ["Requirement bypasses and copied source modifiers require a distinct executor."]
+      : []),
+    ...(effect.useLimit !== undefined
+      ? [
+          "Copied attacks with lifecycle, activation, or selection modifiers require a distinct executor.",
+        ]
+      : []),
+  ]);
+
+const copyMoveLifecycleIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  copyMoveUnsupported(sourceDefinitionId, effectIndex, [
+    ...(effect.scope !== undefined || effect.duration !== undefined
+      ? [
+          "Copied attacks with lifecycle, activation, or selection modifiers require a distinct executor.",
+        ]
+      : []),
+    ...(effect.activationCost !== undefined ||
     effect.selectionLimit !== undefined ||
     effect.cooldown !== undefined ||
     effect.stacking !== undefined
-  )
-    unsupported(
-      "Copied attacks with lifecycle, activation, or selection modifiers require a distinct executor.",
+      ? [
+          "Copied attacks with lifecycle, activation, or selection modifiers require a distinct executor.",
+        ]
+      : []),
+  ]);
+
+const copyMoveEffectIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const selectedOpponentAttack =
+    effect.sourceMove.type === "selected-move" &&
+    effect.sourceMove.actor === "opponent" &&
+    effect.sourceMove.category === "advanced-attack";
+  const lastUnrestrictedSelfAttack =
+    effect.sourceMove.type === "last-prior-move" &&
+    effect.sourceMove.actor === "self" &&
+    effect.sourceMove.restriction === "unrestricted";
+  return [
+    ...commonIssues(effect, sourceDefinitionId, effectIndex),
+    ...copyMoveCommonVariantIssues(effect, sourceDefinitionId, effectIndex),
+    ...(!selectedOpponentAttack && !lastUnrestrictedSelfAttack
+      ? copyMoveUnsupported(sourceDefinitionId, effectIndex, [
+          "This copied attack source selector is not executable in the current runtime.",
+        ])
+      : []),
+    ...(selectedOpponentAttack
+      ? selectedOpponentCopyIssues(effect, sourceDefinitionId, effectIndex)
+      : lastSelfCopyIssues(effect, sourceDefinitionId, effectIndex)),
+    ...copyMoveLifecycleIssues(effect, sourceDefinitionId, effectIndex),
+  ];
+};
+
+const activationTimingIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "activate" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues: EffectCompilationIssue[] = [];
+  const supportedTrigger =
+    effect.trigger === "before-attack-roll" ||
+    effect.trigger === "on-success" ||
+    effect.trigger === "start-combat" ||
+    effect.trigger === "on-roll-result";
+  if (!supportedTrigger)
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Activation selection currently resolves before attack rolls, after successful actions, at start combat, or from a deferred roll-result phase.",
+      ),
+    );
+  const supportedScope =
+    (effect.trigger === "before-attack-roll" && effect.scope === undefined) ||
+    (effect.trigger === "start-combat" && effect.scope === undefined) ||
+    (effect.trigger === "on-success" && effect.scope === undefined) ||
+    (effect.trigger === "on-roll-result" &&
+      effect.scope?.type === "next-phase" &&
+      effect.scope.subject === "self" &&
+      effect.scope.phase === "end");
+  if (!supportedScope)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Phase-aware activation supports only immediate success/start-combat choices and on-roll-result choices deferred to the owner's END phase.",
+      ),
     );
   return issues;
 };
@@ -487,15 +607,7 @@ const activateIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  if (effect.trigger !== "on-success" && effect.trigger !== "before-attack-roll")
-    issues.push(
-      issue(
-        "unsupported-trigger",
-        sourceDefinitionId,
-        effectIndex,
-        "Activation selection currently resolves only after a successful action or before an attack roll.",
-      ),
-    );
+  issues.push(...activationTimingIssues(effect, sourceDefinitionId, effectIndex));
   if (effect.target !== "self")
     issues.push(
       issue(
@@ -510,6 +622,12 @@ const activateIssues = (
     Number.isInteger(effect.repeatCount.groupSize) &&
     effect.repeatCount.groupSize >= 1 &&
     effect.ignoreRequirements === true;
+  const repeatUntilSupported =
+    effect.repeatCount === undefined &&
+    effect.ignoreRequirements === undefined &&
+    effect.repeatUntil?.type === "active-move-count-matches-opponent" &&
+    effect.repeatUntil.fallback === "no-eligible-moves" &&
+    effect.repeatUntil.selector.subject === "source";
   if (effect.repeatCount !== undefined && !groupedReactivation)
     issues.push(
       issue(
@@ -523,8 +641,7 @@ const activateIssues = (
     effect.asIf !== undefined ||
     (effect.ignoreRequirements === true && !groupedReactivation) ||
     effect.selectionKey !== undefined ||
-    effect.repeatUntil !== undefined ||
-    effect.activationCost !== undefined
+    (effect.repeatUntil !== undefined && !repeatUntilSupported)
   )
     issues.push(
       issue(
@@ -536,6 +653,7 @@ const activateIssues = (
           : "Activation selection supports one ordinary CONSTANT Skill choice without repeat or alternate activation semantics.",
       ),
     );
+  issues.push(...activationCostIssues(effect, sourceDefinitionId, effectIndex));
   const selectorIsConstant =
     effect.selector.constant === true ||
     (effect.selector.ids !== undefined && effect.selector.ids.length > 0);
@@ -556,6 +674,44 @@ const activateIssues = (
     );
   return issues;
 };
+
+function activationCostIssues(
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "activate" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): EffectCompilationIssue[] {
+  if (effect.activationCost === undefined) return [];
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.activationCost.resource !== "ki")
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Constant Skill activation costs currently support KI payments only.",
+      ),
+    );
+  for (const [value, field] of [
+    [effect.activationCost.amount, "activationCost.amount"],
+    [effect.activationCost.minimum, "activationCost.minimum"],
+  ] as const) {
+    const numericIssueResult =
+      value?.type === "source-move-ki-cost"
+        ? undefined
+        : numericIssue(value, sourceDefinitionId, effectIndex, field);
+    if (numericIssueResult !== undefined) issues.push(numericIssueResult);
+    if (value?.type === "literal" && (!Number.isFinite(value.value) || value.value < 0))
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          `${field} must resolve to a nonnegative value.`,
+        ),
+      );
+  }
+  return issues;
+}
 
 const modifyCriticalThresholdIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-critical-threshold" }>,
@@ -652,13 +808,17 @@ const modifyDamageUseLimitIssues = (
 ): EffectCompilationIssue[] => {
   if (effect.useLimit === undefined) return [];
   const issues: EffectCompilationIssue[] = [];
-  if (effect.trigger !== "action-phase" && effect.trigger !== "upkeep-phase")
+  if (
+    effect.trigger !== "action-phase" &&
+    effect.trigger !== "upkeep-phase" &&
+    !(effect.trigger === "on-damage" && effect.activationCost !== undefined)
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Damage use limits are supported only when an action or upkeep transition creates the durable modifier.",
+        "Damage use limits are supported only for durable action/upkeep modifiers or serialized on-damage responses.",
       ),
     );
   if (effect.useLimit.scope !== "combat")
@@ -1092,6 +1252,131 @@ const modifyResourceIssues = (
   return issues;
 };
 
+type ModifyRollModifier = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "modify-roll-modifier" }
+>;
+
+const modifyRollModifierIssues = (
+  effect: ModifyRollModifier,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => [
+  ...commonIssues(effect, sourceDefinitionId, effectIndex),
+  ...(effect.target === "self"
+    ? []
+    : [
+        issue(
+          "unsupported-target",
+          sourceDefinitionId,
+          effectIndex,
+          "Roll-modifier transformations currently target the owning combatant only.",
+        ),
+      ]),
+  ...(effect.trigger === "on-success" || effect.trigger === "on-roll-modified"
+    ? []
+    : [
+        issue(
+          "unsupported-trigger",
+          sourceDefinitionId,
+          effectIndex,
+          "Roll-modifier transformations resolve from successful effects or roll-modified reactions.",
+        ),
+      ]),
+  ...modifyRollModifierNumericIssues(effect, sourceDefinitionId, effectIndex),
+  ...modifyRollModifierLifecycleIssues(effect, sourceDefinitionId, effectIndex),
+];
+
+const modifyRollModifierNumericIssues = (
+  effect: ModifyRollModifier,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  [
+    ...[numericIssue(effect.multiplier, sourceDefinitionId, effectIndex, "multiplier")],
+    ...[numericIssue(effect.increment, sourceDefinitionId, effectIndex, "increment")],
+    ...((effect.multiplier === undefined) === (effect.increment === undefined)
+      ? [
+          issue(
+            "unsupported-variant",
+            sourceDefinitionId,
+            effectIndex,
+            "Roll-modifier transformations require exactly one multiplier or increment expression.",
+          ),
+        ]
+      : []),
+  ].filter((candidate): candidate is EffectCompilationIssue => candidate !== undefined);
+
+const modifyRollModifierLifecycleIssues = (
+  effect: ModifyRollModifier,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => [
+  ...conditionalEffectIssue(
+    !validRollModifierSourceCategories(effect),
+    "unsupported-variant",
+    sourceDefinitionId,
+    effectIndex,
+    "Excluded roll-modifier source categories must be unique mastery or skill categories.",
+  ),
+  ...conditionalEffectIssue(
+    effect.cap !== undefined && effect.cap.type !== "allow-exceed",
+    "unsupported-variant",
+    sourceDefinitionId,
+    effectIndex,
+    "Roll-modifier transformations support only the typed allow-exceed cap.",
+  ),
+  ...conditionalEffectIssue(
+    !validRollModifierScope(effect),
+    "unsupported-variant",
+    sourceDefinitionId,
+    effectIndex,
+    "Roll-modifier transformations support only a next attack or defense roll scope.",
+  ),
+  ...conditionalEffectIssue(
+    effect.duration !== undefined && effect.duration.type !== "combat",
+    "unsupported-variant",
+    sourceDefinitionId,
+    effectIndex,
+    "Roll-modifier transformations support only combat duration; next-roll lifetime uses scope.",
+  ),
+  ...conditionalEffectIssue(
+    requiresRollModifierChoice(effect),
+    "requires-pending-choice",
+    sourceDefinitionId,
+    effectIndex,
+    "Paid, limited, optional, or stacked roll-modifier reactions require serialized choice and use accounting.",
+  ),
+];
+
+const conditionalEffectIssue = (
+  invalid: boolean,
+  code: EffectCompilationIssue["code"],
+  sourceDefinitionId: string,
+  effectIndex: number,
+  message: string,
+) => (invalid ? [issue(code, sourceDefinitionId, effectIndex, message)] : []);
+
+const validRollModifierSourceCategories = (effect: ModifyRollModifier) =>
+  effect.excludeSourceCategories === undefined ||
+  (new Set(effect.excludeSourceCategories).size === effect.excludeSourceCategories.length &&
+    effect.excludeSourceCategories.every(
+      (category) => category === "mastery" || category === "skill",
+    ));
+
+const validRollModifierScope = (effect: ModifyRollModifier) =>
+  effect.scope === undefined ||
+  (effect.scope.type === "next-roll" &&
+    (effect.scope.roll === "attack" || effect.scope.roll === "defense"));
+
+const requiresRollModifierChoice = (effect: ModifyRollModifier) =>
+  effect.optional === true ||
+  effect.activationCost !== undefined ||
+  effect.useLimit !== undefined ||
+  effect.cooldown !== undefined ||
+  effect.stacking !== undefined ||
+  effect.selectionLimit !== undefined;
+
 const lockIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "lock" }>,
   sourceDefinitionId: string,
@@ -1247,13 +1532,18 @@ const suppressLifecycleIssues = (
         "Suppress effects cannot combine a next-action scope with a separate duration.",
       ),
     );
-  if (effect.scope === undefined && effect.duration === undefined)
+  if (
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.trigger !== "before-defense-roll" &&
+    effect.trigger !== "on-success"
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Suppress effects require a durable duration or next-action scope; current-resolution suppression is not approximated.",
+        "Current-resolution suppression is supported only before defense or after a successful attack.",
       ),
     );
   return issues;
@@ -1336,6 +1626,49 @@ const suppressIssues = (
   ...suppressChoiceIssues(effect, sourceDefinitionId, effectIndex),
 ];
 
+const successfulNegationIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "negate" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const moveSelectorConditions = (effect.conditions ?? []).filter(
+    (condition): condition is Extract<EffectCondition, { readonly type: "move-selector" }> =>
+      condition.type === "move-selector",
+  );
+  const combatResultConditions = (effect.conditions ?? []).filter(
+    (condition): condition is Extract<EffectCondition, { readonly type: "combat-result" }> =>
+      condition.type === "combat-result",
+  );
+  const onlySuccessfulOpponentResult = combatResultConditions.every(
+    (condition) => condition.actor === "opponent" && condition.result === "successful",
+  );
+  return [
+    ...(effect.target !== "opponent" ||
+    (effect.aspects !== undefined && effect.aspects.length > 0) ||
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.stacking !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    moveSelectorConditions.length !== 1 ||
+    combatResultConditions.length !== 1 ||
+    !onlySuccessfulOpponentResult ||
+    moveSelectorConditions[0]?.subject !== "target" ||
+    (effect.conditions ?? []).length !== 2
+      ? [
+          issue(
+            "unsupported-variant",
+            sourceDefinitionId,
+            effectIndex,
+            "Successful-effect negation supports one opponent move selector and one successful opponent combat-result condition without a deferred lifecycle.",
+          ),
+        ]
+      : []),
+  ];
+};
+
 const negateIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "negate" }>,
   sourceDefinitionId: string,
@@ -1380,6 +1713,8 @@ const negateIssues = (
     }
     return issues;
   }
+  if (effect.trigger === "on-success")
+    return [...issues, ...successfulNegationIssues(effect, sourceDefinitionId, effectIndex)];
   if (effect.trigger !== "action-phase")
     issues.push(
       issue(
@@ -1630,6 +1965,93 @@ const setRollResultIssues = (
   return issues;
 };
 
+const setRollSelectionIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "set-roll-selection" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const diceCountIssue = numericIssue(
+    effect.diceCount,
+    sourceDefinitionId,
+    effectIndex,
+    "diceCount",
+  );
+  if (diceCountIssue !== undefined) issues.push(diceCountIssue);
+  if (
+    effect.diceCount.type === "literal" &&
+    (!Number.isInteger(effect.diceCount.value) || effect.diceCount.value < 2)
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Roll selection requires at least two candidate dice.",
+      ),
+    );
+  if (effect.trigger !== "passive" && effect.trigger !== "on-success")
+    issues.push(
+      issue(
+        "unsupported-trigger",
+        sourceDefinitionId,
+        effectIndex,
+        "Roll selection is supported only as a passive current-action rule or an on-success next-roll rule.",
+      ),
+    );
+  const scope = effect.scope?.type;
+  if (
+    (effect.trigger === "passive" && scope !== "current-action") ||
+    (effect.trigger === "on-success" && scope !== "next-roll")
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Passive roll selection must apply to the current action; on-success selection must apply to the next matching roll.",
+      ),
+    );
+  if (scope === "next-roll" && effect.scope?.roll !== effect.roll)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "A next-roll selection must name the same roll it selects.",
+      ),
+    );
+  if (effect.target !== "self" && effect.target !== "opponent")
+    issues.push(
+      issue(
+        "unsupported-target",
+        sourceDefinitionId,
+        effectIndex,
+        "Roll selection targets one combatant at a time.",
+      ),
+    );
+  if (
+    effect.duration !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined ||
+    effect.optional === true ||
+    effect.activationGroup !== undefined ||
+    effect.exclusiveActivationGroup !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Roll selection does not approximate deferred duration, limits, costs, stacking, or optional activation metadata.",
+      ),
+    );
+  return issues;
+};
+
 const setCombatResultIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "set-combat-result" }>,
   sourceDefinitionId: string,
@@ -1638,17 +2060,17 @@ const setCombatResultIssues = (
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const isAfterDefensePerDie =
     effect.trigger === "after-defense-roll" && effect.resultScope === "matching-die";
-  const isDeferredStoppedAttack =
+  const isDeferredStoppedResult =
     effect.trigger === "on-stopped" &&
     effect.result === "stopped" &&
-    effect.resultScope === "current-attack" &&
+    (effect.resultScope === "current-attack" || effect.resultScope === "matching-die") &&
     effect.scope?.type === "next-action" &&
     effect.duration === undefined &&
     effect.useLimit === undefined &&
     effect.activationCost === undefined &&
     effect.activationGroup === undefined &&
     effect.optional !== true;
-  if (effect.resultScope !== "current-attack" && !isAfterDefensePerDie)
+  if (effect.resultScope !== "current-attack" && !isAfterDefensePerDie && !isDeferredStoppedResult)
     issues.push(
       issue(
         "unsupported-variant",
@@ -1679,7 +2101,7 @@ const setCombatResultIssues = (
         "Current-attack critical overrides require an on-success trigger or a post-defense reaction.",
       ),
     );
-  if (effect.result === "stopped" && !isAfterDefensePerDie && !isDeferredStoppedAttack)
+  if (effect.result === "stopped" && !isAfterDefensePerDie && !isDeferredStoppedResult)
     issues.push(
       issue(
         "unsupported-variant",
@@ -1914,25 +2336,29 @@ const rerollIssues = (
     );
     if (thresholdIssue !== undefined) issues.push(thresholdIssue);
   }
-  if (effect.trigger !== "after-defense-roll")
+  if (effect.trigger !== "after-defense-roll" && effect.trigger !== "on-success")
     issues.push(
       issue(
         "unsupported-trigger",
         sourceDefinitionId,
         effectIndex,
-        "This reroll executor resolves only after both attack and defense dice are persisted.",
+        "Reroll reactions resolve after persisted attack and defense dice or after a successful source attack.",
       ),
     );
-  if (effect.target !== "self")
+  if (effect.target !== "self" && effect.target !== "opponent")
     issues.push(
       issue(
         "unsupported-target",
         sourceDefinitionId,
         effectIndex,
-        "After-defense rerolls must target the combatant who owns the effect.",
+        "Reroll effects must target the source or its opponent.",
       ),
     );
-  if (effect.scope !== undefined)
+  const deferredScope =
+    effect.scope?.type === "next-action" ||
+    effect.scope?.type === "next-roll" ||
+    effect.scope?.type === "next-rolls";
+  if (effect.trigger === "after-defense-roll" && effect.scope !== undefined)
     issues.push(
       issue(
         "unsupported-variant",
@@ -1942,15 +2368,34 @@ const rerollIssues = (
       ),
     );
   if (
+    effect.trigger === "after-defense-roll" &&
     effect.duration !== undefined &&
-    (effect.duration.type !== "combat" || effect.requiresPriorSourceResult !== "successful")
+    effect.duration.type !== "combat"
   )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Durable rerolls require combat duration and an explicit successful source-move prerequisite.",
+        "After-defense durable rerolls require combat duration.",
+      ),
+    );
+  if (effect.trigger === "on-success" && !deferredScope)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Successful-attack rerolls require an explicit next-action or next-roll scope.",
+      ),
+    );
+  if (effect.trigger === "on-success" && effect.duration !== undefined)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Successful-attack rerolls use their deferred scope instead of a separate duration.",
       ),
     );
   if (effect.requiresPriorSourceResult !== undefined && effect.duration?.type !== "combat")
@@ -1980,13 +2425,17 @@ const rerollIssues = (
         "Defense rerolls replace one persisted defense result at a time.",
       ),
     );
-  if (effect.useLimit !== undefined && effect.useLimit.scope !== "combat")
+  if (
+    effect.useLimit !== undefined &&
+    effect.useLimit.scope !== "combat" &&
+    effect.useLimit.scope !== "turn"
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Immediate reroll reactions support combat use limits only.",
+        "Reroll reactions support combat or turn use limits only.",
       ),
     );
   if (
@@ -3032,6 +3481,7 @@ export const effectExecutorRegistry = {
   "modify-resource": createExecutor("modify-resource", modifyResourceIssues),
   "grant-extra-action": createExecutor("grant-extra-action", grantExtraActionIssues),
   "modify-roll": createExecutor("modify-roll", modifyRollIssues),
+  "modify-roll-modifier": createExecutor("modify-roll-modifier", modifyRollModifierIssues),
   "modify-stat": createExecutor("modify-stat", modifyStatIssues),
   negate: createExecutor("negate", negateIssues),
   "remove-move-from-combat": createExecutor("remove-move-from-combat", removeMoveFromCombatIssues),
@@ -3059,6 +3509,7 @@ export const effectExecutorRegistry = {
   "set-resolution-threshold": createExecutor("set-resolution-threshold", resolutionThresholdIssues),
   "set-roll-definition": createExecutor("set-roll-definition"),
   "set-roll-result": createExecutor("set-roll-result", setRollResultIssues),
+  "set-roll-selection": createExecutor("set-roll-selection", setRollSelectionIssues),
   "skip-action": createExecutor("skip-action", skipActionIssues),
   suppress: createExecutor("suppress", suppressIssues),
 } satisfies EffectExecutorRegistry;
