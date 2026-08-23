@@ -561,6 +561,183 @@ describe("generic copied attack executor", () => {
     expect(replayed.version).toBeGreaterThan(sourceAction.state.version);
   });
 
+  it("selects a prior successful Advanced Attack and replays only its successful effect with exact damage", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 20, 1],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:karmic-copy")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 120 }, (_, index) =>
+          combatEventIdSchema.parse(`event:karmic-copy-${index + 1}`),
+        ),
+        activeEffectIds: Array.from({ length: 10 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:karmic-copy-${index + 1}`),
+        ),
+        pendingDecisionIds: [
+          pendingDecisionIdSchema.parse("pending-decision:karmic-selection"),
+          pendingDecisionIdSchema.parse("pending-decision:karmic-defense"),
+        ],
+        resolutionFrameIds: [
+          resolutionFrameIdSchema.parse("resolution-frame:karmic-selection"),
+          resolutionFrameIdSchema.parse("resolution-frame:karmic-defense"),
+        ],
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-karmic-possession"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-push", "move-kurokonwaku-sand-in-the-eyes"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const firstAction = requireTransition(advanceFight(created.state, dependencies));
+    const firstPassed = requireTransition(
+      submitCombatDecision(
+        firstAction.state,
+        {
+          type: "pass",
+          id: combatDecisionIdSchema.parse("decision:karmic-pass"),
+          actorId: firstCombatantId,
+          expectedStateVersion: firstAction.state.version,
+        },
+        dependencies,
+      ),
+    );
+    const secondUpkeep = requireTransition(advanceFight(firstPassed.state, dependencies));
+    const secondAction = requireTransition(advanceFight(secondUpkeep.state, dependencies));
+    const sourceAttack = requireTransition(
+      submitCombatDecision(
+        secondAction.state,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:karmic-source"),
+          actorId: secondCombatantId,
+          expectedStateVersion: secondAction.state.version,
+          moveId: "move-aoyosumu-push",
+          targetCombatantId: firstCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    expect(sourceAttack.state.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      decisionId: "decision:karmic-source",
+      outcome: "successful",
+      damageDealt: 9,
+    });
+
+    const firstUpkeep = requireTransition(advanceFight(sourceAttack.state, dependencies));
+    const karmicAction = requireTransition(advanceFight(firstUpkeep.state, dependencies));
+    expect(enumerateLegalDecisions(karmicAction.state, firstCombatantId)).toContainEqual(
+      expect.objectContaining({ moveId: "move-aoyosumu-karmic-possession" }),
+    );
+    const selectionPending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          karmicAction.state,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:karmic-use"),
+            actorId: firstCombatantId,
+            expectedStateVersion: karmicAction.state.version,
+            moveId: "move-aoyosumu-karmic-possession",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(selectionPending.pendingDecision).toMatchObject({
+      type: "select-move",
+      options: [
+        {
+          id: "copy-move:decision:karmic-source",
+          moveId: "move-aoyosumu-push",
+          sourceActionId: "decision:karmic-source",
+          sourceDamageDealt: 9,
+        },
+      ],
+    });
+    expect(selectionPending.resolutionFrames[0]).toMatchObject({
+      operation: "copy-move",
+      eligibleSourceActionIds: ["decision:karmic-source"],
+    });
+
+    const defensePending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          selectionPending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:karmic-select"),
+            actorId: firstCombatantId,
+            expectedStateVersion: selectionPending.version,
+            pendingDecisionId: selectionPending.pendingDecision!.id,
+            optionId: "copy-move:decision:karmic-source",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(defensePending.resolutionFrames[0]).toMatchObject({
+      stage: "awaiting-defense",
+      attack: {
+        moveId: "move-aoyosumu-karmic-possession",
+        copiedFromMoveId: "move-aoyosumu-push",
+        copiedDamageOverride: 9,
+        copiedSuccessfulEffectsOnly: true,
+        copiedSourceMove: { id: "move-aoyosumu-push" },
+      },
+    });
+
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          defensePending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:karmic-defense"),
+            actorId: secondCombatantId,
+            expectedStateVersion: defensePending.version,
+            pendingDecisionId: defensePending.pendingDecision!.id,
+            optionId: "roll-defense",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resolved.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      moveId: "move-aoyosumu-karmic-possession",
+      outcome: "successful",
+      damageDealt: 9,
+    });
+    expect(resolved.combatants[secondCombatantId].hitPoints.current).toBe(191);
+    expect(resolved.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "action-lock",
+        sourceDefinitionId: "move-aoyosumu-karmic-possession",
+        targetCombatantId: secondCombatantId,
+      }),
+    );
+    expect(resolved.resolutionFrames).toHaveLength(0);
+    expect(resolved.pendingDecision).toBeUndefined();
+  });
+
   it("serializes Mimicry Master's opponent move selection and resolves the chosen attack once", () => {
     const dependencies = createTestCombatDependencies(
       [20, 1],
@@ -785,6 +962,146 @@ describe("generic on-success pending effect choices", () => {
     expect(completed.combatants[secondCombatantId].hitPoints.current).toBe(80);
     expect(completed.combatants[firstCombatantId].ki.current).toBe(3);
     expect(resumed.events.filter((event) => event.type === "attack-rolled")).toHaveLength(0);
+  });
+
+  it("persists Tornado Uppercut's selected HP-loss modifier and applies it to the next matching attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 20, 1],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:tornado-uppercut-resource-cost")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 60 }, (_, index) =>
+          combatEventIdSchema.parse(`event:tornado-uppercut-${index + 1}`),
+        ),
+        activeEffectIds: Array.from({ length: 6 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:tornado-uppercut-${index + 1}`),
+        ),
+        pendingDecisionIds: [
+          pendingDecisionIdSchema.parse("pending-decision:tornado-uppercut-choice"),
+          pendingDecisionIdSchema.parse("pending-decision:tornado-uppercut-defense"),
+        ],
+        resolutionFrameIds: [
+          resolutionFrameIdSchema.parse("resolution-frame:tornado-uppercut-choice"),
+          resolutionFrameIdSchema.parse("resolution-frame:tornado-uppercut-defense"),
+        ],
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+              moveIds: [
+                "move-haokiru-tornado-uppercut",
+                "move-freestyle-straining-concussion-wave",
+              ],
+            },
+            {
+              maximumHitPoints: 10000,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:tornado-uppercut"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-haokiru-tornado-uppercut",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(pending.pendingDecision?.options).toEqual([
+      { id: "activate-effect:2", type: "activate-effect", effectIndices: [2] },
+      { id: "activate-effect:3", type: "activate-effect", effectIndices: [3] },
+      { id: "decline", type: "decline" },
+    ]);
+
+    const completed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:tornado-uppercut-activate"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate-effect:2",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(completed.combatants[firstCombatantId].ki.current).toBe(
+      action.combatants[firstCombatantId].ki.current - 2,
+    );
+    expect(completed.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "modify-next-action",
+        sourceDefinitionId: "move-haokiru-tornado-uppercut",
+        sourceEffectIndex: 2,
+        modifier: {
+          type: "resource-cost",
+          resource: "hp",
+          operation: "add",
+          amount: -100,
+        },
+      }),
+    );
+
+    const nextAction = {
+      ...completed,
+      phase: "action" as const,
+      activeCombatantId: firstCombatantId,
+    };
+    const nextAttack = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          nextAction,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:tornado-uppercut-follow-up"),
+            actorId: firstCombatantId,
+            expectedStateVersion: nextAction.version,
+            moveId: "move-freestyle-straining-concussion-wave",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(nextAttack.combatants[firstCombatantId].hitPoints.current).toBe(
+      completed.combatants[firstCombatantId].hitPoints.current,
+    );
+    expect(nextAttack.pendingDecision).toBeUndefined();
+    expect(nextAttack.activeEffects).not.toContainEqual(
+      expect.objectContaining({
+        type: "modify-next-action",
+        sourceDefinitionId: "move-haokiru-tornado-uppercut",
+        sourceEffectIndex: 2,
+      }),
+    );
   });
 });
 
@@ -2037,6 +2354,250 @@ describe("stored-roll transitions", () => {
     );
   });
 
+  it("serializes Healing Ray's self-heal choice and resumes it without rerolling", () => {
+    const dependencies = createTestCombatDependencies([12], new Date("2026-08-23T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:healing-ray-choice")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      eventIds: Array.from({ length: 40 }, (_, index) =>
+        combatEventIdSchema.parse(`event:healing-ray-choice-${index + 1}`),
+      ),
+      pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:healing-ray-choice")],
+      resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:healing-ray-choice")],
+    });
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-haokiru-healing-ray"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const prepared: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId],
+          hitPoints: { ...action.combatants[firstCombatantId].hitPoints, current: 50 },
+        },
+      },
+    };
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          prepared,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:healing-ray-choice"),
+            actorId: firstCombatantId,
+            expectedStateVersion: prepared.version,
+            moveId: "move-haokiru-healing-ray",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(pending.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      combatantId: firstCombatantId,
+      options: [
+        {
+          id: "activate-effect:1",
+          type: "activate-effect",
+          moveId: "move-haokiru-healing-ray",
+          effectIndices: [1],
+        },
+        { id: "decline", type: "decline" },
+      ],
+    });
+    expect(pending.resolutionFrames[0]).toMatchObject({
+      type: "effect-choice",
+      effectTrigger: "on-roll-result",
+      effectIndices: [1],
+      storedRolls: [expect.objectContaining({ naturalResults: [12], sides: 30 })],
+    });
+    expect(pending.combatants[firstCombatantId].hitPoints.current).toBe(50);
+    expect(pending.combatants[firstCombatantId].ki.current).toBe(
+      prepared.combatants[firstCombatantId].ki.current,
+    );
+
+    const resumed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:healing-ray-activate"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate-effect:1",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(resumed.combatants[firstCombatantId].hitPoints.current).toBe(75);
+    expect(resumed.combatants[firstCombatantId].ki.current).toBe(
+      prepared.combatants[firstCombatantId].ki.current - 2,
+    );
+    expect(
+      resumed.combatants[firstCombatantId].storedRolls?.["healing-ray-result"]?.naturalResults,
+    ).toEqual([12]);
+    expect(resumed.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      moveId: "move-haokiru-healing-ray",
+    });
+    expect(resumed.pendingDecision).toBeUndefined();
+    expect(resumed.resolutionFrames).toHaveLength(0);
+  });
+
+  it("applies Ki Trap's prohibited HP loss to the opponent's matching natural attack roll", () => {
+    const dependencies = createTestCombatDependencies(
+      [7, 7, 7],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:ki-trap-stored-match")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 40 }, (_, index) =>
+          combatEventIdSchema.parse(`event:ki-trap-stored-match-${index + 1}`),
+        ),
+        pendingDecisionIds: [
+          pendingDecisionIdSchema.parse("pending-decision:ki-trap-defense"),
+          pendingDecisionIdSchema.parse("pending-decision:ki-trap-post-defense"),
+        ],
+        resolutionFrameIds: [
+          resolutionFrameIdSchema.parse("resolution-frame:ki-trap-defense"),
+          resolutionFrameIdSchema.parse("resolution-frame:ki-trap-post-defense"),
+        ],
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 200,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-kurokonwaku-ki-trap"],
+              },
+              {
+                maximumHitPoints: 200,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const trapped = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:ki-trap-store"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-kurokonwaku-ki-trap",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const opponentUpkeep = requireTransition(advanceFight(trapped, dependencies));
+    const opponentAction = requireActiveFightState(
+      requireTransition(advanceFight(opponentUpkeep.state, dependencies)).state,
+    );
+    const attackerBefore = opponentAction.combatants[secondCombatantId].hitPoints.current;
+    const attack = requireTransition(
+      submitCombatDecision(
+        opponentAction,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:ki-trap-matching-attack"),
+          actorId: secondCombatantId,
+          expectedStateVersion: opponentAction.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: firstCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    const defensePending = attack.state.pendingDecision;
+    if (defensePending === undefined) throw new Error("Expected a defense response.");
+    const rolled = requireTransition(
+      submitCombatDecision(
+        attack.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:ki-trap-defense"),
+          actorId: firstCombatantId,
+          expectedStateVersion: attack.state.version,
+          pendingDecisionId: defensePending.id,
+          optionId: "roll-defense",
+        },
+        dependencies,
+      ),
+    );
+    const reactionPending = rolled.state.pendingDecision;
+    if (reactionPending === undefined) throw new Error("Expected a Ki Trap reroll choice.");
+    const resolved = requireTransition(
+      submitCombatDecision(
+        rolled.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:ki-trap-decline-reroll"),
+          actorId: firstCombatantId,
+          expectedStateVersion: rolled.state.version,
+          pendingDecisionId: reactionPending.id,
+          optionId: "decline",
+        },
+        dependencies,
+      ),
+    );
+    const attackRecord = resolved.state.actionHistory.at(-1);
+    expect(attackRecord).toMatchObject({ type: "basic-attack", actorId: secondCombatantId });
+    expect(resolved.state.combatants[firstCombatantId].storedRolls?.["ki-trap-roll"]).toEqual(
+      expect.objectContaining({ naturalResults: [7] }),
+    );
+    expect(resolved.state.combatants[firstCombatantId].effectUseCounts).toMatchObject({
+      "move-kurokonwaku-ki-trap:1": 1,
+    });
+    expect(resolved.state.combatants[firstCombatantId].hitPoints.current).toBe(198);
+    expect(resolved.state.combatants[secondCombatantId].hitPoints.current).toBe(
+      attackerBefore - 60,
+    );
+  });
+
   it("resolves a dynamic upkeep die and retains its natural result", () => {
     const dependencies = createTestCombatDependencies([2], new Date("2026-08-13T12:00:00.000Z"), {
       fightIds: [fightIdSchema.parse("fight:impulsive-stored-roll")],
@@ -2281,6 +2842,61 @@ describe("start-combat effect dispatch", () => {
     );
     expect(transition.events).toContainEqual(
       expect.objectContaining({ type: "ki-changed", combatantId: firstCombatantId, amount: 1 }),
+    );
+  });
+
+  it("persists specialization points for Dragon's Pride's conditional start resource", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-23T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:dragons-pride-sp")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      eventIds: Array.from({ length: 12 }, (_, index) =>
+        combatEventIdSchema.parse(`event:dragons-pride-sp-${index + 1}`),
+      ),
+    });
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 200,
+                stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+                specializationPoints: 4,
+                moveIds: ["move-haokiru-dragon-s-pride"],
+              },
+              {
+                maximumHitPoints: 200,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                specializationPoints: 4,
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const prepared: ActiveFightState = {
+      ...created,
+      combatants: {
+        ...created.combatants,
+        [firstCombatantId]: {
+          ...created.combatants[firstCombatantId],
+          hitPoints: { ...created.combatants[firstCombatantId].hitPoints, current: 100 },
+        },
+      },
+    };
+
+    const started = requireTransition(advanceFight(prepared, dependencies));
+
+    expect(started.state.combatants[firstCombatantId]).toMatchObject({
+      specializationPoints: 4,
+      hitPoints: { current: 120, maximum: 200 },
+      ki: { current: 4 },
+    });
+    expect(started.events).toContainEqual(
+      expect.objectContaining({ type: "ki-changed", combatantId: firstCombatantId, amount: -1 }),
     );
   });
 });
@@ -5044,6 +5660,261 @@ describe("generic stat modifiers", () => {
         duration: { type: "turns", ownerCombatantId: firstCombatantId, remaining: 2 },
       }),
     ]);
+  });
+});
+
+describe("generic counter-action transitions", () => {
+  it("offers Counterstrike Mastery's exact choose-attack variant through post-defense state", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1, 30, 1],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:counterstrike")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:counterstrike-${index + 1}`),
+        ),
+        pendingDecisionIds: Array.from({ length: 8 }, (_, index) =>
+          pendingDecisionIdSchema.parse(`pending-decision:counterstrike-${index + 1}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 8 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:counterstrike-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-bullwhip"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-counterstrike-mastery"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const defensePending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:counterstrike-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-aoyosumu-bullwhip",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const reactionPending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          defensePending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:counterstrike-defense"),
+            actorId: secondCombatantId,
+            expectedStateVersion: defensePending.version,
+            pendingDecisionId: defensePending.pendingDecision!.id,
+            optionId: "roll-defense",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(reactionPending.pendingDecision?.type).toBe("post-defense-roll");
+    const counterOption = reactionPending.pendingDecision?.options.find((option) =>
+      option.id.startsWith("activate-counter-action:"),
+    );
+    expect(counterOption).toMatchObject({
+      moveId: "move-aoyosumu-counterstrike-mastery",
+      counterAction: {
+        action: "choose-attack",
+        sourceDefinitionId: "move-aoyosumu-counterstrike-mastery",
+        sourceEffectIndex: 0,
+      },
+    });
+
+    const counterReady = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          reactionPending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:counterstrike-select"),
+            actorId: secondCombatantId,
+            expectedStateVersion: reactionPending.version,
+            pendingDecisionId: reactionPending.pendingDecision!.id,
+            optionId: counterOption!.id,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(counterReady.phase).toBe("counter");
+    expect(counterReady.activeCombatantId).toBe(secondCombatantId);
+    expect(counterReady.combatants[secondCombatantId].ki.current).toBe(
+      defensePending.combatants[secondCombatantId].ki.current - 1,
+    );
+    expect(counterReady.combatants[secondCombatantId].effectUseCounts).toMatchObject({
+      "move-aoyosumu-counterstrike-mastery:0": 1,
+    });
+    expect(counterReady.resolutionFrames[0]).toMatchObject({
+      stage: "awaiting-counter",
+      counterAction: { action: "choose-attack" },
+    });
+    expect(enumerateLegalDecisions(counterReady, secondCombatantId)).toContainEqual(
+      expect.objectContaining({
+        type: "basic-attack",
+        actorId: secondCombatantId,
+        targetCombatantId: firstCombatantId,
+      }),
+    );
+  });
+
+  it("resumes Reversal of Fortune from a serialized prior attack snapshot", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1, 30, 1, 30, 1],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:reversal")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 120 }, (_, index) =>
+          combatEventIdSchema.parse(`event:reversal-${index + 1}`),
+        ),
+        activeEffectIds: Array.from({ length: 30 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:reversal-${index + 1}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 8 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:reversal-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 500,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-bullwhip"],
+            },
+            {
+              maximumHitPoints: 500,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-reversal-of-fortune"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const firstAction = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const firstAttack = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          firstAction,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:reversal-first-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: firstAction.version,
+            moveId: "move-aoyosumu-bullwhip",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const secondUpkeep = requireTransition(advanceFight(firstAttack, dependencies));
+    const secondAction = requireActiveFightState(
+      requireTransition(advanceFight(secondUpkeep.state, dependencies)).state,
+    );
+    const secondPassed = requireTransition(
+      submitCombatDecision(
+        secondAction,
+        {
+          type: "pass",
+          id: combatDecisionIdSchema.parse("decision:reversal-pass"),
+          actorId: secondCombatantId,
+          expectedStateVersion: secondAction.version,
+        },
+        dependencies,
+      ),
+    );
+    const firstUpkeep = requireTransition(advanceFight(secondPassed.state, dependencies));
+    const repeatedAction = requireActiveFightState(
+      requireTransition(advanceFight(firstUpkeep.state, dependencies)).state,
+    );
+    const counterReady = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          repeatedAction,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:reversal-second-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: repeatedAction.version,
+            moveId: "move-aoyosumu-bullwhip",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(counterReady.phase).toBe("counter");
+    expect(counterReady.activeCombatantId).toBe(secondCombatantId);
+    expect(counterReady.resolutionFrames[0]).toMatchObject({
+      stage: "awaiting-counter",
+      counterAction: {
+        action: "repeat-triggering-attack",
+        sourceDefinitionId: "move-aoyosumu-reversal-of-fortune",
+        sourceAction: { moveId: "move-aoyosumu-bullwhip" },
+        sourceMoveSnapshot: { id: "move-aoyosumu-bullwhip" },
+      },
+    });
+    expect(counterReady.combatants[secondCombatantId].effectUseCounts).toMatchObject({
+      "move-aoyosumu-reversal-of-fortune:0": 1,
+    });
+    const counterDecision = enumerateLegalDecisions(counterReady, secondCombatantId).find(
+      (decision) => decision.type === "use-move" && decision.moveId === "move-aoyosumu-bullwhip",
+    );
+    expect(counterDecision).toBeDefined();
+    const resumed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          counterReady,
+          {
+            ...counterDecision!,
+            id: combatDecisionIdSchema.parse("decision:reversal-counter"),
+            expectedStateVersion: counterReady.version,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resumed.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      moveId: "move-aoyosumu-reversal-of-fortune",
+    });
   });
 });
 

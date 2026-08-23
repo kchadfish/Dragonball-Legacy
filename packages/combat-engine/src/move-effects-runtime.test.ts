@@ -6,6 +6,7 @@ import {
   adjustedMoveDamage,
   moveEffectsForTrigger,
   rerollEffectsAfterDefense,
+  rerollEffectsOnRollResult,
   stoppedMoveEffects,
   successfulMoveEffects,
 } from "./move-effects-runtime.js";
@@ -310,6 +311,73 @@ describe("converted move effects", () => {
     ).toEqual([]);
   });
 
+  it("resolves the exact before-defense and stored-roll reroll choices", () => {
+    const willingSacrifice = moves.get("move-haokiru-willing-sacrifice");
+    const kiTrap = moves.get("move-kurokonwaku-ki-trap");
+    if (willingSacrifice === undefined || kiTrap === undefined)
+      throw new Error("Expected pending reroll test moves.");
+
+    const beforeDefense = moveEffectsForTrigger(willingSacrifice, "before-defense-roll", {
+      ...context,
+      self: { ...self, moveIds: [willingSacrifice.id] },
+      collectPendingChoices: true,
+    });
+    expect(beforeDefense.pendingEffectChoices).toEqual([
+      expect.objectContaining({ sourceDefinitionId: willingSacrifice.id, effectIndices: [1] }),
+    ]);
+    expect(
+      moveEffectsForTrigger(willingSacrifice, "before-defense-roll", {
+        ...context,
+        self: { ...self, moveIds: [willingSacrifice.id] },
+        enabledOptionalEffectIndices: [1],
+      }).rerolls,
+    ).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        roll: "attack",
+        rerollScope: "single-result",
+        duration: { type: "next-rolls", roll: "attack", remaining: 3 },
+      }),
+    ]);
+
+    const storedSelf = {
+      ...self,
+      moveIds: [kiTrap.id],
+      storedRolls: {
+        "ki-trap-roll": {
+          sourceDefinitionId: kiTrap.id,
+          storageKey: "ki-trap-roll",
+          naturalResults: [12],
+          sides: 30,
+          storedOnTurn: 5,
+        },
+      },
+    };
+    expect(
+      rerollEffectsOnRollResult(kiTrap, {
+        ...context,
+        self: storedSelf,
+        rolls: [
+          {
+            attackNaturalResult: 12,
+            attackResult: 12,
+            defenseNaturalResult: 5,
+            defenseResult: 5,
+            outcome: "successful",
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        sourceDefinitionId: kiTrap.id,
+        roll: "attack",
+        rerollScope: "single-result",
+        trigger: "on-roll-result",
+        useLimit: { scope: "combat", count: 1 },
+      }),
+    ]);
+  });
+
   it("resolves deferred successful rerolls with typed future lifecycles", () => {
     const bracedEnergyBeam = moves.get("move-aoyosumu-braced-energy-beam");
     const tigerStrikes = moves.get("move-aoyosumu-tiger-strikes");
@@ -407,6 +475,32 @@ describe("converted move effects", () => {
       }).resources,
     ).toEqual([
       expect.objectContaining({ resource: "ki", operation: "gain", amount: 1, target: "self" }),
+    ]);
+
+    const selfWithHighRoll = {
+      ...selfWithLowRoll,
+      storedRolls: {
+        "healing-ray-result": {
+          sourceDefinitionId: healingRay.id,
+          storageKey: "healing-ray-result",
+          naturalResults: [12],
+          sides: 30,
+          storedOnTurn: context.turnNumber,
+        },
+      },
+    };
+    expect(
+      moveEffectsForTrigger(healingRay, "on-roll-result", {
+        ...context,
+        self: selfWithHighRoll,
+        collectPendingChoices: true,
+      }).pendingEffectChoices,
+    ).toEqual([
+      {
+        sourceDefinitionId: healingRay.id,
+        effectIndices: [1],
+        activationGroup: "healing-ray-target",
+      },
     ]);
 
     const solarOwner = {
@@ -667,6 +761,96 @@ describe("converted move effects", () => {
     ]);
     expect(successfulMoveEffects(rapture, { ...context, currentDamage: 15 }).resources).toEqual([
       expect.objectContaining({ resource: "hp", amount: 4 }),
+    ]);
+  });
+
+  it("resolves the exact typed resource listeners without source-text inference", () => {
+    const shotgun = moves.get("move-akaikaru-shotgun-blast");
+    const dragonPride = moves.get("move-haokiru-dragon-s-pride");
+    const kiTrap = moves.get("move-kurokonwaku-ki-trap");
+    if (shotgun === undefined || dragonPride === undefined || kiTrap === undefined)
+      throw new Error("Expected typed resource-listener moves.");
+
+    const priorShotgun = {
+      type: "use-move" as const,
+      decisionId: "decision:shotgun-prior" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: shotgun.id,
+      turnNumber: 5,
+      phase: "action" as const,
+      outcome: "successful" as const,
+    };
+    expect(
+      moveEffectsForTrigger(shotgun, "on-roll-modified", {
+        ...context,
+        self: { ...self, moveIds: [shotgun.id] },
+        sourceDefinitionId: shotgun.id,
+        turnNumber: 7,
+        actionHistory: [priorShotgun],
+        currentAction: { ...priorShotgun, decisionId: "decision:shotgun-current" as never },
+        rollModification: {
+          actor: "self",
+          roll: "attack",
+          modifiers: ["sides", "result"],
+          excludeSource: "dexterity",
+        },
+      }).resources,
+    ).toEqual([expect.objectContaining({ resource: "ki", target: "self", amount: 1 })]);
+
+    expect(
+      moveEffectsForTrigger(kiTrap, "on-roll-result", {
+        ...context,
+        self: {
+          ...self,
+          moveIds: [kiTrap.id],
+          storedRolls: {
+            "ki-trap-roll": {
+              sourceDefinitionId: kiTrap.id,
+              storageKey: "ki-trap-roll",
+              naturalResults: [7],
+              sides: 30,
+              storedOnTurn: 5,
+            },
+          },
+        },
+        sourceDefinitionId: kiTrap.id,
+        rolls: [
+          {
+            attackNaturalResult: 7,
+            attackResult: 7,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "successful",
+          },
+        ],
+      }).resources,
+    ).toEqual([
+      expect.objectContaining({
+        resource: "hp",
+        target: "opponent",
+        amount: 60,
+        sourceDefinitionId: kiTrap.id,
+        sourceEffectIndex: 1,
+        useLimit: { scope: "combat", count: 1 },
+        preventable: false,
+      }),
+    ]);
+
+    expect(
+      moveEffectsForTrigger(dragonPride, "start-combat", {
+        ...context,
+        self: { ...self, specializationPoints: 4 },
+        opponent: { ...opponent, specializationPoints: 4 },
+        sourceDefinitionId: dragonPride.id,
+      }).resources,
+    ).toEqual([
+      expect.objectContaining({
+        resource: "hp",
+        target: "self",
+        amount: 10,
+        activationCost: { resource: "ki", amount: 1 },
+      }),
     ]);
   });
 

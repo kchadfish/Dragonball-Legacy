@@ -100,6 +100,50 @@ describe("combat capability matrix", () => {
     });
   });
 
+  it("classifies Karmic Possession's selected prior successful effect separately", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-aoyosumu-karmic-possession" &&
+        candidate.effectType === "copy-move-effect",
+    );
+
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "copy-move-effect.v2",
+      executor: "copied-successful-effect-attack",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+    });
+  });
+
+  it("classifies the executable counter-action variants and leaves lifecycle variants pending", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (candidate) => candidate.effectType === "grant-counter-action",
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-aoyosumu-counterstrike-mastery",
+        status: "supported-generic",
+        capabilityId: "grant-counter-action.v1",
+        executor: "counter-action",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-aoyosumu-reversal-of-fortune",
+        status: "supported-generic",
+        capabilityId: "grant-counter-action.v1",
+        executor: "counter-action",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-aoyosumu-straightjacket",
+        status: "unsupported-in-scope",
+        prerequisite: "typed executor accounting and compiled effect-plan validation",
+      }),
+    );
+  });
+
   it("classifies Monkey Sweep's durable combat-outcome prevention generically", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (candidate) =>
@@ -832,11 +876,54 @@ describe("combat capability matrix", () => {
       "move-haokiru-conservation-mastery#1",
       "move-haokiru-focused-mastery#0",
       "move-haokiru-focused-mastery#1",
+      "move-haokiru-dragon-s-pride#0",
       "move-kiihakai-fierce-focus-mastery#0",
       "move-kiihakai-fierce-focus-mastery#1",
       "move-kurokonwaku-control-mastery#1",
     ]);
     expect(supported.every((row) => row.executor !== null)).toBe(true);
+  });
+
+  it("closes every exact typed modify-resource listener occurrence", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.effectType === "modify-resource" &&
+        [
+          "move-akaikaru-shotgun-blast",
+          "move-haokiru-dragon-s-pride",
+          "move-kurokonwaku-ki-trap",
+        ].includes(row.sourceDefinitionId),
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => row.effectType === "modify-resource")).toBe(true);
+    expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+    expect(rows.every((row) => row.capabilityId === "modify-resource.v1")).toBe(true);
+    expect(rows.every((row) => row.executor === "resource-change")).toBe(true);
+  });
+
+  it("closes Healing Ray's representable self-choice occurrence without aliasing ally", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.sourceDefinitionId === "move-haokiru-healing-ray" &&
+        (row.effectIndex === 1 || row.effectIndex === 2),
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        effectIndex: 1,
+        target: "self",
+        status: "supported-generic",
+        capabilityId: "modify-resource.v1",
+        executor: "resource-change",
+      }),
+      expect.objectContaining({
+        effectIndex: 2,
+        target: "ally",
+        status: "unsupported-in-scope",
+        prerequisite: "generic pending-choice compilation and resolution",
+      }),
+    ]);
   });
 
   it("classifies same-turn and next-turn action allowances through one scheduler", () => {
@@ -1044,11 +1131,28 @@ describe("combat capability matrix", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          status: "unsupported-in-scope",
-          prerequisite: "generic pending-choice compilation and resolution",
+          effectIndex: 2,
+          status: "supported-generic",
+          capabilityId: "modify-resource-cost.v1",
+          executor: "resource-cost-modifier",
+        }),
+        expect.objectContaining({
+          effectIndex: 3,
+          status: "supported-generic",
+          capabilityId: "modify-resource-cost.v1",
+          executor: "resource-cost-modifier",
         }),
       ]),
     );
+
+    expect(
+      createCombatCapabilityMatrix().occurrences.find(
+        (row) => row.sourceDefinitionId === "move-freestyle-effortless",
+      ),
+    ).toMatchObject({
+      status: "unsupported-in-scope",
+      prerequisite: "generic pending-choice compilation and resolution",
+    });
   });
 
   it("classifies complete Supernova pre-roll choices as one generic supported group", () => {

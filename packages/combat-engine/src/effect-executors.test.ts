@@ -129,7 +129,7 @@ describe("declarative effect executor registry", () => {
     expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
   });
 
-  it("compiles exact last-unrestricted and selected opponent copied attacks", () => {
+  it("compiles exact prior successful-effect, last-unrestricted, and selected opponent copied attacks", () => {
     const flashback = firstEffectOfType("move-kurokonwaku-flashback", "copy-move-effect");
     expect(
       compileEffectPlan({
@@ -148,6 +148,15 @@ describe("declarative effect executor registry", () => {
     expect(rejected.ok).toBe(false);
     if (!rejected.ok)
       expect(rejected.issues.some((issue) => issue.code === "unsupported-variant")).toBe(true);
+
+    const karmic = firstEffectOfType("move-aoyosumu-karmic-possession", "copy-move-effect");
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: karmic.move.id,
+        effectIndex: karmic.move.effects!.indexOf(karmic.effect),
+        effect: karmic.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "copy-move-effect" } });
 
     const mimicry = firstEffectOfType("move-kurokonwaku-mimicry-mastery", "copy-move-effect");
     expect(
@@ -286,10 +295,12 @@ describe("declarative effect executor registry", () => {
       ["move-kiihakai-power-boost", 0],
     ] as const) {
       const { move, effect } = effectAt(moveId, effectIndex);
-      expect(
-        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
-        `${moveId}#${effectIndex}`,
-      ).toMatchObject({ ok: false });
+      if (moveId === "move-kurokonwaku-ki-trap") {
+        expect(
+          compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+          `${moveId}#${effectIndex}`,
+        ).toMatchObject({ ok: false });
+      }
     }
   });
 
@@ -461,6 +472,44 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "modify-cost" } });
   });
 
+  it("compiles Tornado Uppercut's exact deferred HP-cost alternatives and rejects passive listeners", () => {
+    const tornado = moveWithId("move-haokiru-tornado-uppercut");
+    for (const effectIndex of [2, 3] as const) {
+      const effect = tornado.effects?.[effectIndex];
+      if (effect === undefined) throw new Error(`Missing Tornado Uppercut effect ${effectIndex}.`);
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: tornado.id,
+          effectIndex,
+          effect,
+        }),
+        `${tornado.id}#${effectIndex}`,
+      ).toMatchObject({ ok: false, issues: [{ code: "requires-pending-choice" }] });
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: tornado.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+        `${tornado.id}#${effectIndex}`,
+      ).toMatchObject({ ok: true, value: { type: "modify-resource-cost" } });
+    }
+
+    const effortless = moveWithId("move-freestyle-effortless");
+    const passive = effortless.effects?.[0];
+    if (passive === undefined) throw new Error("Missing Effortless resource-cost listener.");
+    const rejected = compileEffectPlan({
+      sourceDefinitionId: effortless.id,
+      effectIndex: 0,
+      effect: passive,
+      allowPendingChoice: true,
+    });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok)
+      expect(rejected.issues.some((issue) => issue.code === "unsupported-variant")).toBe(true);
+  });
+
   it("compiles Creationist's exclusive cost-modified alternatives only with pending state", () => {
     const move = moveWithId("move-haokiru-creationist");
     for (const effectIndex of [0, 1]) {
@@ -598,6 +647,23 @@ describe("declarative effect executor registry", () => {
         effect: unsupported,
       }),
     ).toMatchObject({ ok: false, issues: [{ code: "unsupported-variant" }] });
+  });
+
+  it("compiles the exact typed resource-listener variants", () => {
+    for (const [moveId, effectIndex] of [
+      ["move-akaikaru-shotgun-blast", 0],
+      ["move-haokiru-dragon-s-pride", 0],
+      ["move-kurokonwaku-ki-trap", 1],
+    ] as const) {
+      const { move, effect } = effectAt(moveId, effectIndex);
+      expect(
+        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+        `${moveId}#${effectIndex}`,
+      ).toMatchObject({
+        ok: true,
+        value: { type: "modify-resource", sourceDefinitionId: move.id, effectIndex },
+      });
+    }
   });
 
   it("compiles and executes a supported damage effect with durable provenance", () => {
@@ -1202,13 +1268,25 @@ describe("declarative effect executor registry", () => {
     for (const [moveId, effectIndex] of [
       ["move-haokiru-willing-sacrifice", 1],
       ["move-kurokonwaku-ki-trap", 2],
+      ["move-kurokonwaku-ki-trap", 3],
     ] as const) {
       const { move, effect } = effectAt(moveId, effectIndex);
 
+      if (moveId === "move-kurokonwaku-ki-trap") {
+        expect(
+          compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
+          `${moveId}#${effectIndex}`,
+        ).toMatchObject({ ok: false });
+      }
       expect(
-        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
-        `${moveId}#${effectIndex}`,
-      ).toMatchObject({ ok: false });
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+        `${moveId}#${effectIndex} pending choice`,
+      ).toMatchObject({ ok: true, value: { type: "reroll" } });
     }
   });
 
@@ -1287,6 +1365,7 @@ describe("declarative effect executor registry", () => {
       "deactivate",
       "force-action",
       "grant-combat-outcome",
+      "grant-counter-action",
       "grant-extra-action",
       "lock",
       "modify-cost",
@@ -1295,6 +1374,7 @@ describe("declarative effect executor registry", () => {
       "modify-move-classification",
       "modify-remaining-uses",
       "modify-resource",
+      "modify-resource-cost",
       "modify-roll",
       "modify-roll-modifier",
       "modify-slot-capacity",

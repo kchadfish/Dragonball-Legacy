@@ -1,6 +1,7 @@
 import { GLOBAL_RULES, type RulesVersion } from "@dragonball-resurgence/game-config";
 import type {
   EffectDefinition,
+  MoveDefinition,
   MoveSelectorCondition,
   NumericExpression,
 } from "@dragonball-resurgence/game-data";
@@ -94,6 +95,8 @@ export interface CombatantState {
   readonly hitPoints: CombatResources;
   readonly ki: CombatResources;
   readonly stats: CombatantStats;
+  /** Permanent specialization points used by declarative combat comparisons. */
+  readonly specializationPoints?: number;
   readonly level?: number;
   readonly planetHasDragonBalls?: boolean;
   readonly masteredTransformationIds?: readonly TransformationId[];
@@ -133,6 +136,7 @@ const createFightCombatantInputSchema = z
           .max(GLOBAL_RULES.combat.maximumDexterityBonus),
       })
       .strict(),
+    specializationPoints: z.number().nonnegative().optional(),
     level: z.number().nonnegative().optional(),
     planetHasDragonBalls: z.boolean().optional(),
     masteredTransformationIds: z.array(z.string().min(1)).optional(),
@@ -196,6 +200,14 @@ export interface PendingDecisionOption {
   readonly combatantId?: CombatantId;
   readonly itemId?: ItemId;
   readonly moveId?: MoveId;
+  /** The completed source action selected by a prior-action copy effect. */
+  readonly sourceActionId?: CombatDecisionId;
+  /** Immutable source move snapshot retained with a serialized selection. */
+  readonly sourceMoveSnapshot?: MoveDefinition;
+  /** Exact damage retained from the selected completed source action. */
+  readonly sourceDamageDealt?: number;
+  /** Resolved counter permission selected at the post-defense boundary. */
+  readonly counterAction?: CounterActionReference;
   readonly effectIndices?: readonly number[];
   readonly combatResultOverride?: {
     readonly sourceDefinitionId: MoveId;
@@ -389,6 +401,13 @@ type ActiveNextActionModifier =
       readonly operation: "drain" | "gain" | "lose" | "set";
       readonly amount: number;
       readonly basis: "damage-percent";
+    }
+  | {
+      readonly type: "resource-cost";
+      readonly resource: "hp";
+      readonly operation: "add";
+      /** Percentage adjustment applied to the matching next action's resource loss. */
+      readonly amount: number;
     }
   | {
       readonly type: "cost";
@@ -932,8 +951,38 @@ export interface CopiedMoveAttackReference {
   readonly moveId: MoveId;
   /** The immutable source move snapshot used to reconstruct a copied attack. */
   readonly copiedFromMoveId?: MoveId;
+  /** Immutable source definition retained for deterministic suspended resolution. */
+  readonly copiedSourceMove?: MoveDefinition;
   /** The declarative additive Power percentage applied by the copying move. */
   readonly copiedDamageBonusPercent?: number;
+  /** Fixed damage captured from the selected prior source action. */
+  readonly copiedDamageOverride?: number;
+  /** Whether only the source move's SUCCESSFUL clauses were copied. */
+  readonly copiedSuccessfulEffectsOnly?: boolean;
+}
+
+/** Serialized counter permission that must survive the transition into COUNTER. */
+export interface CounterActionReference {
+  readonly action: "choose-attack" | "repeat-triggering-attack" | "use-source-attack";
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly stopsTriggeringAttack: boolean;
+  readonly ignoreRequirements: boolean;
+  readonly activationCost?: {
+    readonly resource: "ki";
+    readonly amount: number;
+    readonly minimum?: number;
+  };
+  readonly costModifier?: {
+    readonly operation: "add" | "set";
+    readonly amount: number;
+    readonly minimum?: number;
+  };
+  readonly sourceAction?: Extract<
+    CombatActionRecord,
+    { readonly type: "basic-attack" | "use-move" }
+  >;
+  readonly sourceMoveSnapshot?: MoveDefinition;
 }
 
 export type ResolutionFrame =
@@ -945,6 +994,7 @@ export type ResolutionFrame =
       readonly targetCombatantId: CombatantId;
       readonly returnPhase: "action" | "counter";
       readonly stage: "awaiting-counter";
+      readonly counterAction?: CounterActionReference;
     }
   | {
       readonly id: ResolutionFrameId;
@@ -964,6 +1014,11 @@ export type ResolutionFrame =
       readonly costEffectSourceDefinitionId?: MoveId;
       readonly costEffectIndices?: readonly number[];
       readonly costEffectTrigger?: "on-move-use" | "on-cost-modified";
+      /** Defender-owned before-defense reroll choices retained through the defense response. */
+      readonly beforeDefenseEffectChoices?: readonly {
+        readonly sourceDefinitionId: MoveId;
+        readonly effectIndices: readonly number[];
+      }[];
     }
   | {
       readonly id: ResolutionFrameId;
@@ -1044,7 +1099,9 @@ export type ResolutionFrame =
       readonly pendingDecisionId: PendingDecisionId;
       readonly sourceDefinitionId: MoveId;
       readonly effectIndices: readonly number[];
-      readonly effectTrigger: "on-power-up";
+      readonly effectTrigger: "on-power-up" | "on-roll-result";
+      /** Stored roll results are retained when an on-roll-result choice pauses a simple action. */
+      readonly storedRolls?: readonly StoredRoll[];
     }
   | {
       readonly id: ResolutionFrameId;
@@ -1069,6 +1126,8 @@ export type ResolutionFrame =
         | "on-roll-result";
       readonly pendingDecisionId?: PendingDecisionId;
       readonly eligibleMoveIds?: readonly MoveId[];
+      /** Prior completed source actions offered by a selected-prior copy effect. */
+      readonly eligibleSourceActionIds?: readonly CombatDecisionId[];
       readonly remainingSelections?: number;
       /** Whether this serialized selection may be declined by its acting combatant. */
       readonly optional?: boolean;

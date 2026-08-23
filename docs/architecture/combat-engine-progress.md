@@ -28,14 +28,14 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 863 `supported-generic`, 128
+The generated capability matrix records 876 `supported-generic`, 115
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 128 remaining in-scope occurrences through the later
+requires closing the 115 remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
 The next implementation priority is the highest-volume ready prerequisite
 identified in the latest dated entry below.
@@ -125,6 +125,83 @@ unfinished in-scope mechanics, and approved out-of-scope exclusions. Do not use
 an audited exclusion to hide unfinished in-scope work, and do not treat an
 effect-type-level executor registration as proof that every variant is
 supported.
+
+## Capability-first catalog closure
+
+The remaining work is no longer primarily the construction of a combat engine
+from scratch. The implemented foundations already include serializable state,
+resolution frames, pending decisions, effect execution, lifecycle handling,
+and scheduling. Most remaining work is therefore a missing _variant of shared
+architecture_, not an isolated move problem.
+
+Do not use a move-by-move discovery loop as the primary workflow:
+
+```text
+find next unsupported move
+        -> determine why it fails
+        -> add a capability
+        -> repeat
+```
+
+Instead, start each catalog-closure cycle by taking **all** current
+`unsupported-in-scope` occurrences from the generated matrix, grouping them by
+their missing capability, and maintaining an architecture-gap register. Order
+the resulting capabilities by their dependencies and fanout, implement the
+highest-fanout dependency-ready primitive, regenerate the matrix, and repeat:
+
+```text
+all unsupported-in-scope occurrences
+        -> group by missing capability
+        -> architecture-gap register
+        -> dependency-order capabilities
+        -> implement highest-fanout ready primitive
+        -> regenerate matrix
+        -> repeat
+```
+
+The matrix remains the authoritative per-occurrence evidence. The register is
+the planning view derived from it: it must distinguish “this architecture is
+needed” from “this move happens to need that architecture,” so one capability
+is implemented and proven once rather than rediscovered for each affected
+definition. The roadmap owns the phases; the register is not a set of new
+architecture phases.
+
+### Architecture-gap register
+
+Use these buckets when grouping the in-scope matrix rows. Split or merge a
+bucket only when the dependency or implementation shape is materially
+different.
+
+| Architecture gap                                    | Roadmap owner                          | What it unlocks                                                       |
+| --------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
+| Explicit selection cardinality and optionality gaps | CE-200                                 | Definitions the runtime cannot yet interpret safely                   |
+| Missing resolution-local values                     | CE-320                                 | Effects needing current damage, cost, roll, or other resolution state |
+| Persisted selected or resolved values               | CE-330                                 | Effects whose chosen or resolved state must survive suspension        |
+| Generic candidate resolution                        | CE-400                                 | Player-selectable moves, targets, and effects                         |
+| Shared selector gaps                                | CE-410                                 | Reusable legal candidate matching                                     |
+| Generic pending selection                           | CE-420                                 | The large choice-dependent occurrence bucket                          |
+| Generic deterministic effect resume                 | CE-430                                 | The same choice-dependent bucket after the player answers             |
+| Lifecycle metadata and durations                    | CE-500–540                             | Persistent and expiring effects                                       |
+| Calculation pipeline gaps                           | CE-600–660                             | More complex damage, roll, and cost variants                          |
+| Scheduling gaps                                     | CE-700–750                             | Deferred actions and effects                                          |
+| Reroll and reaction lifecycle gaps                  | CE-650 / CE-740-ish                    | Remaining reaction variants                                           |
+| Truly missing executor shapes                       | CE-110/120 plus the owning later phase | Residual effects not covered by a shared gap above                    |
+
+Every active register entry must record all of the following:
+
+| Field                | Required record                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Capability           | The reusable architecture addition, for example `generic pending move selection`                                                                          |
+| Roadmap              | Owning phase or phases, for example CE-400 / CE-410 / CE-420 / CE-430                                                                                     |
+| Blocked occurrences  | `N` affected occurrences across `M` definitions, linked back to their matrix rows                                                                         |
+| Dependencies         | Capabilities that must be complete first, such as normalized selection semantics and the required shared selector dimensions                              |
+| Implementation shape | The durable contract to add, for example persist candidate IDs plus a continuation, validate the exact offered choice, then resume the compiled operation |
+| Proof case           | One representative converted move with focused public coverage; the matrix must then show every newly supported occurrence                                |
+
+When a primitive is implemented, regenerate the matrix before choosing the
+next register entry. A representative proof case establishes the generic
+contract; it does not by itself convert unrelated variants whose matrix rows
+still name a different missing capability.
 
 ## Immediate resume point
 
@@ -3236,6 +3313,221 @@ matrix now records 867 `supported-generic`, 124 `unsupported-in-scope`, and
 and 79 typed executor or compiled-plan occurrences. Every remaining
 out-of-scope definition retains an explicit approved exclusion; catalog
 closure remains active.
+
+## 2026-08-23 next-action resource-cost modifier slice
+
+The generic `modify-resource-cost.v1` executor now represents the exact
+successful-action choice needed for a self-targeted HP-loss adjustment on the
+next matching action. The supported selector is source-relative and requires
+the `resource-loss` effect kind: one variant covers Advanced Attack, Mastery,
+and Skill categories with a `-100%` HP-cost adjustment, and the other covers
+Signature Techniques with a `-50%` adjustment. Both variants require the
+declared non-stacking lifecycle and literal 1-KI activation cost.
+
+The compiler registers the effect and preserves its pending-choice contract;
+the runtime emits a typed application, the transition charges the selected
+KI cost before creating an invariant-checked serializable
+`modify-next-action` effect, and the next matching HP `lose` or `drain`
+resource change applies the persisted percentage before consuming the one-shot
+effect. Grouped alternatives are presented together, a selected alternative
+resolves the group exactly once, and insufficient KI rejects the decision
+without mutating the fight. No move-name branch or source-text execution was
+added.
+
+Haokiru Tornado Uppercut effects #2 and #3 are newly supported: 2 occurrences
+across 1 definition. Focused compiler and executor evidence is in
+`effect-executors.test.ts`; the runtime regression suite is in
+`move-effects-runtime.test.ts`; and `progress-fight.test.ts` covers the public
+pending options, persisted selected modifier, KI payment, exact HP-loss
+adjustment, state transition, and one-shot consumption. Freestyle Effortless
+effect #0 remains explicitly `unsupported-in-scope`: its passive optional
+listener and `effectTextIncludes: "Straining"` condition require a passive
+choice/listener boundary that this slice does not provide.
+
+The regenerated matrix now records 869 `supported-generic`, 122
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 41 generic pending-choice, 2 typed compiled damage or
+resolution-local state, and 79 typed executor or compiled-plan occurrences.
+The next highest-priority ready family is `copy-move-effect` under typed
+executor accounting and compiled effect-plan validation, with 3 occurrences
+across 3 definitions. Every remaining out-of-scope definition retains an
+explicit approved exclusion; catalog closure remains active.
+
+Final focused handoff gate: `npm run check:focused -- --coverage` passed
+(39 test files, 750 tests, formatting, lint, transitive typechecks, validators,
+and capability-matrix coverage).
+
+## 2026-08-23 selected-prior successful-effect copy slice
+
+The generic `copy-move-effect.v2` executor now covers the exact selected-prior
+successful-effect attack variant. Karmic Possession effect #0 is newly
+supported: one occurrence across one definition. The serialized selection
+records the completed source action ID, immutable source move snapshot, and
+exact prior damage. Resolution clones only the source move's `on-success`
+clauses into the copying attack, uses the persisted total damage as the
+current attack's base damage, and resumes through the ordinary defense and
+post-defense transition boundary without drawing new randomness.
+
+The source selector is the canonical opponent successful Advanced Attack
+performed during the current combat. A source attack is offered only when its
+SUCCESSFUL clauses are themselves covered by an executable compiled effect
+plan; unsupported source clauses remain governed by their own matrix rows and
+are not silently discarded. The copied effect resolves in the Karmic
+resolution context, with source/effect provenance retained under the copying
+move. No source prose or move-name runtime branch was added.
+
+Focused compiler, invariant, capability-matrix, and public transition tests
+cover the exact compiler variant, deterministic source-action selection,
+immutable snapshot fields, ND-030 total damage for a prior attack, successful
+effect replay, HP/use accounting, and pending-frame closure. Follow Up remains
+explicitly `unsupported-in-scope` because its combat-persistent start-of-match
+selection, inherited tags, and immediate-follow-up lifecycle require a
+different capability. Mind Reading remains explicitly `unsupported-in-scope`
+because replaying prior-turn costs, dice, and opponent source modifiers needs
+an immutable attack-resolution snapshot.
+
+The regenerated matrix now records 870 `supported-generic`, 121
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 41 generic pending-choice, 2 typed compiled damage or
+resolution-local state, and 78 typed executor or compiled-plan occurrences.
+The next highest-priority ready family is `grant-counter-action` under typed
+executor accounting and compiled effect-plan validation, with 3 occurrences
+across 3 definitions. Every remaining out-of-scope definition retains an
+explicit approved exclusion; catalog closure remains active.
+
+Final focused handoff gate: `npm run check:focused -- --coverage` passed
+(39 test files, 752 tests, formatting, lint, transitive typechecks, validators,
+and capability-matrix coverage).
+
+## 2026-08-23 immediate counter-action slice
+
+The generic `grant-counter-action.v1` executor now covers the two exact
+immediate counter variants that the engine can represent without persistent
+permission lifecycle state. Counterstrike Mastery effect #0 is supported as a
+post-defense `choose-attack` reaction for an unrestricted single-die Advanced
+Attack: the typed option charges its literal KI activation cost, consumes the
+combat-scoped effect use, stops the triggering attack, and persists the
+counter-action reference into the awaiting-counter frame. Reversal of Fortune
+effect #0 is supported as an `on-success` `repeat-triggering-attack` reaction
+for the exact two-successful-opponent-action sequence without an intervening
+stopped result. It persists the triggering action and immutable source move
+snapshot, applies the additive cost modifier with its zero-KI floor, consumes
+the combat use, and exposes the resumed source attack through the normal legal
+decision and counter transition boundary.
+
+The compiler rejects the grouped `use-source-attack` occurrence on Afterlife
+X20 Kaioken Kamehameha because it still requires an optional serialized source
+selection. Straightjacket effect #0 remains explicitly
+`unsupported-in-scope`: its six-turn, non-stacking permission needs a
+persistent counter-permission lifecycle rather than an immediate reaction.
+Unsupported duration, stacking, and optional-selection variants were not
+broadened to improve accounting. Counter references are serializable and
+invariant-checked; source actions and move snapshots are never reconstructed
+from mutable catalog data or source prose.
+
+Focused public transition tests cover both supported variants through
+`createFight`, `advanceFight`, `enumerateLegalDecisions`, and
+`submitCombatDecision`, including post-defense option availability, KI and
+effect-use accounting, stopped-trigger behavior, counter-frame persistence,
+and Reversal source-action resumption. Compiler/registry coverage and the
+capability-matrix test cover the exact supported and explicitly unsupported
+variants.
+
+The regenerated matrix now records 872 `supported-generic`, 119
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 41 generic pending-choice, 2 typed compiled damage or
+resolution-local state, and 76 typed executor or compiled-plan occurrences.
+The next highest-priority ready family is `modify-resource` under typed
+executor accounting and compiled effect-plan validation, with 3 occurrences
+across 3 definitions. Every remaining out-of-scope definition retains an
+explicit approved exclusion; catalog closure remains active.
+
+Final focused handoff gate: `npm run check:focused -- --coverage` passed
+(11 changed files; formatting, lint, transitive typechecks, combat and game-data
+tests, validators, and capability-matrix coverage).
+
+## 2026-08-23 typed resource-listener slice
+
+Implemented the reusable `modify-resource.v1` listener variants that were
+ready under the typed executor prerequisite. The compiler, runtime, and public
+transition boundary now support only these exact forms:
+
+- Akaikaru Shotgun Blast effect #0: `on-roll-modified`, self, next own turn,
+  literal +1 KI, when the self attack has both sides and result modifiers from
+  a source other than dexterity.
+- Haokiru Dragon's Pride effect #0: `start-combat`, self, literal +10% total
+  HP, when self SP is at most opponent SP, with its literal 1 KI activation
+  cost. SP is optional permanent combatant input/state and is invariant
+  checked when present.
+- Kurokonwaku Ki Trap effect #1: `on-roll-result`, opponent, prohibited
+  literal 60 HP loss, when the current natural attack result matches the named
+  stored roll, with one combat use. Source definition/effect provenance,
+  prevention behavior, and use-limit state are persisted through the normal
+  transition boundary.
+
+No other trigger, target, condition, scope, duration, numeric, or lifecycle
+variant was widened. The unsupported Ki Trap reroll effects and Healing Ray's
+pending stored-roll choices remain explicitly `unsupported-in-scope`.
+
+Focused evidence includes the `fight:dragons-pride-sp` public
+`createFight`/`advanceFight` transition, which verifies SP-gated HP gain and
+the KI cost event, and the `fight:ki-trap-stored-match` public
+`createFight`/`advanceFight`/`submitCombatDecision` transition, which verifies
+natural stored-roll matching, prohibited HP loss on the attacker's side, and
+the persisted `move-kurokonwaku-ki-trap:1` use count. Exact compiler and
+runtime listener tests cover all three catalog variants, including Shotgun's
+next-turn roll-modification context.
+
+The regenerated matrix now records 875 `supported-generic`, 116
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 41 generic pending-choice occurrences across 27
+definitions, 2 typed compiled damage or resolution-local occurrences across 2
+definitions, and 73 typed executor or compiled-plan occurrences across 58
+definitions. The next highest-priority ready capability is
+`modify-resource` under generic pending-choice compilation and resolution:
+three occurrences across X20 Kaioken Kamehameha and Healing Ray. The focused
+handoff gate is complete: `npm run check:focused -- --coverage` passed after
+the targeted lint repairs, with the focused combat tests and typecheck also
+passing.
+
+## 2026-08-23 generic on-roll-result pending-choice slice
+
+Implemented the reusable serialized optional-effect continuation for
+`on-roll-result` simple actions. The resolution frame now retains the exact
+stored roll results, source move, and effect indices while the pending
+`optional-effect` decision is open. Resume validates the selected source and
+indices, reuses the persisted roll without drawing new randomness, and routes
+the selected compiled effect through the normal simple-action transition.
+Stored-roll frame data is invariant checked, and the existing resource,
+status, action-history, event, and phase lifecycle remains owned by the normal
+transition boundary.
+
+This closes exactly one catalog occurrence: Haokiru Healing Ray effect #1,
+`on-roll-result`, self, HP gain of `resource-percent(self, hp, total, 25)`
+when the stored d30 result is at least 10, with exclusive target-choice
+activation. The public transition offers the self-heal choice, persists the
+12 result, resumes without rerolling, applies 25% of total HP, charges the
+move's KI cost once, records the action, and clears the pending frame. The
+runtime test also verifies that the unsupported ally alternative is not
+silently mapped to opponent or self.
+
+Healing Ray effect #2 remains explicitly `unsupported-in-scope` because the
+current two-combatant target model has no faithful ally candidate. X20 Kaioken
+Kamehameha effect #5 remains unsupported because its on-damage resource loss
+is coupled to a before-defense source-attack response choice that is not yet a
+generic listener boundary; no standalone on-damage approximation was added.
+
+The regenerated matrix now records 876 `supported-generic`, 0
+`supported-named`, 115 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. Remaining prerequisite buckets are 40
+generic pending-choice occurrences across 27 definitions, 2 typed compiled
+damage or resolution-local occurrences across 2 definitions, and 73 typed
+executor or compiled-plan occurrences across 58 definitions. The next
+highest-priority ready capability is generic pending-choice `reroll`, with 3
+occurrences across 2 definitions. Final focused handoff gate:
+`npm run check:focused -- --coverage` passed (39 test files, 762 tests, mapped
+formatting, lint, transitive typechecks, validators, and capability coverage;
+0 errors).
 
 ## Handoff prompt
 

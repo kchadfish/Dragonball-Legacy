@@ -46,6 +46,9 @@ const createCombatantState = (
   hitPoints: { current: combatant.maximumHitPoints, maximum: combatant.maximumHitPoints },
   ki: { current: GLOBAL_RULES.combat.startingKi, maximum: GLOBAL_RULES.combat.maximumKi },
   stats: { ...combatant.stats },
+  ...(combatant.specializationPoints === undefined
+    ? {}
+    : { specializationPoints: combatant.specializationPoints }),
   ...(combatant.level === undefined ? {} : { level: combatant.level }),
   ...(combatant.planetHasDragonBalls === undefined
     ? {}

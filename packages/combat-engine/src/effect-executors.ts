@@ -3,6 +3,7 @@ import {
   type EffectCondition,
   type EffectDefinition,
   type MoveDefinition,
+  type MoveSelectorCondition,
   type NumericExpression,
 } from "@dragonball-resurgence/game-data";
 
@@ -14,6 +15,7 @@ export const registeredEffectTypes = [
   "deactivate",
   "force-action",
   "grant-combat-outcome",
+  "grant-counter-action",
   "grant-extra-action",
   "lock",
   "modify-cost",
@@ -22,6 +24,7 @@ export const registeredEffectTypes = [
   "modify-move-classification",
   "modify-remaining-uses",
   "modify-resource",
+  "modify-resource-cost",
   "modify-roll",
   "modify-roll-modifier",
   "modify-slot-capacity",
@@ -203,7 +206,9 @@ const supportedConditions = new Set<EffectCondition["type"]>([
   "combat-turn",
   "moveset",
   "stored-roll-threshold",
+  "stored-roll-match",
   "stored-move-selection",
+  "roll-modification",
   "stopped-hit-fraction",
 ]);
 
@@ -516,6 +521,36 @@ const lastSelfCopyIssues = (
       : []),
   ]);
 
+const selectedPriorOpponentCopyIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) =>
+  copyMoveUnsupported(sourceDefinitionId, effectIndex, [
+    ...(effect.trigger !== "on-success" || effect.target !== "opponent"
+      ? ["Selected prior successful attacks currently resolve only from an opponent on success."]
+      : []),
+    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+      ? ["Prior copied effects must resolve as the selected source move's successful clause."]
+      : []),
+    ...(effect.sourceMove.type !== "selected-prior-move" ||
+    !("category" in effect.sourceMove) ||
+    effect.sourceMove.actor !== "opponent" ||
+    effect.sourceMove.category !== "advanced-attack" ||
+    effect.sourceMove.result !== "successful"
+      ? ["Prior copied effects require a successful opponent Advanced Attack selection."]
+      : []),
+    ...(effect.damage?.type !== "total-damage" || effect.damage.sourceMove !== "selected-prior-move"
+      ? ["Prior copied effects require the selected action's exact total damage."]
+      : []),
+    ...(effect.cost !== undefined ||
+    effect.ignoreRequirements !== undefined ||
+    effect.copies !== undefined ||
+    effect.useLimit !== undefined
+      ? ["Prior successful-effect copies do not add cost, requirement, modifier, or effect limits."]
+      : []),
+  ]);
+
 const copyMoveLifecycleIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
@@ -537,11 +572,30 @@ const copyMoveLifecycleIssues = (
       : []),
   ]);
 
+const copyMoveSourceIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+  selectedPriorOpponentAttack: boolean,
+  selectedOpponentAttack: boolean,
+) => {
+  if (selectedPriorOpponentAttack) return [];
+  if (selectedOpponentAttack)
+    return selectedOpponentCopyIssues(effect, sourceDefinitionId, effectIndex);
+  return lastSelfCopyIssues(effect, sourceDefinitionId, effectIndex);
+};
+
 const copyMoveEffectIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
   effectIndex: number,
 ) => {
+  const selectedPriorOpponentAttack =
+    effect.sourceMove.type === "selected-prior-move" &&
+    "category" in effect.sourceMove &&
+    effect.sourceMove.actor === "opponent" &&
+    effect.sourceMove.category === "advanced-attack" &&
+    effect.sourceMove.result === "successful";
   const selectedOpponentAttack =
     effect.sourceMove.type === "selected-move" &&
     effect.sourceMove.actor === "opponent" &&
@@ -552,15 +606,21 @@ const copyMoveEffectIssues = (
     effect.sourceMove.restriction === "unrestricted";
   return [
     ...commonIssues(effect, sourceDefinitionId, effectIndex),
-    ...copyMoveCommonVariantIssues(effect, sourceDefinitionId, effectIndex),
-    ...(!selectedOpponentAttack && !lastUnrestrictedSelfAttack
+    ...(selectedPriorOpponentAttack
+      ? selectedPriorOpponentCopyIssues(effect, sourceDefinitionId, effectIndex)
+      : copyMoveCommonVariantIssues(effect, sourceDefinitionId, effectIndex)),
+    ...(!selectedOpponentAttack && !lastUnrestrictedSelfAttack && !selectedPriorOpponentAttack
       ? copyMoveUnsupported(sourceDefinitionId, effectIndex, [
           "This copied attack source selector is not executable in the current runtime.",
         ])
       : []),
-    ...(selectedOpponentAttack
-      ? selectedOpponentCopyIssues(effect, sourceDefinitionId, effectIndex)
-      : lastSelfCopyIssues(effect, sourceDefinitionId, effectIndex)),
+    ...copyMoveSourceIssues(
+      effect,
+      sourceDefinitionId,
+      effectIndex,
+      selectedPriorOpponentAttack,
+      selectedOpponentAttack,
+    ),
     ...copyMoveLifecycleIssues(effect, sourceDefinitionId, effectIndex),
   ];
 };
@@ -1159,8 +1219,86 @@ const modifyCostIssues = (
   return issues;
 };
 
+type RegisteredModifyResourceEffect = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "modify-resource" }
+>;
+
+const onRollModifiedResourceIssue = (
+  effect: RegisteredModifyResourceEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): EffectCompilationIssue | undefined => {
+  if (effect.trigger !== "on-roll-modified") return undefined;
+  const condition = effect.conditions?.[0];
+  const exactVariant =
+    effect.target === "self" &&
+    effect.resource === "ki" &&
+    effect.operation === "gain" &&
+    effect.amount?.type === "literal" &&
+    effect.amount.value === 1 &&
+    effect.scope?.type === "next-turn" &&
+    effect.scope.subject === "self" &&
+    effect.duration === undefined &&
+    effect.cap === undefined &&
+    effect.activationCost === undefined &&
+    effect.useLimit === undefined &&
+    effect.conditions?.length === 1 &&
+    condition?.type === "roll-modification" &&
+    condition.actor === "self" &&
+    condition.roll === "attack" &&
+    condition.excludeSource === "dexterity" &&
+    condition.modifiers.length === 2 &&
+    new Set(condition.modifiers).size === 2 &&
+    condition.modifiers.includes("sides") &&
+    condition.modifiers.includes("result");
+  return exactVariant
+    ? undefined
+    : issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "On-roll-modified resource changes currently support only the self next-turn KI gain for non-dexterity attack sides and result changes.",
+      );
+};
+
+const onRollResultResourceIssue = (
+  effect: RegisteredModifyResourceEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): EffectCompilationIssue | undefined => {
+  if (effect.trigger !== "on-roll-result" || effect.conditions?.[0]?.type !== "stored-roll-match")
+    return undefined;
+  const condition = effect.conditions[0];
+  const exactVariant =
+    effect.target === "opponent" &&
+    effect.resource === "hp" &&
+    effect.operation === "lose" &&
+    effect.amount?.type === "literal" &&
+    effect.amount.value === 60 &&
+    effect.prevention === "prohibited" &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.cap === undefined &&
+    effect.activationCost === undefined &&
+    effect.useLimit?.scope === "combat" &&
+    effect.useLimit.count === 1 &&
+    effect.conditions.length === 1 &&
+    condition.roll === "attack" &&
+    condition.natural === true &&
+    condition.storageKey.length > 0;
+  return exactVariant
+    ? undefined
+    : issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "On-roll-result resource changes currently support only Ki Trap's one-time prohibited 60 HP loss from a natural stored attack-roll match.",
+      );
+};
+
 const modifyResourceIssues = (
-  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource" }>,
+  effect: RegisteredModifyResourceEffect,
   sourceDefinitionId: string,
   effectIndex: number,
 ) => {
@@ -1176,6 +1314,11 @@ const modifyResourceIssues = (
   if (capValueIssue !== undefined) issues.push(capValueIssue);
   issues.push(...deferredDamageResourceIssues(effect, sourceDefinitionId, effectIndex));
   issues.push(...powerUpNextTurnResourceIssues(effect, sourceDefinitionId, effectIndex));
+  const listenerIssues = [
+    onRollModifiedResourceIssue(effect, sourceDefinitionId, effectIndex),
+    onRollResultResourceIssue(effect, sourceDefinitionId, effectIndex),
+  ].filter((candidate): candidate is EffectCompilationIssue => candidate !== undefined);
+  issues.push(...listenerIssues);
   if (
     effect.trigger === "start-combat" &&
     (effect.scope !== undefined || effect.duration !== undefined || effect.useLimit !== undefined)
@@ -1186,22 +1329,6 @@ const modifyResourceIssues = (
         sourceDefinitionId,
         effectIndex,
         "Start-combat resource changes must resolve immediately without deferred scope, caps, or limits.",
-      ),
-    );
-  if (
-    effect.trigger === "start-combat" &&
-    effect.conditions?.some(
-      (condition) =>
-        condition.type === "stat-comparison" &&
-        (condition.stat === "sp" || condition.rightStat === "sp"),
-    )
-  )
-    issues.push(
-      issue(
-        "unsupported-condition",
-        sourceDefinitionId,
-        effectIndex,
-        "Start-combat SP comparisons require a persisted SP combat context.",
       ),
     );
   if (
@@ -1255,6 +1382,137 @@ const modifyResourceIssues = (
     );
   return issues;
 };
+
+const hasSupportedResourceCostCategory = (selector: MoveSelectorCondition) => {
+  if (selector.category === "signature") return selector.categories === undefined;
+  return (
+    selector.category === undefined &&
+    selector.categories !== undefined &&
+    selector.categories.length > 0
+  );
+};
+
+const hasSupportedResourceCostSelector = (selector: MoveSelectorCondition) =>
+  selector.subject === "source" &&
+  selector.effectKinds?.length === 1 &&
+  selector.effectKinds[0] === "resource-loss" &&
+  hasSupportedResourceCostCategory(selector) &&
+  [
+    selector.ids,
+    selector.styleId,
+    selector.styleIdExcludes,
+    selector.categoryExcludes,
+    selector.tags,
+    selector.custom,
+    selector.styleProvenance,
+    selector.restriction,
+    selector.constant,
+    selector.effectTextIncludes,
+    selector.effectTextIncludesAny,
+    selector.effectTextExcludes,
+    selector.selectionKey,
+    selector.requirementExcludes,
+    selector.requirementIncludes,
+    selector.baseKiCost,
+    selector.costModification,
+    selector.attackRoll,
+  ].every((value) => value === undefined);
+
+const resourceCostVariantIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource-cost" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const unsupported = (message: string) =>
+    issue("unsupported-variant", sourceDefinitionId, effectIndex, message);
+  const issues: EffectCompilationIssue[] = [];
+  if (effect.trigger !== "on-success" || effect.target !== "self")
+    issues.push(
+      unsupported("Resource-cost modifiers currently support only self on-success choices."),
+    );
+  if (effect.scope?.type !== "next-action")
+    issues.push(
+      unsupported("Resource-cost modifiers currently persist only for the next matching action."),
+    );
+  if (!hasSupportedResourceCostSelector(effect.selector))
+    issues.push(
+      unsupported(
+        "Next-action resource-cost modifiers require a source category selector with exactly the resource-loss effect kind.",
+      ),
+    );
+  if (effect.stacking !== "prevent")
+    issues.push(
+      unsupported("Next-action resource-cost modifiers require non-stacking lifecycle semantics."),
+    );
+  if (
+    effect.duration !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.selectionLimit !== undefined
+  )
+    issues.push(
+      unsupported(
+        "Next-action resource-cost modifiers do not support additional lifecycle metadata.",
+      ),
+    );
+  return issues;
+};
+
+const resourceCostActivationIssues = (
+  activationCost: NonNullable<
+    Extract<RegisteredEffectDefinition, { readonly type: "modify-resource-cost" }>["activationCost"]
+  >,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const unsupported = (message: string) =>
+    issue("unsupported-variant", sourceDefinitionId, effectIndex, message);
+  const issues: EffectCompilationIssue[] = [];
+  const amountIssue = numericIssue(
+    activationCost.amount,
+    sourceDefinitionId,
+    effectIndex,
+    "activationCost.amount",
+  );
+  const minimumIssue = numericIssue(
+    activationCost.minimum,
+    sourceDefinitionId,
+    effectIndex,
+    "activationCost.minimum",
+  );
+  if (amountIssue !== undefined) issues.push(amountIssue);
+  if (minimumIssue !== undefined) issues.push(minimumIssue);
+  if (activationCost.resource !== "ki")
+    issues.push(
+      unsupported("Next-action resource-cost modifiers support only KI activation costs."),
+    );
+  if (activationCost.amount.type !== "literal")
+    issues.push(
+      unsupported(
+        "Next-action resource-cost modifiers require a finite literal KI activation amount.",
+      ),
+    );
+  if (activationCost.minimum !== undefined && activationCost.minimum.type !== "literal")
+    issues.push(
+      unsupported("Next-action resource-cost modifiers require a finite literal KI minimum."),
+    );
+  return issues;
+};
+
+const modifyResourceCostIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource-cost" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => [
+  ...commonIssues(effect, sourceDefinitionId, effectIndex),
+  ...(numericIssue(effect.percent, sourceDefinitionId, effectIndex, "percent") === undefined
+    ? []
+    : [numericIssue(effect.percent, sourceDefinitionId, effectIndex, "percent")!]),
+  ...resourceCostVariantIssues(effect, sourceDefinitionId, effectIndex),
+  ...(effect.activationCost === undefined
+    ? []
+    : resourceCostActivationIssues(effect.activationCost, sourceDefinitionId, effectIndex)),
+];
 
 const modifySlotCapacityIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-slot-capacity" }>,
@@ -2367,12 +2625,35 @@ const rerollIssues = (
   effectIndex: number,
   // eslint-disable-next-line sonarjs/cognitive-complexity
 ) => {
+  const storedRollMatchChoice =
+    effect.trigger === "on-roll-result" &&
+    effect.target === "self" &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "stored-roll-match" &&
+    effect.conditions[0].roll === effect.roll &&
+    effect.conditions[0].natural === true &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.useLimit?.scope === "combat" &&
+    effect.activationCost === undefined;
+  const beforeDefenseChoice =
+    effect.trigger === "before-defense-roll" &&
+    effect.target === "opponent" &&
+    effect.roll === "attack" &&
+    (effect.rerollScope === undefined || effect.rerollScope === "single-result") &&
+    effect.scope?.type === "next-rolls" &&
+    effect.scope.roll === "attack" &&
+    effect.optional === true &&
+    effect.conditions === undefined &&
+    effect.duration === undefined &&
+    effect.activationCost === undefined;
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex).filter(
     (candidate) =>
       !(
         candidate.code === "requires-pending-choice" &&
-        effect.optional === true &&
-        effect.activationGroup === undefined
+        ((effect.optional === true && effect.activationGroup === undefined) ||
+          storedRollMatchChoice ||
+          beforeDefenseChoice)
       ),
   );
   const modifierIssue = numericIssue(
@@ -2385,32 +2666,45 @@ const rerollIssues = (
   if (modifierIssue !== undefined) issues.push(modifierIssue);
   if (bonusIssue !== undefined) issues.push(bonusIssue);
   for (const condition of effect.conditions ?? []) {
-    if (condition.type !== "roll-threshold" || condition.roll !== effect.roll) {
+    if (!(
+      (condition.type === "roll-threshold" && condition.roll === effect.roll) ||
+      (storedRollMatchChoice &&
+        condition.type === "stored-roll-match" &&
+        condition.roll === effect.roll &&
+        condition.natural === true)
+    )) {
       issues.push(
         issue(
           "unsupported-condition",
           sourceDefinitionId,
           effectIndex,
-          "After-defense rerolls support only thresholds on the roll being rerolled.",
+          "Rerolls support only thresholds on the roll being rerolled or an exact stored-roll match.",
         ),
       );
       continue;
     }
-    const thresholdIssue = numericIssue(
-      condition.value,
-      sourceDefinitionId,
-      effectIndex,
-      "conditions.roll-threshold.value",
-    );
-    if (thresholdIssue !== undefined) issues.push(thresholdIssue);
+    if (condition.type === "roll-threshold") {
+      const thresholdIssue = numericIssue(
+        condition.value,
+        sourceDefinitionId,
+        effectIndex,
+        "conditions.roll-threshold.value",
+      );
+      if (thresholdIssue !== undefined) issues.push(thresholdIssue);
+    }
   }
-  if (effect.trigger !== "after-defense-roll" && effect.trigger !== "on-success")
+  if (
+    effect.trigger !== "after-defense-roll" &&
+    effect.trigger !== "before-defense-roll" &&
+    effect.trigger !== "on-success" &&
+    effect.trigger !== "on-roll-result"
+  )
     issues.push(
       issue(
         "unsupported-trigger",
         sourceDefinitionId,
         effectIndex,
-        "Reroll reactions resolve after persisted attack and defense dice or after a successful source attack.",
+        "Reroll reactions resolve at a supported defense, roll-result, or successful-attack transition.",
       ),
     );
   if (effect.target !== "self" && effect.target !== "opponent")
@@ -2475,7 +2769,14 @@ const rerollIssues = (
         "A prior-source-result reroll must declare combat duration.",
       ),
     );
-  if (effect.roll === "attack" && effect.rerollScope !== "entire-attack")
+  if (
+    effect.roll === "attack" &&
+    effect.rerollScope !== "entire-attack" &&
+    !(
+      (storedRollMatchChoice || beforeDefenseChoice) &&
+      (effect.rerollScope === undefined || effect.rerollScope === "single-result")
+    )
+  )
     issues.push(
       issue(
         "unsupported-variant",
@@ -2510,7 +2811,7 @@ const rerollIssues = (
     effect.cooldown !== undefined ||
     effect.stacking !== undefined ||
     effect.selectionLimit !== undefined ||
-    effect.exclusiveActivationGroup !== undefined
+    (effect.exclusiveActivationGroup !== undefined && !storedRollMatchChoice)
   )
     issues.push(
       issue(
@@ -2692,6 +2993,213 @@ const grantCombatOutcomeIssues = (
         sourceDefinitionId,
         effectIndex,
         "Combat outcomes currently resolve as one immediate current-attack status without selection or a separate lifecycle.",
+      ),
+    );
+  return issues;
+};
+
+type GrantCounterActionDefinition = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "grant-counter-action" }
+>;
+
+const grantCounterUnsupported = (
+  sourceDefinitionId: string,
+  effectIndex: number,
+  message: string,
+) => issue("unsupported-variant", sourceDefinitionId, effectIndex, message);
+
+const validGrantCounterMoveSelectorCondition = (
+  condition: Extract<EffectCondition, { readonly type: "move-selector" }>,
+) =>
+  condition.subject === "target" &&
+  condition.category === "advanced-attack" &&
+  condition.restriction === "unrestricted" &&
+  condition.attackRoll?.dice === 1 &&
+  Object.keys(condition.attackRoll ?? {}).every((key) => key === "dice");
+
+const validGrantCounterRollThresholdCondition = (
+  condition: Extract<EffectCondition, { readonly type: "roll-threshold" }>,
+) =>
+  condition.roll === "defense" &&
+  condition.comparison === "at-least" &&
+  condition.value.type === "literal" &&
+  condition.value.value === 25;
+
+const validGrantCounterChooseConditions = (effect: GrantCounterActionDefinition) =>
+  (effect.conditions ?? []).every((condition) => {
+    if (condition.type === "move-selector")
+      return validGrantCounterMoveSelectorCondition(condition);
+    if (condition.type === "roll-threshold")
+      return validGrantCounterRollThresholdCondition(condition);
+    return false;
+  });
+
+const validGrantCounterRepeatCondition = (effect: GrantCounterActionDefinition) => {
+  const condition = effect.conditions?.[0];
+  return (
+    effect.trigger === "on-success" &&
+    effect.conditions?.length === 1 &&
+    condition?.type === "action-sequence" &&
+    condition.actor === "opponent" &&
+    condition.result === "successful" &&
+    condition.count === 2 &&
+    condition.withoutResultBy?.actor === "self" &&
+    condition.withoutResultBy?.result === "stopped"
+  );
+};
+
+const grantCounterUseLimitIssues = (
+  effect: GrantCounterActionDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.useLimit === undefined) return [];
+  const count = effect.useLimit.count;
+  const validCount =
+    typeof count === "number"
+      ? Number.isInteger(count) && count >= 1
+      : count.type === "literal" && Number.isInteger(count.value) && count.value >= 1;
+  return [
+    ...(effect.useLimit.scope === "combat"
+      ? []
+      : [
+          grantCounterUnsupported(
+            sourceDefinitionId,
+            effectIndex,
+            "Counter-action use limits support combat scope only.",
+          ),
+        ]),
+    ...(validCount
+      ? []
+      : [
+          grantCounterUnsupported(
+            sourceDefinitionId,
+            effectIndex,
+            "Counter-action use limits require a positive literal count.",
+          ),
+        ]),
+  ];
+};
+
+const grantCounterCostIssues = (
+  effect: GrantCounterActionDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  if (effect.costModifier === undefined) return [];
+  const amountIssue = numericIssue(
+    effect.costModifier.amount,
+    sourceDefinitionId,
+    effectIndex,
+    "costModifier.amount",
+  );
+  const minimumIssue = numericIssue(
+    effect.costModifier.minimum,
+    sourceDefinitionId,
+    effectIndex,
+    "costModifier.minimum",
+  );
+  return [
+    ...(amountIssue === undefined ? [] : [amountIssue]),
+    ...(minimumIssue === undefined ? [] : [minimumIssue]),
+    ...(effect.action === "repeat-triggering-attack" && effect.costModifier.operation === "add"
+      ? []
+      : [
+          grantCounterUnsupported(
+            sourceDefinitionId,
+            effectIndex,
+            "Counter-action cost modifiers support additive repeat attacks only.",
+          ),
+        ]),
+  ];
+};
+
+const grantCounterActionIssues = (
+  effect: GrantCounterActionDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (effect.target !== "self")
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Counter actions currently target self.",
+      ),
+    );
+  if (effect.action === "use-source-attack")
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Using a source attack requires a serialized source-action selection.",
+      ),
+    );
+  if (effect.action === "repeat-triggering-attack" && !validGrantCounterRepeatCondition(effect))
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Repeat-triggering counter actions require one on-success action-sequence condition.",
+      ),
+    );
+  if (effect.action === "choose-attack" && effect.trigger !== "after-defense-roll")
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Choose-attack counter actions require an after-defense-roll trigger.",
+      ),
+    );
+  if (effect.action === "choose-attack" && !validGrantCounterChooseConditions(effect))
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Choose-attack counter actions support move-selector or roll-threshold conditions.",
+      ),
+    );
+  const activationAmountIssue = numericIssue(
+    effect.activationCost?.amount,
+    sourceDefinitionId,
+    effectIndex,
+    "activationCost.amount",
+  );
+  const activationMinimumIssue = numericIssue(
+    effect.activationCost?.minimum,
+    sourceDefinitionId,
+    effectIndex,
+    "activationCost.minimum",
+  );
+  if (activationAmountIssue !== undefined) issues.push(activationAmountIssue);
+  if (activationMinimumIssue !== undefined) issues.push(activationMinimumIssue);
+  if (effect.activationCost?.resource !== undefined && effect.activationCost.resource !== "ki")
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Counter-action activation costs support KI only.",
+      ),
+    );
+  issues.push(...grantCounterUseLimitIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...grantCounterCostIssues(effect, sourceDefinitionId, effectIndex));
+  if (effect.duration !== undefined)
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Counter-action duration requires a persistent counter-permission lifecycle and remains unsupported.",
+      ),
+    );
+  if (effect.stacking !== undefined)
+    issues.push(
+      grantCounterUnsupported(
+        sourceDefinitionId,
+        effectIndex,
+        "Counter-action stacking is supported only with a persistent counter-permission lifecycle.",
       ),
     );
   return issues;
@@ -3525,6 +4033,7 @@ export const effectExecutorRegistry = {
   deactivate: createExecutor("deactivate"),
   "force-action": createExecutor("force-action"),
   "grant-combat-outcome": createExecutor("grant-combat-outcome", grantCombatOutcomeIssues),
+  "grant-counter-action": createExecutor("grant-counter-action", grantCounterActionIssues),
   lock: createExecutor("lock", lockIssues),
   "modify-cost": createExecutor("modify-cost", modifyCostIssues),
   "modify-critical-threshold": createExecutor(
@@ -3538,6 +4047,7 @@ export const effectExecutorRegistry = {
   ),
   "modify-remaining-uses": createExecutor("modify-remaining-uses", modifyRemainingUsesIssues),
   "modify-resource": createExecutor("modify-resource", modifyResourceIssues),
+  "modify-resource-cost": createExecutor("modify-resource-cost", modifyResourceCostIssues),
   "grant-extra-action": createExecutor("grant-extra-action", grantExtraActionIssues),
   "modify-roll": createExecutor("modify-roll", modifyRollIssues),
   "modify-roll-modifier": createExecutor("modify-roll-modifier", modifyRollModifierIssues),

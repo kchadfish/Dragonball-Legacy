@@ -109,6 +109,11 @@ const genericExecutors: Readonly<
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
     capabilityId: "grant-combat-outcome.v1",
   },
+  "grant-counter-action": {
+    executor: "counter-action",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "grant-counter-action.v1",
+  },
   lock: { executor: "action-lock", test: "progress-fight.test.ts" },
   "modify-cost": { executor: "cost-modifier", test: "move-effects-runtime.test.ts" },
   "modify-critical-threshold": {
@@ -129,6 +134,11 @@ const genericExecutors: Readonly<
   "modify-resource": {
     executor: "resource-change",
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
+  "modify-resource-cost": {
+    executor: "resource-cost-modifier",
+    test: "effect-executors.test.ts, move-effects-runtime.test.ts, progress-fight.test.ts",
+    capabilityId: "modify-resource-cost.v1",
   },
   "modify-roll": {
     executor: "roll-modifier",
@@ -488,16 +498,49 @@ const isSupportedCombatOutcomeOccurrence = (occurrence: Occurrence) => {
 
 const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
   const effect = occurrence.effect;
+  const storedRollMatchChoice =
+    effect.type === "reroll" &&
+    effect.trigger === "on-roll-result" &&
+    effect.target === "self" &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "stored-roll-match" &&
+    effect.conditions[0].roll === effect.roll &&
+    effect.conditions[0].natural === true &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.useLimit?.scope === "combat" &&
+    effect.activationCost === undefined;
+  const beforeDefenseChoice =
+    effect.type === "reroll" &&
+    effect.trigger === "before-defense-roll" &&
+    effect.target === "opponent" &&
+    effect.roll === "attack" &&
+    (effect.rerollScope === undefined || effect.rerollScope === "single-result") &&
+    effect.scope?.type === "next-rolls" &&
+    effect.scope.roll === "attack" &&
+    effect.scope.count.type === "literal" &&
+    effect.scope.count.value === 3 &&
+    effect.optional === true &&
+    effect.conditions === undefined &&
+    effect.duration === undefined &&
+    effect.activationCost === undefined;
   return (
     effect.type === "reroll" &&
-    (effect.trigger === "after-defense-roll" || effect.trigger === "on-success") &&
+    (effect.trigger === "after-defense-roll" ||
+      effect.trigger === "on-success" ||
+      beforeDefenseChoice ||
+      storedRollMatchChoice) &&
     (effect.target === undefined || effect.target === "self" || effect.target === "opponent") &&
-    (effect.trigger === "after-defense-roll"
-      ? effect.scope === undefined
-      : (effect.scope?.type === "next-action" ||
-          effect.scope?.type === "next-roll" ||
-          effect.scope?.type === "next-rolls") &&
-        effect.duration === undefined) &&
+    (effect.trigger === "before-defense-roll"
+      ? beforeDefenseChoice
+      : effect.trigger === "on-roll-result"
+        ? storedRollMatchChoice
+        : effect.trigger === "after-defense-roll"
+          ? effect.scope === undefined
+          : (effect.scope?.type === "next-action" ||
+              effect.scope?.type === "next-roll" ||
+              effect.scope?.type === "next-rolls") &&
+            effect.duration === undefined) &&
     (effect.duration === undefined || effect.duration.type === "combat") &&
     effect.activationGroup === undefined &&
     effect.exclusiveActivationGroup === undefined &&
@@ -515,16 +558,18 @@ const isSupportedPendingChoiceOccurrence = (
   const effect = occurrence.effect;
   if (
     (effect.trigger !== "before-attack-roll" &&
+      effect.trigger !== "before-defense-roll" &&
       effect.trigger !== "after-defense-roll" &&
       effect.trigger !== "on-success" &&
       effect.trigger !== "on-power-up" &&
       effect.trigger !== "on-move-use" &&
       effect.trigger !== "on-cost-modified" &&
-      effect.trigger !== "on-damage") ||
+      effect.trigger !== "on-damage" &&
+      effect.trigger !== "on-roll-result") ||
     (effect.target !== "self" && effect.target !== "opponent")
   )
     return false;
-  const groupOccurrences = occurrences.filter(
+  const groupedOccurrences = occurrences.filter(
     (candidate) =>
       candidate.origin === occurrence.origin &&
       candidate.sourceDefinitionId === occurrence.sourceDefinitionId &&
@@ -534,6 +579,10 @@ const isSupportedPendingChoiceOccurrence = (
         : (candidate.effect.activationGroup ?? candidate.effect.exclusiveActivationGroup) ===
           (effect.activationGroup ?? effect.exclusiveActivationGroup)),
   );
+  const groupOccurrences =
+    effect.trigger === "on-roll-result" && effect.exclusiveActivationGroup !== undefined
+      ? groupedOccurrences.filter((candidate) => candidate.effect.target === effect.target)
+      : groupedOccurrences;
   if (groupOccurrences.length === 0) return false;
   if (effect.trigger === "on-success") {
     const damageReplacement = groupOccurrences.some(
@@ -575,7 +624,68 @@ const isSupportedPendingChoiceOccurrence = (
           candidate.effect.scope?.type === "next-roll" ||
           candidate.effect.scope?.type === "next-rolls"),
     );
-    if (!orangeBurstGroup && !extraActionGroup && !rerollGroup) return false;
+    const resourceCostGroup = groupOccurrences.every((candidate) => {
+      const candidateEffect = candidate.effect;
+      return (
+        candidateEffect.type === "modify-resource-cost" &&
+        candidateEffect.target === "self" &&
+        candidateEffect.scope?.type === "next-action" &&
+        candidateEffect.selector?.subject === "source" &&
+        candidateEffect.selector.effectKinds?.length === 1 &&
+        candidateEffect.selector.effectKinds[0] === "resource-loss" &&
+        ((candidateEffect.selector.category === "signature" &&
+          candidateEffect.selector.categories === undefined) ||
+          (candidateEffect.selector.category === undefined &&
+            candidateEffect.selector.categories !== undefined &&
+            candidateEffect.selector.categories.length > 0)) &&
+        candidateEffect.stacking === "prevent" &&
+        candidateEffect.activationCost?.resource === "ki" &&
+        candidateEffect.activationCost.operation === "lose" &&
+        candidateEffect.activationCost.amount.type === "literal"
+      );
+    });
+    if (!orangeBurstGroup && !extraActionGroup && !rerollGroup && !resourceCostGroup) {
+      return false;
+    }
+  }
+  if (effect.trigger === "before-defense-roll") {
+    const beforeDefenseRerollGroup = groupOccurrences.every((candidate) => {
+      const candidateEffect = candidate.effect;
+      return (
+        candidateEffect.type === "reroll" &&
+        candidateEffect.target === "opponent" &&
+        candidateEffect.roll === "attack" &&
+        (candidateEffect.rerollScope === undefined ||
+          candidateEffect.rerollScope === "single-result") &&
+        candidateEffect.scope?.type === "next-rolls" &&
+        candidateEffect.scope.roll === "attack" &&
+        candidateEffect.scope.count.type === "literal" &&
+        candidateEffect.scope.count.value === 3 &&
+        candidateEffect.optional === true &&
+        candidateEffect.conditions === undefined &&
+        candidateEffect.duration === undefined &&
+        candidateEffect.activationCost === undefined
+      );
+    });
+    if (!beforeDefenseRerollGroup) return false;
+  }
+  if (effect.trigger === "on-roll-result" && effect.type === "reroll") {
+    const storedRollRerollGroup = groupOccurrences.every((candidate) => {
+      const candidateEffect = candidate.effect;
+      return (
+        candidateEffect.type === "reroll" &&
+        candidateEffect.target === "self" &&
+        candidateEffect.conditions?.length === 1 &&
+        candidateEffect.conditions[0]?.type === "stored-roll-match" &&
+        candidateEffect.conditions[0].roll === candidateEffect.roll &&
+        candidateEffect.conditions[0].natural === true &&
+        candidateEffect.scope === undefined &&
+        candidateEffect.duration === undefined &&
+        candidateEffect.useLimit?.scope === "combat" &&
+        candidateEffect.activationCost === undefined
+      );
+    });
+    if (!storedRollRerollGroup) return false;
   }
   if (effect.trigger === "on-power-up") {
     const powerUpDamageGroup = groupOccurrences.every((candidate) => {
@@ -778,6 +888,34 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
           effect: occurrence.effect as EffectDefinition,
           allowPendingChoice: pendingChoiceSupported || activationSupported,
         });
+  const selectedPriorSuccessfulCopy =
+    occurrence.effect.type === "copy-move-effect" &&
+    occurrence.effect.trigger === "on-success" &&
+    occurrence.effect.target === "opponent" &&
+    occurrence.effect.effectResult === "successful" &&
+    occurrence.effect.resolveAs === "source-move" &&
+    occurrence.effect.sourceMove.type === "selected-prior-move" &&
+    occurrence.effect.sourceMove.actor === "opponent" &&
+    "category" in occurrence.effect.sourceMove &&
+    occurrence.effect.sourceMove.category === "advanced-attack" &&
+    occurrence.effect.sourceMove.result === "successful" &&
+    occurrence.effect.damage?.type === "total-damage" &&
+    occurrence.effect.damage.sourceMove === "selected-prior-move" &&
+    occurrence.effect.cost === undefined &&
+    occurrence.effect.ignoreRequirements === undefined &&
+    occurrence.effect.copies === undefined;
+  if (selectedPriorSuccessfulCopy && compilation?.ok === true) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "copy-move-effect.v2",
+      executor: "copied-successful-effect-attack",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+      reason:
+        "The selected-prior executor persists the source action, immutable move snapshot, exact damage, and source SUCCESSFUL clauses through the public attack transition.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
   if (
     effectType === "modify-cost" &&
     pendingChoiceSupported &&
