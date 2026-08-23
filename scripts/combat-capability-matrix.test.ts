@@ -100,6 +100,27 @@ describe("combat capability matrix", () => {
     });
   });
 
+  it("classifies Monkey Sweep's durable combat-outcome prevention generically", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-freestyle-monkey-sweep" &&
+        candidate.effectType === "prevent-resolution",
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "supported-generic",
+          capabilityId: "prevent-resolution.v1",
+          executor: "resolution-prevention",
+          focusedCoverage:
+            "basic-attack.test.ts, move-effects-runtime.test.ts, progress-fight.test.ts",
+        }),
+      ]),
+    );
+  });
+
   it("classifies Anger's stopped-fraction reward and lock through generic executors", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) => row.sourceDefinitionId === "move-freestyle-anger-manipulation",
@@ -433,6 +454,20 @@ describe("combat capability matrix", () => {
     });
   });
 
+  it("classifies combat-limited successful-effect negation as generic coverage", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-midorikatai-sucker-punch" &&
+        candidate.effectIndex === 0,
+    );
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "negate.v1",
+      executor: "negation",
+      focusedCoverage: "progress-fight.test.ts",
+    });
+  });
+
   it("classifies successful-hit-count effects as generic executor coverage", () => {
     const matrix = createCombatCapabilityMatrix();
     const sourceIds = new Set([
@@ -647,13 +682,24 @@ describe("combat capability matrix", () => {
     expect(rows.every((row) => row.capabilityId !== null && row.executor !== null)).toBe(true);
   });
 
+  it("classifies passive moveset slot capacity changes through the generic executor", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.effectType === "modify-slot-capacity",
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+    expect(rows.every((row) => row.capabilityId === "modify-slot-capacity.v1")).toBe(true);
+    expect(rows.every((row) => row.executor === "moveset-slot-capacity")).toBe(true);
+  });
+
   it("classifies flat, scope-backed floating bundles through the lifecycle executor", () => {
     const matrix = createCombatCapabilityMatrix();
     const rows = matrix.occurrences.filter(
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(17);
+    expect(rows).toHaveLength(18);
     expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
     expect(
@@ -878,7 +924,7 @@ describe("combat capability matrix", () => {
     });
   });
 
-  it("classifies exact damage and roll protection through the v2 move-modification executor", () => {
+  it("classifies exact damage, roll, effect, and scoped protection through the v3 move-modification executor", () => {
     const matrix = createCombatCapabilityMatrix();
     const protectedMoves = new Set([
       "move-afterlife-heat-dome-attack",
@@ -886,6 +932,9 @@ describe("combat capability matrix", () => {
       "move-haokiru-neutralization",
       "move-midorikatai-knee-stomp",
       "move-midorikatai-energy-breaker",
+      "move-aoyosumu-state-of-zen",
+      "move-haokiru-healing-ray",
+      "move-kiihakai-static-shot",
     ]);
     const rows = matrix.occurrences.filter(
       (row) =>
@@ -898,7 +947,7 @@ describe("combat capability matrix", () => {
       rows.every(
         (row) =>
           row.status === "supported-generic" &&
-          row.capabilityId === "prevent-move-modification.v2" &&
+          row.capabilityId === "prevent-move-modification.v3" &&
           row.executor === "move-modification-prevention",
       ),
     ).toBe(true);

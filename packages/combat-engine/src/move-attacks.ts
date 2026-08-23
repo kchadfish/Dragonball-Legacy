@@ -39,6 +39,8 @@ export interface MoveAttackDefinition {
     index: number,
     priorRolls: readonly AttackDieRoll[],
   ) => { readonly attack?: number; readonly defense?: number } | undefined;
+  /** Deterministic hook for effects that observe each fully resolved die. */
+  readonly afterDieResolved?: (index: number, rolls: readonly AttackDieRoll[]) => void;
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
   readonly baseDamage: number;
   /** A converted `damagePerHit` move deals its listed damage for every successful die. */
@@ -90,6 +92,7 @@ export const resolveMoveAttack = (
       resultOverrides: definition.resultOverrides,
       numericResultOverrides: definition.numericResultOverrides,
       beforeDieResultModifier: definition.beforeDieResultModifier,
+      afterDieResolved: definition.afterDieResolved,
       resolutionThresholds: definition.resolutionThresholds,
     },
     random,

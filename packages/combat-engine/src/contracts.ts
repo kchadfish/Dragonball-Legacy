@@ -32,6 +32,19 @@ export interface CombatantStats {
   readonly dexterityBonus: number;
 }
 
+export type CombatSlot = "mastery" | "skill" | "advanced-attack" | "signature" | "block";
+
+export type CombatSlotCapacities = Readonly<Record<CombatSlot, number>>;
+
+/** A passive declarative change to one moveset slot capacity. */
+export interface SlotCapacityModification {
+  readonly sourceCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly slot: CombatSlot;
+  readonly amount: number;
+}
+
 /** A combat-local status whose semantics remain owned by game data and the effect runtime. */
 export interface ActiveStatus {
   readonly statusId: StatusId;
@@ -85,6 +98,10 @@ export interface CombatantState {
   readonly planetHasDragonBalls?: boolean;
   readonly masteredTransformationIds?: readonly TransformationId[];
   readonly moveIds: readonly MoveId[];
+  /** Canonical moveset capacities after passive combat modifiers are applied. */
+  readonly slotCapacities?: CombatSlotCapacities;
+  /** Source-preserving passive capacity applications used to derive slotCapacities. */
+  readonly slotCapacityModifications?: readonly SlotCapacityModification[];
   readonly itemIds?: readonly ItemId[];
   readonly transformationIds?: readonly TransformationId[];
   readonly moveUses: Readonly<Record<MoveId, number>>;
@@ -658,6 +675,8 @@ export interface ActiveMoveModificationPreventionEffect {
   readonly exceptSourceMoveIds?: readonly string[];
   readonly exceptSourceStatusIds?: readonly StatusId[];
   readonly operations?: readonly "reduce"[];
+  /** First turn on which a next-turn scoped prevention can affect actions. */
+  readonly availableFromTurn?: number;
   readonly selector: MoveSelectorCondition;
   readonly duration: ActiveActionLockEffect["duration"];
 }
@@ -1107,6 +1126,7 @@ export interface FightStateInvariantViolation {
     | "invalid-state-counter"
     | "invalid-stat"
     | "invalid-status"
+    | "invalid-slot-capacity"
     | "invalid-transformation"
     | "invalid-use-count";
   readonly message: string;

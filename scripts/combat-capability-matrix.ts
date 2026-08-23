@@ -139,6 +139,11 @@ const genericExecutors: Readonly<
     test: "progress-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
     capabilityId: "modify-roll-modifier.v1",
   },
+  "modify-slot-capacity": {
+    executor: "moveset-slot-capacity",
+    test: "create-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
+    capabilityId: "modify-slot-capacity.v1",
+  },
   "modify-stat": { executor: "stat-modifier", test: "progress-fight.test.ts" },
   negate: {
     executor: "negation",
@@ -161,14 +166,17 @@ const genericExecutors: Readonly<
   "prevent-move-modification": {
     executor: "move-modification-prevention",
     test: "move-effects-runtime.test.ts, progress-fight.test.ts",
-    capabilityId: "prevent-move-modification.v2",
+    capabilityId: "prevent-move-modification.v3",
   },
   "prevent-move-use": { executor: "move-use-prevention", test: "move-effects-runtime.test.ts" },
   "prevent-resource-modification": {
     executor: "resource-modification-prevention",
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
   },
-  "prevent-resolution": { executor: "resolution-prevention", test: "basic-attack.test.ts" },
+  "prevent-resolution": {
+    executor: "resolution-prevention",
+    test: "basic-attack.test.ts, move-effects-runtime.test.ts, progress-fight.test.ts",
+  },
   "prevent-roll-modification": {
     executor: "roll-modification-prevention",
     test: "basic-attack.test.ts",

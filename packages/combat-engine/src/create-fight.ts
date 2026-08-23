@@ -8,11 +8,13 @@ import {
 import type {
   ActiveFightState,
   ActiveCombatEffect,
+  CombatSlotCapacities,
   CombatResult,
   CombatTransition,
   CombatantState,
   CreateFightInput,
   FightSetupIssue,
+  SlotCapacityModification,
 } from "./contracts.js";
 import { createFightInputSchema } from "./contracts.js";
 import type { CombatDependencies } from "./dependencies.js";
@@ -52,6 +54,14 @@ const createCombatantState = (
     ? {}
     : { masteredTransformationIds: [...combatant.masteredTransformationIds] }),
   moveIds: [...combatant.moveIds],
+  slotCapacities: {
+    mastery: GLOBAL_RULES.movesetSlots.mastery,
+    skill: GLOBAL_RULES.movesetSlots.skill,
+    "advanced-attack": GLOBAL_RULES.movesetSlots.advancedAttack,
+    signature: GLOBAL_RULES.movesetSlots.signatureTechnique,
+    block: GLOBAL_RULES.movesetSlots.block,
+  },
+  slotCapacityModifications: [],
   ...(combatant.itemIds === undefined ? {} : { itemIds: [...combatant.itemIds] }),
   ...(combatant.transformationIds === undefined
     ? {}
@@ -63,6 +73,36 @@ const createCombatantState = (
   activeStatuses: [],
   status: "active",
 });
+
+const passiveSlotCapacityState = (
+  source: CombatantState,
+  opponent: CombatantState,
+): {
+  readonly capacities: CombatSlotCapacities;
+  readonly modifications: readonly SlotCapacityModification[];
+} => {
+  const modifications = source.moveIds.flatMap((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    if (move === undefined) return [];
+    return moveEffectsForTrigger(move, "passive", {
+      self: source,
+      opponent,
+      turnNumber: 1,
+      completedTurnCount: 0,
+      moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+      moveActivationCounts: new Map(),
+      successfulHitCount: 0,
+    }).slotCapacityModifications;
+  });
+  const capacities = modifications.reduce(
+    (current, modification) => ({
+      ...current,
+      [modification.slot]: current[modification.slot] + modification.amount,
+    }),
+    source.slotCapacities!,
+  );
+  return { capacities, modifications };
+};
 
 const unknownTransformationIssuesFor = (input: CreateFightInput) =>
   input.combatants.flatMap((combatant, combatantIndex) =>
@@ -274,8 +314,20 @@ export const createFight = (
         return item === undefined ? [] : [item];
       }),
     );
-  const firstCombatant = combatantWithItemPassives(firstCombatantId, firstCombatantInput);
-  const secondCombatant = combatantWithItemPassives(secondCombatantId, secondCombatantInput);
+  const firstCombatantBase = combatantWithItemPassives(firstCombatantId, firstCombatantInput);
+  const secondCombatantBase = combatantWithItemPassives(secondCombatantId, secondCombatantInput);
+  const firstSlotCapacityState = passiveSlotCapacityState(firstCombatantBase, secondCombatantBase);
+  const secondSlotCapacityState = passiveSlotCapacityState(secondCombatantBase, firstCombatantBase);
+  const firstCombatant: CombatantState = {
+    ...firstCombatantBase,
+    slotCapacities: firstSlotCapacityState.capacities,
+    slotCapacityModifications: firstSlotCapacityState.modifications,
+  };
+  const secondCombatant: CombatantState = {
+    ...secondCombatantBase,
+    slotCapacities: secondSlotCapacityState.capacities,
+    slotCapacityModifications: secondSlotCapacityState.modifications,
+  };
   const combatants: Readonly<Record<CombatantId, CombatantState>> = {
     [firstCombatantId]: firstCombatant,
     [secondCombatantId]: secondCombatant,

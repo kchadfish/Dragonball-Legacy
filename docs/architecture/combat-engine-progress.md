@@ -28,14 +28,14 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 843 `supported-generic`, 148
+The generated capability matrix records 863 `supported-generic`, 128
 `unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 148 remaining in-scope occurrences through the later
+requires closing the 128 remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
 The next implementation priority is the highest-volume ready prerequisite
 identified in the latest dated entry below.
@@ -3119,26 +3119,253 @@ resolution-local state, and 89 typed executor or compiled-plan occurrences.
 Every remaining out-of-scope definition retains an explicit approved
 exclusion; catalog closure remains active.
 
+## 2026-08-23 move-modification prevention v3 slice
+
+The generic `prevent-move-modification.v3` executor now covers the remaining
+converted `effects` aspect and the two represented temporal boundaries used by
+the active six-family transformation scope. Durable prevention remains a
+versioned active effect with invariant-checked actor, selector, aspect,
+exception, operation, and duration data. A `next-turn` prevention records its
+first applicable turn, so Static Shot cannot affect the triggering action. A
+`current-action` prevention remains in the resolution effect set and is never
+silently promoted to combat duration, which preserves Healing Ray's local
+semantics.
+
+Active CONSTANT Skill sources are evaluated through the same generic passive
+executor when checking protection, and external triggered effect bundles are
+filtered by the declared target and source provenance before they are merged
+into the action. No source-text dispatch or move-name branch was added.
+
+Focused runtime, compiler, capability-matrix, invariant, and public transition
+tests cover State of Zen's effects aspect, Healing Ray's resolution-local
+application, Static Shot's persisted turn boundary, and deterministic version
+increments. The regenerated matrix now records 860 `supported-generic`, 131
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 43 generic pending-choice, 2 typed compiled damage or
+resolution-local state, and 86 typed executor or compiled-plan occurrences.
+Every remaining out-of-scope definition retains an explicit approved
+exclusion; catalog closure remains active.
+
+## 2026-08-23 passive moveset slot capacity slice
+
+The generic `modify-slot-capacity.v1` executor now covers passive,
+self-targeted, nonzero integer slot-capacity modifiers. It uses the canonical
+`GLOBAL_RULES.movesetSlots` capacities—1 mastery, 4 skill, 5 advanced attack,
+2 signature technique, and 2 block—as the immutable base for each combatant.
+
+Fight creation evaluates these effects through the passive trigger path and
+materializes the resulting capacities and source/effect provenance in
+serializable combatant state. The initial state remains version 0, and the
+capacity values and provenance are checked by the fight invariants. The three
+converted definitions covered are Technique Mastery (+1 Skill), Channeled Chi
+Mastery (+1 Skill), and Absolute Might (+1 Advanced Attack). No source prose
+was executed and no move-name dispatch was added.
+
+Focused executor, runtime, capability-matrix, create-fight, and public
+invariant tests cover the generic primitive and deterministic materialization.
+The regenerated matrix now records 863 `supported-generic`, 128
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 43 generic pending-choice, 2 typed compiled damage or
+resolution-local state, and 83 typed executor or compiled-plan occurrences.
+Every remaining out-of-scope definition retains an explicit approved
+exclusion; catalog closure remains active.
+
+## 2026-08-23 combat-limited successful-effect negation slice
+
+The generic `negate.v1` executor now covers the exact successful-effect
+listener variant with a positive combat use limit and one target move
+selector. This closes Sucker Punch's converted `negate` occurrence without
+interpreting its source prose or adding a move-name branch. The existing
+successful-opponent-result listener shape remains supported separately;
+action-phase negation with activation cost and the unresolved counter-action
+choice variants remain explicit unsupported rows.
+
+Successful listener negations now retain source definition and effect-index
+provenance plus their resolved combat limit. When a matching listener actually
+negates the triggering move, the owning combatant's serializable
+`effectUseCounts` is incremented in the same immutable, versioned transition.
+Availability is checked before suppression, and invalid or unprovenanced
+limited applications are rejected by the runtime rather than approximated.
+Focused compiler, runtime, matrix, and exported effect-behavior tests cover
+the variant, provenance, and deterministic limit representation. The
+regenerated matrix now records 864 `supported-generic`, 127
+`unsupported-in-scope`, and 129 `audited-out-of-scope` occurrences. Remaining
+prerequisite buckets are 43 generic pending-choice, 2 typed compiled damage or
+resolution-local state, and 82 typed executor or compiled-plan occurrences.
+Every remaining out-of-scope definition retains an explicit approved
+exclusion; catalog closure remains active.
+
+## 2026-08-23 post-die floating-effect slice
+
+The generic `create-floating-effect.v1` lifecycle now covers the exact
+`on-roll-result` creation boundary used by Backflip Kick. The roll primitive
+invokes a deterministic post-die observer with the fully resolved attack and
+defense die; the converted runtime evaluates the declarative condition and
+persists the resulting next-action floating application through the existing
+versioned active-effect transition. Existing pre-die roll modifiers retain
+their prior timing, and persisted natural rolls remain authoritative on
+replay. No source prose or move-name dispatch was added.
+
+Focused runtime, roll, executor, capability-matrix, and public transition
+tests cover the threshold boundary, durable source/effect provenance, and
+version increments. The regenerated matrix now records 865
+`supported-generic`, 126 `unsupported-in-scope`, and 129
+`audited-out-of-scope` occurrences. Remaining prerequisite buckets are 43
+generic pending-choice, 2 typed compiled damage or resolution-local state,
+and 81 typed executor or compiled-plan occurrences. Every remaining
+out-of-scope definition retains an explicit approved exclusion; catalog
+closure remains active.
+
+## 2026-08-23 passive combat-outcome condition slice
+
+The generic `prevent-resolution.v1` executor now covers passive
+`combat-outcome` conditions against durable BREAK, SEVER, and STUN status
+state. The existing current-event combat-outcome path remains authoritative
+for `on-combat-result`; passive evaluation does not infer outcomes from source
+prose or from move names. Monkey Sweep's two block-prevention effects now
+compile and are applied before the defense-choice transition, leaving the
+defender's roll option while removing block options through the typed
+resolution-prevention application.
+
+The transition remains immutable and versioned, and focused runtime and public
+decision tests cover status matching, the non-matching branch, generic
+prevention, and the deterministic pending-defense option set. The regenerated
+matrix now records 867 `supported-generic`, 124 `unsupported-in-scope`, and
+129 `audited-out-of-scope` occurrences. Remaining prerequisite buckets are
+43 generic pending-choice, 2 typed compiled damage or resolution-local state,
+and 79 typed executor or compiled-plan occurrences. Every remaining
+out-of-scope definition retains an explicit approved exclusion; catalog
+closure remains active.
+
 ## Handoff prompt
 
-> Resume the combat-engine goal from the current worktree. Read
-> `AGENTS.md`, `ARCHITECTURE.md`, and
-> `docs/architecture/combat-engine-progress.md` first. Preserve unrelated
-> dirty changes. Implement the next missing high-volume generic executor
-> capability, update the capability matrix and progress document, add focused
-> public-behavior tests, and use deterministic, versioned,
-> invariant-checked transitions. The active transformation scope is Humans,
-> Saiyans, Hybrid-Saiyans, Namekians, Changelings, and Bio-Androids only. Do
-> not treat converted source text as executable semantics, silently approximate
-> unsupported mechanics, or add move-name branches where a generic primitive
-> fits. Run `npm run check:focused` during work. For combat calculations or
-> game-rule changes, run `npm run check:focused -- --coverage` as well. The
-> focused checker expands combat and game-data changes to their
-> transitive package typechecks, tests, validators, and capability-matrix
-> coverage; it falls back to a repository-wide gate for infrastructure or
-> unmapped changes. Before handoff, run `npm run quality` as the single
-> repository gate; do not run `npm run check` separately first because quality
-> includes the routine check.
-> Do not mark the goal complete until the capability matrix accounts for every
-> in-scope converted effect with generic or named executor coverage and every
-> out-of-scope definition with a documented approved exclusion.
+> Resume the combat-engine catalog-closure goal from the current worktree.
+>
+> Read `AGENTS.md`, `ARCHITECTURE.md`,
+> `docs/architecture/combat-engine-progress.md`,
+> `docs/architecture/combat-engine-roadmap.md`, and the current generated
+> `docs/architecture/combat-engine-capability-matrix.md` first. Treat the
+> progress document as the authoritative implementation handoff and the
+> generated capability matrix as the authoritative per-occurrence accounting
+> record. Preserve unrelated dirty changes.
+>
+> Continue from the highest-priority ready prerequisite recorded by the current
+> progress document and capability matrix. Work in capability-sized slices,
+> not move-sized slices. Implement the next missing high-volume generic
+> capability and close every currently unsupported occurrence that is safely
+> covered by the exact implemented variant. Do not stop after one or two moves
+> merely because they demonstrate the capability when additional occurrences
+> require no new semantic capability.
+>
+> Prefer the smallest correct reusable combat primitive rather than
+> definition-specific behavior. Extend compilation or validation, runtime
+> execution, serializable state, invariants, events, legal decisions,
+> resolution context, lifecycle handling, and consumers wherever the capability
+> actually requires them.
+>
+> Add generic support only for the exact variants the engine can faithfully
+> represent. Unsupported trigger, condition, target, selection, scope,
+> duration, numeric, lifecycle, or resolution-context variants must remain
+> explicitly unsupported until their prerequisite capability exists.
+>
+> Do not treat converted source text as executable semantics, infer mechanics
+> from display prose, silently approximate unsupported behavior, or broaden a
+> compiler merely to improve capability-matrix counts. Consult the canonical
+> source under `reference/` and approved normalization decisions when the
+> structured definition is incomplete or ambiguous.
+>
+> Do not add move-name or definition-ID runtime branches when a generic
+> primitive fits. If a mechanic is genuinely definition-specific and cannot be
+> represented by existing or reasonably extensible generic primitives, use the
+> engine's documented deterministic named-executor path, justify why generic
+> representation is inappropriate, route it through the normal transition
+> boundary, and cover it with definition-specific regression tests.
+>
+> Use deterministic, versioned, invariant-checked combat transitions. Persist
+> any information required to resume unresolved work rather than reconstructing
+> authoritative state from events, mutable catalog data, source prose, or new
+> randomness.
+>
+> The active transformation scope is Humans, Saiyans, Hybrid-Saiyans,
+> Namekians, Changelings, and Bio-Androids only. Do not widen transformation,
+> multiplayer, remote-target, spaceship, narrative, administrator-mediated, or
+> other documented scope without an explicit scope decision.
+>
+> Add or strengthen focused public-behavior tests for each completed capability.
+> Prefer tests through `createFight`, `advanceFight`,
+> `enumerateLegalDecisions`, and `submitCombatDecision` when the behavior spans
+> public combat transitions. Use focused helper/compiler/runtime tests where
+> appropriate, but do not treat isolated helper coverage as proof that a
+> catalog occurrence works through the public engine.
+>
+> Work in coherent implementation checkpoints rather than treating every file
+> edit as a verification boundary. Batch tightly related contract, compiler,
+> runtime, state, invariant, and test edits when they form one logical piece of
+> the capability.
+>
+> During implementation, use the smallest useful verification command:
+>
+> - after contract/compiler/type changes stabilize, run the relevant workspace
+>   typecheck and focused compiler/executor tests;
+> - after runtime/state/invariant behavior stabilizes, run the focused runtime
+>   or public-behavior tests for that capability;
+> - after catalog-accounting changes, run the capability-matrix test and any
+>   affected validator;
+> - format changed files as part of each coherent edit batch.
+>
+> Do not repeatedly run repository-wide or package-wide gates after every small
+> corrective edit.
+>
+> When any incremental or final verification command fails, diagnose the
+> specific failure and rerun only the smallest command that exercises that
+> failure while repairing it: the failing test case or test file, affected
+> workspace typecheck, validator, formatter, or lint target. Continue using that
+> narrow command until the failure is resolved. Do not restart the entire
+> focused or repository-wide gate after every corrective edit.
+>
+> Once the capability implementation, focused tests, capability accounting, and
+> progress documentation are complete, run exactly one normal combat handoff
+> gate:
+>
+> `npm run check:focused -- --coverage`
+>
+> The focused checker should cover the affected formatting, lint, transitive
+> package typechecks, combat and game-data tests, validators, and
+> capability-matrix coverage for ordinary combat-engine work.
+>
+> If the final focused gate fails, repair each failure using the smallest
+> relevant command as described above. After the individual failures are
+> resolved, rerun `npm run check:focused -- --coverage` once to establish clean
+> final handoff evidence.
+>
+> Escalate beyond the focused handoff gate only when required. Run
+> `npm run check` when the focused impact map explicitly requires the routine
+> repository-wide gate or when the changed files fall outside reliable focused
+> impact mapping. Run `npm run quality` instead of `npm run check` when the
+> repository's Extended Quality Gate applies, including substantial
+> cross-package or architecture-boundary changes, dependency changes,
+> CI/deployment changes, release preparation, milestone integration checks, or
+> when the focused checker explicitly escalates to `quality`.
+>
+> Do not run `npm run quality` merely because ordinary combat calculations or
+> game rules changed, and do not run `npm run check` immediately before
+> `npm run quality` because `quality` already includes the routine check.
+>
+> Regenerate the capability matrix after the completed capability and update
+> `docs/architecture/combat-engine-progress.md` with:
+>
+> - the generic or named capability implemented;
+> - the exact variants and occurrences newly supported;
+> - focused public-behavior evidence;
+> - current supported, unsupported-in-scope, and audited-out-of-scope counts;
+> - remaining prerequisite buckets;
+> - the next highest-priority ready capability;
+> - the final verification command and result.
+>
+> Keep unfinished mechanics explicitly `unsupported-in-scope`. Do not reclassify
+> unfinished work as out of scope merely to improve counts or finish a slice.
+>
+> Do not mark the combat-engine catalog-closure goal complete until the
+> capability matrix accounts for every in-scope converted effect with tested
+> generic or justified named executor coverage and every out-of-scope
+> definition with a documented approved exclusion.

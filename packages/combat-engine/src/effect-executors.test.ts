@@ -1238,6 +1238,13 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "negate" } });
   });
 
+  it("compiles combat-limited successful-effect negation listeners", () => {
+    const { move, effect } = effectAt("move-midorikatai-sucker-punch", 0);
+    expect(
+      compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 0, effect }),
+    ).toMatchObject({ ok: true, value: { type: "negate" } });
+  });
+
   it("compiles Display of Endurance's persisted blocked-damage follow-up", () => {
     const immediate = effectAt("move-haokiru-display-of-endurance", 0);
     expect(
@@ -1290,6 +1297,7 @@ describe("declarative effect executor registry", () => {
       "modify-resource",
       "modify-roll",
       "modify-roll-modifier",
+      "modify-slot-capacity",
       "modify-stat",
       "negate",
       "prevent-combat-result",

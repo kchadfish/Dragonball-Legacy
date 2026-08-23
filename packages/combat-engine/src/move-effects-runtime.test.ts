@@ -771,6 +771,40 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("serializes a combat-limited successful-effect negation with provenance", () => {
+    const suckerPunch = moves.get("move-midorikatai-sucker-punch");
+    const triggeringMove = moves.get("move-aoyosumu-the-untroubled-mind");
+    if (suckerPunch === undefined || triggeringMove === undefined)
+      throw new Error("Expected combat-limited successful-effect negation test moves.");
+
+    const effects = moveEffectsForTrigger(suckerPunch, "on-success", {
+      ...context,
+      currentAction: {
+        type: "use-move",
+        decisionId: "decision:limited-negation-runtime" as never,
+        actorId: opponent.id,
+        targetCombatantId: self.id,
+        moveId: triggeringMove.id,
+        turnNumber: 5,
+        phase: "action",
+        outcome: "successful",
+        critical: false,
+        counter: false,
+      },
+      triggeringMove,
+      triggeringMoveOwner: "opponent",
+    });
+
+    expect(effects.negations).toEqual([
+      expect.objectContaining({
+        sourceDefinitionId: suckerPunch.id,
+        sourceEffectIndex: 0,
+        useLimit: { scope: "combat", count: 1 },
+        selector: expect.objectContaining({ category: "skill", subject: "target" }),
+      }),
+    ]);
+  });
+
   it("resolves a selected successful attack's current-resolution suppression", () => {
     const breakout = moves.get("move-aoyosumu-breakout");
     const triggeringMove = moves.get("move-akaikaru-firestorm");
@@ -1482,6 +1516,32 @@ describe("converted move effects", () => {
     expect(firstDieStopped.rollModifications).toEqual([]);
   });
 
+  it("creates Backflip Kick's floating application from the fully resolved die", () => {
+    const backflipKick = moves.get("move-akaikaru-backflip-kick");
+    if (backflipKick === undefined) throw new Error("Expected Backflip Kick data.");
+
+    const effects = moveEffectsForTrigger(backflipKick, "on-roll-result", {
+      ...context,
+      rolls: [
+        {
+          attackNaturalResult: 30,
+          attackResult: 30,
+          defenseNaturalResult: 1,
+          defenseResult: 1,
+          outcome: "successful" as const,
+        },
+      ],
+    });
+
+    expect(effects.floatingEffects).toEqual([
+      expect.objectContaining({
+        sourceEffectIndex: 0,
+        floatingEffectId: "backflip-kick-next-dexterity-stun",
+        scope: expect.objectContaining({ type: "next-action" }),
+      }),
+    ]);
+  });
+
   it("evaluates prior-action conditions from the latest structured action record", () => {
     const smackdown = moves.get("move-midorikatai-smackdown");
     const masenko = moves.get("move-afterlife-masenko");
@@ -2001,6 +2061,54 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("keeps effect prevention lifecycle scopes explicit and deterministic", () => {
+    const stateOfZen = moves.get("move-aoyosumu-state-of-zen");
+    const healingRay = moves.get("move-haokiru-healing-ray");
+    const staticShot = moves.get("move-kiihakai-static-shot");
+    if (stateOfZen === undefined || healingRay === undefined || staticShot === undefined)
+      throw new Error("Expected effect-prevention scope test moves.");
+
+    expect(
+      moveEffectsForTrigger(stateOfZen, "passive", context).moveModificationPreventions,
+    ).toEqual([expect.objectContaining({ aspects: ["dice-sides", "effects", "roll-results"] })]);
+    expect(
+      moveEffectsForTrigger(staticShot, "on-success", {
+        ...context,
+        triggeringMove: staticShot,
+        rolls: [
+          {
+            attackNaturalResult: 20,
+            attackResult: 20,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "successful" as const,
+          },
+        ],
+      }).moveModificationPreventions,
+    ).toEqual([expect.objectContaining({ availableFromTurn: context.turnNumber + 1 })]);
+
+    const storedRolls = {
+      "healing-ray-result": {
+        sourceDefinitionId: healingRay.id,
+        storageKey: "healing-ray-result",
+        naturalResults: [12],
+        sides: 30,
+        storedOnTurn: context.turnNumber,
+      },
+    };
+    expect(
+      moveEffectsForTrigger(healingRay, "on-roll-result", {
+        ...context,
+        self: { ...self, storedRolls },
+      }).currentActionMoveModificationPreventions,
+    ).toEqual([
+      expect.objectContaining({
+        aspects: ["effects"],
+        selector: expect.objectContaining({ ids: [healingRay.id] }),
+      }),
+    ]);
+  });
+
   it("emits converted successful resource and status changes when their condition matches", () => {
     const lightGrenade = moves.get("move-afterlife-light-grenade");
     const meteorSmash = moves.get("move-afterlife-meteor-smash");
@@ -2035,6 +2143,29 @@ describe("converted move effects", () => {
       }),
     ]);
     expect(successfulMoveEffects(breakerBreaker, context).statuses).toEqual([]);
+  });
+
+  it("matches passive combat-outcome conditions against durable outcome statuses", () => {
+    const monkeySweep = moves.get("move-freestyle-monkey-sweep");
+    if (monkeySweep === undefined) throw new Error("Expected Monkey Sweep.");
+
+    const effects = moveEffectsForTrigger(monkeySweep, "passive", {
+      ...context,
+      opponent: {
+        ...opponent,
+        activeStatuses: [
+          {
+            statusId: "break",
+            sourceCombatantId: self.id,
+            sourceDefinitionId: "move-afterlife-meteor-smash",
+            stacks: 1,
+            duration: { type: "combat" as const },
+          },
+        ],
+      },
+    });
+
+    expect(effects.resolutionPreventions).toEqual([{ target: "self", prevention: "block" }]);
   });
 
   it("emits typed current-attack result overrides without executing source prose", () => {
@@ -2743,6 +2874,21 @@ describe("converted move effects", () => {
         blockedCategories: ["basic-attack", "advanced-attack", "signature"],
         remainingTurns: 2,
         effectIndex: 1,
+      },
+    ]);
+  });
+
+  it("resolves passive slot capacity changes with source provenance", () => {
+    const mastery = moves.get("move-aoyosumu-technique-mastery");
+    if (mastery === undefined) throw new Error("Expected Technique Mastery data.");
+
+    expect(moveEffectsForTrigger(mastery, "passive", context).slotCapacityModifications).toEqual([
+      {
+        sourceCombatantId: self.id,
+        sourceDefinitionId: mastery.id,
+        sourceEffectIndex: 0,
+        slot: "skill",
+        amount: 1,
       },
     ]);
   });

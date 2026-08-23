@@ -3398,6 +3398,7 @@ describe("move-modification prevention", () => {
     fightId: string,
     eventPrefix: string,
     random: readonly number[],
+    firstMoveId = "move-akaikaru-firewall",
   ) => {
     const dependencies = createTestCombatDependencies(
       random,
@@ -3405,6 +3406,9 @@ describe("move-modification prevention", () => {
       {
         fightIds: [fightIdSchema.parse(fightId)],
         combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:prevention-${index + 1}`),
+        ),
         eventIds: Array.from({ length: 20 }, (_, index) =>
           combatEventIdSchema.parse(`${eventPrefix}-${index + 1}`),
         ),
@@ -3418,7 +3422,7 @@ describe("move-modification prevention", () => {
             {
               maximumHitPoints: 500,
               stats: { power: 100, dexterity: 5, dexterityBonus: 0 },
-              moveIds: ["move-akaikaru-firewall"],
+              moveIds: [firstMoveId],
             },
             {
               maximumHitPoints: 500,
@@ -3583,6 +3587,51 @@ describe("move-modification prevention", () => {
 
     expect(resolved.combatants[secondCombatantId]?.hitPoints.current).toBe(459);
     expect(resolved.version).toBe(prepared.version + 1);
+  });
+
+  it("activates next-turn move protection with a persisted turn boundary", () => {
+    const { action, dependencies } = createPreventionFight(
+      "fight:static-shot-prevention",
+      "event:static-shot-prevention",
+      [20, 1],
+      "move-kiihakai-static-shot",
+    );
+    const prepared: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId]!,
+          ki: { ...action.combatants[firstCombatantId]!.ki, current: 10 },
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:static-shot-prevention"),
+          actorId: firstCombatantId,
+          expectedStateVersion: prepared.version,
+          moveId: "move-kiihakai-static-shot",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "prevent-move-modification",
+        sourceDefinitionId: "move-kiihakai-static-shot",
+        targetCombatantId: secondCombatantId,
+        availableFromTurn: prepared.turnNumber + 1,
+        duration: { type: "turns", ownerCombatantId: secondCombatantId, remaining: 3 },
+      }),
+    );
+    expect(transition.state.version).toBe(prepared.version + 1);
   });
 });
 
@@ -9267,6 +9316,163 @@ describe("initial turn progression", () => {
           statusId: "break",
         }),
       ]),
+    );
+  });
+
+  it("uses a durable BREAK status to prevent Monkey Sweep's block response", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:monkey-sweep-break")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:monkey-sweep-break")],
+        resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:monkey-sweep-break")],
+        eventIds: Array.from({ length: 30 }, (_, index) =>
+          combatEventIdSchema.parse(`event:monkey-sweep-break-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-freestyle-monkey-sweep"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-ki-fist-block"],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const prepared: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [secondCombatantId]: {
+          ...action.combatants[secondCombatantId]!,
+          activeStatuses: [
+            {
+              statusId: "break",
+              sourceCombatantId: firstCombatantId,
+              sourceDefinitionId: "move-afterlife-meteor-smash",
+              stacks: 1,
+              duration: { type: "combat" },
+            },
+          ],
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:monkey-sweep-break"),
+          actorId: firstCombatantId,
+          expectedStateVersion: prepared.version,
+          moveId: "move-freestyle-monkey-sweep",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    const pendingState = requireActiveFightState(transition.state);
+
+    expect(pendingState.version).toBe(prepared.version + 1);
+    expect(pendingState.pendingDecision).toMatchObject({
+      type: "defense-response",
+      options: [{ id: "roll-defense", type: "roll-defense" }],
+    });
+    expect(pendingState.pendingDecision?.options).not.toContainEqual(
+      expect.objectContaining({ type: "use-block" }),
+    );
+  });
+
+  it("creates Backflip Kick's next-action floating effect after the resolved die", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1],
+      new Date("2026-08-23T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:backflip-floating")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:backflip-floating")],
+        pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:backflip-defense")],
+        resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:backflip-defense")],
+        eventIds: Array.from({ length: 20 }, (_, index) =>
+          combatEventIdSchema.parse(`event:backflip-floating-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-akaikaru-backflip-kick"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const attackTransition = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:backflip-attack"),
+          actorId: firstCombatantId,
+          expectedStateVersion: action.version,
+          moveId: "move-akaikaru-backflip-kick",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveFightState(attackTransition.state);
+    expect(defense.pendingDecision).toBeUndefined();
+    expect(defense.version).toBe(action.version + 1);
+    expect(defense.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "floating-effect",
+        sourceCombatantId: firstCombatantId,
+        targetCombatantId: firstCombatantId,
+        sourceDefinitionId: "move-akaikaru-backflip-kick",
+        sourceEffectIndex: 0,
+        floatingEffectId: "backflip-kick-next-dexterity-stun",
+        scope: { type: "next-action" },
+        effects: expect.arrayContaining([
+          expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
+        ]),
+      }),
     );
   });
 });

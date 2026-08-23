@@ -24,6 +24,7 @@ export const registeredEffectTypes = [
   "modify-resource",
   "modify-roll",
   "modify-roll-modifier",
+  "modify-slot-capacity",
   "modify-stat",
   "negate",
   "remove-move-from-combat",
@@ -167,6 +168,7 @@ const supportedTargets = new Set(["self", "opponent", "participants"]);
 
 const supportedConditions = new Set<EffectCondition["type"]>([
   "combat-result",
+  "combat-outcome",
   "defense-response",
   "successful-hit-count",
   "roll-threshold",
@@ -302,8 +304,10 @@ const conditionIssues = (
   const issues: EffectCompilationIssue[] = [];
   for (const condition of effect.conditions ?? []) {
     if (
-      !supportedConditions.has(condition.type) &&
-      !(condition.type === "combat-outcome" && effect.trigger === "on-combat-result")
+      !supportedConditions.has(condition.type) ||
+      (condition.type === "combat-outcome" &&
+        effect.trigger !== "passive" &&
+        effect.trigger !== "on-combat-result")
     )
       issues.push(
         issue(
@@ -1252,6 +1256,49 @@ const modifyResourceIssues = (
   return issues;
 };
 
+const modifySlotCapacityIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-slot-capacity" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const amountIssue = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
+  if (amountIssue !== undefined) issues.push(amountIssue);
+  if (
+    effect.trigger !== "passive" ||
+    effect.target !== "self" ||
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.conditions !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Slot capacity changes are passive self-targeted modifiers without a combat lifecycle.",
+      ),
+    );
+  if (
+    effect.amount.type !== "literal" ||
+    !Number.isInteger(effect.amount.value) ||
+    effect.amount.value === 0
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Slot capacity changes require a non-zero integer literal amount.",
+      ),
+    );
+  return issues;
+};
+
 type ModifyRollModifier = Extract<
   RegisteredEffectDefinition,
   { readonly type: "modify-roll-modifier" }
@@ -1642,27 +1689,44 @@ const successfulNegationIssues = (
   const onlySuccessfulOpponentResult = combatResultConditions.every(
     (condition) => condition.actor === "opponent" && condition.result === "successful",
   );
+  const combatUseLimit = effect.useLimit;
+  const combatUseLimitCountValid =
+    combatUseLimit?.scope === "combat" &&
+    (typeof combatUseLimit.count === "number"
+      ? Number.isInteger(combatUseLimit.count) && combatUseLimit.count >= 1
+      : combatUseLimit.count.type === "literal" &&
+        Number.isInteger(combatUseLimit.count.value) &&
+        combatUseLimit.count.value >= 1);
+  const commonSuccessfulNegationShape =
+    effect.target === "opponent" &&
+    (effect.aspects === undefined || effect.aspects.length === 0) &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.stacking === undefined &&
+    effect.activationCost === undefined &&
+    effect.selectionLimit === undefined &&
+    effect.cooldown === undefined &&
+    moveSelectorConditions.length === 1 &&
+    moveSelectorConditions[0]?.subject === "target";
+  const successfulEffectNegation =
+    commonSuccessfulNegationShape &&
+    combatResultConditions.length === 1 &&
+    onlySuccessfulOpponentResult &&
+    effect.useLimit === undefined &&
+    (effect.conditions ?? []).length === 2;
+  const combatLimitedSuccessfulEffectNegation =
+    commonSuccessfulNegationShape &&
+    combatUseLimitCountValid &&
+    combatResultConditions.length === 0 &&
+    (effect.conditions ?? []).length === 1;
   return [
-    ...(effect.target !== "opponent" ||
-    (effect.aspects !== undefined && effect.aspects.length > 0) ||
-    effect.scope !== undefined ||
-    effect.duration !== undefined ||
-    effect.stacking !== undefined ||
-    effect.useLimit !== undefined ||
-    effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
-    effect.cooldown !== undefined ||
-    moveSelectorConditions.length !== 1 ||
-    combatResultConditions.length !== 1 ||
-    !onlySuccessfulOpponentResult ||
-    moveSelectorConditions[0]?.subject !== "target" ||
-    (effect.conditions ?? []).length !== 2
+    ...(!successfulEffectNegation && !combatLimitedSuccessfulEffectNegation
       ? [
           issue(
             "unsupported-variant",
             sourceDefinitionId,
             effectIndex,
-            "Successful-effect negation supports one opponent move selector and one successful opponent combat-result condition without a deferred lifecycle.",
+            "Successful-effect negation supports one opponent move selector with either one successful opponent combat-result condition or a positive combat use limit, without a deferred lifecycle.",
           ),
         ]
       : []),
@@ -2128,23 +2192,27 @@ const preventMoveModificationIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  const supportedAspects = new Set(["cost", "damage", "dice-sides", "roll-results"]);
+  const supportedAspects = new Set(["cost", "damage", "dice-sides", "effects", "roll-results"]);
   if (effect.aspects.length === 0 || effect.aspects.some((aspect) => !supportedAspects.has(aspect)))
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Move-modification prevention supports cost, damage, dice-side, and roll-result aspects only.",
+        "Move-modification prevention supports cost, damage, dice-side, effects, and roll-result aspects only.",
       ),
     );
-  if (effect.scope !== undefined)
+  if (
+    effect.scope !== undefined &&
+    effect.scope.type !== "current-action" &&
+    effect.scope.type !== "next-turn"
+  )
     issues.push(
       issue(
         "unsupported-variant",
         sourceDefinitionId,
         effectIndex,
-        "Move-modification prevention scope is not yet part of the durable pipeline.",
+        "Move-modification prevention supports current-action and next-turn scopes only.",
       ),
     );
   if (
@@ -3270,15 +3338,6 @@ function createFloatingIssues(
         "Power-up floating-effect termination cannot evaluate a move selector without a triggering move.",
       ),
     );
-  if (effect.trigger === "on-roll-result")
-    issues.push(
-      issue(
-        "unsupported-trigger",
-        sourceDefinitionId,
-        effectIndex,
-        "Floating creation from on-roll-result requires persisting per-die effect activations.",
-      ),
-    );
   issues.push(...floatingNestedEffectIssues(effect, sourceDefinitionId, effectIndex));
   return issues;
 }
@@ -3482,6 +3541,7 @@ export const effectExecutorRegistry = {
   "grant-extra-action": createExecutor("grant-extra-action", grantExtraActionIssues),
   "modify-roll": createExecutor("modify-roll", modifyRollIssues),
   "modify-roll-modifier": createExecutor("modify-roll-modifier", modifyRollModifierIssues),
+  "modify-slot-capacity": createExecutor("modify-slot-capacity", modifySlotCapacityIssues),
   "modify-stat": createExecutor("modify-stat", modifyStatIssues),
   negate: createExecutor("negate", negateIssues),
   "remove-move-from-combat": createExecutor("remove-move-from-combat", removeMoveFromCombatIssues),

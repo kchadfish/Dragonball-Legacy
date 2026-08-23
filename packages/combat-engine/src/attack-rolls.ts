@@ -36,6 +36,8 @@ export interface ContestedAttackRollInput {
     index: number,
     priorRolls: readonly AttackDieRoll[],
   ) => { readonly attack?: number; readonly defense?: number } | undefined;
+  /** Deterministic hook for effects that observe each fully resolved die. */
+  readonly afterDieResolved?: (index: number, rolls: readonly AttackDieRoll[]) => void;
   /** Declarative constraints on whether a die may count as successful or stopped. */
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
 }
@@ -360,6 +362,7 @@ export const resolveContestedAttackRolls = (
     resultOverrides,
     numericResultOverrides,
     beforeDieResultModifier,
+    afterDieResolved,
     resolutionThresholds,
     rollSelection,
   }: ContestedAttackRollInput,
@@ -394,6 +397,7 @@ export const resolveContestedAttackRolls = (
     resultOverrides,
     numericResultOverrides,
     beforeDieResultModifier,
+    afterDieResolved,
     resolutionThresholds,
     rollSelection,
   };
@@ -407,6 +411,7 @@ export const resolveContestedAttackRolls = (
         input.beforeDieResultModifier?.(index, rolls),
       ),
     );
+    input.afterDieResolved?.(index, rolls);
   }
   return rolls;
 };

@@ -3166,7 +3166,10 @@ describe("basic attacks", () => {
             resolutionFrameIdSchema.parse(`resolution-frame:swift-${suffix}-defense`),
             resolutionFrameIdSchema.parse(`resolution-frame:swift-${suffix}-post-roll`),
           ],
-          activeEffectIds: [activeEffectIdSchema.parse(`active-effect:swift-${suffix}`)],
+          activeEffectIds: [
+            activeEffectIdSchema.parse(`active-effect:swift-${suffix}`),
+            activeEffectIdSchema.parse(`active-effect:swift-${suffix}-floating`),
+          ],
         },
       );
       const created = createFight(

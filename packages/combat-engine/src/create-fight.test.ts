@@ -70,6 +70,14 @@ describe("createFight", () => {
               ki: { current: 5, maximum: 10 },
               stats: { power: 20, dexterity: 4, dexterityBonus: 1 },
               moveIds: ["move-freestyle-hidden-power-level"],
+              slotCapacities: {
+                mastery: 1,
+                skill: 4,
+                "advanced-attack": 5,
+                signature: 2,
+                block: 2,
+              },
+              slotCapacityModifications: [],
               moveUses: {},
               moveUseLimitModifiers: {},
               storedRolls: {},
@@ -83,6 +91,14 @@ describe("createFight", () => {
               ki: { current: 5, maximum: 10 },
               stats: { power: 18, dexterity: 5, dexterityBonus: 2 },
               moveIds: ["move-afterlife-give-me-energy"],
+              slotCapacities: {
+                mastery: 1,
+                skill: 4,
+                "advanced-attack": 5,
+                signature: 2,
+                block: 2,
+              },
+              slotCapacityModifications: [],
               moveUses: {},
               moveUseLimitModifiers: {},
               storedRolls: {},
@@ -135,6 +151,43 @@ describe("createFight", () => {
         ]),
       },
     });
+  });
+
+  it("materializes passive move-slot capacity modifiers in the initial state", () => {
+    const result = createFight(
+      {
+        ...input,
+        combatants: [
+          { ...input.combatants[0], moveIds: ["move-aoyosumu-technique-mastery"] },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        state: {
+          combatants: {
+            [firstCombatantId]: {
+              slotCapacities: { skill: 5 },
+              slotCapacityModifications: [
+                {
+                  sourceDefinitionId: "move-aoyosumu-technique-mastery",
+                  sourceEffectIndex: 0,
+                  slot: "skill",
+                  amount: 1,
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+    if (!result.ok) throw new Error("Expected the capacity-modifier fight to be valid.");
+    expect(validateFightState(result.value.state)).toEqual([]);
+    expect(result.value.state.version).toBe(0);
   });
 
   it("uses injected 1d100 rolls to resolve equal-Dexterity initiative", () => {

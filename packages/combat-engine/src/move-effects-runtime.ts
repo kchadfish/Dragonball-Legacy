@@ -415,6 +415,9 @@ export interface NegationApplication {
   readonly aspects: readonly ("prevent-attack" | "prevent-damage")[];
   readonly selector?: MoveSelectorCondition;
   readonly combatOutcomes?: readonly ("stun" | "critical" | "counter" | "sever" | "break")[];
+  readonly sourceDefinitionId?: MoveDefinition["id"];
+  readonly sourceEffectIndex?: number;
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
 type RollModificationModifier = "dice" | "result" | "sides";
@@ -481,6 +484,14 @@ export interface RollSelectionApplication {
   readonly selection: "highest" | "lowest";
   readonly selector?: MoveSelectorCondition;
   readonly scope: "current-action" | "next-roll";
+}
+
+export interface SlotCapacityModificationApplication {
+  readonly sourceCombatantId: CombatantState["id"];
+  readonly sourceDefinitionId: MoveDefinition["id"];
+  readonly sourceEffectIndex: number;
+  readonly slot: "mastery" | "skill" | "advanced-attack" | "signature" | "block";
+  readonly amount: number;
 }
 
 export interface DamageModification {
@@ -658,7 +669,20 @@ export interface MoveModificationPreventionApplication {
   readonly exceptSourceMoveIds?: readonly string[];
   readonly exceptSourceStatusIds?: readonly ActiveStatus["statusId"][];
   readonly operations?: readonly "reduce"[];
+  /** Turn on which a next-turn scoped prevention becomes active. */
+  readonly availableFromTurn?: number;
   readonly duration: LockApplication["duration"];
+}
+
+export interface CurrentActionMoveModificationPreventionApplication {
+  readonly target: "self" | "opponent";
+  readonly actor: "self" | "opponent" | "any";
+  readonly selector: MoveSelectorCondition;
+  readonly aspects: readonly ("cost" | "damage" | "dice-sides" | "effects" | "roll-results")[];
+  readonly effectSourceStyleExcludes?: string;
+  readonly exceptSourceMoveIds?: readonly string[];
+  readonly exceptSourceStatusIds?: readonly ActiveStatus["statusId"][];
+  readonly operations?: readonly "reduce"[];
 }
 
 export interface ResourceModificationPreventionApplication {
@@ -873,7 +897,15 @@ const combatResultFor = (context: MoveEffectRuntimeContext) =>
 const combatOutcomeMatches = (
   condition: Extract<RuntimeCondition, { readonly type: "combat-outcome" }>,
   context: MoveEffectRuntimeContext,
-) => context.combatOutcomeActor === condition.actor && context.combatOutcome === condition.outcome;
+) => {
+  if (context.combatOutcome !== undefined)
+    return (
+      context.combatOutcomeActor === condition.actor && context.combatOutcome === condition.outcome
+    );
+
+  const combatant = condition.actor === "self" ? context.self : context.opponent;
+  return combatant.activeStatuses.some((status) => status.statusId === condition.outcome);
+};
 
 const incomingDamageMatches = (
   condition: Extract<RuntimeCondition, { readonly type: "incoming-damage" }>,
@@ -1888,6 +1920,30 @@ const statModificationEffectChanges = (
   };
 };
 
+const slotCapacityModificationEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "modify-slot-capacity" }>,
+  move: MoveDefinition,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+  effectIndex: number,
+): EffectChanges => {
+  const amount = numeric(effect.amount, context);
+  if (target !== "self" || amount === undefined || !Number.isInteger(amount) || amount === 0)
+    return emptyEffectChanges();
+  return {
+    ...emptyEffectChanges(),
+    slotCapacityModifications: [
+      {
+        sourceCombatantId: context.self.id,
+        sourceDefinitionId: move.id,
+        sourceEffectIndex: effectIndex,
+        slot: effect.slot,
+        amount,
+      },
+    ],
+  };
+};
+
 const suppressionDuration = (
   effect: Extract<EffectDefinition, { readonly type: "suppress" }>,
   context: MoveEffectRuntimeContext,
@@ -1992,9 +2048,12 @@ const emptyEffectChanges = () => ({
   combatResultPreventions: [] as CombatResultPreventionApplication[],
   rollModificationPreventions: [] as RollModificationPreventionApplication[],
   moveModificationPreventions: [] as MoveModificationPreventionApplication[],
+  currentActionMoveModificationPreventions:
+    [] as CurrentActionMoveModificationPreventionApplication[],
   resourceModificationPreventions: [] as ResourceModificationPreventionApplication[],
   costModifications: [] as CostModification[],
   currentActionCostModifications: [] as CurrentActionCostModification[],
+  slotCapacityModifications: [] as SlotCapacityModificationApplication[],
   rerolls: [] as RerollApplication[],
 });
 
@@ -2135,9 +2194,11 @@ const statusApplicationChanges = (
     combatResultPreventions: [],
     rollModificationPreventions: [],
     moveModificationPreventions: [],
+    currentActionMoveModificationPreventions: [],
     resourceModificationPreventions: [],
     costModifications: [],
     currentActionCostModifications: [],
+    slotCapacityModifications: [],
     rerolls: [],
   };
 };
@@ -3110,6 +3171,27 @@ const moveModificationPreventionEffectChanges = (
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
 ): EffectChanges => {
+  const prevention = {
+    target,
+    actor: effect.actor,
+    selector: effect.selector,
+    aspects: effect.aspects,
+    ...(effect.effectSourceStyleExcludes === undefined
+      ? {}
+      : { effectSourceStyleExcludes: effect.effectSourceStyleExcludes }),
+    ...(effect.exceptSourceMoveIds === undefined
+      ? {}
+      : { exceptSourceMoveIds: effect.exceptSourceMoveIds }),
+    ...(effect.exceptSourceStatusIds === undefined
+      ? {}
+      : { exceptSourceStatusIds: effect.exceptSourceStatusIds }),
+    ...(effect.operations === undefined ? {} : { operations: effect.operations }),
+  } satisfies CurrentActionMoveModificationPreventionApplication;
+  if (effect.scope?.type === "current-action")
+    return {
+      ...emptyEffectChanges(),
+      currentActionMoveModificationPreventions: [prevention],
+    };
   const duration = lockDuration(effect.duration, context);
   return duration === undefined
     ? emptyEffectChanges()
@@ -3117,20 +3199,10 @@ const moveModificationPreventionEffectChanges = (
         ...emptyEffectChanges(),
         moveModificationPreventions: [
           {
-            target,
-            actor: effect.actor,
-            selector: effect.selector,
-            aspects: effect.aspects,
-            ...(effect.effectSourceStyleExcludes === undefined
-              ? {}
-              : { effectSourceStyleExcludes: effect.effectSourceStyleExcludes }),
-            ...(effect.exceptSourceMoveIds === undefined
-              ? {}
-              : { exceptSourceMoveIds: effect.exceptSourceMoveIds }),
-            ...(effect.exceptSourceStatusIds === undefined
-              ? {}
-              : { exceptSourceStatusIds: effect.exceptSourceStatusIds }),
-            ...(effect.operations === undefined ? {} : { operations: effect.operations }),
+            ...prevention,
+            ...(effect.scope?.type === "next-turn"
+              ? { availableFromTurn: context.turnNumber + 1 }
+              : {}),
             duration,
           },
         ],
@@ -3465,9 +3537,22 @@ const combatResultPreventionEffectChanges = (
 
 const negateEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "negate" }>,
-  _context: MoveEffectRuntimeContext,
+  context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
+  move: MoveDefinition,
+  effectIndex: number,
 ): EffectChanges => {
+  let useLimitCount: number | undefined;
+  if (effect.useLimit !== undefined)
+    useLimitCount =
+      typeof effect.useLimit.count === "number"
+        ? effect.useLimit.count
+        : numeric(effect.useLimit.count, context);
+  if (
+    effect.useLimit !== undefined &&
+    (useLimitCount === undefined || !Number.isInteger(useLimitCount) || useLimitCount < 1)
+  )
+    return emptyEffectChanges();
   const selector =
     effect.selector ??
     effect.conditions?.find(
@@ -3492,6 +3577,11 @@ const negateEffectChanges = (
                 condition.type === "combat-outcome" ? [condition.outcome] : [],
               ),
             }),
+        sourceDefinitionId: move.id,
+        sourceEffectIndex: effectIndex,
+        ...(effect.useLimit === undefined
+          ? {}
+          : { useLimit: { scope: effect.useLimit.scope, count: useLimitCount! } }),
       },
     ],
   };
@@ -3673,6 +3763,14 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
+  "modify-slot-capacity": (effect, move, context, target, _trigger, effectIndex) =>
+    slotCapacityModificationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "modify-slot-capacity" }>,
+      move,
+      context,
+      target,
+      effectIndex,
+    ),
   suppress: (effect, _move, context, target, trigger) =>
     suppressionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "suppress" }>,
@@ -3827,11 +3925,13 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
-  negate: (effect, _move, context, target) =>
+  negate: (effect, move, context, target, _trigger, effectIndex) =>
     negateEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "negate" }>,
       context,
       target,
+      move,
+      effectIndex,
     ),
   reroll: (effect, move, context, target, _trigger, effectIndex) =>
     rerollEffectChanges(
@@ -4104,9 +4204,11 @@ const moveEffectsForTriggerInternal = (
   readonly combatResultPreventions: readonly CombatResultPreventionApplication[];
   readonly rollModificationPreventions: readonly RollModificationPreventionApplication[];
   readonly moveModificationPreventions: readonly MoveModificationPreventionApplication[];
+  readonly currentActionMoveModificationPreventions: readonly CurrentActionMoveModificationPreventionApplication[];
   readonly resourceModificationPreventions: readonly ResourceModificationPreventionApplication[];
   readonly costModifications: readonly CostModification[];
   readonly currentActionCostModifications: readonly CurrentActionCostModification[];
+  readonly slotCapacityModifications: readonly SlotCapacityModificationApplication[];
   readonly rerolls: readonly RerollApplication[];
   readonly negations: readonly NegationApplication[];
   readonly pendingEffectChoices: readonly PendingEffectChoice[];
@@ -4146,9 +4248,12 @@ const moveEffectsForTriggerInternal = (
   const combatResultPreventions: CombatResultPreventionApplication[] = [];
   const rollModificationPreventions: RollModificationPreventionApplication[] = [];
   const moveModificationPreventions: MoveModificationPreventionApplication[] = [];
+  const currentActionMoveModificationPreventions: CurrentActionMoveModificationPreventionApplication[] =
+    [];
   const resourceModificationPreventions: ResourceModificationPreventionApplication[] = [];
   const costModifications: CostModification[] = [];
   const currentActionCostModifications: CurrentActionCostModification[] = [];
+  const slotCapacityModifications: SlotCapacityModificationApplication[] = [];
   const rerolls: RerollApplication[] = [];
   const negations: NegationApplication[] = [];
   const pendingEffectChoices: PendingEffectChoice[] = [];
@@ -4404,9 +4509,13 @@ const moveEffectsForTriggerInternal = (
       combatResultPreventions.push(...changes.combatResultPreventions);
       rollModificationPreventions.push(...changes.rollModificationPreventions);
       moveModificationPreventions.push(...changes.moveModificationPreventions);
+      currentActionMoveModificationPreventions.push(
+        ...changes.currentActionMoveModificationPreventions,
+      );
       resourceModificationPreventions.push(...changes.resourceModificationPreventions);
       costModifications.push(...changes.costModifications);
       currentActionCostModifications.push(...changes.currentActionCostModifications);
+      slotCapacityModifications.push(...changes.slotCapacityModifications);
       rerolls.push(...changes.rerolls);
       negations.push(...changes.negations);
     }
@@ -4471,9 +4580,13 @@ const moveEffectsForTriggerInternal = (
       combatResultPreventions.push(...nested.combatResultPreventions);
       rollModificationPreventions.push(...nested.rollModificationPreventions);
       moveModificationPreventions.push(...nested.moveModificationPreventions);
+      currentActionMoveModificationPreventions.push(
+        ...nested.currentActionMoveModificationPreventions,
+      );
       resourceModificationPreventions.push(...nested.resourceModificationPreventions);
       costModifications.push(...nested.costModifications);
       currentActionCostModifications.push(...nested.currentActionCostModifications);
+      slotCapacityModifications.push(...nested.slotCapacityModifications);
       rerolls.push(...nested.rerolls);
       negations.push(...nested.negations);
       pendingEffectChoices.push(...nested.pendingEffectChoices);
@@ -4512,9 +4625,11 @@ const moveEffectsForTriggerInternal = (
     combatResultPreventions,
     rollModificationPreventions,
     moveModificationPreventions,
+    currentActionMoveModificationPreventions,
     resourceModificationPreventions,
     costModifications,
     currentActionCostModifications,
+    slotCapacityModifications,
     rerolls,
     negations,
     pendingEffectChoices,

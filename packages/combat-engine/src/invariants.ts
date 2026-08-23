@@ -90,6 +90,52 @@ const validateCombatantStats = (
   }
 };
 
+const combatSlots = ["mastery", "skill", "advanced-attack", "signature", "block"] as const;
+
+const validateSlotCapacities = (
+  combatant: CombatantState,
+  recordId: string,
+  violations: FightStateInvariantViolation[],
+) => {
+  if (combatant.slotCapacities !== undefined) {
+    for (const slot of combatSlots) {
+      const capacity = combatant.slotCapacities[slot];
+      if (!validCounter(capacity, 0)) {
+        addViolation(
+          violations,
+          "invalid-slot-capacity",
+          `Slot capacity for ${slot} must be a nonnegative integer.`,
+          recordId,
+        );
+      }
+    }
+  }
+  for (const modification of combatant.slotCapacityModifications ?? []) {
+    const sourceMove = MOVE_DEFINITIONS.find(
+      (candidate) => candidate.id === modification.sourceDefinitionId,
+    );
+    const sourceEffect = sourceMove?.effects?.[modification.sourceEffectIndex];
+    if (
+      modification.sourceCombatantId !== combatant.id ||
+      !combatant.moveIds.includes(modification.sourceDefinitionId) ||
+      sourceEffect?.type !== "modify-slot-capacity" ||
+      sourceEffect.slot !== modification.slot ||
+      sourceEffect.amount.type !== "literal" ||
+      sourceEffect.amount.value !== modification.amount ||
+      !validCounter(modification.sourceEffectIndex, 0) ||
+      !Number.isInteger(modification.amount) ||
+      modification.amount === 0
+    ) {
+      addViolation(
+        violations,
+        "invalid-slot-capacity",
+        "Slot capacity applications must reference an owned declarative modifier with matching provenance and amount.",
+        recordId,
+      );
+    }
+  }
+};
+
 const validateMoveUses = (
   combatant: CombatantState,
   recordId: string,
@@ -302,6 +348,7 @@ const validateCombatant = (
   validateResource("ki", combatant.ki, recordId, violations);
 
   validateCombatantStats(combatant, recordId, violations);
+  validateSlotCapacities(combatant, recordId, violations);
 
   if (new Set(combatant.moveIds).size !== combatant.moveIds.length) {
     addViolation(
@@ -716,7 +763,9 @@ const hasValidMoveModificationPreventionDetails = (
     (effect.exceptSourceMoveIds === undefined ||
       effect.exceptSourceMoveIds.every((moveId) => typeof moveId === "string")) &&
     (effect.exceptSourceStatusIds === undefined ||
-      effect.exceptSourceStatusIds.every((statusId) => typeof statusId === "string"))
+      effect.exceptSourceStatusIds.every((statusId) => typeof statusId === "string")) &&
+    (effect.availableFromTurn === undefined ||
+      (Number.isInteger(effect.availableFromTurn) && effect.availableFromTurn >= 1))
   );
 };
 
