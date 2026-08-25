@@ -9,7 +9,11 @@ import {
   combatEventIdSchema,
   fightIdSchema,
 } from "./ids.js";
-import { applyCombatItemPassives, resolveItemResources } from "./item-effects-runtime.js";
+import {
+  applyCombatItemPassives,
+  combatItemPreventedOutcomes,
+  resolveItemResources,
+} from "./item-effects-runtime.js";
 import { advanceFight, enumerateLegalDecisions, submitCombatDecision } from "./progress-fight.js";
 import { createTestCombatDependencies } from "./testing/index.js";
 
@@ -25,6 +29,16 @@ const self = {
 };
 
 describe("item effect runtime", () => {
+  it.each(["item-technology-spare-parts", "item-technology-cybernetic-replacements"])(
+    "extracts the exact BREAK/SEVER prevention outcomes for %s",
+    (itemId) => {
+      const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === itemId);
+      if (item === undefined) throw new Error(`Expected ${itemId} data.`);
+
+      expect(combatItemPreventedOutcomes(item)).toEqual(["break", "sever"]);
+    },
+  );
+
   it("applies passive, combat-relevant equipment statistics at fight creation", () => {
     const heroicTunic = ITEM_DEFINITIONS.find(
       (candidate) => candidate.id === "item-equipment-heroic-tunic",

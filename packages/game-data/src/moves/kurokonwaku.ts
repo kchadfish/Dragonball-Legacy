@@ -466,6 +466,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         aspects: ["successful-effects"],
         duration: { type: "combat", sourceText: "for the remainder of combat" },
+        selectionLimit: 1,
         activationGroup: "breaking-the-cycle-paired-suppression",
         sourceText:
           "SUCCESSFUL - You may choose one of your UNRESTRICTED attacks with a SUCCESSFUL effect. You may have that attack lose all SUCCESSFUL effects for the remainder of combat",
@@ -483,6 +484,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         aspects: ["successful-effects"],
         duration: { type: "combat", sourceText: "for the remainder of combat" },
+        selectionLimit: 1,
         activationGroup: "breaking-the-cycle-paired-suppression",
         sourceText:
           "If you do, choose one of your opponent's UNRESTRICTED attacks. That attack loses all SUCCESSFUL effects for the remainder of combat",

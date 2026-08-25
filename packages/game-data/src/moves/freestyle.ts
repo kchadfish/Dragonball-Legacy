@@ -1484,6 +1484,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           constant: true,
           sourceText: "Constant Skills",
         },
+        aspects: ["all-effects"],
         duration: {
           type: "turns",
           turns: { type: "literal", value: 4 },

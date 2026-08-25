@@ -43,6 +43,9 @@ const createCombatantState = (
   combatant: CreateFightInput["combatants"][number],
 ): CombatantState => ({
   id: combatantId,
+  ...(combatant.declaredStyleId === undefined
+    ? {}
+    : { declaredStyleId: combatant.declaredStyleId }),
   hitPoints: { current: combatant.maximumHitPoints, maximum: combatant.maximumHitPoints },
   ki: { current: GLOBAL_RULES.combat.startingKi, maximum: GLOBAL_RULES.combat.maximumKi },
   stats: { ...combatant.stats },
@@ -119,6 +122,25 @@ const unknownTransformationIssuesFor = (input: CreateFightInput) =>
             } satisfies FightSetupIssue,
           ],
     ),
+  );
+
+const missingDeclaredStyleIssuesFor = (input: CreateFightInput) =>
+  input.combatants.flatMap((combatant, combatantIndex) =>
+    combatant.moveIds.flatMap((moveId) => {
+      const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+      const requiresDeclaredStyle = move?.effects?.some(
+        (effect) =>
+          effect.type === "modify-move-classification" && effect.replaceStyle === "declared-style",
+      );
+      return requiresDeclaredStyle && combatant.declaredStyleId === undefined
+        ? [
+            {
+              path: `combatants.${combatantIndex}.declaredStyleId`,
+              message: `A declared style ID is required for move ${moveId}.`,
+            } satisfies FightSetupIssue,
+          ]
+        : [];
+    }),
   );
 
 const unknownItemIssuesFor = (input: CreateFightInput) =>
@@ -297,7 +319,13 @@ export const createFight = (
   );
   const unknownItemIssues = unknownItemIssuesFor(parsedInput.data);
   const unknownTransformationIssues = unknownTransformationIssuesFor(parsedInput.data);
-  const setupIssues = [...unknownMoveIssues, ...unknownItemIssues, ...unknownTransformationIssues];
+  const missingDeclaredStyleIssues = missingDeclaredStyleIssuesFor(parsedInput.data);
+  const setupIssues = [
+    ...unknownMoveIssues,
+    ...unknownItemIssues,
+    ...unknownTransformationIssues,
+    ...missingDeclaredStyleIssues,
+  ];
   if (setupIssues.length > 0) {
     return { ok: false, error: { type: "invalid-fight-setup", issues: setupIssues } };
   }

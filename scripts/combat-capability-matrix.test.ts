@@ -47,6 +47,7 @@ describe("combat capability matrix", () => {
     expect(rows.map((row) => row.sourceDefinitionId)).toEqual([
       "move-freestyle-monkey-sweep",
       "move-freestyle-tricky-sword-maneuvers",
+      "move-haokiru-halcyon-blow",
       "move-kiihakai-fierce-focus-mastery",
       "move-kiihakai-synergy",
       "move-kiihakai-kinetic-outburst",
@@ -54,6 +55,44 @@ describe("combat capability matrix", () => {
       "move-kurokonwaku-shadow-stalker",
     ]);
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+  });
+
+  it("classifies the exact restricted upkeep suppressions through the generic executor", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.sourceDefinitionId === "move-freestyle-showdown" ||
+        row.sourceDefinitionId === "move-midorikatai-against-the-odds",
+    );
+
+    expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+    expect(rows.every((row) => row.capabilityId === "suppress.v1")).toBe(true);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("closes the exact deferred-move catalog variants", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.effectType === "defer-move",
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceDefinitionId: "move-afterlife-warp-kamehameha",
+          effectIndex: 0,
+          status: "supported-generic",
+          capabilityId: "defer-move.v1",
+          executor: "deferred-move-scheduling",
+        }),
+        expect.objectContaining({
+          sourceDefinitionId: "move-afterlife-death-ball",
+          effectIndex: 0,
+          status: "supported-generic",
+          capabilityId: "defer-move.v1",
+          executor: "deferred-move-scheduling",
+        }),
+      ]),
+    );
   });
 
   it("classifies Vile Energy's bounded repeat-until activation generically", () => {
@@ -69,6 +108,42 @@ describe("combat capability matrix", () => {
     });
   });
 
+  it("classifies Overdrive and Big Shot activation variants with linked delayed deactivation", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.sourceDefinitionId === "move-kiihakai-overdrive-blast" ||
+        row.sourceDefinitionId === "move-kiihakai-big-shot",
+    );
+
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-kiihakai-overdrive-blast",
+        effectIndex: 0,
+        status: "supported-generic",
+        capabilityId: "activate.v3",
+        executor: "constant-activation-selection",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-kiihakai-big-shot",
+        effectIndex: 0,
+        status: "supported-generic",
+        capabilityId: "activate.v4",
+        executor: "constant-activation-selection",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-kiihakai-big-shot",
+        effectIndex: 1,
+        status: "supported-generic",
+        capabilityId: "activate.v4",
+        executor: "constant-activation-selection",
+      }),
+    );
+  });
+
   it("classifies the exact Flashback copied attack through the generic executor", () => {
     const row = createCombatCapabilityMatrix().occurrences.find(
       (candidate) =>
@@ -81,6 +156,19 @@ describe("combat capability matrix", () => {
       capabilityId: "copy-move-effect.v1",
       executor: "copied-attack-action",
       focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+    });
+  });
+
+  it("classifies All-Out Triumphant Beam's transformation reversion generically", () => {
+    expect(
+      createCombatCapabilityMatrix().occurrences.find(
+        (row) => row.sourceDefinitionId === "move-freestyle-all-out-triumphant-beam",
+      ),
+    ).toMatchObject({
+      effectType: "revert-transformation",
+      status: "supported-generic",
+      capabilityId: "revert-transformation.v1",
+      executor: "transformation-lifecycle",
     });
   });
 
@@ -115,7 +203,22 @@ describe("combat capability matrix", () => {
     });
   });
 
-  it("classifies the executable counter-action variants and leaves lifecycle variants pending", () => {
+  it("classifies Mind Reading's exact prior attack snapshot separately", () => {
+    const row = createCombatCapabilityMatrix().occurrences.find(
+      (candidate) =>
+        candidate.sourceDefinitionId === "move-haokiru-mind-reading" &&
+        candidate.effectType === "copy-move-effect",
+    );
+
+    expect(row).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "copy-move-effect.v3",
+      executor: "copied-attack-resolution-snapshot",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+    });
+  });
+
+  it("classifies the executable counter-action variants and preserves duration", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (candidate) => candidate.effectType === "grant-counter-action",
     );
@@ -138,8 +241,9 @@ describe("combat capability matrix", () => {
     expect(rows).toContainEqual(
       expect.objectContaining({
         sourceDefinitionId: "move-aoyosumu-straightjacket",
-        status: "unsupported-in-scope",
-        prerequisite: "typed executor accounting and compiled effect-plan validation",
+        status: "supported-generic",
+        capabilityId: "grant-counter-action.v1",
+        executor: "counter-action",
       }),
     );
   });
@@ -245,6 +349,31 @@ describe("combat capability matrix", () => {
     });
   });
 
+  it("classifies BOOMerang's deferred next-move cost separately from start-combat selection", () => {
+    const matrix = createCombatCapabilityMatrix();
+    expect(
+      matrix.occurrences.find(
+        (candidate) =>
+          candidate.sourceDefinitionId === "move-kiihakai-boomerang" && candidate.effectIndex === 0,
+      ),
+    ).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "modify-cost.v2",
+      executor: "cost-modifier",
+    });
+    expect(
+      matrix.occurrences.find(
+        (candidate) =>
+          candidate.sourceDefinitionId === "move-kurokonwaku-control-mastery" &&
+          candidate.effectIndex === 0,
+      ),
+    ).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "modify-cost.v3",
+      executor: "cost-modifier",
+    });
+  });
+
   it("classifies Creationist's exclusive cost-modified alternatives through the pending cost executor", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (candidate) =>
@@ -311,10 +440,19 @@ describe("combat capability matrix", () => {
           row.focusedCoverage === "progress-fight.test.ts",
       ),
     ).toBe(true);
-    expect(rows.filter((row) => row.status === "unsupported-in-scope")).toHaveLength(3);
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-akaikaru-dazzling-gymnastics",
+        status: "supported-generic",
+        capabilityId: "set-combat-result.v1",
+        executor: "combat-result-override",
+        focusedCoverage: "basic-attack.test.ts",
+      }),
+    );
+    expect(rows.filter((row) => row.status === "unsupported-in-scope")).toHaveLength(0);
   });
 
-  it("classifies deferred successful rerolls while retaining unresolved choice exclusions", () => {
+  it("classifies all exact catalog reroll choices through the generic reaction", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) => row.effectType === "reroll",
     );
@@ -341,7 +479,13 @@ describe("combat capability matrix", () => {
           row.sourceDefinitionId === "move-kurokonwaku-ki-trap",
       ),
     ).toEqual(
-      expect.arrayContaining([expect.objectContaining({ status: "unsupported-in-scope" })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "supported-generic",
+          capabilityId: "reroll.v1",
+          executor: "reroll-reaction",
+        }),
+      ]),
     );
   });
 
@@ -419,6 +563,21 @@ describe("combat capability matrix", () => {
     ).toBe(true);
   });
 
+  it("keeps ally targeting and temporary opponent-technique identity mutation out of 1v1 scope", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.sourceDefinitionId === "move-haokiru-healing-ray" ||
+        row.sourceDefinitionId === "move-haokiru-karmic-chameleon-mastery",
+    );
+
+    expect(rows.filter((row) => row.status === "audited-out-of-scope")).toHaveLength(7);
+    expect(
+      rows
+        .filter((row) => row.status === "audited-out-of-scope")
+        .every((row) => row.approvedExclusion !== null),
+    ).toBe(true);
+  });
+
   it("classifies all canonical stored writes and only exact immediate threshold consumers", () => {
     const matrix = createCombatCapabilityMatrix();
     const storedWrites = matrix.occurrences.filter((row) => row.effectType === "roll-and-store");
@@ -442,14 +601,23 @@ describe("combat capability matrix", () => {
         ),
       ).toMatchObject({ status: "supported-generic" });
 
-    for (const effectIndex of [1, 3])
-      expect(
-        matrix.occurrences.find(
-          (row) =>
-            row.sourceDefinitionId === "move-afterlife-petrifying-spit" &&
-            row.effectIndex === effectIndex,
-        ),
-      ).toMatchObject({ status: "unsupported-in-scope" });
+    expect(
+      matrix.occurrences.find(
+        (row) =>
+          row.sourceDefinitionId === "move-afterlife-petrifying-spit" && row.effectIndex === 1,
+      ),
+    ).toMatchObject({ status: "supported-generic", executor: "status-lifecycle" });
+
+    expect(
+      matrix.occurrences.find(
+        (row) =>
+          row.sourceDefinitionId === "move-afterlife-petrifying-spit" && row.effectIndex === 3,
+      ),
+    ).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "skip-action.v2",
+      executor: "status-backed-action-restriction",
+    });
   });
 
   it("classifies exact future-turn action restrictions through the durable generic executor", () => {
@@ -460,14 +628,16 @@ describe("combat capability matrix", () => {
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
     expect(rows).toHaveLength(10);
-    expect(supported).toHaveLength(8);
+    expect(supported).toHaveLength(9);
     expect(
       supported.every(
-        (row) => row.capabilityId === "skip-action.v1" && row.executor === "action-restriction",
+        (row) =>
+          (row.capabilityId === "skip-action.v1" && row.executor === "action-restriction") ||
+          (row.capabilityId === "skip-action.v2" &&
+            row.executor === "status-backed-action-restriction"),
       ),
     ).toBe(true);
     expect(unsupported.map((row) => [row.sourceDefinitionId, row.effectIndex])).toEqual([
-      ["move-afterlife-petrifying-spit", 3],
       ["move-kiihakai-power-boost", 0],
     ]);
   });
@@ -572,8 +742,9 @@ describe("combat capability matrix", () => {
       }),
       expect.objectContaining({
         sourceDefinitionId: "move-aoyosumu-quiet-preparation",
-        status: "unsupported-in-scope",
-        prerequisite: "typed compiled damage context and resolution-local state",
+        status: "supported-generic",
+        capabilityId: "damage-modifier.v1",
+        executor: "combat-result-count-damage-modifier",
       }),
       expect.objectContaining({
         sourceDefinitionId: "move-midorikatai-war-cry",
@@ -582,6 +753,19 @@ describe("combat capability matrix", () => {
         executor: "damage-modifier",
       }),
     ]);
+  });
+
+  it("classifies Lights Out Strike as a selected future damage modifier", () => {
+    expect(
+      createCombatCapabilityMatrix().occurrences.find(
+        (row) =>
+          row.sourceDefinitionId === "move-aoyosumu-lights-out-strike" && row.effectIndex === 0,
+      ),
+    ).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "damage-modifier.v2",
+      executor: "selected-move-damage-modifier",
+    });
   });
 
   it("classifies prior-action conditions as generic executor coverage", () => {
@@ -743,8 +927,18 @@ describe("combat capability matrix", () => {
       (row) => row.effectType === "create-floating-effect" && row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(18);
-    expect(rows.every((row) => row.capabilityId === "create-floating-effect.v1")).toBe(true);
+    expect(rows).toHaveLength(21);
+    expect(
+      rows
+        .filter((row) => row.sourceDefinitionId !== "move-kurokonwaku-vampiric-lust")
+        .every((row) => row.capabilityId === "create-floating-effect.v1"),
+    ).toBe(true);
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-kurokonwaku-vampiric-lust",
+        capabilityId: "create-floating-effect.v2",
+      }),
+    );
     expect(rows.every((row) => row.executor === "floating-effect-lifecycle")).toBe(true);
     expect(
       rows.some(
@@ -760,6 +954,17 @@ describe("combat capability matrix", () => {
     ).toBe(true);
     expect(rows.some((row) => row.sourceDefinitionId === "move-freestyle-hidden-power-level")).toBe(
       true,
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-freestyle-monkey-sweep",
+        effectIndex: 4,
+        status: "supported-generic",
+        capabilityId: "create-floating-effect.v1",
+        executor: "floating-effect-lifecycle",
+        focusedCoverage:
+          "basic-attack.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
+      }),
     );
     expect(
       rows.some(
@@ -786,13 +991,25 @@ describe("combat capability matrix", () => {
         row.status === "supported-generic",
     );
 
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(11);
     expect(
       rows.every(
         (row) =>
           (row.effectType === "create-floating-effect" &&
             row.capabilityId === "create-floating-effect.v1") ||
-          (row.effectType === "modify-cost" && row.capabilityId === "modify-cost.v1"),
+          (row.effectType === "modify-cost" && row.capabilityId === "modify-cost.v1") ||
+          (row.sourceDefinitionId === "move-kurokonwaku-cancellation-mastery" &&
+            row.effectType === "negate" &&
+            row.capabilityId === "negate.v1") ||
+          (row.sourceDefinitionId === "move-kurokonwaku-cancellation-mastery" &&
+            row.effectType === "deactivate" &&
+            row.capabilityId === "deactivate.v1") ||
+          (row.sourceDefinitionId === "move-haokiru-channeling-mastery" &&
+            (row.effectType === "modify-damage" || row.effectType === "prevent-resolution") &&
+            row.capabilityId === "pending-choice.v1") ||
+          (row.sourceDefinitionId === "move-midorikatai-leg-vice" &&
+            (row.effectType === "modify-stat" || row.effectType === "prevent-resolution") &&
+            row.capabilityId !== null),
       ),
     ).toBe(true);
   });
@@ -810,6 +1027,26 @@ describe("combat capability matrix", () => {
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
     expect(rows.every((row) => row.capabilityId === "modify-resource.v1")).toBe(true);
     expect(rows.every((row) => row.executor === "item-resource")).toBe(true);
+  });
+
+  it("classifies exact defensive BREAK/SEVER prevention items through the shared response executor", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) => row.effectType === "item-prevent-combat-outcome" && row.trigger === "combat-action",
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.sourceDefinitionId).sort()).toEqual([
+      "item-technology-cybernetic-replacements",
+      "item-technology-spare-parts",
+    ]);
+    expect(
+      rows.every(
+        (row) =>
+          row.status === "supported-generic" &&
+          row.capabilityId === "item-prevent-combat-outcome.v1" &&
+          row.executor === "item-combat-outcome-prevention",
+      ),
+    ).toBe(true);
   });
 
   it("classifies Psycho Driver's deferred resource effect through the generic lifecycle", () => {
@@ -870,16 +1107,21 @@ describe("combat capability matrix", () => {
     );
 
     expect(supported.map((row) => `${row.sourceDefinitionId}#${row.effectIndex}`)).toEqual([
+      "move-akaikaru-intensity-mastery#0",
+      "move-aoyosumu-ceasefire-mastery#0",
       "move-freestyle-sense-power-level#0",
       "move-freestyle-sense-power-level#1",
       "move-freestyle-sense-power-level#2",
       "move-haokiru-conservation-mastery#1",
       "move-haokiru-focused-mastery#0",
       "move-haokiru-focused-mastery#1",
+      "move-haokiru-focused-mastery#2",
       "move-haokiru-dragon-s-pride#0",
       "move-kiihakai-fierce-focus-mastery#0",
       "move-kiihakai-fierce-focus-mastery#1",
+      "move-kurokonwaku-control-mastery#0",
       "move-kurokonwaku-control-mastery#1",
+      "move-kurokonwaku-control-mastery#2",
     ]);
     expect(supported.every((row) => row.executor !== null)).toBe(true);
   });
@@ -909,7 +1151,7 @@ describe("combat capability matrix", () => {
         (row.effectIndex === 1 || row.effectIndex === 2),
     );
 
-    expect(rows).toEqual([
+    expect(rows).toContainEqual(
       expect.objectContaining({
         effectIndex: 1,
         target: "self",
@@ -917,13 +1159,31 @@ describe("combat capability matrix", () => {
         capabilityId: "modify-resource.v1",
         executor: "resource-change",
       }),
+    );
+    expect(rows).toContainEqual(
       expect.objectContaining({
         effectIndex: 2,
         target: "ally",
-        status: "unsupported-in-scope",
-        prerequisite: "generic pending-choice compilation and resolution",
+        status: "audited-out-of-scope",
+        approvedExclusion:
+          "ally-targeted resource changes are outside the active 1v1 and remote-target scope",
       }),
-    ]);
+    );
+  });
+
+  it("classifies x20's selected cross-trigger HP loss through the pending executor", () => {
+    expect(
+      createCombatCapabilityMatrix().occurrences.find(
+        (row) =>
+          row.sourceDefinitionId === "move-afterlife-x20-kaioken-kamehameha" &&
+          row.effectIndex === 5,
+      ),
+    ).toMatchObject({
+      status: "supported-generic",
+      capabilityId: "pending-choice.v1",
+      executor: "optional-effect-choice",
+      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    });
   });
 
   it("classifies same-turn and next-turn action allowances through one scheduler", () => {
@@ -933,8 +1193,8 @@ describe("combat capability matrix", () => {
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
     expect(rows).toHaveLength(19);
-    expect(supported).toHaveLength(16);
-    expect(unsupported).toHaveLength(3);
+    expect(supported).toHaveLength(19);
+    expect(unsupported).toHaveLength(0);
     expect(
       supported.every(
         (row) =>
@@ -951,6 +1211,28 @@ describe("combat capability matrix", () => {
           row.trigger === "on-roll-result",
       ),
     ).toBe(true);
+    expect(
+      supported
+        .filter(
+          (row) =>
+            row.sourceDefinitionId === "move-akaikaru-limb-twist" ||
+            row.sourceDefinitionId === "move-kurokonwaku-launching-kick",
+        )
+        .map((row) => [row.sourceDefinitionId, row.status, row.capabilityId, row.executor]),
+    ).toEqual([
+      [
+        "move-akaikaru-limb-twist",
+        "supported-generic",
+        "grant-extra-action.v2",
+        "extra-action-scheduler",
+      ],
+      [
+        "move-kurokonwaku-launching-kick",
+        "supported-generic",
+        "grant-extra-action.v2",
+        "extra-action-scheduler",
+      ],
+    ]);
     expect(unsupported.every((row) => row.prerequisite !== null)).toBe(true);
     expect(
       supported.some(
@@ -972,6 +1254,14 @@ describe("combat capability matrix", () => {
       supported.some(
         (row) =>
           row.sourceDefinitionId === "move-afterlife-destructo-disc" &&
+          row.scope === "next-turn" &&
+          row.executor === "extra-action-scheduler",
+      ),
+    ).toBe(true);
+    expect(
+      supported.some(
+        (row) =>
+          row.sourceDefinitionId === "move-freestyle-multitasking-kick" &&
           row.scope === "next-turn" &&
           row.executor === "extra-action-scheduler",
       ),
@@ -1050,9 +1340,12 @@ describe("combat capability matrix", () => {
     expect(rows).toHaveLength(7);
     expect(supported.map((row) => row.sourceDefinitionId)).toEqual([
       "move-afterlife-x20-kaioken-kamehameha",
+      "move-aoyosumu-ceasefire-mastery",
       "move-aoyosumu-super-arm-bar-takedown",
+      "move-haokiru-halting-stance",
       "move-kurokonwaku-breaking-the-cycle",
       "move-kurokonwaku-neuron-disruptor",
+      "move-kurokonwaku-spiked-ball",
     ]);
     expect(
       supported.every(
@@ -1061,14 +1354,10 @@ describe("combat capability matrix", () => {
           row.executor === "restricted-use-limit",
       ),
     ).toBe(true);
-    expect(unsupported.map((row) => row.sourceDefinitionId)).toEqual([
-      "move-aoyosumu-ceasefire-mastery",
-      "move-haokiru-halting-stance",
-      "move-kurokonwaku-spiked-ball",
-    ]);
+    expect(unsupported).toHaveLength(0);
   });
 
-  it("classifies exact current-action tag additions without claiming selection or style lifecycles", () => {
+  it("classifies exact current-action tags and the durable declared-style lifecycle", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) => row.effectType === "modify-move-classification",
     );
@@ -1077,19 +1366,30 @@ describe("combat capability matrix", () => {
 
     expect(rows).toHaveLength(8);
     expect(supported.map((row) => row.sourceDefinitionId)).toEqual([
+      "move-akaikaru-intensity-mastery",
       "move-akaikaru-shock-fist",
       "move-akaikaru-blitzkrieg",
       "move-akaikaru-no-shadow-kick",
+      "move-freestyle-ki-color-cascade",
       "move-kiihakai-turn-up-the-heat",
     ]);
     expect(
-      supported.every(
-        (row) =>
-          row.capabilityId === "modify-move-classification.v1" &&
-          row.executor === "current-action-move-classification",
-      ),
+      supported
+        .filter((row) => row.sourceDefinitionId !== "move-akaikaru-intensity-mastery")
+        .every(
+          (row) =>
+            row.capabilityId === "modify-move-classification.v1" &&
+            row.executor === "move-classification-lifecycle",
+        ),
     ).toBe(true);
-    expect(unsupported).toHaveLength(4);
+    expect(supported).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-akaikaru-intensity-mastery",
+        capabilityId: "modify-move-classification.v2",
+        executor: "start-combat-selection",
+      }),
+    );
+    expect(unsupported).toHaveLength(0);
   });
 
   it("classifies scheduled resource boundaries through the generic scheduler", () => {
@@ -1150,8 +1450,9 @@ describe("combat capability matrix", () => {
         (row) => row.sourceDefinitionId === "move-freestyle-effortless",
       ),
     ).toMatchObject({
-      status: "unsupported-in-scope",
-      prerequisite: "generic pending-choice compilation and resolution",
+      status: "supported-generic",
+      capabilityId: "pending-choice.v1",
+      executor: "optional-effect-choice",
     });
   });
 
@@ -1224,6 +1525,19 @@ describe("combat capability matrix", () => {
         }),
       ]),
     );
+  });
+
+  it("classifies the exact lifecycle deactivation catalog occurrences generically", () => {
+    const rows = createCombatCapabilityMatrix().occurrences.filter(
+      (row) =>
+        row.effectType === "deactivate" &&
+        (row.sourceDefinitionId === "move-akaikaru-relentless" ||
+          row.sourceDefinitionId === "move-akaikaru-impulsive"),
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
+    expect(rows.every((row) => row.capabilityId === "deactivate.v1")).toBe(true);
   });
 
   it("classifies Sixty Second Meltdown's grouped extra-action cost effects generically", () => {
@@ -1323,8 +1637,9 @@ describe("combat capability matrix", () => {
       ]),
     );
     expect(rows.find((row) => row.sourceDefinitionId === "move-aoyosumu-stoicism")).toMatchObject({
-      status: "unsupported-in-scope",
-      prerequisite: "typed executor accounting and compiled effect-plan validation",
+      status: "supported-generic",
+      capabilityId: "modify-roll-modifier.v1",
+      executor: "roll-modifier-transformer",
     });
   });
 });

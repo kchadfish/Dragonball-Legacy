@@ -8,7 +8,7 @@ import {
   pendingDecisionIdSchema,
   resolutionFrameIdSchema,
 } from "./ids.js";
-import type { CombatantId } from "./ids.js";
+import type { CombatantId, PendingDecisionId } from "./ids.js";
 import type {
   ActiveFightState,
   ActiveCombatEffect,
@@ -20,8 +20,10 @@ import type {
   CounterActionReference,
   FightState,
   FightStateInvariantViolation,
+  ResourceChangeHistoryRecord,
   ResolutionFrame,
 } from "./contracts.js";
+import { matchesMoveSelector } from "./declarative-runtime.js";
 
 const validCounter = (value: number, minimum: number) =>
   Number.isFinite(value) && Number.isInteger(value) && value >= minimum;
@@ -308,9 +310,21 @@ const validateStoredMoveSelections = (
 const hasValidStatusDetails = (combatant: CombatantState, statusIndex: number) => {
   const activeStatus = combatant.activeStatuses[statusIndex];
   const priorStatuses = combatant.activeStatuses.slice(0, statusIndex);
+  const selector: unknown = activeStatus.selector;
+  const validSelector =
+    selector === undefined ||
+    (typeof selector === "object" &&
+      selector !== null &&
+      "type" in selector &&
+      selector.type === "move-selector");
   const validDuration =
     activeStatus.duration.type === "combat" ||
     (activeStatus.duration.type === "turns" && validCounter(activeStatus.duration.remaining, 1)) ||
+    (activeStatus.duration.type === "until-turn-start-roll-threshold" &&
+      validCounter(activeStatus.duration.dice, 1) &&
+      validCounter(activeStatus.duration.sides, 1) &&
+      validCounter(activeStatus.duration.remainingIgnoredChecks, 0) &&
+      Number.isFinite(activeStatus.duration.value)) ||
     (activeStatus.duration.type === "uses" && validCounter(activeStatus.duration.remaining, 1));
 
   return (
@@ -318,6 +332,7 @@ const hasValidStatusDetails = (combatant: CombatantState, statusIndex: number) =
     activeStatus.statusId.length > 0 &&
     typeof activeStatus.sourceDefinitionId === "string" &&
     activeStatus.sourceDefinitionId.length > 0 &&
+    validSelector &&
     validCounter(activeStatus.stacks, 1) &&
     validDuration &&
     !priorStatuses.some((priorStatus) => priorStatus.statusId === activeStatus.statusId)
@@ -423,8 +438,10 @@ const validateCombatantReferences = (
 ) => {
   for (const activeStatus of combatant.activeStatuses) {
     const validDurationOwner =
-      activeStatus.duration.type !== "turns" ||
-      combatantForId(state, activeStatus.duration.ownerCombatantId) !== undefined;
+      (activeStatus.duration.type !== "turns" ||
+        combatantForId(state, activeStatus.duration.ownerCombatantId) !== undefined) &&
+      (activeStatus.duration.type !== "until-turn-start-roll-threshold" ||
+        isActiveCombatant(state, activeStatus.duration.combatantId));
     if (
       combatantForId(state, activeStatus.sourceCombatantId) === undefined ||
       !validDurationOwner
@@ -562,6 +579,22 @@ const isValidCombatResultModifier = (
     (modifier.result === "successful" || modifier.result === "stopped") &&
     (modifier.resultScope === "current-attack" || modifier.resultScope === "matching-die"));
 
+const hasValidCostModifierDetails = (
+  modifier: Extract<ActiveCombatEffect, { type: "modify-next-action" }>["modifier"],
+) => {
+  if (modifier.type !== "cost") return true;
+  const validOperation = modifier.operation === "add" || modifier.operation === "set";
+  const validBounds =
+    (modifier.minimum === undefined || Number.isFinite(modifier.minimum)) &&
+    (modifier.maximum === undefined || Number.isFinite(modifier.maximum));
+  const validExpression =
+    modifier.amountExpression === undefined ||
+    (modifier.amountExpression.type === "next-move-ki-cost" &&
+      (modifier.amountExpression.actor === "self" ||
+        modifier.amountExpression.actor === "opponent"));
+  return validOperation && validBounds && validExpression;
+};
+
 const hasValidNextActionModifierDetails = (
   effect: Extract<ActiveCombatEffect, { type: "modify-next-action" }>,
 ) => {
@@ -597,14 +630,8 @@ const hasValidNextActionModifierDetails = (
   const validResourceCostOperation =
     effect.modifier.type !== "resource-cost" ||
     (effect.modifier.resource === "hp" && effect.modifier.operation === "add");
-  const validCostOperation =
-    effect.modifier.type !== "cost" ||
-    effect.modifier.operation === "add" ||
-    effect.modifier.operation === "set";
-  const validCostBounds =
-    effect.modifier.type !== "cost" ||
-    ((effect.modifier.minimum === undefined || Number.isFinite(effect.modifier.minimum)) &&
-      (effect.modifier.maximum === undefined || Number.isFinite(effect.modifier.maximum)));
+  const validCreatedAfterActionCount =
+    effect.createdAfterActionCount === undefined || validCounter(effect.createdAfterActionCount, 0);
   const validRollCap = (
     cap: NonNullable<Extract<ActiveCombatEffect, { type: "modify-roll" }>["cap"]>,
   ) =>
@@ -618,8 +645,7 @@ const hasValidNextActionModifierDetails = (
     validDamageBasis &&
     validResourceOperation &&
     validResourceCostOperation &&
-    validCostOperation &&
-    validCostBounds &&
+    hasValidCostModifierDetails(effect.modifier) &&
     validCombatResult &&
     (effect.modifier.type === "damage" ||
       (effect.modifier.type === "stat" &&
@@ -652,10 +678,11 @@ const hasValidNextActionModifierDetails = (
     validScope &&
     validRemaining &&
     validFollowingTurn &&
+    validCreatedAfterActionCount &&
     (scope === "next-actions" || scope === "next-rolls"
       ? effect.remaining !== undefined
       : effect.remaining === undefined) &&
-    (scope === "following-action"
+    (scope === "following-action" || scope === "next-turn"
       ? effect.availableFromTurn !== undefined
       : effect.availableFromTurn === undefined)
   );
@@ -676,6 +703,7 @@ const hasValidDamageModifierDetails = (
     (effect.operation === "add" || effect.operation === "multiply" || effect.operation === "set") &&
     (effect.basis === "power-percent" || effect.basis === "damage-percent") &&
     Number.isFinite(effect.amount) &&
+    (effect.selectedMoveId === undefined || effect.selectedMoveId.length > 0) &&
     validDuration &&
     (effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1)) &&
     typeof effect.sourceDefinitionId === "string" &&
@@ -703,6 +731,18 @@ const hasValidStatModifierEffectDetails = (
   effect.amount >= 0 &&
   effect.sourceDefinitionId.length > 0;
 
+const hasValidMoveClassificationEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "modify-move-classification" }>,
+) =>
+  effect.sourceDefinitionId.length > 0 &&
+  validCounter(effect.sourceEffectIndex, 0) &&
+  effect.selector.type === "move-selector" &&
+  effect.classification.type === "replace-style" &&
+  effect.classification.style === "declared-style" &&
+  effect.duration.type === "turns" &&
+  validCounter(effect.duration.remaining, 1) &&
+  effect.duration.ownerCombatantId.length > 0;
+
 const hasValidSuppressionEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "suppress" }>,
 ) => {
@@ -727,6 +767,7 @@ const hasValidSuppressionEffectDetails = (
     effect.aspects.every((aspect) => aspect === "all-effects" || aspect === "successful-effects") &&
     validSelector &&
     validDuration &&
+    (effect.selectedMoveId === undefined || effect.selectedMoveId.length > 0) &&
     effect.sourceDefinitionId.length > 0
   );
 };
@@ -792,7 +833,8 @@ const hasValidResourceModificationPreventionDetails = (
   (effect.resource === "hp" || effect.resource === "ki") &&
   (effect.operation === "gain" || effect.operation === "lose" || effect.operation === "set") &&
   (effect.sourceActor === undefined || effect.sourceActor === "opponent") &&
-  (effect.exceptAction === undefined || effect.exceptAction === "power-up");
+  (effect.exceptAction === undefined || effect.exceptAction === "power-up") &&
+  (effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1));
 
 const hasValidConstantEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "active-constant" }>,
@@ -802,6 +844,8 @@ const hasValidConstantEffectDetails = (
   effect.sourceDefinitionId.length > 0 &&
   validCounter(effect.activatedOnTurn, 1) &&
   (effect.paidActivationCost === undefined || validNonnegativeNumber(effect.paidActivationCost)) &&
+  (effect.selectionKey === undefined ||
+    (typeof effect.selectionKey === "string" && effect.selectionKey.length > 0)) &&
   (effect.lifecycle === undefined ||
     effect.lifecycle === "active" ||
     (effect.lifecycle === "deactivated" && validCounter(effect.deactivatedOnTurn ?? 0, 1)));
@@ -829,7 +873,9 @@ const hasValidItemDamageModifierEffectDetails = (
 const hasValidMoveRemovalEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "remove-move-from-combat" }>,
 ) =>
-  effect.duration === "combat" &&
+  (effect.duration === "combat" ||
+    (effect.duration.type === "until-perfect-roll" &&
+      typeof effect.duration.combatantId === "string")) &&
   effect.sourceDefinitionId.length > 0 &&
   effect.moveId.length > 0 &&
   validCounter(effect.sourceEffectIndex, 0) &&
@@ -893,6 +939,13 @@ const hasValidExtraActionEffectDetails = (
   validCounter(effect.remainingActions, 1) &&
   validCounter(effect.availableFromTurn, 1) &&
   validCounter(effect.expiresAfterTurn, effect.availableFromTurn) &&
+  (effect.activationCost === undefined ||
+    (effect.activationCost.resource === "ki" &&
+      Number.isInteger(effect.activationCost.amount) &&
+      effect.activationCost.amount >= 1 &&
+      (effect.activationCost.minimum === undefined ||
+        (Number.isInteger(effect.activationCost.minimum) &&
+          effect.activationCost.minimum >= 0)))) &&
   (effect.useLimit === undefined ||
     (validCounter(effect.useLimit.count, 1) &&
       (effect.useLimit.scope === "combat" || effect.useLimit.scope === "turn")));
@@ -910,7 +963,13 @@ const hasValidActionRestrictionEffectDetails = (
     (categories === undefined ||
       (categories.length > 0 &&
         new Set(categories).size === categories.length &&
-        categories.every((category) => allowedCategories.has(category))))
+        categories.every((category) => allowedCategories.has(category)))) &&
+    (effect.duration === undefined ||
+      (effect.duration.type === "until-turn-start-roll-threshold" &&
+        validCounter(effect.duration.dice, 1) &&
+        validCounter(effect.duration.sides, 1) &&
+        Number.isFinite(effect.duration.value) &&
+        validCounter(effect.duration.remainingIgnoredChecks, 0)))
   );
 };
 
@@ -954,6 +1013,19 @@ const hasValidScheduledResourceEffectDetails = (
     (threshold === undefined || Number.isFinite(threshold.value))
   );
 };
+
+const hasValidDeferredMoveEffectDetails = (
+  effect: Extract<ActiveCombatEffect, { type: "deferred-move" }>,
+) =>
+  effect.sourceDefinitionId.length > 0 &&
+  validCounter(effect.sourceEffectIndex, 0) &&
+  validCounter(effect.performOnTurn, 1) &&
+  (effect.damageOverridePercent === undefined ||
+    (Number.isFinite(effect.damageOverridePercent) && effect.damageOverridePercent >= 0)) &&
+  effect.cancellation.result === "successful" &&
+  (effect.onCancellation === undefined ||
+    (effect.onCancellation.affectedType === "attack" &&
+      effect.onCancellation.duration === "combat"));
 
 const hasValidActionLockEffectDetails = (
   effect: Extract<
@@ -1060,6 +1132,13 @@ const hasValidNonFloatingEffectDetails = (
   >,
 ) => {
   switch (effect.type) {
+    case "set-stat-comparison":
+      return (
+        effect.stat === "dexterity" &&
+        effect.comparison === "higher-than" &&
+        effect.duration.type === "turns" &&
+        validCounter(effect.duration.remaining, 1)
+      );
     case "modify-ki-cost":
       return hasValidCostEffectDetails(effect);
     case "modify-roll-modifier":
@@ -1076,6 +1155,8 @@ const hasValidNonFloatingEffectDetails = (
       return hasValidDamageModifierDetails(effect);
     case "modify-stat":
       return hasValidStatModifierEffectDetails(effect);
+    case "modify-move-classification":
+      return hasValidMoveClassificationEffectDetails(effect);
     case "suppress":
       return hasValidSuppressionEffectDetails(effect);
     case "active-constant":
@@ -1108,6 +1189,8 @@ const hasValidNonFloatingEffectDetails = (
       );
     case "modify-next-action":
       return hasValidNextActionModifierDetails(effect);
+    case "deferred-move":
+      return hasValidDeferredMoveEffectDetails(effect);
   }
 };
 
@@ -1118,18 +1201,17 @@ const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
   return hasValidNonFloatingEffectDetails(effect);
 };
 
+const hasValidFloatingEffectReferences = (
+  state: FightState,
+  effect: Extract<ActiveCombatEffect, { readonly type: "floating-effect" }>,
+) =>
+  (effect.duration === undefined || isActiveCombatant(state, effect.duration.combatantId)) &&
+  (effect.targetRelationCombatantId === undefined ||
+    isActiveCombatant(state, effect.targetRelationCombatantId));
+
+/* eslint-disable sonarjs/cognitive-complexity -- active-effect reference validation mirrors the persisted effect union. */
 const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatEffect) => {
-  if (
-    effect.type === "floating-effect" &&
-    effect.duration !== undefined &&
-    !isActiveCombatant(state, effect.duration.combatantId)
-  )
-    return false;
-  if (
-    effect.type === "floating-effect" &&
-    effect.targetRelationCombatantId !== undefined &&
-    !isActiveCombatant(state, effect.targetRelationCombatantId)
-  )
+  if (effect.type === "floating-effect" && !hasValidFloatingEffectReferences(state, effect))
     return false;
   if (effect.type === "scheduled-resource")
     return (
@@ -1139,10 +1221,22 @@ const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatE
       (effect.cancellation === undefined ||
         isActiveCombatant(state, effect.cancellation.actorCombatantId))
     );
+  if (effect.type === "deferred-move")
+    return (
+      isActiveCombatant(state, effect.cancellation.actorCombatantId) &&
+      effect.performOnTurn >= state.turnNumber
+    );
   if (effect.type === "modify-damage")
     return hasValidDamageModifierCombatantReferences(state, effect);
-  if (effect.type === "modify-stat")
-    return isActiveCombatant(state, effect.duration.ownerCombatantId);
+  if (
+    effect.type === "modify-stat" ||
+    effect.type === "modify-move-classification" ||
+    effect.type === "set-stat-comparison"
+  )
+    return (
+      effect.duration.type === "combat" ||
+      isActiveCombatant(state, effect.duration.ownerCombatantId)
+    );
   if (effect.type === "modify-roll-modifier" && effect.duration !== "combat")
     return isActiveCombatant(state, effect.duration.combatantId);
   if (effect.type === "set-roll-selection")
@@ -1152,6 +1246,7 @@ const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatE
     return !state.combatants[effect.targetCombatantId].moveIds.includes(effect.moveId);
   if (
     effect.type === "action-lock" ||
+    effect.type === "action-restriction" ||
     effect.type === "prevent-move-use" ||
     effect.type === "prevent-status" ||
     effect.type === "prevent-combat-result" ||
@@ -1160,9 +1255,12 @@ const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatE
     effect.type === "prevent-resource-modification" ||
     effect.type === "set-resolution-threshold"
   )
-    return hasValidActionLockCombatantReferences(state, effect);
+    return effect.type === "action-restriction"
+      ? effect.duration === undefined || isActiveCombatant(state, effect.duration.combatantId)
+      : hasValidActionLockCombatantReferences(state, effect);
   return true;
 };
+/* eslint-enable sonarjs/cognitive-complexity */
 
 const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
   const activeEffectIds = new Set<string>();
@@ -1198,7 +1296,76 @@ type AttackActionHistoryRecord = Extract<
   { readonly type: "basic-attack" | "use-move" }
 >;
 
-const validAttackActionResults = (action: AttackActionHistoryRecord) =>
+const validAttackResolutionSnapshot = (
+  snapshot: NonNullable<AttackActionHistoryRecord["resolutionSnapshot"]>,
+) =>
+  Number.isFinite(snapshot.paidKiCost) &&
+  snapshot.paidKiCost >= 0 &&
+  Number.isInteger(snapshot.attack.dice) &&
+  snapshot.attack.dice > 0 &&
+  Number.isInteger(snapshot.attack.sides) &&
+  snapshot.attack.sides > 0 &&
+  Number.isInteger(snapshot.blockedDice) &&
+  snapshot.blockedDice >= 0 &&
+  snapshot.blockedDice <= snapshot.attack.dice &&
+  Number.isFinite(snapshot.attackResultModifier) &&
+  Number.isFinite(snapshot.baseDamage) &&
+  typeof snapshot.damagePerHit === "boolean" &&
+  snapshot.naturalAttackRolls.length === snapshot.attack.dice &&
+  snapshot.naturalDefenseRolls.length === snapshot.attack.dice &&
+  snapshot.naturalAttackRolls.every(
+    (roll) => Number.isInteger(roll) && roll >= 1 && roll <= snapshot.attack.sides,
+  ) &&
+  snapshot.naturalDefenseRolls.every((roll, index) =>
+    index < snapshot.blockedDice
+      ? roll === undefined
+      : roll !== undefined && Number.isInteger(roll) && roll >= 1 && roll <= snapshot.defenseSides,
+  ) &&
+  snapshot.resultOverrides.length === snapshot.attack.dice &&
+  snapshot.numericResultOverrides.length === snapshot.attack.dice &&
+  snapshot.numericResultOverrides.every(
+    (override) =>
+      override === undefined ||
+      ((override.attack === undefined || Number.isFinite(override.attack)) &&
+        (override.defense === undefined || Number.isFinite(override.defense))),
+  ) &&
+  snapshot.criticalThresholds.every(
+    (threshold) =>
+      Number.isFinite(threshold.threshold) &&
+      (threshold.basis === "natural-result" || threshold.basis === "final-result"),
+  ) &&
+  snapshot.resolutionThresholds.every(
+    (threshold) =>
+      Number.isFinite(threshold.value) &&
+      (threshold.roll === "attack" || threshold.roll === "defense") &&
+      (threshold.comparison === "at-least" || threshold.comparison === "at-most") &&
+      (threshold.resultScope === "current-attack" || threshold.resultScope === "matching-die"),
+  ) &&
+  typeof snapshot.preventCritical === "boolean" &&
+  typeof snapshot.preventCounter === "boolean";
+
+const validResourceChangeHistory = (
+  record: ResourceChangeHistoryRecord,
+  actionTurnNumber: number,
+  state: FightState,
+) =>
+  combatantForId(state, record.affectedCombatantId) !== undefined &&
+  (record.sourceCombatantId === undefined ||
+    combatantForId(state, record.sourceCombatantId) !== undefined) &&
+  (record.sourceDefinitionId === undefined || record.sourceDefinitionId.length > 0) &&
+  (record.sourceEffectIndex === undefined ||
+    (Number.isInteger(record.sourceEffectIndex) && record.sourceEffectIndex >= 0)) &&
+  (record.resource === "hp" || record.resource === "ki") &&
+  (record.operation === "gain" || record.operation === "lose") &&
+  Number.isFinite(record.amount) &&
+  record.amount >= 0 &&
+  record.turnNumber === actionTurnNumber &&
+  (record.cause === undefined ||
+    record.cause === "non-damage-effect" ||
+    record.cause === "opponent-effect") &&
+  (record.sourceStyleId === undefined || record.sourceStyleId.length > 0);
+
+const validAttackActionResults = (action: AttackActionHistoryRecord, state: FightState) =>
   (action.outcome === undefined ||
     action.outcome === "successful" ||
     action.outcome === "stopped") &&
@@ -1206,7 +1373,12 @@ const validAttackActionResults = (action: AttackActionHistoryRecord) =>
   (action.counter === undefined || typeof action.counter === "boolean") &&
   (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
   (action.defenseRollResult === undefined || Number.isFinite(action.defenseRollResult)) &&
-  validDamageDealt(action.damageDealt);
+  validDamageDealt(action.damageDealt) &&
+  (action.resourceChanges ?? []).every((record) =>
+    validResourceChangeHistory(record, action.turnNumber, state),
+  ) &&
+  (action.resolutionSnapshot === undefined ||
+    validAttackResolutionSnapshot(action.resolutionSnapshot));
 
 const validateActionHistory = (state: FightState, violations: FightStateInvariantViolation[]) => {
   const decisionIds = new Set<string>();
@@ -1230,7 +1402,7 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
       if (action.type === "basic-attack") {
         return (
           combatantForId(state, action.targetCombatantId) !== undefined &&
-          validAttackActionResults(action)
+          validAttackActionResults(action, state)
         );
       }
       if (action.type === "use-move") {
@@ -1238,7 +1410,7 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
           combatantForId(state, action.targetCombatantId) !== undefined &&
           typeof action.moveId === "string" &&
           action.moveId.length > 0 &&
-          validAttackActionResults(action)
+          validAttackActionResults(action, state)
         );
       }
       if (action.type === "use-item") {
@@ -1274,7 +1446,7 @@ const validEffectAlternatives = (frame: AwaitingEffectChoiceAttackFrame) => {
   if (frame.effectAlternatives === undefined) return true;
   if (frame.effectAlternatives.length === 0) return false;
   if (!frame.effectAlternatives.every(validRequiredIndexList)) return false;
-  const firstAlternative = frame.effectAlternatives[0]!;
+  const firstAlternative = frame.effectAlternatives[0];
   return (
     firstAlternative.length === frame.effectIndices.length &&
     firstAlternative.every((index, position) => index === frame.effectIndices[position])
@@ -1294,13 +1466,15 @@ const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
     copiedDamageBonusPercent,
     copiedDamageOverride,
     copiedSuccessfulEffectsOnly,
+    copiedSourceResolution,
   } = attack;
   if (
     copiedFromMoveId === undefined &&
     copiedSourceMove === undefined &&
     copiedDamageBonusPercent === undefined &&
     copiedDamageOverride === undefined &&
-    copiedSuccessfulEffectsOnly === undefined
+    copiedSuccessfulEffectsOnly === undefined &&
+    copiedSourceResolution === undefined
   )
     return true;
   if (copiedFromMoveId === undefined) return false;
@@ -1310,6 +1484,11 @@ const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
   )
     return false;
   if (copiedSuccessfulEffectsOnly !== undefined && typeof copiedSuccessfulEffectsOnly !== "boolean")
+    return false;
+  if (
+    copiedSourceResolution !== undefined &&
+    !validAttackResolutionSnapshot(copiedSourceResolution)
+  )
     return false;
   return (
     copiedFromMoveId !== attack.moveId &&
@@ -1382,6 +1561,62 @@ const validAwaitingEffectChoiceSource = (frame: AwaitingEffectChoiceAttackFrame)
         frame.effectTrigger === "on-damage") &&
       MOVE_DEFINITIONS.some((move) => move.id === frame.effectSourceDefinitionId);
 
+const suppressionSelectionPhaseFor = (
+  state: Extract<FightState, { readonly status: "active" }>,
+  frame: Extract<
+    ResolutionFrame,
+    { readonly type: "attack"; readonly stage: "awaiting-effect-choice" }
+  >,
+) =>
+  frame.effectTrigger === "on-success" &&
+  frame.enabledEffectIndices.length > 0 &&
+  state.pendingDecision?.type === "select-move" &&
+  state.resolutionFrames.some(
+    (candidate) =>
+      candidate.type === "effect" &&
+      candidate.operation === "select-suppression-target" &&
+      candidate.decisionId === frame.decisionId,
+  );
+
+const validSelectedSuppressionMoves = (
+  frame: Extract<
+    ResolutionFrame,
+    { readonly type: "attack"; readonly stage: "awaiting-effect-choice" }
+  >,
+  suppressionSelectionPhase: boolean,
+) =>
+  frame.selectedSuppressionMoves === undefined ||
+  (suppressionSelectionPhase &&
+    new Set(frame.selectedSuppressionMoves.map((selection) => selection.effectIndex)).size ===
+      frame.selectedSuppressionMoves.length &&
+    frame.selectedSuppressionMoves.every(
+      (selection) =>
+        Number.isInteger(selection.effectIndex) &&
+        selection.effectIndex >= 0 &&
+        frame.enabledEffectIndices.includes(selection.effectIndex) &&
+        typeof selection.moveId === "string" &&
+        selection.moveId.length > 0,
+    ));
+
+const validAttackPendingBoundary = (
+  state: Extract<FightState, { readonly status: "active" }>,
+  frame: Extract<
+    ResolutionFrame,
+    { readonly type: "attack"; readonly stage: "awaiting-effect-choice" }
+  >,
+  choiceCombatantId: CombatantId,
+  suppressionSelectionPhase: boolean,
+) =>
+  pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
+  state.pendingDecision?.id === frame.pendingDecisionId &&
+  (suppressionSelectionPhase
+    ? state.pendingDecision.type === "select-move"
+    : state.pendingDecision?.type === "optional-effect") &&
+  state.pendingDecision.combatantId === choiceCombatantId &&
+  (suppressionSelectionPhase
+    ? frame.resolvedEffectIndices.length > 0 && frame.enabledEffectIndices.length > 0
+    : frame.resolvedEffectIndices.length === 0 && frame.enabledEffectIndices.length === 0);
+
 const validAttackResolutionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
@@ -1452,23 +1687,32 @@ const validAttackResolutionFrame = (
       frame.resultOverrides.every(
         (result) => result === undefined || result === "stopped" || result === "successful",
       ));
+  const preventedDefenseStatusesValid =
+    frame.defenseItem?.preventedStatuses === undefined ||
+    (frame.defenseItem.preventedStatuses.length > 0 &&
+      new Set(frame.defenseItem.preventedStatuses).size ===
+        frame.defenseItem.preventedStatuses.length &&
+      frame.defenseItem.preventedStatuses.every(
+        (statusId) => statusId === "break" || statusId === "sever",
+      ));
   const serializedReactionReferencesValid =
     (frame.block === undefined ||
       combatDecisionIdSchema.safeParse(frame.block.responseDecisionId).success) &&
     (frame.defenseItem === undefined ||
       (frame.defenseItem.itemId.length > 0 &&
-        combatDecisionIdSchema.safeParse(frame.defenseItem.responseDecisionId).success));
+        combatDecisionIdSchema.safeParse(frame.defenseItem.responseDecisionId).success &&
+        preventedDefenseStatusesValid));
   const choiceCombatantId =
     frame.effectTrigger === "on-damage" ? frame.targetCombatantId : frame.attackerId;
+  const suppressionSelectionPhase = suppressionSelectionPhaseFor(state, frame);
+  const selectedSuppressionMovesValid = validSelectedSuppressionMoves(
+    frame,
+    suppressionSelectionPhase,
+  );
   return (
-    pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
-    state.pendingDecision?.id === frame.pendingDecisionId &&
-    state.pendingDecision.type === "optional-effect" &&
-    state.pendingDecision.combatantId === choiceCombatantId &&
+    validAttackPendingBoundary(state, frame, choiceCombatantId, suppressionSelectionPhase) &&
     frame.attack.type === "move" &&
     validAwaitingEffectChoiceSource(frame) &&
-    frame.resolvedEffectIndices.length === 0 &&
-    frame.enabledEffectIndices.length === 0 &&
     validRequiredIndexList(frame.effectIndices) &&
     naturalRollsValid &&
     rollArraysValid &&
@@ -1478,7 +1722,8 @@ const validAttackResolutionFrame = (
     validIndexList(frame.priorResolvedOptionalEffectIndices) &&
     validIndexList(frame.enabledAfterDefenseEffectIndices) &&
     overrideValuesValid &&
-    serializedReactionReferencesValid
+    serializedReactionReferencesValid &&
+    selectedSuppressionMovesValid
   );
 };
 
@@ -1486,7 +1731,10 @@ const validActivationCostFrame = (
   activationCost: Extract<ResolutionFrame, { readonly type: "effect" }>["activationCost"],
 ) =>
   activationCost === undefined ||
-  (validNonnegativeNumber(activationCost.amount) &&
+  ((activationCost.resource === undefined ||
+    activationCost.resource === "hp" ||
+    activationCost.resource === "ki") &&
+    validNonnegativeNumber(activationCost.amount) &&
     (activationCost.minimum === undefined || validNonnegativeNumber(activationCost.minimum)));
 
 const validActivationCostOverrideFrame = (
@@ -1502,7 +1750,18 @@ const validEffectOperation = (
   operation === undefined ||
   operation === "activate" ||
   operation === "deactivate" ||
-  operation === "copy-move";
+  operation === "copy-move" ||
+  operation === "select-damage-target" ||
+  operation === "select-suppression-target" ||
+  operation === "select-move-removal";
+
+const validActivationFrameMetadata = (
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) =>
+  (frame.selectionKey === undefined ||
+    (typeof frame.selectionKey === "string" && frame.selectionKey.length > 0)) &&
+  (frame.activationAsIf === undefined || frame.activationAsIf === "power-up") &&
+  (frame.activationSelection === undefined || frame.activationSelection === "all");
 
 const validCopyMoveSelectionFrame = (
   state: FightState,
@@ -1555,6 +1814,96 @@ const validCopyMoveSelectionFrame = (
   );
 };
 
+const validSelectedDamageTargetFrame = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) => {
+  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
+  const effect = sourceMove?.effects?.[frame.effectIndex];
+  const target = state.combatants[frame.targetCombatantId];
+  const eligibleMoveIds = frame.eligibleMoveIds;
+  const selector = effect?.type === "modify-damage" ? effect.selector : undefined;
+  if (
+    effect?.type !== "modify-damage" ||
+    effect.trigger !== "on-success" ||
+    effect.target !== "opponent" ||
+    effect.operation !== "set" ||
+    effect.percent?.type !== "literal" ||
+    effect.percent.value !== 0 ||
+    selector === undefined ||
+    eligibleMoveIds === undefined
+  )
+    return false;
+  return eligibleMoveIds.every((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    return (
+      target.moveIds.includes(moveId) && move !== undefined && matchesMoveSelector(move, selector)
+    );
+  });
+};
+
+const validSelectedTemporaryMoveRemovalFrame = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) => {
+  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
+  const effect = sourceMove?.effects?.[frame.effectIndex];
+  const target = state.combatants[frame.targetCombatantId];
+  const eligibleMoveIds = frame.eligibleMoveIds;
+  if (
+    effect?.type !== "remove-move-from-combat" ||
+    effect.trigger !== "on-success" ||
+    effect.target !== "opponent" ||
+    effect.move !== "target" ||
+    effect.selector === undefined ||
+    effect.duration?.type !== "until-perfect-roll" ||
+    eligibleMoveIds === undefined
+  )
+    return false;
+  const selector = effect.selector;
+  return eligibleMoveIds.every((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    return (
+      target.moveIds.includes(moveId) && move !== undefined && matchesMoveSelector(move, selector)
+    );
+  });
+};
+
+const validSelectedSuppressionTargetFrame = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) => {
+  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
+  const effect = sourceMove?.effects?.[frame.effectIndex];
+  const target = state.combatants[frame.targetCombatantId];
+  const eligibleMoveIds = frame.eligibleMoveIds;
+  if (
+    effect?.type !== "suppress" ||
+    effect.trigger !== "on-success" ||
+    (effect.target !== "self" && effect.target !== "opponent") ||
+    effect.selector === undefined ||
+    effect.aspects?.length !== 1 ||
+    effect.aspects[0] !== "successful-effects" ||
+    effect.duration?.type !== "combat" ||
+    effect.selectionLimit !== 1 ||
+    effect.scope !== undefined ||
+    effect.conditions !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined ||
+    eligibleMoveIds === undefined
+  )
+    return false;
+  const selector = effect.selector;
+  return eligibleMoveIds.every((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    return (
+      target.moveIds.includes(moveId) && move !== undefined && matchesMoveSelector(move, selector)
+    );
+  });
+};
+
 const validEffectSelectionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
@@ -1572,24 +1921,43 @@ const validEffectSelectionFrame = (
   if (frame.optional !== undefined && typeof frame.optional !== "boolean") return false;
   if (frame.reactivationOnly !== undefined && typeof frame.reactivationOnly !== "boolean")
     return false;
+  if (!validActivationFrameMetadata(frame)) return false;
   if (!validEffectOperation(frame.operation)) return false;
   if (frame.eligibleMoveIds === undefined || frame.eligibleMoveIds.length === 0) return false;
   if (new Set(frame.eligibleMoveIds).size !== frame.eligibleMoveIds.length) return false;
+  return validEffectSelectionOperation(state, frame);
+};
+
+const validEffectSelectionOperation = (
+  state: FightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+) => {
+  const eligibleMoveIds = frame.eligibleMoveIds;
+  if (eligibleMoveIds === undefined) return false;
   if (frame.operation === "activate") {
     const target = state.combatants[frame.targetCombatantId];
-    return frame.eligibleMoveIds.every((moveId) => {
+    return eligibleMoveIds.every((moveId) => {
       const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
       return (
         target.moveIds.includes(moveId) &&
-        move?.category === "skill" &&
-        move.effectClauses.some((clause) => clause.text === "Constant.")
+        ((move?.category === "skill" &&
+          move.effectClauses.some((clause) => clause.text === "Constant.")) ||
+          (frame.activationAsIf === "power-up" &&
+            move?.category === "mastery" &&
+            move.effects?.some((effect) => effect.trigger === "on-power-up") === true))
       );
     });
   }
   if (frame.operation === "copy-move") {
     return validCopyMoveSelectionFrame(state, frame);
   }
-  return frame.eligibleMoveIds.every((moveId) =>
+  if (frame.operation === "select-damage-target")
+    return validSelectedDamageTargetFrame(state, frame);
+  if (frame.operation === "select-suppression-target")
+    return validSelectedSuppressionTargetFrame(state, frame);
+  if (frame.operation === "select-move-removal")
+    return validSelectedTemporaryMoveRemovalFrame(state, frame);
+  return eligibleMoveIds.every((moveId) =>
     state.activeEffects.some(
       (effect) =>
         effect.type === "active-constant" &&
@@ -1602,62 +1970,131 @@ const validEffectSelectionFrame = (
 const validEffectResolutionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
-) =>
-  isActiveCombatant(state, frame.sourceCombatantId) &&
-  isActiveCombatant(state, frame.targetCombatantId) &&
-  typeof frame.sourceDefinitionId === "string" &&
-  frame.sourceDefinitionId.length > 0 &&
-  validCounter(frame.effectIndex, 0) &&
-  validEffectSelectionFrame(state, frame);
+) => {
+  if (frame.operation === "defer-move")
+    return (
+      state.status === "active" &&
+      isActiveCombatant(state, frame.sourceCombatantId) &&
+      isActiveCombatant(state, frame.targetCombatantId) &&
+      frame.trigger === "action" &&
+      frame.pendingDecisionId !== undefined &&
+      state.pendingDecision?.id === frame.pendingDecisionId &&
+      state.pendingDecision.type === "optional-effect" &&
+      frame.sourceDefinitionId.length > 0 &&
+      frame.effectIndex >= 0 &&
+      frame.optional === true
+    );
+  if (frame.operation === "activate-extra-action") {
+    const allowance = state.activeEffects.find(
+      (effect) => effect.type === "extra-action" && effect.id === frame.activeEffectId,
+    );
+    return (
+      state.status === "active" &&
+      (frame.trigger === "upkeep" || frame.trigger === "on-success") &&
+      isActiveCombatant(state, frame.sourceCombatantId) &&
+      isActiveCombatant(state, frame.targetCombatantId) &&
+      frame.pendingDecisionId !== undefined &&
+      state.pendingDecision?.id === frame.pendingDecisionId &&
+      state.pendingDecision.type === "optional-effect" &&
+      frame.optional === true &&
+      allowance?.type === "extra-action" &&
+      allowance.sourceDefinitionId === frame.sourceDefinitionId &&
+      allowance.sourceEffectIndex === frame.effectIndex &&
+      allowance.activationCost !== undefined
+    );
+  }
+  return (
+    isActiveCombatant(state, frame.sourceCombatantId) &&
+    isActiveCombatant(state, frame.targetCombatantId) &&
+    typeof frame.sourceDefinitionId === "string" &&
+    frame.sourceDefinitionId.length > 0 &&
+    validCounter(frame.effectIndex, 0) &&
+    (frame.resolved === undefined ||
+      (frame.resolved === true &&
+        frame.pendingDecisionId === undefined &&
+        (frame.trigger === "upkeep" || frame.trigger === "end"))) &&
+    validEffectSelectionFrame(state, frame)
+  );
+};
 
 const validEffectChoiceFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect-choice" }>,
 ) => {
-  const storedRollsValid =
-    frame.effectTrigger === "on-power-up"
-      ? frame.storedRolls === undefined
-      : frame.storedRolls !== undefined &&
-        frame.storedRolls.length > 0 &&
-        frame.storedRolls.every((storedRoll) => {
-          const sourceMove = MOVE_DEFINITIONS.find(
-            (candidate) => candidate.id === storedRoll.sourceDefinitionId,
-          );
-          const sourceEffect = sourceMove?.effects?.find(
-            (effect) =>
-              effect.type === "roll-and-store" && effect.storageKey === storedRoll.storageKey,
-          );
-          return (
-            state.combatants[frame.actorId].moveIds.includes(storedRoll.sourceDefinitionId) &&
-            sourceEffect?.type === "roll-and-store" &&
-            sourceEffect.target === "self" &&
-            sourceEffect.dice === storedRoll.naturalResults.length &&
-            storedRoll.sides === sourceEffect.sides &&
-            storedRoll.naturalResults.every(
-              (result) => Number.isInteger(result) && result >= 1 && result <= storedRoll.sides,
-            ) &&
-            Number.isInteger(storedRoll.storedOnTurn) &&
-            storedRoll.storedOnTurn >= 1 &&
-            storedRoll.storedOnTurn <= state.turnNumber
-          );
-        });
+  const upkeepChoice =
+    frame.effectTrigger === "upkeep-phase" || frame.effectTrigger === "start-combat";
+  let storedRollsValid: boolean;
+  if (
+    frame.effectTrigger === "on-power-up" ||
+    frame.effectTrigger === "on-move-use" ||
+    upkeepChoice
+  ) {
+    storedRollsValid = frame.storedRolls === undefined;
+  } else {
+    storedRollsValid =
+      frame.storedRolls !== undefined &&
+      frame.storedRolls.length > 0 &&
+      frame.storedRolls.every((storedRoll) => {
+        const sourceMove = MOVE_DEFINITIONS.find(
+          (candidate) => candidate.id === storedRoll.sourceDefinitionId,
+        );
+        const sourceEffect = sourceMove?.effects?.find(
+          (effect) =>
+            effect.type === "roll-and-store" && effect.storageKey === storedRoll.storageKey,
+        );
+        return (
+          state.combatants[frame.actorId].moveIds.includes(storedRoll.sourceDefinitionId) &&
+          sourceEffect?.type === "roll-and-store" &&
+          sourceEffect.target === "self" &&
+          sourceEffect.dice === storedRoll.naturalResults.length &&
+          storedRoll.sides === sourceEffect.sides &&
+          storedRoll.naturalResults.every(
+            (result) => Number.isInteger(result) && result >= 1 && result <= storedRoll.sides,
+          ) &&
+          Number.isInteger(storedRoll.storedOnTurn) &&
+          storedRoll.storedOnTurn >= 1 &&
+          storedRoll.storedOnTurn <= state.turnNumber
+        );
+      });
+  }
+  const pendingCombatantId =
+    frame.effectTrigger === "on-move-use" ? frame.sourceCombatantId : frame.actorId;
   return (
     state.status === "active" &&
     combatDecisionIdSchema.safeParse(frame.decisionId).success &&
     isActiveCombatant(state, frame.actorId) &&
     isActiveCombatant(state, frame.targetCombatantId) &&
     frame.actorId !== frame.targetCombatantId &&
-    frame.returnPhase === "end" &&
-    (frame.effectTrigger === "on-power-up" || frame.effectTrigger === "on-roll-result") &&
+    (upkeepChoice ? frame.returnPhase === "upkeep" : frame.returnPhase === "end") &&
+    (upkeepChoice ||
+      frame.effectTrigger === "on-power-up" ||
+      frame.effectTrigger === "on-roll-result" ||
+      (frame.effectTrigger === "on-move-use" &&
+        frame.sourceCombatantId !== undefined &&
+        isActiveCombatant(state, frame.sourceCombatantId) &&
+        state.activeEffects.some(
+          (effect) =>
+            effect.type === "active-constant" &&
+            effect.sourceCombatantId === frame.sourceCombatantId &&
+            effect.sourceDefinitionId === frame.sourceDefinitionId,
+        ) &&
+        frame.actionMoveId !== undefined &&
+        state.combatants[frame.actorId].moveIds.includes(frame.actionMoveId))) &&
     storedRollsValid &&
     frame.sourceDefinitionId.length > 0 &&
     frame.effectIndices.length > 0 &&
     frame.effectIndices.every((index) => Number.isInteger(index) && index >= 0) &&
     new Set(frame.effectIndices).size === frame.effectIndices.length &&
-    pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
-    state.pendingDecision?.id === frame.pendingDecisionId &&
-    state.pendingDecision.type === "optional-effect" &&
-    state.pendingDecision.combatantId === frame.actorId
+    (frame.resolved === true
+      ? frame.pendingDecisionId === undefined &&
+        (frame.selectedEffectIndices === undefined ||
+          frame.selectedEffectIndices.every((index) => frame.effectIndices.includes(index)))
+      : pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
+        state.pendingDecision !== undefined &&
+        state.pendingDecision?.id === frame.pendingDecisionId &&
+        state.pendingDecision.type === "optional-effect" &&
+        state.pendingDecision.combatantId === pendingCombatantId) &&
+    (!upkeepChoice || frame.sourceCombatantId === frame.actorId)
   );
 };
 
@@ -1737,6 +2174,27 @@ const validateFightMetadata = (
   }
 };
 
+const selectableMoveFrameAllows = (
+  state: ActiveFightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+  moveId: string,
+) => {
+  if (frame.operation === "activate" || frame.operation === "copy-move")
+    return state.combatants[frame.targetCombatantId].moveIds.includes(moveId);
+  if (
+    frame.operation === "select-damage-target" ||
+    frame.operation === "select-suppression-target" ||
+    frame.operation === "select-move-removal"
+  )
+    return state.combatants[frame.targetCombatantId].moveIds.includes(moveId);
+  return state.activeEffects.some(
+    (effect) =>
+      effect.type === "active-constant" &&
+      effect.sourceCombatantId === frame.targetCombatantId &&
+      effect.sourceDefinitionId === moveId,
+  );
+};
+
 const validPendingDecision = (state: ActiveFightState) => {
   const { pendingDecision } = state;
   if (pendingDecision === undefined) return true;
@@ -1746,14 +2204,7 @@ const validPendingDecision = (state: ActiveFightState) => {
         frame.type === "effect" &&
         frame.pendingDecisionId === pendingDecision.id &&
         frame.eligibleMoveIds?.includes(moveId) === true &&
-        (frame.operation === "activate" || frame.operation === "copy-move"
-          ? state.combatants[frame.targetCombatantId].moveIds.includes(moveId)
-          : state.activeEffects.some(
-              (effect) =>
-                effect.type === "active-constant" &&
-                effect.sourceCombatantId === frame.targetCombatantId &&
-                effect.sourceDefinitionId === moveId,
-            )),
+        selectableMoveFrameAllows(state, frame, moveId),
     );
   const validOptions = pendingDecision.options.every(
     (option) =>
@@ -1836,7 +2287,7 @@ const validPostDefenseNaturalRolls = (frame: PostDefenseReactionFrame | undefine
 
 const validPostDefenseReactionMatch = (
   frames: readonly PostDefenseReactionFrame[],
-  pending: { readonly id: string; readonly combatantId: CombatantId } | undefined,
+  pending: { readonly id: PendingDecisionId; readonly combatantId: CombatantId } | undefined,
 ) => {
   const frame = frames.at(0);
   return (

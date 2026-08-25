@@ -576,7 +576,7 @@ describe("validateFightState", () => {
       "impulsive-selected-advanced-attack": {
         sourceDefinitionId: "move-akaikaru-impulsive",
         selectionKey: "impulsive-selected-advanced-attack",
-        moveId: "move-not-owned" as never,
+        moveId: "move-not-owned",
         selectedOnTurn: 1,
       },
     });

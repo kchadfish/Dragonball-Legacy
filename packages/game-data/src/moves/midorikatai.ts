@@ -1361,6 +1361,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           category: "advanced-attack",
           sourceText: "your opponent's attacks",
         },
+        aspects: ["all-effects"],
         duration: {
           type: "turns",
           turns: { type: "literal", value: 3 },

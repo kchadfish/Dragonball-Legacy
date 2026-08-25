@@ -237,7 +237,11 @@ describe("FREESTYLE_MOVES", () => {
 
   it("models Showdown, Aggressive Beatdown, and Suppressive Fire's bounded effects", () => {
     expect(FREESTYLE_MOVES.find((move) => move.name === "Showdown")?.effects).toEqual([
-      expect.objectContaining({ type: "suppress", target: "participants" }),
+      expect.objectContaining({
+        type: "suppress",
+        target: "participants",
+        aspects: ["all-effects"],
+      }),
     ]);
     expect(FREESTYLE_MOVES.find((move) => move.name === "Aggressive Beatdown")?.effects).toEqual([
       expect.objectContaining({ type: "apply-status", statusId: "stun" }),

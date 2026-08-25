@@ -921,6 +921,8 @@ export interface DelayedDeactivateEffect extends BaseEffectDefinition {
 export interface DeferMoveEffect extends BaseEffectDefinition {
   readonly type: "defer-move";
   readonly move: "source";
+  /** Whether the acting combatant may decline the deferred branch. */
+  readonly optional?: boolean;
   readonly performAfterTurns: number;
   readonly damage?: { readonly operation: "set"; readonly percent: NumericExpression };
   readonly cancellation: {

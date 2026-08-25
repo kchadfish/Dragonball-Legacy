@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ActiveFightState, FightState } from "./contracts.js";
 import { advanceFight, createFight, submitCombatDecision } from "./index.js";
 import {
+  activeEffectIdSchema,
   combatDecisionIdSchema,
   combatantIdSchema,
   combatEventIdSchema,
@@ -121,6 +122,235 @@ const actionStateWithRedirectedEnergy = () => {
 };
 
 describe("constant-skill deactivation decisions", () => {
+  it("offers Relentless at the end boundary, charges its KI cost, and deactivates it publicly", () => {
+    const deps = dependencies();
+    const created = value(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-relentless"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        deps,
+      ),
+    );
+    const action = active(value(advanceFight(created.state, deps)).state);
+    const prepared = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [attackerId]: {
+          ...action.combatants[attackerId],
+          ki: { ...action.combatants[attackerId].ki, current: 5 },
+        },
+      },
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:relentless"),
+          type: "active-constant" as const,
+          sourceCombatantId: attackerId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-akaikaru-relentless" as const,
+          activatedOnTurn: action.turnNumber,
+          duration: "combat" as const,
+          lifecycle: "active" as const,
+        },
+      ],
+    } satisfies ActiveFightState;
+    const end = active(
+      value(
+        submitCombatDecision(
+          prepared,
+          {
+            type: "pass",
+            id: combatDecisionIdSchema.parse("decision:relentless-pass"),
+            actorId: attackerId,
+            expectedStateVersion: prepared.version,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    const pending = active(value(advanceFight(end, deps)).state);
+    expect(pending.pendingDecision).toMatchObject({
+      type: "select-move",
+      combatantId: attackerId,
+      options: expect.arrayContaining([
+        expect.objectContaining({
+          type: "select-move",
+          moveId: "move-akaikaru-relentless",
+        }),
+        { id: "decline", type: "decline" },
+      ]),
+    });
+    const option = pending.pendingDecision!.options.find(
+      (candidate) => candidate.type === "select-move",
+    );
+    if (option === undefined) throw new Error("Expected a Relentless selection option.");
+    const resolved = value(
+      submitCombatDecision(
+        pending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:relentless-deactivate"),
+          actorId: attackerId,
+          expectedStateVersion: pending.version,
+          pendingDecisionId: pending.pendingDecision!.id,
+          optionId: option.id,
+        },
+        deps,
+      ),
+    );
+    expect(active(resolved.state).pendingDecision).toBeUndefined();
+    expect(active(resolved.state).combatants[attackerId].ki.current).toBe(4);
+    expect(active(resolved.state).activeEffects).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-akaikaru-relentless",
+        lifecycle: "deactivated",
+      }),
+    );
+    expect(resolved.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "ki-changed", amount: -1 }),
+        expect.objectContaining({ type: "effect-deactivated" }),
+      ]),
+    );
+    expect(validateFightState(active(resolved.state))).toEqual([]);
+  });
+
+  it("offers Impulsive at the owner's next upkeep and resumes roll storage after deactivation", () => {
+    const deps = createTestCombatDependencies([2, 2], new Date("2026-08-23T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:impulsive-deactivation")],
+      combatantIds: [attackerId, defenderId],
+      activeEffectIds: [activeEffectIdSchema.parse("active-effect:impulsive")],
+      pendingDecisionIds: [
+        pendingDecisionIdSchema.parse("pending-decision:impulsive-deactivation"),
+      ],
+      resolutionFrameIds: [
+        resolutionFrameIdSchema.parse("resolution-frame:impulsive-deactivation"),
+      ],
+      eventIds: Array.from({ length: 40 }, (_, index) =>
+        combatEventIdSchema.parse(`event:impulsive-deactivation-${index}`),
+      ),
+    });
+    const created = value(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 5, dexterityBonus: 0 },
+              moveIds: [
+                "move-akaikaru-impulsive",
+                "move-akaikaru-back-brain-kick",
+                "move-akaikaru-backflip-kick",
+              ],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        deps,
+      ),
+    );
+    const firstAction = active(value(advanceFight(created.state, deps)).state);
+    const prepared = {
+      ...firstAction,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:impulsive"),
+          type: "active-constant" as const,
+          sourceCombatantId: attackerId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-akaikaru-impulsive" as const,
+          activatedOnTurn: firstAction.turnNumber,
+          duration: "combat" as const,
+          lifecycle: "active" as const,
+        },
+      ],
+    } satisfies ActiveFightState;
+    const firstEnd = active(
+      value(
+        submitCombatDecision(
+          prepared,
+          {
+            type: "pass",
+            id: combatDecisionIdSchema.parse("decision:impulsive-pass-one"),
+            actorId: attackerId,
+            expectedStateVersion: prepared.version,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    const defenderUpkeep = active(value(advanceFight(firstEnd, deps)).state);
+    const defenderAction = active(value(advanceFight(defenderUpkeep, deps)).state);
+    const secondEnd = active(
+      value(
+        submitCombatDecision(
+          defenderAction,
+          {
+            type: "pass",
+            id: combatDecisionIdSchema.parse("decision:impulsive-pass-two"),
+            actorId: defenderId,
+            expectedStateVersion: defenderAction.version,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    const attackerUpkeep = active(value(advanceFight(secondEnd, deps)).state);
+    const pending = active(value(advanceFight(attackerUpkeep, deps)).state);
+    expect(pending.pendingDecision).toMatchObject({ type: "select-move", combatantId: attackerId });
+    const option = pending.pendingDecision!.options.find(
+      (candidate) => candidate.type === "select-move",
+    );
+    if (option === undefined) throw new Error("Expected an Impulsive selection option.");
+    const deactivated = active(
+      value(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:impulsive-deactivate"),
+            actorId: attackerId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: option.id,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    expect(deactivated.phase).toBe("upkeep");
+    expect(deactivated.activeEffects).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-akaikaru-impulsive",
+        lifecycle: "deactivated",
+      }),
+    );
+    const resumed = active(value(advanceFight(deactivated, deps)).state);
+    expect(resumed.phase).toBe("action");
+    expect(resumed.combatants[attackerId].storedRolls).toEqual(
+      expect.objectContaining({ "impulsive-advanced-attack-index": expect.anything() }),
+    );
+    expect(validateFightState(resumed)).toEqual([]);
+  });
+
   it("continues normally when the declared selector has no active constant target", () => {
     const { deps, state } = actionStateWithConstants();
     const inactive = { ...state, activeEffects: [] } satisfies ActiveFightState;

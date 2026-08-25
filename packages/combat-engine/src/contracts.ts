@@ -51,6 +51,7 @@ export interface ActiveStatus {
   readonly statusId: StatusId;
   readonly sourceCombatantId: CombatantId;
   readonly sourceDefinitionId: string;
+  readonly selector?: MoveSelectorCondition;
   readonly stacks: number;
   readonly duration:
     | { readonly type: "combat" }
@@ -58,6 +59,15 @@ export interface ActiveStatus {
         readonly type: "turns";
         readonly ownerCombatantId: CombatantId;
         readonly remaining: number;
+      }
+    | {
+        readonly type: "until-turn-start-roll-threshold";
+        readonly combatantId: CombatantId;
+        readonly dice: number;
+        readonly sides: number;
+        readonly comparison: "at-least" | "at-most";
+        readonly value: number;
+        readonly remainingIgnoredChecks: number;
       }
     | { readonly type: "uses"; readonly remaining: number };
 }
@@ -92,6 +102,8 @@ export interface StoredMoveSelection {
 
 export interface CombatantState {
   readonly id: CombatantId;
+  /** The declared martial-arts style used by durable Freestyle classifications. */
+  readonly declaredStyleId?: string;
   readonly hitPoints: CombatResources;
   readonly ki: CombatResources;
   readonly stats: CombatantStats;
@@ -107,6 +119,8 @@ export interface CombatantState {
   readonly slotCapacityModifications?: readonly SlotCapacityModification[];
   readonly itemIds?: readonly ItemId[];
   readonly transformationIds?: readonly TransformationId[];
+  /** Number of pending transformations that do not consume the action phase. */
+  readonly freeTransformationActions?: number;
   readonly moveUses: Readonly<Record<MoveId, number>>;
   /** Combat-local counts for immediate declarative effects with their own use limits. */
   readonly effectUseCounts?: Readonly<Record<string, number>>;
@@ -136,6 +150,7 @@ const createFightCombatantInputSchema = z
           .max(GLOBAL_RULES.combat.maximumDexterityBonus),
       })
       .strict(),
+    declaredStyleId: z.string().min(1).optional(),
     specializationPoints: z.number().nonnegative().optional(),
     level: z.number().nonnegative().optional(),
     planetHasDragonBalls: z.boolean().optional(),
@@ -206,6 +221,8 @@ export interface PendingDecisionOption {
   readonly sourceMoveSnapshot?: MoveDefinition;
   /** Exact damage retained from the selected completed source action. */
   readonly sourceDamageDealt?: number;
+  /** Exact source-side attack resolution retained from a prior-action copy. */
+  readonly sourceResolutionSnapshot?: AttackResolutionSnapshot;
   /** Resolved counter permission selected at the post-defense boundary. */
   readonly counterAction?: CounterActionReference;
   readonly effectIndices?: readonly number[];
@@ -369,6 +386,7 @@ export interface ActiveResolutionThresholdEffect {
         readonly comparison: "at-least" | "at-most";
         readonly value: number;
       };
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
 type ActiveNextActionModifier =
@@ -410,9 +428,25 @@ type ActiveNextActionModifier =
       readonly amount: number;
     }
   | {
+      readonly type: "cost-modifier";
+      readonly multiplier: number;
+    }
+  | {
+      readonly type: "resource-modifier";
+      readonly resource: "hp" | "ki";
+      readonly operation: "gain" | "lose";
+      readonly multiplier: number;
+      readonly cap?: { readonly type: "maximum"; readonly value: number };
+    }
+  | {
       readonly type: "cost";
       readonly operation: "add" | "set";
       readonly amount: number;
+      /** A deferred amount resolved from the next qualifying attack in history. */
+      readonly amountExpression?: Extract<
+        NumericExpression,
+        { readonly type: "next-move-ki-cost" }
+      >;
       readonly minimum?: number;
       readonly maximum?: number;
     }
@@ -445,6 +479,8 @@ export interface ActiveNextActionModifierEffect {
   readonly stacking?: "allow" | "prevent";
   /** Following-action modifiers become eligible only after this turn. */
   readonly availableFromTurn?: number;
+  /** Action-history boundary retained for deferred numeric expressions. */
+  readonly createdAfterActionCount?: number;
   readonly modifier: ActiveNextActionModifier;
 }
 
@@ -464,6 +500,45 @@ export interface ActiveStatModifierEffect {
     readonly ownerCombatantId: CombatantId;
     readonly remaining: number;
   };
+}
+
+/** A temporary declarative override for a stat comparison condition. */
+export interface ActiveStatComparisonEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "set-stat-comparison";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly leftCombatantId: CombatantId;
+  readonly rightCombatantId: CombatantId;
+  readonly stat: "dexterity";
+  readonly comparison: "higher-than";
+  readonly duration: {
+    readonly type: "turns";
+    readonly ownerCombatantId: CombatantId;
+    readonly remaining: number;
+  };
+}
+
+/** A durable classification applied to matching future moves. */
+export interface ActiveMoveClassificationEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "modify-move-classification";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly selector: MoveSelectorCondition;
+  readonly classification:
+    | { readonly type: "replace-style"; readonly style: "declared-style" }
+    | { readonly type: "replace-style"; readonly style: "style-id"; readonly styleId: string };
+  readonly duration:
+    | {
+        readonly type: "turns";
+        readonly ownerCombatantId: CombatantId;
+        readonly remaining: number;
+      }
+    | { readonly type: "combat" };
 }
 
 /** A durable advantage/disadvantage selection for the next matching roll. */
@@ -492,7 +567,10 @@ export interface ActiveSuppressionEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex?: number;
   readonly selector?: MoveSelectorCondition;
+  /** When present, the declarative selector was resolved to one combat-local move. */
+  readonly selectedMoveId?: MoveId;
   readonly aspects: readonly ("all-effects" | "successful-effects")[];
   readonly duration:
     | { readonly type: "combat" }
@@ -514,6 +592,7 @@ export interface ActiveSuppressionEffect {
         readonly comparison: "at-least" | "at-most";
         readonly value: number;
       };
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
 /** A selector-scoped damage modifier with an explicit combat lifecycle. */
@@ -525,6 +604,8 @@ export interface ActiveDamageModifierEffect {
   readonly sourceDefinitionId: MoveId;
   readonly sourceEffectIndex?: number;
   readonly selector?: MoveSelectorCondition;
+  /** When present, the selector was resolved to this immutable combat-local move choice. */
+  readonly selectedMoveId?: MoveId;
   readonly operation: "add" | "multiply" | "set";
   /** Power-percent is resolved to damage points; damage-percent scales resolved damage. */
   readonly basis: "power-percent" | "damage-percent";
@@ -581,6 +662,15 @@ export interface ActiveActionRestrictionEffect {
   readonly blockedCategories?: readonly ("basic-attack" | "advanced-attack" | "signature")[];
   readonly availableFromTurn: number;
   readonly remainingTurns: number;
+  readonly duration?: {
+    readonly type: "until-turn-start-roll-threshold";
+    readonly combatantId: CombatantId;
+    readonly dice: number;
+    readonly sides: number;
+    readonly comparison: "at-least" | "at-most";
+    readonly value: number;
+    readonly remainingIgnoredChecks: number;
+  };
 }
 
 /** A serialized, target-local prohibition created by a converted LOCK effect. */
@@ -711,6 +801,8 @@ export interface ActiveResourceModificationPreventionEffect {
   readonly operation: "gain" | "lose" | "set";
   readonly sourceActor?: "opponent";
   readonly exceptAction?: "power-up";
+  /** First turn on which a next-turn scoped prevention can affect changes. */
+  readonly availableFromTurn?: number;
   readonly duration: ActiveActionLockEffect["duration"];
 }
 
@@ -725,6 +817,8 @@ export interface ActiveConstantEffect {
   readonly duration: "combat";
   /** The literal KI cost paid when this CONSTANT Skill was activated. */
   readonly paidActivationCost?: number;
+  /** Selection identity retained for effects that refer to this activation group. */
+  readonly selectionKey?: string;
   /** Omitted legacy values are active; deactivation remains durable for reactivation effects. */
   readonly lifecycle?: "active" | "deactivated";
   readonly deactivatedOnTurn?: number;
@@ -792,6 +886,12 @@ export interface ActiveExtraActionEffect {
   readonly remainingActions: number;
   readonly availableFromTurn: number;
   readonly expiresAfterTurn: number;
+  /** A future upkeep allowance that has not yet been paid for or activated. */
+  readonly activationCost?: {
+    readonly resource: "ki";
+    readonly amount: number;
+    readonly minimum?: number;
+  };
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
@@ -837,6 +937,27 @@ export interface ActiveScheduledResourceEffect {
   };
 }
 
+/** A move declaration retained until its owner's next eligible turn. */
+export interface ActiveDeferredMoveEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "deferred-move";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly declarationDecisionId: CombatDecisionId;
+  readonly performOnTurn: number;
+  readonly damageOverridePercent?: number;
+  readonly cancellation: {
+    readonly actorCombatantId: CombatantId;
+    readonly result: "successful";
+  };
+  readonly onCancellation?: {
+    readonly affectedType: "attack";
+    readonly duration: "combat";
+  };
+}
+
 /** A move removed from a combatant's current combat-local moveset. */
 export interface ActiveMoveRemovalEffect {
   readonly id: ActiveEffectId;
@@ -847,7 +968,8 @@ export interface ActiveMoveRemovalEffect {
   readonly sourceEffectIndex: number;
   readonly moveId: MoveId;
   readonly removedFromIndex: number;
-  readonly duration: "combat";
+  readonly duration:
+    "combat" | { readonly type: "until-perfect-roll"; readonly combatantId: CombatantId };
 }
 
 export type ActiveCombatEffect =
@@ -860,6 +982,8 @@ export type ActiveCombatEffect =
   | ActiveNextActionModifierEffect
   | ActiveDamageModifierEffect
   | ActiveStatModifierEffect
+  | ActiveStatComparisonEffect
+  | ActiveMoveClassificationEffect
   | ActiveSuppressionEffect
   | ActiveItemDamageModifierEffect
   | ActiveForcedActionEffect
@@ -875,7 +999,26 @@ export type ActiveCombatEffect =
   | ActiveFloatingEffect
   | ActiveExtraActionEffect
   | ActiveScheduledResourceEffect
+  | ActiveDeferredMoveEffect
   | ActiveMoveRemovalEffect;
+
+/**
+ * An effective resource change retained with the action that caused it.
+ * Absolute combatant identity keeps historical conditions deterministic when
+ * the same action is later evaluated from the other combatant's perspective.
+ */
+export interface ResourceChangeHistoryRecord {
+  readonly affectedCombatantId: CombatantId;
+  readonly resource: "hp" | "ki";
+  readonly operation: "gain" | "lose";
+  readonly amount: number;
+  readonly turnNumber: number;
+  readonly sourceCombatantId?: CombatantId;
+  readonly sourceDefinitionId?: MoveId;
+  readonly sourceEffectIndex?: number;
+  readonly cause?: "non-damage-effect" | "opponent-effect";
+  readonly sourceStyleId?: string;
+}
 
 /**
  * A completed player action, retained as minimal rule-relevant history rather
@@ -912,6 +1055,9 @@ export type CombatActionRecord =
       readonly defenseRollResult?: number;
       /** Damage dealt by the completed attack, when it resolved damage. */
       readonly damageDealt?: number;
+      /** Immutable source-resolution data available to exact prior-attack copies. */
+      readonly resolutionSnapshot?: AttackResolutionSnapshot;
+      readonly resourceChanges?: readonly ResourceChangeHistoryRecord[];
       readonly turnNumber: number;
       readonly phase: "action" | "counter";
     }
@@ -930,6 +1076,9 @@ export type CombatActionRecord =
       readonly defenseRollResult?: number;
       /** Damage dealt by the completed attack, when it resolved damage. */
       readonly damageDealt?: number;
+      /** Immutable source-resolution data available to exact prior-attack copies. */
+      readonly resolutionSnapshot?: AttackResolutionSnapshot;
+      readonly resourceChanges?: readonly ResourceChangeHistoryRecord[];
       readonly turnNumber: number;
       readonly phase: "action" | "counter";
     }
@@ -959,6 +1108,44 @@ export interface CopiedMoveAttackReference {
   readonly copiedDamageOverride?: number;
   /** Whether only the source move's SUCCESSFUL clauses were copied. */
   readonly copiedSuccessfulEffectsOnly?: boolean;
+  /** Immutable source attack-resolution snapshot for exact prior-attack copies. */
+  readonly copiedSourceResolution?: AttackResolutionSnapshot;
+}
+
+/**
+ * Deterministic source-side attack data retained for a copy effect that
+ * explicitly repeats a completed attack's cost, dice, and modifiers.
+ */
+export interface AttackResolutionSnapshot {
+  readonly paidKiCost: number;
+  readonly attack: { readonly dice: number; readonly sides: number };
+  readonly blockedDice: number;
+  readonly attackResultModifier: number;
+  readonly defenseSides: number;
+  readonly defenseResultModifier: number;
+  readonly baseDamage: number;
+  readonly damagePerHit: boolean;
+  readonly naturalAttackRolls: readonly number[];
+  readonly naturalDefenseRolls: readonly (number | undefined)[];
+  readonly criticalThresholds: readonly {
+    readonly threshold: number;
+    readonly basis: "natural-result" | "final-result";
+  }[];
+  readonly resolutionThresholds: readonly {
+    readonly outcome: "successful" | "stopped";
+    readonly roll: "attack" | "defense";
+    readonly comparison: "at-least" | "at-most";
+    readonly value: number;
+    readonly relativeTo?: "attack-roll" | "defense-roll";
+    readonly relativeOperation?: "add" | "multiply";
+    readonly resultScope: "current-attack" | "matching-die";
+  }[];
+  readonly resultOverrides: readonly ("stopped" | "successful" | undefined)[];
+  readonly numericResultOverrides: readonly (
+    { readonly attack?: number; readonly defense?: number } | undefined
+  )[];
+  readonly preventCritical: boolean;
+  readonly preventCounter: boolean;
 }
 
 /** Serialized counter permission that must survive the transition into COUNTER. */
@@ -1014,11 +1201,17 @@ export type ResolutionFrame =
       readonly costEffectSourceDefinitionId?: MoveId;
       readonly costEffectIndices?: readonly number[];
       readonly costEffectTrigger?: "on-move-use" | "on-cost-modified";
+      readonly costEffectOwnerId?: CombatantId;
       /** Defender-owned before-defense reroll choices retained through the defense response. */
       readonly beforeDefenseEffectChoices?: readonly {
         readonly sourceDefinitionId: MoveId;
         readonly effectIndices: readonly number[];
       }[];
+      readonly deferredExecution?: {
+        readonly activeEffectId: ActiveEffectId;
+        readonly declarationDecisionId: CombatDecisionId;
+        readonly damageOverridePercent?: number;
+      };
     }
   | {
       readonly id: ResolutionFrameId;
@@ -1028,7 +1221,7 @@ export type ResolutionFrame =
       readonly targetCombatantId: CombatantId;
       readonly returnPhase: "action" | "counter";
       readonly stage: "awaiting-post-defense-reaction";
-      readonly pendingDecisionId: PendingDecisionId;
+      readonly pendingDecisionId?: PendingDecisionId;
       /** The participant who must select the currently offered after-roll reaction. */
       readonly reactionCombatantId: CombatantId;
       readonly attack:
@@ -1058,12 +1251,25 @@ export type ResolutionFrame =
       readonly effectAlternatives?: readonly (readonly number[])[];
       readonly resolvedEffectIndices: readonly number[];
       readonly enabledEffectIndices: readonly number[];
+      /** Move selections retained for selected suppression effects before resuming the attack. */
+      readonly selectedSuppressionMoves?: readonly {
+        readonly effectIndex: number;
+        readonly moveId: MoveId;
+      }[];
       /** Source move for a selected cost listener that is not the attack move. */
       readonly effectSourceDefinitionId?: MoveId;
+      /** Combatant owning a selected move-use listener that is not the attacker. */
+      readonly effectSourceCombatantId?: CombatantId;
       readonly selectedNumericValues?: Readonly<Record<string, number>>;
       /** The trigger whose grouped effects are awaiting the acting player's choice. */
       readonly effectTrigger?:
-        "before-attack-roll" | "on-success" | "on-move-use" | "on-cost-modified" | "on-damage";
+        | "before-attack-roll"
+        | "on-success"
+        | "on-move-use"
+        | "on-cost-modified"
+        | "on-roll-modified"
+        | "start-combat"
+        | "on-damage";
       /** Natural rolls are retained when the choice occurs after the attack roll. */
       readonly naturalRolls?: readonly { readonly attack: number; readonly defense?: number }[];
       readonly blockedDice?: number;
@@ -1075,6 +1281,7 @@ export type ResolutionFrame =
       readonly defenseItem?: {
         readonly itemId: ItemId;
         readonly responseDecisionId: CombatDecisionId;
+        readonly preventedStatuses?: readonly ("break" | "sever")[];
       };
       readonly defenseResultModifier?: number;
       readonly preventCritical?: boolean;
@@ -1095,11 +1302,18 @@ export type ResolutionFrame =
       readonly decisionId: CombatDecisionId;
       readonly actorId: CombatantId;
       readonly targetCombatantId: CombatantId;
-      readonly returnPhase: "end";
-      readonly pendingDecisionId: PendingDecisionId;
+      readonly returnPhase: "end" | "upkeep";
+      readonly pendingDecisionId?: PendingDecisionId;
       readonly sourceDefinitionId: MoveId;
+      /** Action move being resumed when the selected listener is a different source. */
+      readonly actionMoveId?: MoveId;
+      readonly sourceCombatantId?: CombatantId;
       readonly effectIndices: readonly number[];
-      readonly effectTrigger: "on-power-up" | "on-roll-result";
+      readonly effectTrigger:
+        "on-power-up" | "on-roll-result" | "on-move-use" | "upkeep-phase" | "start-combat";
+      /** Selected indices are replayed by the owning phase before the frame is removed. */
+      readonly selectedEffectIndices?: readonly number[];
+      readonly resolved?: boolean;
       /** Stored roll results are retained when an on-roll-result choice pauses a simple action. */
       readonly storedRolls?: readonly StoredRoll[];
     }
@@ -1113,7 +1327,15 @@ export type ResolutionFrame =
       readonly sourceDefinitionId: string;
       readonly effectIndex: number;
       /** Legacy effect frames omitted this field and represent deactivation. */
-      readonly operation?: "activate" | "deactivate" | "copy-move";
+      readonly operation?:
+        | "activate"
+        | "deactivate"
+        | "activate-extra-action"
+        | "copy-move"
+        | "select-damage-target"
+        | "select-suppression-target"
+        | "select-move-removal"
+        | "defer-move";
       readonly returnPhase: CombatPhase;
       readonly trigger:
         | "upkeep"
@@ -1134,9 +1356,23 @@ export type ResolutionFrame =
       /** Whether activation choices must reuse constants in the deactivated lifecycle. */
       readonly reactivationOnly?: boolean;
       /** Resolved declarative KI activation cost retained across the pending choice. */
-      readonly activationCost?: { readonly amount: number; readonly minimum?: number };
+      readonly activationCost?: {
+        readonly amount: number;
+        readonly minimum?: number;
+        readonly resource?: "hp" | "ki";
+      };
       /** Absolute KI activation cost retained across a paired current-cost set effect. */
       readonly activationCostOverride?: number;
+      /** The durable allowance being resolved by an extra-action activation choice. */
+      readonly activeEffectId?: ActiveEffectId;
+      /** Activation context retained across the serialized CONSTANT choice. */
+      readonly activationAsIf?: "power-up";
+      /** The activation consumes every eligible CONSTANT Skill in one group. */
+      readonly activationSelection?: "all";
+      /** Selection identity retained on every CONSTANT Skill activated by this frame. */
+      readonly selectionKey?: string;
+      /** Lifecycle choices remain as a resolved marker until their phase boundary resumes. */
+      readonly resolved?: boolean;
     };
 
 interface FightStateBase {
@@ -1492,6 +1728,15 @@ export interface StatusRemovedEvent extends CombatEventBase {
   readonly statusId: StatusId;
 }
 
+/** A mandatory status duration check, retained so turn-start randomness is replayable. */
+export interface StatusRolledEvent extends CombatEventBase {
+  readonly type: "status-rolled";
+  readonly combatantId: CombatantId;
+  readonly statusId: StatusId;
+  readonly naturalResult: number;
+  readonly result: number;
+}
+
 export interface TransformationActivatedEvent extends CombatEventBase {
   readonly type: "transformation-activated";
   readonly combatantId: CombatantId;
@@ -1539,6 +1784,31 @@ export interface ActionSkippedEvent extends CombatEventBase {
   readonly reason: "status" | "effect";
 }
 
+export interface DeferredMoveScheduledEvent extends CombatEventBase {
+  readonly type: "deferred-move-scheduled";
+  readonly activeEffectId: ActiveEffectId;
+  readonly combatantId: CombatantId;
+  readonly moveId: MoveId;
+  readonly targetCombatantId: CombatantId;
+  readonly performOnTurn: number;
+}
+
+export interface DeferredMoveCancelledEvent extends CombatEventBase {
+  readonly type: "deferred-move-cancelled";
+  readonly activeEffectId: ActiveEffectId;
+  readonly combatantId: CombatantId;
+  readonly moveId: MoveId;
+  readonly reason: "successful-opponent-attack";
+}
+
+export interface DeferredMovePerformedEvent extends CombatEventBase {
+  readonly type: "deferred-move-performed";
+  readonly activeEffectId: ActiveEffectId;
+  readonly combatantId: CombatantId;
+  readonly moveId: MoveId;
+  readonly targetCombatantId: CombatantId;
+}
+
 export interface CounterChainLimitReachedEvent extends CombatEventBase {
   readonly type: "counter-chain-limit-reached";
   readonly counterAttackCount: number;
@@ -1576,6 +1846,7 @@ export type CombatEvent =
   | MoveRemovedFromCombatEvent
   | StatusAppliedEvent
   | StatusRemovedEvent
+  | StatusRolledEvent
   | TransformationActivatedEvent
   | TransformationDeactivatedEvent
   | KiChangedEvent
@@ -1583,6 +1854,9 @@ export type CombatEvent =
   | DamageAppliedEvent
   | CombatantDefeatedEvent
   | ActionSkippedEvent
+  | DeferredMoveScheduledEvent
+  | DeferredMoveCancelledEvent
+  | DeferredMovePerformedEvent
   | CounterChainLimitReachedEvent
   | CombatantSurrenderedEvent
   | FightEndedEvent;

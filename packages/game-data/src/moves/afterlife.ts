@@ -2967,6 +2967,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "defer-move",
         move: "source",
+        optional: true,
         performAfterTurns: 1,
         damage: { operation: "set", percent: { type: "literal", value: 170 } },
         cancellation: {

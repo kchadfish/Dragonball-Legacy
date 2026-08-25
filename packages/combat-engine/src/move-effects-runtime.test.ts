@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   adjustedMoveDamage,
+  classifyCurrentActionMove,
   moveEffectsForTrigger,
   rerollEffectsAfterDefense,
   rerollEffectsOnRollResult,
@@ -34,6 +35,109 @@ const context = {
 };
 
 describe("converted move effects", () => {
+  it("emits the exact modifier-transformer applications at their declared boundaries", () => {
+    const hellzone = moves.get("move-afterlife-hellzone-grenade");
+    const phoenix = moves.get("move-haokiru-phoenix-tackle");
+    if (hellzone === undefined || phoenix === undefined)
+      throw new Error("Expected modifier-transformer test moves.");
+
+    const costEffects = moveEffectsForTrigger(hellzone, "on-success", {
+      ...context,
+      successfulHitCount: 7,
+      triggeringMove: hellzone,
+    });
+    expect(costEffects.costModifierTransformers).toEqual([
+      expect.objectContaining({ multiplier: 2, scope: "next-cost-modification" }),
+    ]);
+
+    const resourceEffects = moveEffectsForTrigger(phoenix, "on-success", {
+      ...context,
+      rolls: [
+        {
+          attackNaturalResult: 20,
+          attackResult: 20,
+          outcome: "successful" as const,
+        },
+      ],
+      triggeringMove: phoenix,
+    });
+    expect(resourceEffects.resourceModifierTransformers).toEqual([
+      expect.objectContaining({
+        multiplier: 2,
+        scope: "next-turn",
+        cap: { type: "maximum", value: 30 },
+      }),
+    ]);
+  });
+
+  it("honors a durable stat-comparison override in a conditional effect", () => {
+    const move = moves.get("move-afterlife-kaio-ken-attack");
+    if (move === undefined) throw new Error("Expected Kaio-Ken Attack data.");
+
+    const effects = moveEffectsForTrigger(move, "on-success", {
+      ...context,
+      triggeringMove: move,
+      activeEffects: [
+        {
+          id: "active-effect:kaio-ken-comparison" as never,
+          type: "set-stat-comparison" as const,
+          sourceCombatantId: self.id,
+          targetCombatantId: self.id,
+          sourceDefinitionId: "move-afterlife-kaio-ken" as never,
+          leftCombatantId: self.id,
+          rightCombatantId: opponent.id,
+          stat: "dexterity" as const,
+          comparison: "higher-than" as const,
+          duration: { type: "turns" as const, ownerCombatantId: self.id, remaining: 2 },
+        },
+      ],
+    });
+
+    expect(effects.resolutionThresholds).toEqual([
+      expect.objectContaining({
+        target: "self",
+        roll: "defense",
+        comparison: "at-least",
+        value: 8,
+        scope: "next-action",
+      }),
+    ]);
+  });
+
+  it("applies a durable declared-style classification to matching future moves", () => {
+    const cascade = moves.get("move-freestyle-ki-color-cascade");
+    if (cascade === undefined) throw new Error("Expected Ki Color Cascade data.");
+
+    const classified = classifyCurrentActionMove(cascade, {
+      ...context,
+      self: { ...self, declaredStyleId: "style-akaikaru" },
+      activeEffects: [
+        {
+          id: "active-effect:ki-color-cascade" as never,
+          type: "modify-move-classification" as const,
+          sourceCombatantId: self.id,
+          targetCombatantId: self.id,
+          sourceDefinitionId: cascade.id,
+          sourceEffectIndex: 0,
+          selector: {
+            type: "move-selector" as const,
+            subject: "source" as const,
+            styleId: "style-freestyle",
+            sourceText: "Your Freestyle attacks",
+          },
+          classification: { type: "replace-style" as const, style: "declared-style" as const },
+          duration: {
+            type: "turns" as const,
+            ownerCombatantId: self.id,
+            remaining: 4,
+          },
+        },
+      ],
+    });
+
+    expect(classified.move.styleId).toBe("style-akaikaru");
+  });
+
   it("resolves counted next-actions cost modifiers as typed applications", () => {
     const move = moves.get("move-kurokonwaku-sixty-second-meltdown");
     if (move === undefined) throw new Error("Expected Sixty Second Meltdown.");
@@ -69,6 +173,33 @@ describe("converted move effects", () => {
         minimum: 1,
         scope: "next-actions",
         remaining: 2,
+      },
+    ]);
+  });
+
+  it("persists BOOMerang's deferred cost expression with its source move selector", () => {
+    const boomerang = moves.get("move-kiihakai-boomerang");
+    if (boomerang === undefined) throw new Error("Expected BOOMerang data.");
+
+    expect(
+      moveEffectsForTrigger(boomerang, "on-success", {
+        ...context,
+        triggeringMove: boomerang,
+        successfulHitCount: 1,
+      }).costModifications,
+    ).toEqual([
+      {
+        target: "self",
+        operation: "set",
+        amount: 3,
+        amountExpression: { type: "next-move-ki-cost", actor: "opponent" },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          ids: [boomerang.id],
+          sourceText: "this attack",
+        },
+        scope: "next-turn",
       },
     ]);
   });
@@ -170,6 +301,98 @@ describe("converted move effects", () => {
         enabledOptionalEffectIndices: [1],
       }).currentActionCostModifications,
     ).toEqual([expect.objectContaining({ operation: "add", amount: -1 })]);
+  });
+
+  it("serializes Spinebreaker's exclusive success alternatives", () => {
+    const spinebreaker = moves.get("move-akaikaru-spinebreaker");
+    if (spinebreaker === undefined) throw new Error("Expected Spinebreaker.");
+
+    const pending = moveEffectsForTrigger(spinebreaker, "on-success", {
+      ...context,
+      self: { ...self, moveIds: [spinebreaker.id] },
+      triggeringMove: spinebreaker,
+      triggeringMoveOwner: "self",
+      rolls: [
+        {
+          attackNaturalResult: 25,
+          attackResult: 25,
+          defenseNaturalResult: 1,
+          defenseResult: 1,
+          outcome: "successful" as const,
+        },
+      ],
+      collectPendingChoices: true,
+    });
+
+    expect(pending.pendingEffectChoices).toEqual([
+      expect.objectContaining({ effectIndices: [1] }),
+      expect.objectContaining({ effectIndices: [2] }),
+    ]);
+    expect(
+      moveEffectsForTrigger(spinebreaker, "on-success", {
+        ...context,
+        self: { ...self, moveIds: [spinebreaker.id] },
+        triggeringMove: spinebreaker,
+        triggeringMoveOwner: "self",
+        rolls: [
+          {
+            attackNaturalResult: 25,
+            attackResult: 25,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "successful" as const,
+          },
+        ],
+        enabledOptionalEffectIndices: [1],
+      }).statuses,
+    ).toEqual([expect.objectContaining({ target: "opponent" })]);
+  });
+
+  it("offers Halcyon Blow only after a prior-turn HP gain", () => {
+    const halcyon = moves.get("move-haokiru-halcyon-blow");
+    if (halcyon === undefined) throw new Error("Expected Halcyon Blow.");
+
+    const priorAction = {
+      type: "use-move" as const,
+      decisionId: "decision:halcyon-prior" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: "move-afterlife-spirit-bomb" as never,
+      turnNumber: 4,
+      phase: "action" as const,
+      resourceChanges: [
+        {
+          affectedCombatantId: self.id,
+          resource: "hp" as const,
+          operation: "gain" as const,
+          amount: 10,
+          turnNumber: 4,
+        },
+      ],
+    };
+    const pending = moveEffectsForTrigger(halcyon, "on-success", {
+      ...context,
+      actionHistory: [priorAction],
+      collectPendingChoices: true,
+    });
+    expect(pending.activations).toEqual([
+      expect.objectContaining({ effectIndex: 0, optional: true }),
+    ]);
+
+    expect(
+      moveEffectsForTrigger(halcyon, "on-success", {
+        ...context,
+        actionHistory: [priorAction],
+        enabledOptionalEffectIndices: [0],
+      }).activations,
+    ).toEqual([expect.objectContaining({ selector: expect.objectContaining({ constant: true }) })]);
+    expect(
+      moveEffectsForTrigger(halcyon, "on-success", {
+        ...context,
+        actionHistory: [],
+        collectPendingChoices: true,
+      }).activations,
+    ).toEqual([]);
   });
 
   it("resolves source-aware prior activation and calculated-cost modifiers", () => {
@@ -525,6 +748,29 @@ describe("converted move effects", () => {
       expect.objectContaining({
         target: "opponent",
         status: expect.objectContaining({ statusId: "stun" }),
+      }),
+    ]);
+  });
+
+  it("resolves a selected cross-trigger beam response resource effect", () => {
+    const x20 = moves.get("move-afterlife-x20-kaioken-kamehameha");
+    const beam = moves.get("move-afterlife-kamehameha");
+    if (x20 === undefined || beam === undefined) throw new Error("Expected x20 beam moves.");
+
+    expect(
+      moveEffectsForTrigger(x20, "on-damage", {
+        ...context,
+        self: { ...self, moveIds: [x20.id] },
+        triggeringMove: beam,
+        incomingDamage: 0,
+        enabledOptionalEffectIndices: [5],
+      }).resources,
+    ).toEqual([
+      expect.objectContaining({
+        resource: "hp",
+        operation: "lose",
+        amount: 6,
+        target: "opponent",
       }),
     ]);
   });
@@ -886,9 +1132,9 @@ describe("converted move effects", () => {
         triggeringMove: firestorm,
         triggeringMoveOwner: "self",
         rolls: [
-          stoppedRolls[0]!,
-          { ...stoppedRolls[1]!, outcome: "successful" as const },
-          stoppedRolls[2]!,
+          stoppedRolls[0],
+          { ...stoppedRolls[1], outcome: "successful" as const },
+          stoppedRolls[2],
         ],
       }).locks,
     ).toEqual([]);
@@ -898,9 +1144,9 @@ describe("converted move effects", () => {
         triggeringMove: firestorm,
         triggeringMoveOwner: "self",
         rolls: [
-          stoppedRolls[0]!,
-          stoppedRolls[1]!,
-          { ...stoppedRolls[2]!, outcome: "blocked" as const },
+          stoppedRolls[0],
+          stoppedRolls[1],
+          { ...stoppedRolls[2], outcome: "blocked" as const },
           { attackNaturalResult: 13, attackResult: 13, outcome: "successful" as const },
         ],
       }).locks,
@@ -989,6 +1235,52 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("resolves Cancellation Master's on-move-use negation and its triggering cost", () => {
+    const mastery = moves.get("move-kurokonwaku-cancellation-mastery");
+    const triggeringMove = moves.get("move-freestyle-nullifying-sphere");
+    if (mastery === undefined || triggeringMove === undefined)
+      throw new Error("Expected Cancellation Mastery runtime test moves.");
+
+    const effects = moveEffectsForTrigger(mastery, "on-move-use", {
+      ...context,
+      triggeringMove,
+      triggeringMoveOwner: "opponent",
+      enabledOptionalEffectIndices: [1],
+    });
+
+    expect(effects.negations).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        aspects: [],
+        selector: expect.objectContaining({ category: "skill", constant: false }),
+        activationCost: { resource: "ki", amount: 1, minimum: 1 },
+      }),
+    ]);
+  });
+
+  it("resolves Leg Vice's opponent on-move-use dexterity restriction", () => {
+    const legVice = moves.get("move-midorikatai-leg-vice");
+    const triggeringMove = moves.get("move-afterlife-kamehameha");
+    if (legVice === undefined || triggeringMove === undefined)
+      throw new Error("Expected Leg Vice runtime test moves.");
+
+    const effects = moveEffectsForTrigger(legVice, "on-move-use", {
+      ...context,
+      triggeringMove,
+      triggeringMoveOwner: "opponent",
+    });
+
+    expect(effects.statModifications).toEqual([
+      expect.objectContaining({
+        target: "opponent",
+        stat: "dexterity-bonus",
+        operation: "set",
+        amount: 0,
+        duration: expect.objectContaining({ type: "turns", remaining: 2 }),
+      }),
+    ]);
+  });
+
   it("resolves a selected successful attack's current-resolution suppression", () => {
     const breakout = moves.get("move-aoyosumu-breakout");
     const triggeringMove = moves.get("move-akaikaru-firestorm");
@@ -1051,9 +1343,9 @@ describe("converted move effects", () => {
             targetCombatantId: self.id,
             sourceDefinitionId: display.id,
             sourceEffectIndex: 1,
-            floatingEffectId: stopped.floatingEffects[0]!.floatingEffectId,
-            effects: stopped.floatingEffects[0]!.effects,
-            termination: stopped.floatingEffects[0]!.termination,
+            floatingEffectId: stopped.floatingEffects[0].floatingEffectId,
+            effects: stopped.floatingEffects[0].effects,
+            termination: stopped.floatingEffects[0].termination,
             scope: { type: "combat" },
             blockedAttackDamage: 7,
             createdOnTurn: 5,
@@ -1066,6 +1358,30 @@ describe("converted move effects", () => {
       ]),
     );
     expect(stoppedMoveEffects(display, context).resources).toEqual([]);
+  });
+
+  it("resolves an activation-unavailable floating condition from its transition context", () => {
+    const monkeySweep = moves.get("move-freestyle-monkey-sweep");
+    if (monkeySweep === undefined) throw new Error("Expected Monkey Sweep.");
+
+    expect(
+      successfulMoveEffects(monkeySweep, {
+        ...context,
+        activationUnavailableSelectors: [
+          {
+            type: "move-selector",
+            subject: "source",
+            ids: ["move-freestyle-monkey-maneuvers"],
+            sourceText: "cannot be activated by this attack",
+          },
+        ],
+      }).floatingEffects,
+    ).toEqual([
+      expect.objectContaining({
+        floatingEffectId: "monkey-sweep-unavailable-next-stun-or-break-bonus",
+        scope: expect.objectContaining({ type: "next-action" }),
+      }),
+    ]);
   });
 
   it("retains next-action and next-roll stat scopes as typed applications", () => {
@@ -1159,6 +1475,35 @@ describe("converted move effects", () => {
         activeEffects: [suppression(["all-effects"])],
       }).damageModifications,
     ).toEqual([]);
+  });
+
+  it("narrows the paired Breaking the Cycle suppressions to the selected moves", () => {
+    const breaking = moves.get("move-kurokonwaku-breaking-the-cycle");
+    const selectedMoveId = "move-kurokonwaku-darkness-buster" as const;
+    if (breaking === undefined || moves.get(selectedMoveId) === undefined)
+      throw new Error("Expected Breaking the Cycle suppression data.");
+
+    expect(
+      moveEffectsForTrigger(breaking, "on-success", {
+        ...context,
+        self: { ...self, moveIds: [selectedMoveId] },
+        opponent: { ...opponent, moveIds: [selectedMoveId] },
+        enabledOptionalEffectIndices: [1, 2],
+      }).suppressions,
+    ).toEqual([]);
+
+    expect(
+      moveEffectsForTrigger(breaking, "on-success", {
+        ...context,
+        self: { ...self, moveIds: [selectedMoveId] },
+        opponent: { ...opponent, moveIds: [selectedMoveId] },
+        enabledOptionalEffectIndices: [1, 2],
+        selectedSuppressionMoveIds: { 1: selectedMoveId, 2: selectedMoveId },
+      }).suppressions,
+    ).toEqual([
+      expect.objectContaining({ target: "self", selectedMoveId }),
+      expect.objectContaining({ target: "opponent", selectedMoveId }),
+    ]);
   });
 
   it("resolves a suppression threshold from the current single-die attack", () => {
@@ -1285,6 +1630,38 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("retains exact activation costs on action and next-turn upkeep applications", () => {
+    const limbTwist = moves.get("move-akaikaru-limb-twist");
+    const launchingKick = moves.get("move-kurokonwaku-launching-kick");
+    if (limbTwist === undefined || launchingKick === undefined)
+      throw new Error("Expected activation-cost extra-action data.");
+
+    expect(
+      moveEffectsForTrigger(limbTwist, "on-success", {
+        ...context,
+        enabledOptionalEffectIndices: [0],
+      }).extraActions,
+    ).toEqual([
+      expect.objectContaining({
+        phase: "action",
+        scope: "current-turn",
+        activationCost: { resource: "ki", amount: 1 },
+      }),
+    ]);
+    expect(
+      moveEffectsForTrigger(launchingKick, "on-success", {
+        ...context,
+        enabledOptionalEffectIndices: [0],
+      }).extraActions,
+    ).toEqual([
+      expect.objectContaining({
+        phase: "upkeep",
+        scope: "next-turn",
+        activationCost: { resource: "ki", amount: 1 },
+      }),
+    ]);
+  });
+
   it("resolves prior single-die defense results and clamps a damage cap", () => {
     const weepingWillow = moves.get("move-aoyosumu-weeping-willow");
     if (weepingWillow === undefined) throw new Error("Expected Weeping Willow data.");
@@ -1298,7 +1675,7 @@ describe("converted move effects", () => {
             decisionId: "decision:prior-defense-for-weeping-willow" as never,
             actorId: opponent.id,
             targetCombatantId: self.id,
-            moveId: "move-afterlife-masenko" as never,
+            moveId: "move-afterlife-masenko",
             turnNumber: 4,
             phase: "action",
             attackRollResult: 12,
@@ -1331,7 +1708,7 @@ describe("converted move effects", () => {
             decisionId: "decision:prior-vengeance-one" as never,
             actorId: opponent.id,
             targetCombatantId: self.id,
-            moveId: "move-afterlife-masenko" as never,
+            moveId: "move-afterlife-masenko",
             turnNumber: 3,
             phase: "action",
             outcome: "successful",
@@ -1342,7 +1719,7 @@ describe("converted move effects", () => {
             decisionId: "decision:prior-vengeance-two" as never,
             actorId: opponent.id,
             targetCombatantId: self.id,
-            moveId: "move-afterlife-masenko" as never,
+            moveId: "move-afterlife-masenko",
             turnNumber: 4,
             phase: "action",
             outcome: "successful",
@@ -1809,6 +2186,62 @@ describe("converted move effects", () => {
     expect(resolved.rollModifications).toEqual([
       expect.objectContaining({ amount: 2, roll: "attack", modifier: "result" }),
     ]);
+  });
+
+  it("resolves historical opponent-effect KI loss for Halting Stance", () => {
+    const haltingStance = moves.get("move-haokiru-halting-stance");
+    if (haltingStance === undefined) throw new Error("Expected Halting Stance data.");
+    const currentAction = {
+      type: "use-move" as const,
+      decisionId: "decision:halting-stance" as never,
+      actorId: self.id,
+      targetCombatantId: opponent.id,
+      moveId: haltingStance.id,
+      outcome: "stopped" as const,
+      critical: false,
+      counter: false,
+      turnNumber: 5,
+      phase: "action" as const,
+    };
+    const priorOpponentAction = {
+      type: "use-move" as const,
+      decisionId: "decision:opponent-ki-drain" as never,
+      actorId: opponent.id,
+      targetCombatantId: self.id,
+      moveId: "move-afterlife-life-drain" as never,
+      turnNumber: 2,
+      phase: "action" as const,
+      resourceChanges: [
+        {
+          affectedCombatantId: self.id,
+          resource: "ki" as const,
+          operation: "lose" as const,
+          amount: 2,
+          turnNumber: 2,
+          cause: "opponent-effect" as const,
+        },
+      ],
+    };
+
+    expect(
+      moveEffectsForTrigger(haltingStance, "on-stopped", {
+        ...context,
+        currentAction,
+        actionHistory: [priorOpponentAction],
+      }).remainingUseModifications,
+    ).toEqual([
+      expect.objectContaining({
+        amount: 1,
+        selector: expect.objectContaining({ ids: [haltingStance.id] }),
+      }),
+    ]);
+    expect(
+      moveEffectsForTrigger(haltingStance, "on-stopped", {
+        ...context,
+        currentAction,
+        actionHistory: [],
+      }).remainingUseModifications,
+    ).toEqual([]);
   });
 
   it("evaluates action sequences with the current attack and ignores non-attack actions", () => {

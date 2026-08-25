@@ -2,6 +2,8 @@ import type { ItemDefinition } from "@dragonball-resurgence/game-data";
 
 import type { CombatantState } from "./contracts.js";
 
+export type CombatItemPreventedOutcome = "break" | "sever";
+
 export interface ItemResourceResolution {
   readonly hitPoints: number;
   readonly ki: number;
@@ -84,6 +86,16 @@ export const isCombatResourceItem = (item: ItemDefinition) =>
         effect.target === "self") ||
       isCommonItemResourceEffect(effect),
   ) ?? false;
+
+/** Returns the exact BREAK/SEVER outcomes prevented by a defensive combat item. */
+export const combatItemPreventedOutcomes = (
+  item: ItemDefinition,
+): readonly CombatItemPreventedOutcome[] =>
+  item.effects?.flatMap((effect) =>
+    effect.trigger === "combat-action" && effect.type === "item-prevent-combat-outcome"
+      ? effect.outcomes
+      : [],
+  ) ?? [];
 
 const amountFor = (
   amount: Extract<

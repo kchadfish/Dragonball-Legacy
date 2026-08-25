@@ -122,6 +122,7 @@ describe("MIDORIKATAI_MOVES", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Against The Odds")?.effects).toEqual([
       expect.objectContaining({
         type: "suppress",
+        aspects: ["all-effects"],
         duration: expect.objectContaining({ type: "turns" }),
       }),
     ]);

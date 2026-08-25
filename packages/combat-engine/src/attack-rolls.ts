@@ -284,15 +284,15 @@ const resolveContestedAttackDie = (
     selection?.selection === "lowest"
       ? attackResults.reduce(
           (selected, result, candidate) =>
-            result < attackResults[selected]! ? candidate : selected,
+            result < attackResults[selected] ? candidate : selected,
           0,
         )
       : attackResults.reduce(
           (selected, result, candidate) =>
-            result > attackResults[selected]! ? candidate : selected,
+            result > attackResults[selected] ? candidate : selected,
           0,
         );
-  const attackNaturalResult = attackCandidates[selectedAttackIndex]!;
+  const attackNaturalResult = attackCandidates[selectedAttackIndex];
   const attackResult =
     input.numericResultOverrides?.[index]?.attack ??
     attackNaturalResult + input.attackerDexterityBonus + (dynamicResultModifier?.attack ?? 0);
@@ -316,12 +316,12 @@ const resolveContestedAttackDie = (
       selection.selection === "lowest"
         ? defenseResults.reduce(
             (selected, result, candidate) =>
-              result < defenseResults[selected]! ? candidate : selected,
+              result < defenseResults[selected] ? candidate : selected,
             0,
           )
         : defenseResults.reduce(
             (selected, result, candidate) =>
-              result > defenseResults[selected]! ? candidate : selected,
+              result > defenseResults[selected] ? candidate : selected,
             0,
           );
     return resolvedUnblockedDie(

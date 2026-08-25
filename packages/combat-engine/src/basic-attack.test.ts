@@ -51,7 +51,11 @@ const createDependencies = (
     resolutionFrameIds: Array.from({ length: 4 }, (_, index) =>
       resolutionFrameIdSchema.parse(`resolution-frame:basic-counter-${index + 1}`),
     ),
-    pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:basic-defense")],
+    pendingDecisionIds: Array.from({ length: 6 }, (_, index) =>
+      pendingDecisionIdSchema.parse(
+        index === 0 ? "pending-decision:basic-defense" : `pending-decision:basic-${index}`,
+      ),
+    ),
     activeEffectIds,
   });
 
@@ -604,6 +608,229 @@ describe("basic attacks", () => {
     expect(transition.state.activeEffects).toEqual([]);
   });
 
+  it("resolves Quiet Preparation from durable counter history at the public action boundary", () => {
+    const { state, dependencies } = createActionState(
+      [20, 1, 20, 1],
+      [
+        activeEffectIdSchema.parse("active-effect:quiet-1"),
+        activeEffectIdSchema.parse("active-effect:quiet-2"),
+        activeEffectIdSchema.parse("active-effect:quiet-3"),
+      ],
+    );
+    const prepared: ActiveFightState = {
+      ...state,
+      actionHistory: [
+        {
+          type: "use-move",
+          decisionId: combatDecisionIdSchema.parse("decision:quiet-prior-counter"),
+          actorId: attackerId,
+          targetCombatantId: defenderId,
+          moveId: "move-aoyosumu-floating-drop",
+          outcome: "stopped",
+          counter: true,
+          turnNumber: 1,
+          phase: "counter",
+        },
+        {
+          type: "use-move",
+          decisionId: combatDecisionIdSchema.parse("decision:quiet-prior-counter-2"),
+          actorId: attackerId,
+          targetCombatantId: defenderId,
+          moveId: "move-aoyosumu-floating-drop",
+          outcome: "stopped",
+          counter: true,
+          turnNumber: 1,
+          phase: "counter",
+        },
+      ],
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-aoyosumu-quiet-preparation", "move-aoyosumu-floating-drop"],
+          ki: { ...state.combatants[attackerId].ki, current: 10 },
+          stats: { ...state.combatants[attackerId].stats, power: 100 },
+        },
+      },
+    };
+
+    const preparation = requireTransition(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:quiet-preparation"),
+          actorId: attackerId,
+          expectedStateVersion: prepared.version,
+          moveId: "move-aoyosumu-quiet-preparation",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const queued = preparation.state.activeEffects.find(
+      (effect) => effect.type === "modify-next-action",
+    );
+
+    expect(preparation.state.combatants[attackerId].ki.current).toBe(8);
+    expect(queued).toMatchObject({
+      scope: "next-actions",
+      remaining: 2,
+      modifier: { type: "damage", amount: 10 },
+    });
+
+    const followUp = requireTransition(
+      submitCombatDecision(
+        {
+          ...requireActiveState(preparation.state),
+          phase: "action",
+          activeCombatantId: attackerId,
+        },
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:quiet-follow-up"),
+          actorId: attackerId,
+          expectedStateVersion: preparation.state.version,
+          moveId: "move-aoyosumu-floating-drop",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(followUp.events).toContainEqual(expect.objectContaining({ type: "damage-applied" }));
+    expect(followUp.state.activeEffects).toMatchObject([{ remaining: 1 }]);
+
+    const secondFollowUp = requireTransition(
+      submitCombatDecision(
+        {
+          ...requireActiveState(followUp.state),
+          phase: "action",
+          activeCombatantId: attackerId,
+        },
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:quiet-follow-up-2"),
+          actorId: attackerId,
+          expectedStateVersion: followUp.state.version,
+          moveId: "move-aoyosumu-floating-drop",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    expect(secondFollowUp.state.activeEffects).toEqual([]);
+  });
+
+  it("persists Lights Out Strike's selected advanced attack through public pending resolution", () => {
+    const { state, dependencies } = createActionState(
+      [20, 1, 10, 1],
+      [activeEffectIdSchema.parse("active-effect:lights-out")],
+    );
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-aoyosumu-lights-out-strike"],
+          stats: { ...state.combatants[attackerId].stats, power: 100 },
+        },
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-aoyosumu-floating-drop", "move-aoyosumu-crescent-kick"],
+          stats: { ...state.combatants[defenderId].stats, power: 100 },
+        },
+      },
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:lights-out"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-aoyosumu-lights-out-strike",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const pending = requireActiveState(declared.state).pendingDecision;
+
+    expect(pending?.type).toBe("select-move");
+    expect(pending?.options.map((option) => option.moveId)).toEqual([
+      "move-aoyosumu-floating-drop",
+      "move-aoyosumu-crescent-kick",
+    ]);
+
+    const selected = requireTransition(
+      submitCombatDecision(
+        requireActiveState(declared.state),
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:lights-out-select"),
+          actorId: attackerId,
+          expectedStateVersion: declared.state.version,
+          pendingDecisionId: pending!.id,
+          optionId: "select-damage-target:move-aoyosumu-floating-drop",
+        },
+        dependencies,
+      ),
+    );
+    const active = selected.state.activeEffects.find((effect) => effect.type === "modify-damage");
+
+    expect(active).toMatchObject({
+      sourceDefinitionId: "move-aoyosumu-lights-out-strike",
+      targetCombatantId: defenderId,
+      selectedMoveId: "move-aoyosumu-floating-drop",
+      amount: 0,
+      duration: {
+        type: "until-roll-threshold",
+        combatantId: defenderId,
+        value: 25,
+      },
+    });
+    expect(selected.events).toContainEqual(
+      expect.objectContaining({
+        type: "effect-activated",
+        sourceDefinitionId: "move-aoyosumu-lights-out-strike",
+      }),
+    );
+
+    const targetAttack = requireTransition(
+      submitCombatDecision(
+        {
+          ...requireActiveState(selected.state),
+          phase: "action",
+          activeCombatantId: defenderId,
+        },
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:lights-out-target-attack"),
+          actorId: defenderId,
+          expectedStateVersion: selected.state.version,
+          moveId: "move-aoyosumu-floating-drop",
+          targetCombatantId: attackerId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(targetAttack.events.some((event) => event.type === "damage-applied")).toBe(false);
+    expect(targetAttack.state.combatants[attackerId].hitPoints.current).toBe(
+      selected.state.combatants[attackerId].hitPoints.current,
+    );
+    expect(
+      targetAttack.state.activeEffects.some(
+        (effect) =>
+          effect.type === "modify-damage" &&
+          effect.selectedMoveId === "move-aoyosumu-floating-drop",
+      ),
+    ).toBe(true);
+  });
+
   it("applies and consumes each remaining item attack-damage bonus", () => {
     const { state, dependencies } = createActionState([10, 1]);
     const armed: ActiveFightState = {
@@ -779,6 +1006,7 @@ describe("basic attacks", () => {
         activeEffectIdSchema.parse("active-effect:kaio-ken-upkeep-stat"),
         activeEffectIdSchema.parse("active-effect:kaio-ken-upkeep-prevention"),
         kaioKenEffectId,
+        activeEffectIdSchema.parse("active-effect:kaio-ken-move-prevention"),
       ],
     );
     const fight = requireTransition(
@@ -2239,6 +2467,92 @@ describe("basic attacks", () => {
     );
   });
 
+  it("offers Limb Twist's paid extra attack through the public Block transition", () => {
+    const { state, dependencies } = createActionState(
+      [12],
+      Array.from({ length: 4 }, (_, index) =>
+        activeEffectIdSchema.parse(`active-effect:limb-twist-${index}`),
+      ),
+    );
+    const blockState: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-akaikaru-limb-twist"],
+        },
+      },
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        blockState,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:limb-twist-attack"),
+          actorId: attackerId,
+          expectedStateVersion: blockState.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveState(declared.state);
+    const pendingDefense = defense.pendingDecision;
+    if (pendingDefense === undefined) throw new Error("Expected Limb Twist defense choice.");
+    const blocked = requireTransition(
+      submitCombatDecision(
+        defense,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:limb-twist-block"),
+          actorId: defenderId,
+          expectedStateVersion: defense.version,
+          pendingDecisionId: pendingDefense.id,
+          optionId: "use-block:move-akaikaru-limb-twist",
+        },
+        dependencies,
+      ),
+    );
+    const pendingActivation = requireActiveState(blocked.state).pendingDecision;
+    expect(pendingActivation).toMatchObject({
+      type: "optional-effect",
+      combatantId: defenderId,
+      options: expect.arrayContaining([
+        expect.objectContaining({ type: "activate-effect", moveId: "move-akaikaru-limb-twist" }),
+        { id: "decline", type: "decline" },
+      ]),
+    });
+    if (pendingActivation === undefined) throw new Error("Expected Limb Twist activation choice.");
+    const activationResult = submitCombatDecision(
+      requireActiveState(blocked.state),
+      {
+        type: "respond-to-pending-decision",
+        id: combatDecisionIdSchema.parse("decision:limb-twist-activate"),
+        actorId: defenderId,
+        expectedStateVersion: blocked.state.version,
+        pendingDecisionId: pendingActivation.id,
+        optionId: pendingActivation.options.find((option) => option.type === "activate-effect")!.id,
+      },
+      dependencies,
+    );
+    if (!activationResult.ok) throw new Error(JSON.stringify(activationResult.error));
+    const activated = activationResult.value;
+    expect(activated.state).toMatchObject({ phase: "action", activeCombatantId: defenderId });
+    expect(activated.state.combatants[defenderId].ki.current).toBeLessThan(
+      defense.combatants[defenderId].ki.current,
+    );
+    const activatedExtraAction = activated.state.activeEffects.find(
+      (effect) => effect.type === "extra-action" && effect.targetCombatantId === defenderId,
+    );
+    expect(activatedExtraAction).toMatchObject({
+      type: "extra-action",
+      moveCategory: "advanced-attack",
+    });
+    expect(activatedExtraAction).not.toHaveProperty("activationCost");
+  });
+
   it("resolves Display of Endurance from the finalized blocked attack damage", () => {
     const { state, dependencies } = createActionState(
       [20, 20, 1, 30, 1, 30, 1, ...Array.from({ length: 20 }, () => 20)],
@@ -2454,6 +2768,145 @@ describe("basic attacks", () => {
         expect.objectContaining({ type: "ki-changed", amount: -1 }),
         expect.objectContaining({ type: "ki-changed", amount: 2, remainingKi: 6 }),
       ]),
+    );
+  });
+
+  it("applies Halting Stance's historical opponent-effect KI condition at the public Block boundary", () => {
+    const { state, dependencies } = createActionState([12]);
+    const priorOpponentAction = {
+      type: "use-move" as const,
+      decisionId: combatDecisionIdSchema.parse("decision:prior-life-drain"),
+      actorId: attackerId,
+      targetCombatantId: defenderId,
+      moveId: "move-afterlife-life-drain" as never,
+      turnNumber: 2,
+      phase: "action" as const,
+      resourceChanges: [
+        {
+          affectedCombatantId: defenderId,
+          resource: "ki" as const,
+          operation: "lose" as const,
+          amount: 2,
+          turnNumber: 2,
+          cause: "opponent-effect" as const,
+        },
+      ],
+    };
+    const armed: ActiveFightState = {
+      ...state,
+      turnNumber: 10,
+      actionHistory: [priorOpponentAction],
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-haokiru-halting-stance"],
+        },
+      },
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:halting-stance-attack"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveState(declared.state);
+    if (defense.pendingDecision === undefined) throw new Error("Expected a Block decision.");
+    const resolved = requireTransition(
+      submitCombatDecision(
+        defense,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:halting-stance-block"),
+          actorId: defenderId,
+          expectedStateVersion: defense.version,
+          pendingDecisionId: defense.pendingDecision.id,
+          optionId: "use-block:move-haokiru-halting-stance",
+        },
+        dependencies,
+      ),
+    );
+
+    expect(resolved.state.combatants[defenderId].moveUseLimitModifiers).toEqual({
+      "move-haokiru-halting-stance": 1,
+    });
+    expect(resolved.events).toContainEqual(
+      expect.objectContaining({
+        type: "move-use-limit-changed",
+        moveId: "move-haokiru-halting-stance",
+        amount: 1,
+        newUseLimit: 2,
+      }),
+    );
+  });
+
+  it("stops every die of a multi-dice attack with Dazzling Gymnastics", () => {
+    const { state, dependencies } = createActionState([12, 13]);
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: ["move-akaikaru-stampede-rush"],
+          ki: { ...state.combatants[attackerId].ki, current: 10 },
+        },
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-akaikaru-dazzling-gymnastics"],
+          ki: { ...state.combatants[defenderId].ki, current: 10 },
+        },
+      },
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:dazzling-multi-die"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-akaikaru-stampede-rush",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const pending = requireActiveState(declared.state).pendingDecision;
+    if (pending === undefined) throw new Error("Expected a Dazzling Gymnastics decision.");
+    expect(pending.options).toContainEqual({
+      id: "use-block:move-akaikaru-dazzling-gymnastics",
+      type: "use-block",
+      moveId: "move-akaikaru-dazzling-gymnastics",
+    });
+
+    const resolved = requireTransition(
+      submitCombatDecision(
+        declared.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:dazzling-block"),
+          actorId: defenderId,
+          expectedStateVersion: declared.state.version,
+          pendingDecisionId: pending.id,
+          optionId: "use-block:move-akaikaru-dazzling-gymnastics",
+        },
+        dependencies,
+      ),
+    );
+
+    expect(resolved.events.filter((event) => event.type === "attack-rolled")).toHaveLength(2);
+    expect(resolved.events).not.toContainEqual(expect.objectContaining({ type: "defense-rolled" }));
+    expect(resolved.events).toContainEqual(
+      expect.objectContaining({ type: "attack-resolved", outcome: "stopped" }),
     );
   });
 
@@ -2905,6 +3358,170 @@ describe("basic attacks", () => {
     );
   });
 
+  it("offers Willing Sacrifice before the opponent's defense roll", () => {
+    const activeEffectId = activeEffectIdSchema.parse("active-effect:willing-sacrifice");
+    const dependencies = createDependencies([20, 1, 5, 5], [activeEffectId]);
+    const fight = requireTransition(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            input.combatants[0],
+            { ...input.combatants[1], moveIds: ["move-haokiru-willing-sacrifice"] },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveState(
+      requireTransition(advanceFight(fight.state, dependencies)).state,
+    );
+
+    const declared = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:willing-sacrifice-attack"),
+          actorId: attackerId,
+          expectedStateVersion: action.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveState(declared.state).pendingDecision;
+    if (defense === undefined) throw new Error("Expected defense response.");
+    const choice = defense.options.find((option) =>
+      option.id.startsWith("activate-before-defense:move-haokiru-willing-sacrifice:"),
+    );
+
+    expect(choice).toMatchObject({
+      type: "activate-effect",
+      moveId: "move-haokiru-willing-sacrifice",
+      effectIndices: [1],
+    });
+  });
+
+  it("resolves the grouped x20 Kaioken beam response through the defense decision", () => {
+    const dependencies = createDependencies([20, 1, 1, 1]);
+    const fight = requireTransition(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            { ...input.combatants[0], moveIds: ["move-afterlife-kamehameha"] },
+            { ...input.combatants[1], moveIds: ["move-afterlife-x20-kaioken-kamehameha"] },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const initialAction = requireActiveState(
+      requireTransition(advanceFight(fight.state, dependencies)).state,
+    );
+    const action = {
+      ...initialAction,
+      turnNumber: 10,
+      combatants: {
+        ...initialAction.combatants,
+        [attackerId]: {
+          ...initialAction.combatants[attackerId],
+          stats: { ...initialAction.combatants[attackerId].stats, power: 0 },
+        },
+        [defenderId]: {
+          ...initialAction.combatants[defenderId],
+          stats: { ...initialAction.combatants[defenderId].stats, power: 100 },
+          ki: { current: 10, maximum: 10 },
+        },
+      },
+    } satisfies ActiveFightState;
+    const declared = requireTransition(
+      submitCombatDecision(
+        action,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:x20-beam-response-attack"),
+          actorId: attackerId,
+          expectedStateVersion: action.version,
+          moveId: "move-afterlife-kamehameha",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveState(declared.state).pendingDecision;
+    if (defense === undefined) throw new Error("Expected beam defense response.");
+    const choice = defense.options.find(
+      (option) => option.moveId === "move-afterlife-x20-kaioken-kamehameha",
+    );
+    expect(choice).toMatchObject({
+      type: "activate-effect",
+      moveId: "move-afterlife-x20-kaioken-kamehameha",
+      effectIndices: [2, 3, 4],
+    });
+    if (choice === undefined) throw new Error("Expected x20 beam response choice.");
+
+    const counterReady = requireTransition(
+      submitCombatDecision(
+        declared.state,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:x20-beam-response-accept"),
+          actorId: defenderId,
+          expectedStateVersion: declared.state.version,
+          pendingDecisionId: defense.id,
+          optionId: choice.id,
+        },
+        dependencies,
+      ),
+    );
+    const counterDecision = enumerateLegalDecisions(counterReady.state, defenderId).find(
+      (candidate) =>
+        candidate.type === "use-move" &&
+        candidate.moveId === "move-afterlife-x20-kaioken-kamehameha",
+    );
+    expect(counterDecision).toMatchObject({
+      type: "use-move",
+      actorId: defenderId,
+      moveId: "move-afterlife-x20-kaioken-kamehameha",
+      targetCombatantId: attackerId,
+    });
+    if (counterDecision === undefined) throw new Error("Expected x20 counter decision.");
+    const resolvedResult = submitCombatDecision(
+      counterReady.state,
+      {
+        ...counterDecision,
+        id: combatDecisionIdSchema.parse("decision:x20-counter-attack"),
+        expectedStateVersion: counterReady.state.version,
+      },
+      dependencies,
+    );
+    if (!resolvedResult.ok) throw new Error(JSON.stringify(resolvedResult.error));
+    const resolved = requireTransition(resolvedResult);
+
+    expect(resolved.state).toMatchObject({ phase: "end", resolutionFrames: [] });
+    expect(resolved.state.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      moveId: "move-afterlife-x20-kaioken-kamehameha",
+    });
+    expect(counterReady.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "defense-rolled", result: 0 }),
+        expect.objectContaining({ type: "attack-resolved", outcome: "successful" }),
+        expect.objectContaining({
+          type: "hp-changed",
+          sourceCombatantId: defenderId,
+          targetCombatantId: attackerId,
+          amount: -30,
+          remainingHitPoints: 70,
+        }),
+      ]),
+    );
+    expect(counterReady.state.combatants[attackerId].hitPoints.current).toBe(70);
+  });
+
   it("forces a targeted opponent reroll and expires it after the next attack action", () => {
     const bracedEffectId = activeEffectIdSchema.parse("active-effect:braced-energy-beam");
     const dependencies = createTestCombatDependencies(
@@ -3323,6 +3940,20 @@ describe("basic attacks", () => {
     expect(resolved.events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "ki-changed", combatantId: defenderId, amount: -2 }),
+      ]),
+    );
+    expect(resolved.state.actionHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "use-move",
+          resourceChanges: expect.arrayContaining([
+            expect.objectContaining({
+              affectedCombatantId: defenderId,
+              resource: "ki",
+              operation: "lose",
+            }),
+          ]),
+        }),
       ]),
     );
   });
