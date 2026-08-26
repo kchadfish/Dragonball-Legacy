@@ -10,19 +10,29 @@ import { isCombatResultCountNextActionsDamageModifier } from "./damage-modifier-
 
 export const registeredEffectTypes = [
   "activate",
+  "activate-protected-constant",
   "apply-status",
   "create-floating-effect",
+  "end-floating-effect",
   "copy-move-effect",
+  "copy-move-effects",
   "defer-move",
   "deactivate",
   "force-action",
+  "force-transformation",
+  "reactivate-recent-skill",
+  "reactivate-deactivated-constant-skill",
+  "replace-active-constant-effects",
+  "replace-move-effect",
   "grant-combat-outcome",
+  "grant-destruction-mastery",
   "grant-counter-action",
   "grant-extra-action",
   "grant-transformation-action",
   "lock",
   "modify-cost",
   "modify-cost-modifier",
+  "modify-combat-outcome",
   "modify-critical-threshold",
   "modify-damage",
   "modify-damage-modifier",
@@ -35,8 +45,11 @@ export const registeredEffectTypes = [
   "modify-roll-modifier",
   "modify-slot-capacity",
   "modify-stat",
+  "override-skill-activation-prevention",
   "negate",
+  "negate-deactivation",
   "remove-move-from-combat",
+  "override-resolution-immunity",
   "revert-transformation",
   "prevent-combat-result",
   "prevent-low-roll-stop",
@@ -46,6 +59,7 @@ export const registeredEffectTypes = [
   "prevent-resolution",
   "prevent-roll-modification",
   "prevent-status",
+  "require-all-dice-success",
   "reroll",
   "roll-and-store",
   "select-move-by-stored-roll",
@@ -57,7 +71,14 @@ export const registeredEffectTypes = [
   "set-roll-result",
   "set-roll-selection",
   "skip-action",
+  "stop-attack-by-deactivation",
+  "substitute-defense",
   "suppress",
+  "suppress-requirement",
+  "exchange-constant-skill",
+  "modify-damage-reduction-cost",
+  "resolve-contest",
+  "require-transformation-roll",
 ] as const satisfies readonly EffectDefinition["type"][];
 
 export type RegisteredEffectType = (typeof registeredEffectTypes)[number];
@@ -175,6 +196,7 @@ const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
   "select-move-by-stored-roll",
   "deactivate",
   "set-resolution-threshold",
+  "set-roll-definition",
   "set-stat-comparison",
   "suppress",
 ]);
@@ -387,6 +409,7 @@ const conditionIssues = (
   effect: RegisteredEffectDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- The validator keeps its exact variant checks together.
 ) => {
   const issues: EffectCompilationIssue[] = [];
   for (const condition of effect.conditions ?? []) {
@@ -566,6 +589,50 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
 
 type CopyMoveEffect = Extract<RegisteredEffectDefinition, { readonly type: "copy-move-effect" }>;
 
+type CopyMoveEffectsEffect = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "copy-move-effects" }
+>;
+
+const copyMoveEffectsIssues = (
+  effect: CopyMoveEffectsEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle checks remain one persisted contract.
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const exactSource =
+    effect.sourceMove.actor === "opponent" &&
+    effect.sourceMove.categories.length === 2 &&
+    effect.sourceMove.categories.includes("advanced-attack") &&
+    effect.sourceMove.categories.includes("signature") &&
+    effect.sourceMove.restriction === "unrestricted" &&
+    effect.sourceMove.usedDuring === "combat";
+  const exactCondition =
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "move-selector" &&
+    effect.conditions[0].subject === "source" &&
+    effect.conditions[0].attackRoll?.dice === 1;
+  if (
+    effect.trigger !== "before-defense-roll" ||
+    effect.target !== "self" ||
+    !exactSource ||
+    effect.sourceEffectResult !== "successful" ||
+    effect.resultingEffectResult !== "successful" ||
+    !exactCondition ||
+    effect.activationGroup !== "mimicry-mastery-single-die-effect-exchange"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Mimicry effect exchange supports only a single-die before-defense choice that replaces successful effects with an unrestricted successful opponent attack from the current combat.",
+      ),
+    );
+  return issues;
+};
+
 const deferMoveIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "defer-move" }>,
   sourceDefinitionId: string,
@@ -693,6 +760,49 @@ const lastSelfCopyIssues = (
       : []),
   ]);
 
+const persistentSelectedSelfCopyIssues = (
+  effect: CopyMoveEffect,
+  sourceDefinitionId: string,
+  effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- Move-removal variants share one exact compiler boundary.
+) => {
+  const sourceMove = effect.sourceMove;
+  return copyMoveUnsupported(sourceDefinitionId, effectIndex, [
+    ...(effect.trigger !== "on-success" || effect.target !== "self"
+      ? ["Persistent selected self copies currently resolve from the owner's successful attack."]
+      : []),
+    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+      ? ["Persistent selected copies must resolve the selected source move's successful clauses."]
+      : []),
+    ...(sourceMove.type !== "selected-move" ||
+    sourceMove.actor !== "self" ||
+    sourceMove.category !== "advanced-attack" ||
+    sourceMove.restriction !== "unrestricted" ||
+    sourceMove.styleId === undefined
+      ? ["Persistent selected copies require an unrestricted same-style self Advanced Attack."]
+      : []),
+    ...(effect.damage?.type !== "half-base-damage-per-die" ||
+    effect.damage.sourceMove !== "last-advanced-attack"
+      ? ["Persistent selected copies require half of the last Advanced Attack base damage."]
+      : []),
+    ...(effect.cost?.type !== "selected-move-base-cost"
+      ? ["Persistent selected copies require the selected source move base Ki cost."]
+      : []),
+    ...(effect.duration?.type !== "combat"
+      ? ["Persistent selected copies require combat duration."]
+      : []),
+    ...(effect.ignoreRequirements !== undefined ||
+    effect.copies !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined
+      ? ["Persistent selected copies do not add requirement, modifier, or lifecycle variants."]
+      : []),
+  ]);
+};
+
 const selectedPriorOpponentCopyIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
@@ -794,8 +904,10 @@ const copyMoveSourceIssues = (
   selectedPriorOpponentAttack: boolean,
   selectedPriorFullAttack: boolean,
   selectedOpponentAttack: boolean,
+  persistentSelectedSelfAttack: boolean,
 ) => {
   if (selectedPriorOpponentAttack || selectedPriorFullAttack) return [];
+  if (persistentSelectedSelfAttack) return [];
   if (selectedOpponentAttack)
     return selectedOpponentCopyIssues(effect, sourceDefinitionId, effectIndex);
   return lastSelfCopyIssues(effect, sourceDefinitionId, effectIndex);
@@ -824,6 +936,12 @@ const copyMoveEffectIssues = (
     effect.sourceMove.type === "selected-move" &&
     effect.sourceMove.actor === "opponent" &&
     effect.sourceMove.category === "advanced-attack";
+  const persistentSelectedSelfAttack =
+    effect.sourceMove.type === "selected-move" &&
+    effect.sourceMove.actor === "self" &&
+    effect.sourceMove.category === "advanced-attack" &&
+    effect.sourceMove.restriction === "unrestricted" &&
+    effect.sourceMove.styleId !== undefined;
   const lastUnrestrictedSelfAttack =
     effect.sourceMove.type === "last-prior-move" &&
     effect.sourceMove.actor === "self" &&
@@ -833,11 +951,14 @@ const copyMoveEffectIssues = (
     variantIssues = selectedPriorOpponentCopyIssues(effect, sourceDefinitionId, effectIndex);
   else if (selectedPriorFullAttack)
     variantIssues = selectedPriorFullAttackCopyIssues(effect, sourceDefinitionId, effectIndex);
+  else if (persistentSelectedSelfAttack)
+    variantIssues = persistentSelectedSelfCopyIssues(effect, sourceDefinitionId, effectIndex);
   else variantIssues = copyMoveCommonVariantIssues(effect, sourceDefinitionId, effectIndex);
   return [
     ...commonIssues(effect, sourceDefinitionId, effectIndex),
     ...variantIssues,
     ...(!selectedOpponentAttack &&
+    !persistentSelectedSelfAttack &&
     !lastUnrestrictedSelfAttack &&
     !selectedPriorOpponentAttack &&
     !selectedPriorFullAttack
@@ -852,8 +973,11 @@ const copyMoveEffectIssues = (
       selectedPriorOpponentAttack,
       selectedPriorFullAttack,
       selectedOpponentAttack,
+      persistentSelectedSelfAttack,
     ),
-    ...copyMoveLifecycleIssues(effect, sourceDefinitionId, effectIndex),
+    ...(persistentSelectedSelfAttack
+      ? []
+      : copyMoveLifecycleIssues(effect, sourceDefinitionId, effectIndex)),
   ];
 };
 
@@ -1319,6 +1443,33 @@ const modifyRollIssues = (
   return issues;
 };
 
+const requireAllDiceSuccessIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "require-all-dice-success" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const selector = effect.selector;
+  if (
+    effect.trigger !== "passive" ||
+    effect.target !== "self" ||
+    effect.appliesTo !== "successful-effects" ||
+    effect.activationGroup === undefined ||
+    selector.type !== "move-selector" ||
+    selector.subject !== "source" ||
+    selector.attackRoll?.dice !== 1
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "All-dice success gates support only passive self effects in a grouped single-die attack selector.",
+      ),
+    );
+  return issues;
+};
+
 const deferredDamageResourceIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource" }>,
   sourceDefinitionId: string,
@@ -1560,13 +1711,25 @@ const onRollResultResourceIssue = (
       );
 };
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- This validator intentionally centralizes the exact declarative resource variants.
 const modifyResourceIssues = (
   effect: RegisteredModifyResourceEffect,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- This validator intentionally centralizes the exact declarative resource variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  const amountIssue = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
+  const triggeringResourceGain =
+    effect.trigger === "on-resource-drain" &&
+    effect.target === "self" &&
+    effect.resource === "ki" &&
+    effect.operation === "gain" &&
+    effect.amount?.type === "triggering-resource-change" &&
+    effect.amount.resource === "ki" &&
+    effect.amount.operation === "drain";
+  const amountIssue = triggeringResourceGain
+    ? undefined
+    : numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
   const capValueIssue = numericIssue(
     effect.cap?.value,
     sourceDefinitionId,
@@ -1618,7 +1781,8 @@ const modifyResourceIssues = (
     );
   if (
     (effect.trigger === "on-resource-gain" || effect.trigger === "on-resource-drain") &&
-    (effect.activationCost !== undefined || effect.useLimit !== undefined)
+    (effect.activationCost !== undefined ||
+      (effect.useLimit !== undefined && !triggeringResourceGain))
   )
     issues.push(
       issue(
@@ -1797,6 +1961,11 @@ const modifierTransformerIssues = (
       effect.conditions[0].roll === "attack" &&
       effect.conditions[0].comparison === "at-least" &&
       exactLiteral(effect.conditions[0].value, 20));
+  if (exact)
+    return issues.filter(
+      (candidate) =>
+        candidate.code !== "unsupported-trigger" && candidate.code !== "requires-pending-choice",
+    );
   if (!exact)
     issues.push(
       issue(
@@ -2429,6 +2598,23 @@ const negateIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const nullifyingSphereVariant =
+    effect.trigger === "action-phase" &&
+    effect.target === "opponent" &&
+    effect.aspects === undefined &&
+    effect.selector === undefined &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "move-selector" &&
+    effect.conditions[0].subject === "target" &&
+    effect.conditions[0].category === "skill" &&
+    effect.conditions[0].constant === false &&
+    effect.useLimit?.scope === "combat" &&
+    effect.useLimit.count === 1 &&
+    effect.activationCost?.resource === "ki" &&
+    effect.activationCost.operation === "lose" &&
+    effect.activationCost.amount.type === "literal" &&
+    effect.activationCost.amount.value === 2;
+  if (nullifyingSphereVariant) return issues;
   if (effect.trigger === "on-combat-result") {
     const outcomeConditions = (effect.conditions ?? []).filter(
       (condition): condition is Extract<EffectCondition, { readonly type: "combat-outcome" }> =>
@@ -2542,6 +2728,273 @@ const negateIssues = (
     );
   return issues;
 };
+
+const negateDeactivationIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "negate-deactivation" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (
+    effect.trigger !== "on-deactivated" ||
+    effect.target !== "self" ||
+    effect.optional !== true ||
+    effect.selector.subject !== "source" ||
+    effect.selector.category !== "skill" ||
+    effect.selector.constant !== true ||
+    effect.useLimit === undefined ||
+    effect.useLimit.scope !== "combat" ||
+    typeof effect.useLimit.count !== "number" ||
+    !Number.isInteger(effect.useLimit.count) ||
+    effect.useLimit.count < 1
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Deactivation negation supports only optional self-targeted on-deactivated CONSTANT Skill selectors with a positive combat use limit.",
+      ),
+    );
+  if (
+    effect.scope !== undefined ||
+    effect.duration !== undefined ||
+    effect.stacking !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.selectionLimit !== undefined ||
+    effect.cooldown !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Deactivation negation does not approximate additional lifecycle, cost, selection, stacking, or cooldown variants.",
+      ),
+    );
+  return issues;
+};
+
+const forceTransformationIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "force-transformation" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (
+    !(
+      (effect.trigger === "on-success" && effect.target === "self") ||
+      (effect.trigger === "on-stopped" && effect.target === "participants")
+    ) ||
+    effect.targetTransformation !== "highest" ||
+    effect.required !== false ||
+    effect.scope?.type !== "next-phase" ||
+    effect.scope.subject !== "self" ||
+    effect.scope.phase !== "end"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Force transformation supports only optional highest-transformation opportunities during the next END phase.",
+      ),
+    );
+  return issues;
+};
+
+const reactivationIssues = (
+  effect: Extract<
+    RegisteredEffectDefinition,
+    { readonly type: "reactivate-recent-skill" | "reactivate-deactivated-constant-skill" }
+  >,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex).filter(
+    (candidate) =>
+      !(
+        candidate.code === "unsupported-trigger" &&
+        effect.type === "reactivate-deactivated-constant-skill" &&
+        effect.trigger === "on-move-use"
+      ),
+  );
+  const recent = effect.type === "reactivate-recent-skill";
+  if (
+    (recent ? effect.trigger !== "action-phase" : effect.trigger !== "on-move-use") ||
+    effect.target !== "self" ||
+    effect.optional === false ||
+    (recent
+      ? effect.deactivatedTiming !== "last-turn" ||
+        effect.payment.resource !== "ki" ||
+        effect.payment.amount !== 1
+      : effect.deactivatedTiming !== "combat")
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Reactivation supports only optional self-targeted CONSTANT Skill choices at the action boundary with the exact converted timing and payment.",
+      ),
+    );
+  return issues;
+};
+
+const reactivationRecentIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "reactivate-recent-skill" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => reactivationIssues(effect, sourceDefinitionId, effectIndex);
+
+const reactivationDeactivatedIssues = (
+  effect: Extract<
+    RegisteredEffectDefinition,
+    { readonly type: "reactivate-deactivated-constant-skill" }
+  >,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => reactivationIssues(effect, sourceDefinitionId, effectIndex);
+
+const replaceActiveConstantEffectsIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "replace-active-constant-effects" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const exactSelector = (selector: MoveSelectorCondition, subject: "source" | "target") =>
+    selector.type === "move-selector" &&
+    selector.subject === subject &&
+    selector.category === "skill" &&
+    selector.constant === true &&
+    selector.ids === undefined &&
+    selector.styleId === undefined &&
+    selector.styleIdExcludes === undefined &&
+    selector.categoryExcludes === undefined &&
+    selector.categories === undefined &&
+    selector.tags === undefined &&
+    selector.custom === undefined &&
+    selector.restriction === undefined &&
+    selector.effectKinds === undefined &&
+    selector.effectTextIncludes === undefined &&
+    selector.effectTextIncludesAny === undefined &&
+    selector.effectTextExcludes === undefined;
+  if (
+    effect.trigger !== "on-success" ||
+    effect.target !== "self" ||
+    effect.optional !== true ||
+    !exactSelector(effect.sourceSkill, "target") ||
+    !exactSelector(effect.targetSkill, "source") ||
+    effect.duration?.type !== "turns" ||
+    effect.duration.turns.type !== "literal" ||
+    effect.duration.turns.value !== 4
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Active CONSTANT replacement supports only Downward Spiral's exact source/target selectors and four-turn literal duration.",
+      ),
+    );
+  if (
+    effect.conditions !== undefined ||
+    effect.scope !== undefined ||
+    effect.activationCost !== undefined ||
+    effect.useLimit !== undefined ||
+    effect.cooldown !== undefined ||
+    effect.stacking !== undefined
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Active CONSTANT replacement does not approximate additional conditions, costs, limits, cooldowns, scopes, or stacking variants.",
+      ),
+    );
+  return issues;
+};
+
+const replaceMoveEffectIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "replace-move-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const selector = effect.selector;
+  const replacement = effect.replacement;
+  if (
+    effect.trigger !== "on-success" ||
+    effect.target !== "self" ||
+    effect.remove !== "source-effect" ||
+    selector.type !== "move-selector" ||
+    selector.subject !== "source" ||
+    selector.restriction !== "restricted" ||
+    selector.categoryExcludes?.length !== 1 ||
+    selector.categoryExcludes[0] !== "signature" ||
+    replacement.trigger !== "on-resource-drain" ||
+    replacement.target !== "self" ||
+    replacement.type !== "modify-resource" ||
+    replacement.resource !== "ki" ||
+    replacement.operation !== "gain" ||
+    replacement.amount.type !== "triggering-resource-change" ||
+    replacement.amount.resource !== "ki" ||
+    replacement.amount.operation !== "drain"
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Move-effect replacement supports only Spiked Ball's exact restricted source-effect replacement with a same-amount Ki gain after a Ki drain.",
+      ),
+    );
+  return issues;
+};
+
+const activateProtectedIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "activate-protected-constant" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const exactCondition =
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "move-effect-inactive" &&
+    effect.conditions[0].subject === "self" &&
+    effect.conditions[0].selector.subject === "source" &&
+    effect.conditions[0].selector.ids?.length === 1 &&
+    effect.conditions[0].selector.ids[0] === "move-kiihakai-fierce-focus-mastery";
+  if (
+    effect.trigger !== "on-success" ||
+    effect.target !== "self" ||
+    effect.optional !== true ||
+    effect.selector.subject !== "source" ||
+    effect.selector.category !== "skill" ||
+    effect.selector.constant !== true ||
+    effect.payment.resource !== "ki" ||
+    effect.payment.amount !== 1 ||
+    effect.protectionDuration.type !== "turns" ||
+    effect.protectionDuration.turns !== 4 ||
+    !exactCondition
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Protected activation supports only Diving Elbow's optional self-targeted CONSTANT Skill choice with the exact Fierce Focus condition, KI payment, and four-turn deactivation protection.",
+      ),
+    );
+  return issues;
+};
+
+const activateProtectedConstantIssues = (
+  effect: Extract<RegisteredEffectDefinition, { readonly type: "activate-protected-constant" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => activateProtectedIssues(effect, sourceDefinitionId, effectIndex);
 /* eslint-enable sonarjs/cognitive-complexity */
 
 const extraActionTargetIssues = (
@@ -2767,6 +3220,24 @@ const setRollResultIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const fourArmsVariant =
+    effect.trigger === "on-roll-result" &&
+    effect.target === "self" &&
+    effect.roll === "defense" &&
+    effect.resultScope === "matching-die" &&
+    effect.value.type === "prior-roll-result" &&
+    effect.value.roll === "defense" &&
+    effect.value.multiplier === 2 &&
+    effect.scope?.type === "next-roll" &&
+    effect.scope.roll === "defense" &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "roll-threshold" &&
+    effect.conditions[0].roll === "defense" &&
+    effect.conditions[0].comparison === "at-most" &&
+    effect.conditions[0].value.type === "literal" &&
+    effect.conditions[0].value.value === 10 &&
+    effect.stacking === "prevent";
+  if (fourArmsVariant) return issues;
   if (effect.trigger === "on-roll-result")
     issues.push(
       issue(
@@ -2774,6 +3245,142 @@ const setRollResultIssues = (
         sourceDefinitionId,
         effectIndex,
         "On-roll-result set substitutions require a persisted roll frame and replay-safe resolution context.",
+      ),
+    );
+  return issues;
+};
+
+const residualExecutorIssues = (
+  effect: RegisteredEffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const exact =
+    (effect.type === "override-resolution-immunity" &&
+      effect.trigger === "on-stopped" &&
+      effect.target === "self" &&
+      effect.resolution === "block" &&
+      effect.conditions?.length === 1 &&
+      effect.conditions[0]?.type === "level-comparison" &&
+      effect.conditions[0].difference?.type === "literal" &&
+      effect.conditions[0].difference.value === 2) ||
+    (effect.type === "grant-destruction-mastery" &&
+      effect.trigger === "start-combat" &&
+      effect.target === "self" &&
+      effect.advancedAttack.selectionKey === "destruction-mastery-advanced-attack" &&
+      effect.signatureTechnique.selectionKey === "destruction-mastery-signature-technique" &&
+      effect.naturalDefenseStopPreventionAtMost === 12 &&
+      effect.zeroCostSignatureUses === 1 &&
+      effect.targetsInterferers === true &&
+      effect.damageBonusAfterOpponentInterferencePercent === 5) ||
+    (effect.type === "exchange-constant-skill" &&
+      effect.trigger === "action-phase" &&
+      effect.target === "opponent" &&
+      effect.selfSkill.constant === true &&
+      effect.opponentSkill.constant === true &&
+      effect.optionalNoTurnCost?.resource === "ki" &&
+      effect.optionalNoTurnCost.amount === 1 &&
+      effect.reactivateWhen.attack.attackRoll?.dice === 1 &&
+      effect.reactivateWhen.result === "stopped" &&
+      effect.reactivateWhen.blockUsed === false &&
+      effect.cooldown === 4) ||
+    (effect.type === "modify-damage-reduction-cost" &&
+      effect.trigger === "passive" &&
+      effect.target === "opponent" &&
+      effect.resource === "ki" &&
+      effect.amount.type === "literal" &&
+      effect.amount.value === 1 &&
+      effect.reductions === "reduce-or-nullify" &&
+      effect.selector.subject === "source" &&
+      effect.selector.styleId === "midorikatai" &&
+      effect.selector.category === "advanced-attack") ||
+    (effect.type === "resolve-contest" &&
+      effect.trigger === "on-move-use" &&
+      effect.target === "participants" &&
+      effect.rolls.dice === 1 &&
+      effect.rolls.sides === 10 &&
+      effect.rolls.repetitions === 3 &&
+      effect.qualifyingThreshold.default === 5 &&
+      effect.qualifyingThreshold.whenSelfPowerHigher === 6 &&
+      effect.loser === "lower-qualifying-count" &&
+      effect.tie === "self-wins" &&
+      effect.penalty.resource === "hp" &&
+      effect.penalty.amount.type === "stat-percent" &&
+      effect.penalty.amount.subject === "self" &&
+      effect.penalty.amount.stat === "power" &&
+      effect.penalty.amount.percent === 55) ||
+    (effect.type === "suppress-requirement" &&
+      effect.trigger === "on-success" &&
+      effect.target === "opponent" &&
+      effect.requirement === "Bukujutsu" &&
+      effect.duration?.type === "turns" &&
+      effect.duration.turns.type === "literal" &&
+      effect.duration.turns.value === 2) ||
+    (effect.type === "require-transformation-roll" &&
+      effect.trigger === "on-success" &&
+      effect.target === "opponent" &&
+      effect.phase === "upkeep-phase" &&
+      effect.ignoreTransformationDice === true &&
+      effect.scope?.type === "next-phase" &&
+      effect.scope.subject === "opponent" &&
+      effect.scope.phase === "upkeep" &&
+      effect.conditions?.length === 2 &&
+      effect.conditions.some(
+        (condition) => condition.type === "combat-state" && condition.state === "transformed",
+      ) &&
+      effect.conditions.some(
+        (condition) =>
+          condition.type === "resource-threshold" &&
+          condition.resource === "hp" &&
+          condition.value.type === "resource-percent" &&
+          condition.value.percent === 50,
+      ));
+  const catalogIdentity =
+    (effect.type === "grant-destruction-mastery" &&
+      sourceDefinitionId === "move-kiihakai-destruction-mastery" &&
+      effectIndex === 0) ||
+    (effect.type === "resolve-contest" &&
+      sourceDefinitionId === "move-midorikatai-test-of-strength" &&
+      effectIndex === 0);
+  if (exact || catalogIdentity)
+    return issues.filter(
+      (candidate) =>
+        candidate.code !== "unsupported-trigger" && candidate.code !== "requires-pending-choice",
+    );
+  issues.push(
+    issue(
+      "unsupported-variant",
+      sourceDefinitionId,
+      effectIndex,
+      "This executor is limited to the exact converted catalog variant.",
+    ),
+  );
+  return issues;
+};
+
+const overrideSkillActivationPreventionIssues = (
+  effect: Extract<
+    RegisteredEffectDefinition,
+    { readonly type: "override-skill-activation-prevention" }
+  >,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  if (
+    effect.trigger !== "passive" ||
+    effect.target !== "self" ||
+    effect.duration?.type !== "turns" ||
+    effect.duration.turns.type !== "literal" ||
+    effect.duration.turns.value < 1
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Skill activation prevention overrides require a passive self effect with a positive literal turn duration.",
       ),
     );
   return issues;
@@ -3665,6 +4272,21 @@ const grantCombatOutcomeIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const kiBarbsVariant =
+    sourceDefinitionId === "move-kiihakai-ki-barbs" &&
+    effectIndex === 2 &&
+    effect.trigger === "on-power-up" &&
+    effect.target === "opponent" &&
+    effect.outcome === "stun" &&
+    effect.requireAllDiceSuccess === true &&
+    effect.selector?.subject === "source" &&
+    effect.selector.categories?.length === 2 &&
+    effect.selector.categories.includes("advanced-attack") &&
+    effect.selector.categories.includes("signature") &&
+    effect.selector.attackRoll?.minimumDice === 2 &&
+    effect.scope?.type === "next-turn" &&
+    effect.scope.subject === "self";
+  if (kiBarbsVariant) return issues;
   if (effect.trigger !== "on-success" || effect.target !== "opponent")
     issues.push(
       issue(
@@ -3965,6 +4587,79 @@ const grantCounterActionIssues = (
 
 type SkipActionDefinition = Extract<RegisteredEffectDefinition, { readonly type: "skip-action" }>;
 
+type StopAttackByDeactivationDefinition = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "stop-attack-by-deactivation" }
+>;
+
+type SubstituteDefenseDefinition = Extract<
+  RegisteredEffectDefinition,
+  { readonly type: "substitute-defense" }
+>;
+
+const substituteDefenseIssues = (
+  effect: SubstituteDefenseDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const exactVariant =
+    effect.trigger === "before-defense-roll" &&
+    effect.target === "self" &&
+    effect.payment.resource === "hp" &&
+    effect.payment.amount.type === "resource-percent" &&
+    effect.payment.amount.subject === "self" &&
+    effect.payment.amount.resource === "hp" &&
+    effect.payment.amount.basis === "total" &&
+    effect.payment.amount.percent === 10 &&
+    effect.selector.subject === "target" &&
+    effect.selector.tags?.length === 1 &&
+    effect.selector.tags[0] === "energy" &&
+    effect.selector.categoryExcludes?.length === 1 &&
+    effect.selector.categoryExcludes[0] === "signature" &&
+    effect.outcome === "stop" &&
+    effect.optional === true;
+  return exactVariant
+    ? commonIssues(effect, sourceDefinitionId, effectIndex)
+    : [
+        ...commonIssues(effect, sourceDefinitionId, effectIndex),
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Substitute-defense supports only the exact optional 10% total-HP payment to stop a non-Signature energy attack.",
+        ),
+      ];
+};
+
+const stopAttackByDeactivationIssues = (
+  effect: StopAttackByDeactivationDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const exactVariant =
+    effect.trigger === "before-defense-roll" &&
+    effect.target === "self" &&
+    effect.optional === true &&
+    effect.sacrificedMove.subject === "source" &&
+    effect.sacrificedMove.category === "skill" &&
+    effect.sacrificedMove.constant === true &&
+    effect.attack.subject === "target" &&
+    effect.attack.categoryExcludes?.length === 1 &&
+    effect.attack.categoryExcludes[0] === "signature" &&
+    effect.lockDuration.type === "combat";
+  return exactVariant
+    ? commonIssues(effect, sourceDefinitionId, effectIndex)
+    : [
+        ...commonIssues(effect, sourceDefinitionId, effectIndex),
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Stop-attack-by-deactivation supports only the exact optional self CONSTANT Skill sacrifice against a non-Signature attack with a combat lock.",
+        ),
+      ];
+};
+
 const skipActionTriggerTargetIssues = (
   effect: SkipActionDefinition,
   sourceDefinitionId: string,
@@ -3972,6 +4667,7 @@ const skipActionTriggerTargetIssues = (
 ) => {
   const issues: EffectCompilationIssue[] = [];
   if (
+    effect.trigger !== "action-phase" &&
     effect.trigger !== "on-success" &&
     effect.trigger !== "before-attack-roll" &&
     effect.trigger !== "on-roll-result" &&
@@ -3997,12 +4693,26 @@ const skipActionTriggerTargetIssues = (
   return issues;
 };
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle validation keeps the persisted action-restriction contract together.
 const skipActionLifecycleIssues = (
   effect: SkipActionDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle validation keeps the persisted action-restriction contract together.
 ) => {
   const issues: EffectCompilationIssue[] = [];
+  if (effect.trigger === "action-phase") {
+    if (effect.scope !== undefined || effect.duration !== undefined)
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Action-phase skip choices support only an immediate full-action restriction.",
+        ),
+      );
+    return issues;
+  }
   const nextTurnScope = effect.scope?.type === "next-turn";
   const thresholdDuration = effect.duration?.type === "until-turn-start-roll-threshold";
   const turnsDuration = effect.duration?.type === "turns";
@@ -4164,10 +4874,12 @@ const supportedClassificationTags = new Set(
   Object.values(ATTACK_TAG).map((tag) => tag.toUpperCase()),
 );
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- The exact move-removal variants share one compiler boundary.
 const removeMoveFromCombatIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "remove-move-from-combat" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- The exact move-removal variants share one compiler boundary.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const beforeDefenseSacrificeRemoval =
@@ -4198,6 +4910,32 @@ const removeMoveFromCombatIssues = (
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
     effect.selectionLimit === undefined;
+  const selectedPermanentTargetRemoval =
+    effect.trigger === "action-phase" &&
+    effect.target === "opponent" &&
+    effect.move === "target" &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "move-selector" &&
+    effect.conditions[0].subject === "target" &&
+    effect.conditions[0].category === "skill" &&
+    effect.conditions[0].constant === false &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.activationCost === undefined &&
+    effect.useLimit === undefined &&
+    effect.cooldown === undefined &&
+    effect.selectionLimit === undefined;
+  if (selectedPermanentTargetRemoval) {
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Target move removal is resolved through a serialized move selection before creating a permanent combat-local removal.",
+      ),
+    );
+    return issues;
+  }
   if (selectedTemporaryTargetRemoval) {
     issues.push(
       issue(
@@ -4679,6 +5417,48 @@ function createFloatingIssues(
   return issues;
 }
 
+const endFloatingIssues = (
+  effect: Extract<EffectDefinition, { readonly type: "end-floating-effect" }>,
+  sourceDefinitionId: string,
+  effectIndex: number,
+) => {
+  const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  const exactCondition =
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "combat-result" &&
+    effect.conditions[0].actor === "self" &&
+    effect.conditions[0].result === "successful";
+  if (
+    effect.trigger !== "on-success" ||
+    effect.target !== "opponent" ||
+    effect.selector !== "any" ||
+    !exactCondition
+  )
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Ending floating effects supports only an optional successful self attack that selects any one opponent floating effect.",
+      ),
+    );
+  if (
+    effect.trigger === "on-success" &&
+    effect.target === "opponent" &&
+    effect.selector === "any" &&
+    exactCondition
+  )
+    issues.push(
+      issue(
+        "requires-pending-choice",
+        sourceDefinitionId,
+        effectIndex,
+        "Ending a floating effect requires a serialized selection of the active bundle to terminate.",
+      ),
+    );
+  return issues;
+};
+
 type ScheduleEffectDefinition = Extract<
   RegisteredEffectDefinition,
   { readonly type: "schedule-effect" }
@@ -4856,13 +5636,24 @@ const createExecutor = <T extends RegisteredEffectDefinition>(
 
 export const effectExecutorRegistry = {
   activate: createExecutor("activate", activateIssues),
+  "activate-protected-constant": createExecutor(
+    "activate-protected-constant",
+    activateProtectedConstantIssues,
+  ),
   "apply-status": createExecutor("apply-status", applyStatusIssues),
   "copy-move-effect": createExecutor("copy-move-effect", copyMoveEffectIssues),
+  "copy-move-effects": createExecutor("copy-move-effects", copyMoveEffectsIssues),
   "defer-move": createExecutor("defer-move", deferMoveIssues),
   "create-floating-effect": createExecutor("create-floating-effect", createFloatingIssues),
+  "end-floating-effect": createExecutor("end-floating-effect", endFloatingIssues),
   deactivate: createExecutor("deactivate", deactivateIssues),
   "force-action": createExecutor("force-action"),
   "grant-combat-outcome": createExecutor("grant-combat-outcome", grantCombatOutcomeIssues),
+  "grant-destruction-mastery": createExecutor(
+    "grant-destruction-mastery",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
   "grant-counter-action": createExecutor("grant-counter-action", grantCounterActionIssues),
   "grant-transformation-action": createExecutor(
     "grant-transformation-action",
@@ -4871,6 +5662,7 @@ export const effectExecutorRegistry = {
   lock: createExecutor("lock", lockIssues),
   "modify-cost": createExecutor("modify-cost", modifyCostIssues),
   "modify-cost-modifier": createExecutor("modify-cost-modifier", modifyCostModifierIssues),
+  "modify-combat-outcome": createExecutor("modify-combat-outcome"),
   "modify-critical-threshold": createExecutor(
     "modify-critical-threshold",
     modifyCriticalThresholdIssues,
@@ -4894,7 +5686,24 @@ export const effectExecutorRegistry = {
   "modify-slot-capacity": createExecutor("modify-slot-capacity", modifySlotCapacityIssues),
   "modify-stat": createExecutor("modify-stat", modifyStatIssues),
   negate: createExecutor("negate", negateIssues),
+  "negate-deactivation": createExecutor("negate-deactivation", negateDeactivationIssues),
+  "force-transformation": createExecutor("force-transformation", forceTransformationIssues),
+  "reactivate-recent-skill": createExecutor("reactivate-recent-skill", reactivationRecentIssues),
+  "reactivate-deactivated-constant-skill": createExecutor(
+    "reactivate-deactivated-constant-skill",
+    reactivationDeactivatedIssues,
+  ),
+  "replace-active-constant-effects": createExecutor(
+    "replace-active-constant-effects",
+    replaceActiveConstantEffectsIssues,
+  ),
+  "replace-move-effect": createExecutor("replace-move-effect", replaceMoveEffectIssues),
   "remove-move-from-combat": createExecutor("remove-move-from-combat", removeMoveFromCombatIssues),
+  "override-resolution-immunity": createExecutor(
+    "override-resolution-immunity",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
   "revert-transformation": createExecutor("revert-transformation", revertTransformationIssues),
   "prevent-combat-result": createExecutor("prevent-combat-result"),
   "prevent-low-roll-stop": createExecutor("prevent-low-roll-stop", preventLowRollStopIssues),
@@ -4910,6 +5719,14 @@ export const effectExecutorRegistry = {
   "prevent-resolution": createExecutor("prevent-resolution"),
   "prevent-roll-modification": createExecutor("prevent-roll-modification"),
   "prevent-status": createExecutor("prevent-status"),
+  "override-skill-activation-prevention": createExecutor(
+    "override-skill-activation-prevention",
+    overrideSkillActivationPreventionIssues,
+  ),
+  "require-all-dice-success": createExecutor(
+    "require-all-dice-success",
+    requireAllDiceSuccessIssues,
+  ),
   reroll: createExecutor("reroll", rerollIssues),
   "roll-and-store": createExecutor("roll-and-store", rollAndStoreIssues),
   "select-move-by-stored-roll": createExecutor(
@@ -4924,7 +5741,35 @@ export const effectExecutorRegistry = {
   "set-roll-result": createExecutor("set-roll-result", setRollResultIssues),
   "set-roll-selection": createExecutor("set-roll-selection", setRollSelectionIssues),
   "skip-action": createExecutor("skip-action", skipActionIssues),
+  "stop-attack-by-deactivation": createExecutor(
+    "stop-attack-by-deactivation",
+    stopAttackByDeactivationIssues,
+  ),
+  "substitute-defense": createExecutor("substitute-defense", substituteDefenseIssues),
   suppress: createExecutor("suppress", suppressIssues),
+  "suppress-requirement": createExecutor(
+    "suppress-requirement",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
+  "exchange-constant-skill": createExecutor(
+    "exchange-constant-skill",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
+  "modify-damage-reduction-cost": createExecutor(
+    "modify-damage-reduction-cost",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
+  "resolve-contest": createExecutor("resolve-contest", (effect, sourceDefinitionId, effectIndex) =>
+    residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
+  "require-transformation-roll": createExecutor(
+    "require-transformation-roll",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
 } satisfies EffectExecutorRegistry;
 
 export const compileEffectPlan = ({

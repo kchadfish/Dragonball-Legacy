@@ -31,7 +31,10 @@ const dependencies = () =>
         pendingDecisionIdSchema.parse("pending-decision:deactivation-1"),
         pendingDecisionIdSchema.parse("pending-decision:deactivation-2"),
       ],
-      resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:deactivation-1")],
+      resolutionFrameIds: [
+        resolutionFrameIdSchema.parse("resolution-frame:deactivation-1"),
+        resolutionFrameIdSchema.parse("resolution-frame:deactivation-2"),
+      ],
       activeEffectIds: [
         "active-effect:redirected-energy-1" as never,
         "active-effect:redirected-energy-2" as never,
@@ -480,6 +483,107 @@ describe("constant-skill deactivation decisions", () => {
     expect(validateFightState(resolved)).toEqual([]);
   });
 
+  it("offers Fierce Focus to its owner and negates a matching Kiihakai deactivation", () => {
+    const { deps, state: baseState } = actionStateWithConstants();
+    const state = {
+      ...baseState,
+      combatants: {
+        ...baseState.combatants,
+        [defenderId]: {
+          ...baseState.combatants[defenderId],
+          moveIds: [
+            ...baseState.combatants[defenderId].moveIds,
+            "move-kiihakai-fierce-focus-mastery",
+          ],
+        },
+      },
+      activeEffects: baseState.activeEffects.map((effect, index) =>
+        index === 0
+          ? {
+              ...effect,
+              sourceDefinitionId: "move-kiihakai-evening-the-field" as const,
+            }
+          : effect,
+      ),
+    } satisfies ActiveFightState;
+
+    const attack = value(
+      submitCombatDecision(
+        state,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:fierce-focus-deactivation"),
+          actorId: attackerId,
+          expectedStateVersion: state.version,
+          moveId: "move-akaikaru-back-brain-kick",
+          targetCombatantId: defenderId,
+        },
+        deps,
+      ),
+    );
+    const pending = active(attack.state).pendingDecision;
+    expect(pending).toMatchObject({ type: "select-move", combatantId: attackerId });
+    const deactivation = pending?.options.find(
+      (option) => option.type === "select-move" && option.deactivationNegation === undefined,
+    );
+    const selected = value(
+      submitCombatDecision(
+        active(attack.state),
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:fierce-focus-select"),
+          actorId: attackerId,
+          expectedStateVersion: active(attack.state).version,
+          pendingDecisionId: pending!.id,
+          optionId: deactivation!.id,
+        },
+        deps,
+      ),
+    );
+    const negationPending = active(selected.state).pendingDecision;
+    expect(negationPending).toMatchObject({ type: "select-move", combatantId: defenderId });
+    const negation = negationPending?.options.find(
+      (option) => option.deactivationNegation !== undefined,
+    );
+    expect(negation).toMatchObject({
+      type: "select-move",
+      moveId: "move-kiihakai-evening-the-field",
+      deactivationNegation: {
+        sourceDefinitionId: "move-kiihakai-fierce-focus-mastery",
+        sourceEffectIndex: 2,
+        useLimit: { scope: "combat", count: 2 },
+      },
+    });
+
+    const resolved = value(
+      submitCombatDecision(
+        active(selected.state),
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:fierce-focus-negate"),
+          actorId: defenderId,
+          expectedStateVersion: active(selected.state).version,
+          pendingDecisionId: negationPending!.id,
+          optionId: negation!.id,
+        },
+        deps,
+      ),
+    );
+    const finalState = active(resolved.state);
+
+    expect(finalState.pendingDecision).toBeUndefined();
+    expect(finalState.activeEffects).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-kiihakai-evening-the-field",
+      }),
+    );
+    expect(finalState.combatants[defenderId].effectUseCounts).toEqual({
+      "move-kiihakai-fierce-focus-mastery:2": 1,
+    });
+    expect(resolved.events).toEqual([expect.objectContaining({ type: "effect-negated" })]);
+    expect(validateFightState(finalState)).toEqual([]);
+  });
+
   it("rejects illegal and stale selection responses without changing the suspended state", () => {
     const { deps, state } = actionStateWithConstants();
     const attack = value(
@@ -642,6 +746,300 @@ describe("constant-skill deactivation decisions", () => {
           effect.sourceDefinitionId === "move-aoyosumu-inner-peace",
       ),
     ).toMatchObject({ lifecycle: "active" });
+  });
+
+  it("offers recent-skill reactivation before resolving the attack that grants it", () => {
+    const { deps, state } = actionStateWithConstants();
+    const prepared = {
+      ...state,
+      turnNumber: state.turnNumber + 1,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: [
+            ...state.combatants[attackerId].moveIds,
+            "move-kiihakai-diving-elbow",
+            "move-aoyosumu-inner-peace",
+          ],
+        },
+      },
+      activeEffects: [
+        ...state.activeEffects,
+        {
+          id: activeEffectIdSchema.parse("active-effect:redirected-energy-1"),
+          type: "active-constant" as const,
+          sourceCombatantId: attackerId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-aoyosumu-inner-peace" as const,
+          activatedOnTurn: state.turnNumber,
+          deactivatedOnTurn: state.turnNumber,
+          duration: "combat" as const,
+          lifecycle: "deactivated" as const,
+        },
+      ],
+    } satisfies ActiveFightState;
+    const attackResult = submitCombatDecision(
+      prepared,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:recent-reactivation-attack"),
+        actorId: attackerId,
+        expectedStateVersion: prepared.version,
+        moveId: "move-kiihakai-diving-elbow",
+        targetCombatantId: defenderId,
+      },
+      deps,
+    );
+    const attack = value(attackResult);
+    const pending = active(attack.state).pendingDecision;
+    expect(pending).toMatchObject({ type: "select-move", combatantId: attackerId });
+    const option = pending?.options.find(
+      (candidate) => candidate.moveId === "move-aoyosumu-inner-peace",
+    );
+    expect(option).toBeDefined();
+
+    const resumedTransition = value(
+      submitCombatDecision(
+        active(attack.state),
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:recent-reactivation-choice"),
+          actorId: attackerId,
+          expectedStateVersion: active(attack.state).version,
+          pendingDecisionId: pending!.id,
+          optionId: option!.id,
+        },
+        deps,
+      ),
+    );
+    const protectedChoice = active(resumedTransition.state).pendingDecision;
+    expect(protectedChoice).toMatchObject({ type: "optional-effect", combatantId: attackerId });
+    const finalTransition = value(
+      submitCombatDecision(
+        active(resumedTransition.state),
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:recent-reactivation-decline-protection"),
+          actorId: attackerId,
+          expectedStateVersion: active(resumedTransition.state).version,
+          pendingDecisionId: protectedChoice!.id,
+          optionId: "decline",
+        },
+        deps,
+      ),
+    );
+    const resumed = active(finalTransition.state);
+    expect(resumed.pendingDecision).toBeUndefined();
+    expect(resumed.combatants[attackerId].ki.current).toBe(
+      state.combatants[attackerId].ki.current - 3,
+    );
+    expect(finalTransition.events).toContainEqual(
+      expect.objectContaining({ type: "move-used", moveId: "move-kiihakai-diving-elbow" }),
+    );
+    expect(resumed.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceDefinitionId: "move-aoyosumu-inner-peace",
+          lifecycle: "active",
+        }),
+      ]),
+    );
+    expect(validateFightState(resumed)).toEqual([]);
+  });
+
+  it("offers Diving Elbow's protected activation after success and persists its protection", () => {
+    const { deps, state } = actionStateWithConstants();
+    const prepared = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          moveIds: [
+            ...state.combatants[attackerId].moveIds,
+            "move-kiihakai-diving-elbow",
+            "move-aoyosumu-inner-peace",
+          ],
+        },
+      },
+    } satisfies ActiveFightState;
+    const attack = value(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:protected-activation-attack"),
+          actorId: attackerId,
+          expectedStateVersion: prepared.version,
+          moveId: "move-kiihakai-diving-elbow",
+          targetCombatantId: defenderId,
+        },
+        deps,
+      ),
+    );
+    const pending = active(attack.state).pendingDecision;
+    expect(pending).toMatchObject({
+      type: "optional-effect",
+      combatantId: attackerId,
+      options: expect.arrayContaining([
+        expect.objectContaining({
+          type: "activate-effect",
+          effectIndices: [1],
+        }),
+        { id: "decline", type: "decline" },
+      ]),
+    });
+    if (pending === undefined) throw new Error("Expected protected activation choice.");
+    const activate = pending.options.find((option) => option.type === "activate-effect");
+    if (activate === undefined) throw new Error("Expected protected activation option.");
+    const selectedEffect = active(
+      value(
+        submitCombatDecision(
+          active(attack.state),
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:protected-activation-effect"),
+            actorId: attackerId,
+            expectedStateVersion: active(attack.state).version,
+            pendingDecisionId: pending.id,
+            optionId: activate.id,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    const selection = selectedEffect.pendingDecision;
+    expect(selection).toMatchObject({ type: "select-move", combatantId: attackerId });
+    if (selection === undefined) throw new Error("Expected protected constant selection.");
+    const constant = selection.options.find(
+      (option) => option.moveId === "move-aoyosumu-inner-peace",
+    );
+    if (constant === undefined) throw new Error("Expected Inner Peace selection option.");
+    const resolvedTransition = value(
+      submitCombatDecision(
+        selectedEffect,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:protected-activation-constant"),
+          actorId: attackerId,
+          expectedStateVersion: selectedEffect.version,
+          pendingDecisionId: selection.id,
+          optionId: constant.id,
+        },
+        deps,
+      ),
+    );
+    const resolved = active(resolvedTransition.state);
+    expect(resolved.pendingDecision).toBeUndefined();
+    expect(resolved.combatants[attackerId].ki.current).toBe(
+      state.combatants[attackerId].ki.current - 3,
+    );
+    expect(resolved.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "active-constant",
+          sourceDefinitionId: "move-aoyosumu-inner-peace",
+          lifecycle: "active",
+        }),
+        expect.objectContaining({
+          type: "prevent-move-use",
+          operation: "deactivate",
+          targetCombatantId: attackerId,
+          selector: expect.objectContaining({ ids: ["move-aoyosumu-inner-peace"] }),
+          duration: expect.objectContaining({ type: "turns", remaining: 4 }),
+        }),
+      ]),
+    );
+    expect(resolvedTransition.events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "effect-activated" })]),
+    );
+    expect(validateFightState(resolved)).toEqual([]);
+  });
+
+  it("offers deactivated-constant reactivation when Grapple is used as a block", () => {
+    const { deps, state } = actionStateWithConstants();
+    const prepared = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: [...state.combatants[defenderId].moveIds, "move-midorikatai-grapple"],
+        },
+      },
+      activeEffects: state.activeEffects.map((effect) =>
+        effect.sourceDefinitionId === "move-aoyosumu-inner-peace"
+          ? { ...effect, lifecycle: "deactivated" as const, deactivatedOnTurn: state.turnNumber }
+          : effect,
+      ),
+    } satisfies ActiveFightState;
+    const attack = value(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:grapple-reactivation-attack"),
+          actorId: attackerId,
+          expectedStateVersion: prepared.version,
+          moveId: "move-akaikaru-back-brain-kick",
+          targetCombatantId: defenderId,
+        },
+        deps,
+      ),
+    );
+    const defense = active(attack.state).pendingDecision!;
+    const grapple = defense.options.find(
+      (option) => option.id === "use-block:move-midorikatai-grapple",
+    );
+    expect(grapple).toBeDefined();
+    const blocked = active(
+      value(
+        submitCombatDecision(
+          active(attack.state),
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:grapple-reactivation-block"),
+            actorId: defenderId,
+            expectedStateVersion: active(attack.state).version,
+            pendingDecisionId: defense.id,
+            optionId: grapple!.id,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    expect(blocked.pendingDecision).toMatchObject({ type: "select-move", combatantId: defenderId });
+    const reactivation = blocked.pendingDecision!.options.find(
+      (option) => option.moveId === "move-aoyosumu-inner-peace",
+    );
+    expect(reactivation).toBeDefined();
+    const resolved = active(
+      value(
+        submitCombatDecision(
+          blocked,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:grapple-reactivation-choice"),
+            actorId: defenderId,
+            expectedStateVersion: blocked.version,
+            pendingDecisionId: blocked.pendingDecision!.id,
+            optionId: reactivation!.id,
+          },
+          deps,
+        ),
+      ).state,
+    );
+    expect(resolved.pendingDecision).toBeUndefined();
+    expect(resolved.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceDefinitionId: "move-aoyosumu-inner-peace",
+          lifecycle: "active",
+        }),
+      ]),
+    );
+    expect(validateFightState(resolved)).toEqual([]);
   });
 
   it("rejects an optional selection frame that omits its required decline response", () => {

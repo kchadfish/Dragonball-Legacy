@@ -1548,6 +1548,106 @@ describe("converted move effects", () => {
     ]);
   });
 
+  it("persists and executes Spiked Ball's selected-move Ki-drain replacement", () => {
+    const spikedBall = moves.get("move-kurokonwaku-spiked-ball");
+    const dimensionScream = moves.get("move-kurokonwaku-dimension-scream");
+    if (spikedBall === undefined || dimensionScream === undefined)
+      throw new Error("Expected Spiked Ball data.");
+
+    const selected = successfulMoveEffects(spikedBall, {
+      ...context,
+      triggeringMove: spikedBall,
+      enabledOptionalEffectIndices: [1, 2],
+      selectedMoveIds: { 1: dimensionScream.id },
+    });
+    expect(selected.moveEffectReplacements).toEqual([
+      expect.objectContaining({
+        sourceDefinitionId: spikedBall.id,
+        sourceEffectIndex: 2,
+        target: "self",
+        targetMoveId: dimensionScream.id,
+        replacement: expect.objectContaining({
+          trigger: "on-resource-drain",
+          resource: "ki",
+          operation: "gain",
+        }),
+      }),
+    ]);
+
+    const activeReplacement = {
+      id: "active-effect:spiked-ball-runtime" as never,
+      type: "move-effect-replacement" as const,
+      sourceCombatantId: self.id,
+      targetCombatantId: self.id,
+      sourceDefinitionId: spikedBall.id,
+      sourceEffectIndex: 2,
+      targetMoveId: dimensionScream.id,
+      replacement: selected.moveEffectReplacements![0].replacement,
+      remainingTriggers: 1,
+    };
+    expect(
+      moveEffectsForTrigger(dimensionScream, "on-resource-drain", {
+        ...context,
+        self: { ...self, moveIds: [dimensionScream.id] },
+        activeEffects: [activeReplacement],
+        resourceChange: {
+          subject: "self",
+          resource: "ki",
+          operation: "lose",
+          amount: 3,
+        },
+      }).resources,
+    ).toEqual([
+      expect.objectContaining({
+        target: "self",
+        resource: "ki",
+        operation: "gain",
+        amount: 3,
+      }),
+    ]);
+  });
+
+  it("gates successful effects only after Rage Mastery's grouped activation is selected", () => {
+    const rageMastery = moves.get("move-akaikaru-rage-mastery");
+    const spikedBall = moves.get("move-kurokonwaku-spiked-ball");
+    const chainedStrikes = moves.get("move-akaikaru-chained-strikes");
+    if (rageMastery === undefined || spikedBall === undefined || chainedStrikes === undefined)
+      throw new Error("Expected Rage Mastery and Spiked Ball data.");
+
+    const passive = moveEffectsForTrigger(rageMastery, "passive", {
+      ...context,
+      self: { ...self, moveIds: [rageMastery.id, "move-akaikaru-chained-strikes"] },
+      triggeringMove: chainedStrikes,
+      enabledOptionalEffectIndices: [0, 1],
+      resolvedOptionalEffectIndices: [0, 1],
+    });
+    expect(passive.requireAllDiceSuccess).toBe(true);
+
+    const incomplete = successfulMoveEffects(spikedBall, {
+      ...context,
+      successfulHitCount: 1,
+      rolls: [
+        { attackNaturalResult: 20, attackResult: 20, outcome: "successful" },
+        { attackNaturalResult: 1, attackResult: 1, outcome: "stopped" },
+      ],
+      successfulEffectsRequireAllDice: passive.requireAllDiceSuccess,
+    });
+    expect(incomplete.resources).toEqual([]);
+    expect(incomplete.remainingUseModifications).toEqual([]);
+
+    const complete = successfulMoveEffects(spikedBall, {
+      ...context,
+      successfulHitCount: 2,
+      rolls: [
+        { attackNaturalResult: 20, attackResult: 20, outcome: "successful" },
+        { attackNaturalResult: 21, attackResult: 21, outcome: "successful" },
+      ],
+      successfulEffectsRequireAllDice: passive.requireAllDiceSuccess,
+      enabledOptionalEffectIndices: [1, 2],
+    });
+    expect(complete.remainingUseModifications).toHaveLength(1);
+  });
+
   it("evaluates Zen Explosion's defense threshold at the reaction roll", () => {
     const zenExplosion = moves.get("move-aoyosumu-zen-explosion");
     if (zenExplosion === undefined) throw new Error("Expected Zen Explosion data.");
@@ -2989,7 +3089,14 @@ describe("converted move effects", () => {
     } as MoveDefinition;
 
     expect(moveEffectsForTrigger(move, "before-attack-roll", context).rollDefinitions).toEqual([
-      { target: "self", roll: "attack", dice: 2, sides: 20 },
+      {
+        target: "self",
+        roll: "attack",
+        dice: 2,
+        sides: 20,
+        sourceDefinitionId: "move-afterlife-light-grenade",
+        sourceEffectIndex: 0,
+      },
     ]);
   });
 
@@ -3492,6 +3599,74 @@ describe("converted move effects", () => {
         remainingTurns: 2,
         effectIndex: 1,
       },
+    ]);
+  });
+
+  it("collects and resolves Power Boost's exact action-phase skip choice", () => {
+    const powerBoost = moves.get("move-kiihakai-power-boost");
+    if (powerBoost === undefined) throw new Error("Expected Power Boost data.");
+    const pending = moveEffectsForTrigger(powerBoost, "action-phase", {
+      ...context,
+      collectPendingChoices: true,
+    });
+    expect(pending.pendingEffectChoices).toEqual([
+      {
+        sourceDefinitionId: powerBoost.id,
+        effectIndices: [0],
+      },
+    ]);
+    expect(
+      moveEffectsForTrigger(powerBoost, "action-phase", {
+        ...context,
+        enabledOptionalEffectIndices: [0],
+        resolvedOptionalEffectIndices: [0],
+      }).actionRestrictions,
+    ).toEqual([{ target: "self", remainingTurns: 1, effectIndex: 0 }]);
+  });
+
+  it("stops only a matching non-Signature attack for Focus Breaker", () => {
+    const focusBreaker = moves.get("move-kiihakai-focus-breaker");
+    const energyAttack = moves.get("move-afterlife-masenko");
+    const signature = moves.get("move-afterlife-spirit-bomb");
+    if (focusBreaker === undefined || energyAttack === undefined || signature === undefined)
+      throw new Error("Expected Focus Breaker test data.");
+    expect(
+      moveEffectsForTrigger(focusBreaker, "before-defense-roll", {
+        ...context,
+        triggeringMove: energyAttack,
+        enabledOptionalEffectIndices: [0],
+      }).combatResultOverrides,
+    ).toEqual([{ target: "opponent", result: "stopped", resultScope: "current-attack" }]);
+    expect(
+      moveEffectsForTrigger(focusBreaker, "before-defense-roll", {
+        ...context,
+        triggeringMove: signature,
+        enabledOptionalEffectIndices: [0],
+      }).combatResultOverrides,
+    ).toEqual([]);
+  });
+
+  it("resolves High Threshold's exact total-HP defense substitution", () => {
+    const highThreshold = moves.get("move-haokiru-high-threshold");
+    const energyAttack = moves.get("move-afterlife-masenko");
+    if (highThreshold === undefined || energyAttack === undefined)
+      throw new Error("Expected High Threshold test data.");
+    const effects = moveEffectsForTrigger(highThreshold, "before-defense-roll", {
+      ...context,
+      triggeringMove: energyAttack,
+      enabledOptionalEffectIndices: [0],
+    });
+    expect(effects.resources).toEqual([
+      {
+        resource: "hp",
+        target: "self",
+        operation: "lose",
+        amount: 10,
+        cause: "non-damage-effect",
+      },
+    ]);
+    expect(effects.combatResultOverrides).toEqual([
+      { target: "opponent", result: "stopped", resultScope: "current-attack" },
     ]);
   });
 

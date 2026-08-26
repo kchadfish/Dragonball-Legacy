@@ -6,6 +6,7 @@ import {
   compileEffectPlan,
   effectExecutorRegistry,
   executeCompiledEffect,
+  registeredEffectTypes,
 } from "./effect-executors.js";
 
 const moveWithId = (moveId: string) => {
@@ -165,7 +166,7 @@ describe("declarative effect executor registry", () => {
     expect(compiled).toMatchObject({ ok: true, value: { type: "activate" } });
   });
 
-  it("compiles exact prior successful-effect, last-unrestricted, and selected opponent copied attacks", () => {
+  it("compiles exact persistent, prior successful-effect, last-unrestricted, and selected opponent copied attacks", () => {
     const flashback = firstEffectOfType("move-kurokonwaku-flashback", "copy-move-effect");
     expect(
       compileEffectPlan({
@@ -176,14 +177,13 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "copy-move-effect" } });
 
     const followUp = firstEffectOfType("move-akaikaru-follow-up", "copy-move-effect");
-    const rejected = compileEffectPlan({
-      sourceDefinitionId: followUp.move.id,
-      effectIndex: followUp.move.effects!.indexOf(followUp.effect),
-      effect: followUp.effect,
-    });
-    expect(rejected.ok).toBe(false);
-    if (!rejected.ok)
-      expect(rejected.issues.some((issue) => issue.code === "unsupported-variant")).toBe(true);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: followUp.move.id,
+        effectIndex: followUp.move.effects!.indexOf(followUp.effect),
+        effect: followUp.effect,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "copy-move-effect" } });
 
     const karmic = firstEffectOfType("move-aoyosumu-karmic-possession", "copy-move-effect");
     expect(
@@ -227,7 +227,7 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "modify-resource" } });
   });
 
-  it("compiles current-attack combat outcomes and rejects deferred selectors", () => {
+  it("compiles current-attack and exact deferred combat outcomes", () => {
     for (const [moveId, effectIndex] of [
       ["move-afterlife-guldo-special", 0],
       ["move-afterlife-guldo-special", 1],
@@ -248,7 +248,7 @@ describe("declarative effect executor registry", () => {
         effectIndex: 2,
         effect: deferred.effect,
       }),
-    ).toMatchObject({ ok: false });
+    ).toMatchObject({ ok: true, value: { type: "grant-combat-outcome" } });
   });
 
   it("compiles exact stored rolls and only their faithfully executable immediate consumers", () => {
@@ -343,13 +343,49 @@ describe("declarative effect executor registry", () => {
       ).toMatchObject({ ok: true, value: { type: "skip-action" } });
     }
 
-    for (const [moveId, effectIndex] of [["move-kiihakai-power-boost", 0]] as const) {
-      const { move, effect } = effectAt(moveId, effectIndex);
-      expect(
-        compileEffectPlan({ sourceDefinitionId: move.id, effectIndex, effect }),
-        `${moveId}#${effectIndex}`,
-      ).toMatchObject({ ok: false });
-    }
+    const powerBoost = effectAt("move-kiihakai-power-boost", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: powerBoost.move.id,
+        effectIndex: 0,
+        effect: powerBoost.effect,
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: powerBoost.move.id,
+        effectIndex: 0,
+        effect: powerBoost.effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "skip-action" } });
+
+    const focusBreaker = effectAt("move-kiihakai-focus-breaker", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: focusBreaker.move.id,
+        effectIndex: 0,
+        effect: focusBreaker.effect,
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: focusBreaker.move.id,
+        effectIndex: 0,
+        effect: focusBreaker.effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "stop-attack-by-deactivation" } });
+
+    const highThreshold = effectAt("move-haokiru-high-threshold", 0);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: highThreshold.move.id,
+        effectIndex: 0,
+        effect: highThreshold.effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "substitute-defense" } });
   });
 
   it("compiles exact current-action tags and the durable declared-style lifecycle", () => {
@@ -847,23 +883,24 @@ describe("declarative effect executor registry", () => {
     }
   });
 
-  it("rejects an effect discriminant without a registered executor", () => {
+  it("compiles Fierce Focus's exact deactivation-negation variants as a pending executor", () => {
     const { move, effect } = effectAt("move-kiihakai-fierce-focus-mastery", 2);
     const compiled = compileEffectPlan({
       sourceDefinitionId: move.id,
       effectIndex: 2,
       effect,
+      allowPendingChoice: true,
     });
 
-    expect(compiled).toEqual({
+    expect(compiled).toMatchObject({
+      ok: true,
+      value: { type: "negate-deactivation" },
+    });
+    expect(
+      compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 2, effect }),
+    ).toMatchObject({
       ok: false,
-      issues: [
-        expect.objectContaining({
-          code: "unsupported-effect-type",
-          sourceDefinitionId: move.id,
-          effectIndex: 2,
-        }),
-      ],
+      issues: [expect.objectContaining({ code: "requires-pending-choice" })],
     });
   });
 
@@ -884,6 +921,37 @@ describe("declarative effect executor registry", () => {
       effect: relative.effect,
     });
     expect(compiledRelative).toMatchObject({ ok: true });
+  });
+
+  it("compiles Aura Clash's optional END-phase transformation opportunities", () => {
+    for (const effectIndex of [0, 1] as const) {
+      const { move, effect } = effectAt("move-kiihakai-aura-clash", effectIndex);
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+        }),
+      ).toMatchObject({ ok: true, value: { type: "force-transformation" } });
+    }
+  });
+
+  it("compiles exact constant reactivation variants", () => {
+    for (const [sourceDefinitionId, effectIndex] of [
+      ["move-kiihakai-diving-elbow", 0],
+      ["move-midorikatai-grapple", 0],
+    ] as const) {
+      const { move, effect } = effectAt(sourceDefinitionId, effectIndex);
+      expect(
+        compileEffectPlan({
+          sourceDefinitionId: move.id,
+          effectIndex,
+          effect,
+          allowPendingChoice: true,
+        }),
+        `${sourceDefinitionId}#${effectIndex}`,
+      ).toMatchObject({ ok: true });
+    }
   });
 
   it("compiles current-attack combat-result overrides with explicit timing", () => {
@@ -1553,6 +1621,68 @@ describe("declarative effect executor registry", () => {
     ).toMatchObject({ ok: true, value: { type: "set-stat-comparison" } });
   });
 
+  it("compiles Diving Elbow's exact protected CONSTANT activation", () => {
+    const { move, effect } = effectAt("move-kiihakai-diving-elbow", 1);
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: 1,
+      effect,
+      allowPendingChoice: true,
+    });
+    expect(compiled).toMatchObject({ ok: true, value: { type: "activate-protected-constant" } });
+  });
+
+  it("compiles Mimicry Master's exact successful-effect exchange", () => {
+    const { move, effect } = effectAt("move-kurokonwaku-mimicry-mastery", 1);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 1,
+        effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "copy-move-effects" } });
+  });
+
+  it("compiles Downward Spiral's exact active CONSTANT replacement", () => {
+    const { move, effect } = effectAt("move-kiihakai-downward-spiral", 1);
+    expect(
+      compileEffectPlan({
+        sourceDefinitionId: move.id,
+        effectIndex: 1,
+        effect,
+        allowPendingChoice: true,
+      }),
+    ).toMatchObject({ ok: true, value: { type: "replace-active-constant-effects" } });
+  });
+
+  it("compiles Spiked Ball's exact selected-move replacement", () => {
+    const { move, effect } = effectAt("move-kurokonwaku-spiked-ball", 2);
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: 2,
+      effect,
+      allowPendingChoice: true,
+    });
+
+    expect(compiled).toMatchObject({ ok: true, value: { type: "replace-move-effect" } });
+  });
+
+  it("compiles Rage Mastery's exact grouped all-dice success gate", () => {
+    const { move, effect } = effectAt("move-akaikaru-rage-mastery", 2);
+    const compiled = compileEffectPlan({
+      sourceDefinitionId: move.id,
+      effectIndex: 2,
+      effect,
+      allowPendingChoice: true,
+    });
+
+    expect(compiled).toMatchObject({
+      ok: true,
+      value: { type: "require-all-dice-success" },
+    });
+  });
+
   it("compiles Manipulation Master's before-defense result exchange", () => {
     const first = effectAt("move-kurokonwaku-manipulation-mastery", 0);
     const second = effectAt("move-kurokonwaku-manipulation-mastery", 1);
@@ -1569,56 +1699,20 @@ describe("declarative effect executor registry", () => {
   });
 
   it("keeps the runtime registry exhaustively named", () => {
-    expect(Object.keys(effectExecutorRegistry).sort()).toEqual([
-      "activate",
-      "apply-status",
-      "copy-move-effect",
-      "create-floating-effect",
-      "deactivate",
-      "defer-move",
-      "force-action",
-      "grant-combat-outcome",
-      "grant-counter-action",
-      "grant-extra-action",
-      "grant-transformation-action",
-      "lock",
-      "modify-cost",
-      "modify-cost-modifier",
-      "modify-critical-threshold",
-      "modify-damage",
-      "modify-damage-modifier",
-      "modify-move-classification",
-      "modify-remaining-uses",
-      "modify-resource",
-      "modify-resource-cost",
-      "modify-resource-modifier",
-      "modify-roll",
-      "modify-roll-modifier",
-      "modify-slot-capacity",
-      "modify-stat",
-      "negate",
-      "prevent-combat-result",
-      "prevent-low-roll-stop",
-      "prevent-move-modification",
-      "prevent-move-use",
-      "prevent-resolution",
-      "prevent-resource-modification",
-      "prevent-roll-modification",
-      "prevent-status",
-      "remove-move-from-combat",
-      "reroll",
-      "revert-transformation",
-      "roll-and-store",
-      "schedule-effect",
-      "select-move-by-stored-roll",
-      "set-combat-result",
-      "set-resolution-threshold",
-      "set-roll-definition",
-      "set-roll-result",
-      "set-roll-selection",
-      "set-stat-comparison",
-      "skip-action",
-      "suppress",
-    ]);
+    expect(Object.keys(effectExecutorRegistry).sort()).toEqual([...registeredEffectTypes].sort());
+  });
+
+  it("compiles Speed Demon's upkeep defense definition", () => {
+    const { move, effect } = effectAt("move-akaikaru-speed-demon", 0);
+    const compiled = compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 0, effect });
+    if (!compiled.ok) throw new Error(JSON.stringify(compiled.issues));
+    expect(compiled.value).toMatchObject({ type: "set-roll-definition" });
+  });
+
+  it("compiles Breaker Breaker's next matching BREAK multiplier", () => {
+    const { move, effect } = effectAt("move-midorikatai-breaker-breaker", 1);
+    const compiled = compileEffectPlan({ sourceDefinitionId: move.id, effectIndex: 1, effect });
+    if (!compiled.ok) throw new Error(JSON.stringify(compiled.issues));
+    expect(compiled.value).toMatchObject({ type: "modify-combat-outcome" });
   });
 });

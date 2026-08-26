@@ -121,6 +121,13 @@ export interface CombatantState {
   readonly transformationIds?: readonly TransformationId[];
   /** Number of pending transformations that do not consume the action phase. */
   readonly freeTransformationActions?: number;
+  /** Transformation opportunities retained until the next END phase. */
+  readonly forcedTransformationOpportunities?: readonly {
+    readonly sourceDefinitionId: MoveId;
+    readonly sourceEffectIndex: number;
+    readonly targetTransformation: "highest";
+    readonly optional: boolean;
+  }[];
   readonly moveUses: Readonly<Record<MoveId, number>>;
   /** Combat-local counts for immediate declarative effects with their own use limits. */
   readonly effectUseCounts?: Readonly<Record<string, number>>;
@@ -215,8 +222,17 @@ export interface PendingDecisionOption {
   readonly combatantId?: CombatantId;
   readonly itemId?: ItemId;
   readonly moveId?: MoveId;
+  /** Active CONSTANT Skill selected as the replacement target. */
+  readonly activeEffectId?: ActiveEffectId;
+  readonly transformationId?: TransformationId;
+  readonly forcedTransformation?: {
+    readonly sourceDefinitionId: MoveId;
+    readonly sourceEffectIndex: number;
+  };
   /** The completed source action selected by a prior-action copy effect. */
   readonly sourceActionId?: CombatDecisionId;
+  /** A selected move retained by a compound defense response choice. */
+  readonly selectedMoveId?: MoveId;
   /** Immutable source move snapshot retained with a serialized selection. */
   readonly sourceMoveSnapshot?: MoveDefinition;
   /** Exact damage retained from the selected completed source action. */
@@ -225,6 +241,12 @@ export interface PendingDecisionOption {
   readonly sourceResolutionSnapshot?: AttackResolutionSnapshot;
   /** Resolved counter permission selected at the post-defense boundary. */
   readonly counterAction?: CounterActionReference;
+  /** Exact deactivation-negation listener selected for the pending lifecycle response. */
+  readonly deactivationNegation?: {
+    readonly sourceDefinitionId: MoveId;
+    readonly sourceEffectIndex: number;
+    readonly useLimit?: { readonly scope: "combat"; readonly count: number };
+  };
   readonly effectIndices?: readonly number[];
   readonly combatResultOverride?: {
     readonly sourceDefinitionId: MoveId;
@@ -405,6 +427,17 @@ type ActiveNextActionModifier =
       readonly modifier: "dice" | "result" | "sides";
       readonly amount: number;
       readonly cap?: NonNullable<ActiveRollModifierEffect["cap"]>;
+    }
+  | {
+      readonly type: "roll-definition";
+      readonly roll: "attack" | "defense";
+      readonly dice?: number;
+      readonly sides: number;
+    }
+  | {
+      readonly type: "combat-outcome";
+      readonly outcome: "break" | "sever" | "stun";
+      readonly multiplier: number;
     }
   | {
       readonly type: "stat";
@@ -822,6 +855,16 @@ export interface ActiveConstantEffect {
   /** Omitted legacy values are active; deactivation remains durable for reactivation effects. */
   readonly lifecycle?: "active" | "deactivated";
   readonly deactivatedOnTurn?: number;
+  /** A temporary immutable replacement for this constant's effects. */
+  readonly replacement?: {
+    readonly sourceDefinitionId: MoveId;
+    readonly sourceMoveSnapshot: MoveDefinition;
+    readonly duration: {
+      readonly type: "turns";
+      readonly ownerCombatantId: CombatantId;
+      readonly remaining: number;
+    };
+  };
 }
 
 /** A typed declarative effect bundle that remains active until its scope or termination rule ends. */
@@ -972,6 +1015,19 @@ export interface ActiveMoveRemovalEffect {
     "combat" | { readonly type: "until-perfect-roll"; readonly combatantId: CombatantId };
 }
 
+/** A combat-local replacement for one effect on one immutable move definition. */
+export interface ActiveMoveEffectReplacementEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "move-effect-replacement";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly targetMoveId: MoveId;
+  readonly replacement: EffectDefinition;
+  readonly remainingTriggers: number;
+}
+
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
@@ -1000,7 +1056,8 @@ export type ActiveCombatEffect =
   | ActiveExtraActionEffect
   | ActiveScheduledResourceEffect
   | ActiveDeferredMoveEffect
-  | ActiveMoveRemovalEffect;
+  | ActiveMoveRemovalEffect
+  | ActiveMoveEffectReplacementEffect;
 
 /**
  * An effective resource change retained with the action that caused it.
@@ -1108,6 +1165,8 @@ export interface CopiedMoveAttackReference {
   readonly copiedDamageOverride?: number;
   /** Whether only the source move's SUCCESSFUL clauses were copied. */
   readonly copiedSuccessfulEffectsOnly?: boolean;
+  /** Whether the current attack keeps its mechanics while replacing effects. */
+  readonly copiedEffectsOnly?: boolean;
   /** Immutable source attack-resolution snapshot for exact prior-attack copies. */
   readonly copiedSourceResolution?: AttackResolutionSnapshot;
 }
@@ -1206,6 +1265,9 @@ export type ResolutionFrame =
       readonly beforeDefenseEffectChoices?: readonly {
         readonly sourceDefinitionId: MoveId;
         readonly effectIndices: readonly number[];
+        readonly sacrificedMoveId?: MoveId;
+        readonly sourceActionId?: CombatDecisionId;
+        readonly sourceMoveSnapshot?: MoveDefinition;
       }[];
       readonly deferredExecution?: {
         readonly activeEffectId: ActiveEffectId;
@@ -1256,11 +1318,20 @@ export type ResolutionFrame =
         readonly effectIndex: number;
         readonly moveId: MoveId;
       }[];
+      /** Move selections retained for grouped effects that target one move. */
+      readonly selectedMoveTargets?: readonly {
+        readonly effectIndex: number;
+        readonly moveId: MoveId;
+      }[];
       /** Source move for a selected cost listener that is not the attack move. */
       readonly effectSourceDefinitionId?: MoveId;
       /** Combatant owning a selected move-use listener that is not the attacker. */
       readonly effectSourceCombatantId?: CombatantId;
       readonly selectedNumericValues?: Readonly<Record<string, number>>;
+      /** Active floating effect selected by an exact end-floating-effect choice. */
+      readonly selectedFloatingEffectId?: ActiveEffectId;
+      /** Candidate floating effects retained while an end-floating-effect choice is pending. */
+      readonly floatingEffectIds?: readonly ActiveEffectId[];
       /** The trigger whose grouped effects are awaiting the acting player's choice. */
       readonly effectTrigger?:
         | "before-attack-roll"
@@ -1302,7 +1373,7 @@ export type ResolutionFrame =
       readonly decisionId: CombatDecisionId;
       readonly actorId: CombatantId;
       readonly targetCombatantId: CombatantId;
-      readonly returnPhase: "end" | "upkeep";
+      readonly returnPhase: "action" | "end" | "upkeep";
       readonly pendingDecisionId?: PendingDecisionId;
       readonly sourceDefinitionId: MoveId;
       /** Action move being resumed when the selected listener is a different source. */
@@ -1310,7 +1381,12 @@ export type ResolutionFrame =
       readonly sourceCombatantId?: CombatantId;
       readonly effectIndices: readonly number[];
       readonly effectTrigger:
-        "on-power-up" | "on-roll-result" | "on-move-use" | "upkeep-phase" | "start-combat";
+        | "action-phase"
+        | "on-power-up"
+        | "on-roll-result"
+        | "on-move-use"
+        | "upkeep-phase"
+        | "start-combat";
       /** Selected indices are replayed by the owning phase before the frame is removed. */
       readonly selectedEffectIndices?: readonly number[];
       readonly resolved?: boolean;
@@ -1332,8 +1408,11 @@ export type ResolutionFrame =
         | "deactivate"
         | "activate-extra-action"
         | "copy-move"
+        | "negate-deactivation"
+        | "replace-constant"
         | "select-damage-target"
         | "select-suppression-target"
+        | "select-move-target"
         | "select-move-removal"
         | "defer-move";
       readonly returnPhase: CombatPhase;
@@ -1355,6 +1434,10 @@ export type ResolutionFrame =
       readonly optional?: boolean;
       /** Whether activation choices must reuse constants in the deactivated lifecycle. */
       readonly reactivationOnly?: boolean;
+      /** Whether reactivation is restricted to constants deactivated on the immediately prior turn. */
+      readonly reactivationTiming?: "last-turn";
+      /** Turns during which the selected constant cannot be deactivated. */
+      readonly deactivationProtectionTurns?: number;
       /** Resolved declarative KI activation cost retained across the pending choice. */
       readonly activationCost?: {
         readonly amount: number;
@@ -1367,10 +1450,43 @@ export type ResolutionFrame =
       readonly activeEffectId?: ActiveEffectId;
       /** Activation context retained across the serialized CONSTANT choice. */
       readonly activationAsIf?: "power-up";
+      /** Original attack resumed after an action-phase activation choice. */
+      readonly activationContinuation?: {
+        readonly decisionId: CombatDecisionId;
+        readonly targetCombatantId: CombatantId;
+      };
       /** The activation consumes every eligible CONSTANT Skill in one group. */
       readonly activationSelection?: "all";
+      /** The active constant whose deactivation is awaiting an optional negation response. */
+      readonly deactivationEffectId?: ActiveEffectId;
+      /** The exact listener choices retained for this deactivation boundary. */
+      readonly deactivationNegations?: readonly {
+        readonly sourceDefinitionId: MoveId;
+        readonly sourceEffectIndex: number;
+        readonly useLimit?: { readonly scope: "combat"; readonly count: number };
+      }[];
+      /** Original deactivation operation resumed after the owner answers. */
+      readonly deactivationContinuation?: {
+        readonly sourceCombatantId: CombatantId;
+        readonly targetCombatantId: CombatantId;
+        readonly sourceDefinitionId: MoveId;
+        readonly effectIndex: number;
+        readonly trigger: "upkeep" | "action" | "end" | "on-success" | "on-stopped";
+        readonly eligibleMoveIds: readonly MoveId[];
+        readonly excludedMoveIds?: readonly MoveId[];
+        readonly remainingSelections: number;
+        readonly optional: boolean;
+        readonly activationCost?: {
+          readonly amount: number;
+          readonly minimum?: number;
+          readonly resource?: "hp" | "ki";
+        };
+      };
       /** Selection identity retained on every CONSTANT Skill activated by this frame. */
       readonly selectionKey?: string;
+      /** Immutable source and target selections retained while replacing a constant's effects. */
+      readonly replacementSourceMoveSnapshot?: MoveDefinition;
+      readonly replacementTargetEffectId?: ActiveEffectId;
       /** Lifecycle choices remain as a resolved marker until their phase boundary resumes. */
       readonly resolved?: boolean;
     };
@@ -1678,6 +1794,17 @@ export interface EffectNegatedEvent extends CombatEventBase {
   readonly sourceDefinitionId: MoveId;
 }
 
+/** A CONSTANT Skill's active effect source was temporarily replaced. */
+export interface EffectReplacedEvent extends CombatEventBase {
+  readonly type: "effect-replaced";
+  readonly activeEffectId: ActiveEffectId;
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly replacementSourceDefinitionId: MoveId;
+  readonly duration: number;
+}
+
 /** A mandatory duration check, retained so turn-start randomness is replayable. */
 export interface EffectRolledEvent extends CombatEventBase {
   readonly type: "effect-rolled";
@@ -1840,6 +1967,7 @@ export type CombatEvent =
   | EffectExpiredEvent
   | EffectDeactivatedEvent
   | EffectNegatedEvent
+  | EffectReplacedEvent
   | EffectRolledEvent
   | RollStoredEvent
   | MoveSelectionUpdatedEvent

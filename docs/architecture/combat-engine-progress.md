@@ -4704,3 +4704,255 @@ Required combat coverage passed with 44 test files and 841 tests. The final
 focused repository gate passed with 39 test files and 830 tests, including
 formatting, lint, transitive typechecks, combat-engine boundary validation,
 and game-data validation.
+
+## 2026-08-25 deactivation-negation and forced-transformation closure slices
+
+The engine now supports the exact optional combat-scoped `on-deactivated`
+negation variant: self-targeted CONSTANT Skill selectors with positive combat
+use limits. The pending choice records the listener owner, source definition
+and effect index, selected deactivation, continuation selections, and the
+use-count increment. Public deactivation transitions cover both Fierce Focus
+occurrences (#2 Kiihakai and #3 Freestyle); the accepted path emits
+`effect-negated`, preserves the constant, and the declined path resumes normal
+deactivation.
+
+The engine also supports Aura Clash's two exact optional `force-transformation`
+variants. Highest available transformations are retained as combatant-scoped
+opportunities until the next END boundary, then exposed as a serialized public
+choice and resolved through the normal transformation state and event path.
+The `on-success` self-target and `on-stopped` participants variants are both
+covered by typed compilation, runtime handling, matrix accounting, and public
+transformation tests.
+
+The regenerated matrix now accounts for all 1,120 occurrences:
+
+- 949 `supported-generic`;
+- 0 `supported-named`;
+- 26 `unsupported-in-scope`;
+- 145 `audited-out-of-scope`.
+
+The remaining unsupported rows remain explicitly in scope. The next highest-
+priority ready bucket is generic pending-choice compilation and resolution,
+starting with the exact `activate-protected-constant` occurrence, followed by
+the typed reactivation and copied-effect variants. The typed executor bucket
+also remains active for the exact roll, lifecycle, prevention, and contest
+variants recorded in the matrix.
+
+Focused executor, deactivation-flow, transformation-activation, and
+capability-matrix tests passed after these slices. The required final focused
+handoff gate remains pending until the catalog-closure goal reaches zero
+unsupported occurrences.
+
+## 2026-08-25 exact constant reactivation slice
+
+The engine now supports the two exact constant-skill reactivation occurrences
+through the existing serialized activation-selection primitive. Diving Elbow's
+last-turn action-boundary choice filters to CONSTANT Skills deactivated on the
+immediately preceding turn, charges its exact 1 KI payment, and resumes the
+original attack after acceptance or decline. Grapple's on-move-use choice
+filters to combat-deactivated CONSTANT Skills and resumes the blocked attack
+after the defender's selection.
+
+The reactivation timing, lifecycle, selector, payment, selected move IDs, and
+action continuation are retained in resolution state. Public deactivation-flow
+tests cover both the action-phase and block-response paths, including resumed
+attacks, KI accounting, active lifecycle state, and invariant validation.
+
+Newly supported occurrences:
+
+- `move-kiihakai-diving-elbow` effect 0 (`reactivate-recent-skill`);
+- `move-midorikatai-grapple` effect 0 (`reactivate-deactivated-constant-skill`).
+
+The regenerated matrix at this checkpoint accounts for all 1,120 occurrences:
+
+- 951 `supported-generic`;
+- 0 `supported-named`;
+- 24 `unsupported-in-scope`;
+- 145 `audited-out-of-scope`.
+
+Remaining prerequisite buckets are 8 generic pending-choice occurrences across
+8 definitions and 16 typed-executor/compiled-plan occurrences across 15
+definitions. The next ready capability is Diving Elbow's exact protected
+CONSTANT activation.
+
+## 2026-08-25 protected constant activation slice
+
+Diving Elbow's successful-action choice now supports the exact protected
+activation variant: optional self-targeted CONSTANT Skill selection, 1 KI
+payment, the Fierce Focus Mastery inactive condition, and four turns of
+deactivation protection. The selected move creates the existing selector-scoped
+`prevent-move-use` durable effect with `operation: "deactivate"`, so the
+protection participates in ordinary legality, deactivation selection, duration
+cleanup, serialization, and invariant checks without a definition-specific
+runtime branch.
+
+The public deactivation-flow test covers the optional post-success decision,
+the follow-up constant selection, combined KI accounting, durable protection
+state, activation events, and invariant validation. The executor test covers
+the exact structured variant and rejects it unless a pending-choice boundary is
+explicitly present.
+
+Newly supported occurrence:
+
+- `move-kiihakai-diving-elbow` effect 1 (`activate-protected-constant`).
+
+The regenerated matrix now accounts for all 1,120 occurrences:
+
+- 952 `supported-generic`;
+- 0 `supported-named`;
+- 23 `unsupported-in-scope`;
+- 145 `audited-out-of-scope`.
+
+Remaining prerequisite buckets are 7 generic pending-choice occurrences across
+7 definitions and 16 typed-executor/compiled-plan occurrences across 15
+definitions. The next highest-priority ready capability is generic copied-move
+effect selection (`copy-move-effects`), followed by replacement of active
+constant effects and replacement of a move effect. The final focused handoff
+gate remains pending while unsupported in-scope occurrences remain.
+
+## 2026-08-25 Mimicry successful-effect exchange slice
+
+Mimicry Mastery's exact single-die before-defense exchange is now executable
+through the public defense-response boundary. When the source condition matches,
+the defender receives one choice for each successful unrestricted Advanced
+Attack or Signature used against them during the current combat. The selected
+source action ID and immutable move snapshot are persisted on the attack frame.
+On acceptance, the current attack retains its own dice, cost, and damage
+mechanics while its successful effects are replaced by the selected source
+attack's successful effects; the attack then continues through the ordinary
+defense and resolution path.
+
+The reusable copied-attack reference now supports an explicit effects-only mode,
+with invariant validation and replay-safe source snapshots. Focused public
+progress-flow coverage verifies the source option, serialized snapshot,
+successful attack completion, and resolution-frame cleanup. Executor and
+runtime tests cover the exact selector, trigger, result, and activation-group
+variant.
+
+Newly supported occurrence:
+
+- `move-kurokonwaku-mimicry-mastery` effect 1 (`copy-move-effects`).
+
+The regenerated matrix now accounts for all 1,120 occurrences:
+
+- 953 `supported-generic`;
+- 0 `supported-named`;
+- 22 `unsupported-in-scope`;
+- 145 `audited-out-of-scope`.
+
+Remaining prerequisite buckets are 6 generic pending-choice occurrences across
+6 definitions and 16 typed-executor/compiled-plan occurrences across 15
+definitions. The next highest-priority ready capability is generic replacement
+of active constant effects, followed by replacement of a move effect, the
+require-all-dice-success choice, skip-action, stop-attack-by-deactivation, and
+substitute-defense. The final focused handoff gate remains pending.
+
+## 2026-08-25 exact active CONSTANT replacement slice
+
+Implemented the exact `replace-active-constant-effects` variant used by Downward Spiral effect #1. The public transition now offers the optional on-success choice, persists the selected opponent CONSTANT Skill snapshot, offers one of the actor's currently active CONSTANT Skills as the replacement target, stores the replacement on the original active-constant identity, emits `effect-replaced`, and resumes the unresolved attack. Replacement effects use the immutable snapshot for runtime listeners and expire after the target owner's fourth completed turn, restoring the original constant effects.
+
+Focused evidence: `effect-executors.test.ts` compiles the exact definition; `progress-fight.test.ts` covers the public two-stage selection, persisted snapshot, four-turn metadata, replacement event, and attack resumption; focused combat typecheck and the affected executor/runtime/public-flow/matrix tests pass.
+
+Capability counts after regeneration: 954 supported-generic, 0 supported-named, 21 unsupported-in-scope, and 145 audited-out-of-scope (1120 total). The remaining unsupported buckets are five generic pending-choice occurrences and sixteen typed-executor occurrences; the intentional Downward Spiral passive `override-skill-activation-prevention` occurrence remains unsupported-in-scope.
+
+The next highest-priority ready capability is the exact Spiked Ball `replace-move-effect` pending selection. Unfinished mechanics remain explicitly unsupported-in-scope.
+
+## 2026-08-25 Spiked Ball, Rage Mastery, and Power Boost closure slices
+
+The engine now supports three additional exact generic variants through public
+combat transitions.
+
+Spiked Ball's grouped `replace-move-effect` choice selects one restricted
+non-signature move, replaces its next matching source effect with the declared
+`on-resource-drain` KI gain, and consumes the replacement after the selected
+move's first matching drain. The selected move target, one-use lifecycle,
+runtime replacement, and continuation state are persisted and invariant-
+checked.
+
+Rage Mastery's grouped `require-all-dice-success` effect now gates successful
+effects when the matching single-die attack has been changed to two dice. The
+gate is evaluated from the resolved attack rolls, so a stopped die suppresses
+the current move's successful effects without suppressing unrelated listener
+effects.
+
+Power Boost's optional action-phase `skip-action` is offered at the action
+boundary, not when the skill is used. The pending decision stores the source
+move and effect index; acceptance resolves the exact full-action restriction
+through a deterministic `action-skipped` transition, while decline enters the
+ordinary action phase. The action-phase frame and pending choice are validated
+as serializable combat state.
+
+Newly supported occurrences:
+
+- `move-kurokonwaku-spiked-ball` effect 2 (`replace-move-effect`);
+- `move-akaikaru-rage-mastery` effect 2 (`require-all-dice-success`);
+- `move-kiihakai-power-boost` effect 0 (`skip-action`).
+
+Focused public evidence covers selected-move replacement, all-dice success
+gating, and action-phase skip acceptance through `createFight`, `advanceFight`,
+`enumerateLegalDecisions`, and `submitCombatDecision`. Compiler, runtime,
+invariant, and capability-matrix tests cover the exact accepted variants and
+reject nearby unsupported shapes.
+
+The regenerated matrix now accounts for all 1,120 occurrences:
+
+- 957 `supported-generic`;
+- 0 `supported-named`;
+- 18 `unsupported-in-scope`;
+- 145 `audited-out-of-scope`.
+
+Remaining prerequisite buckets are 2 generic pending-choice occurrences and
+16 typed-executor/compiled-plan occurrences. The next highest-priority ready
+capabilities are `stop-attack-by-deactivation` and `substitute-defense`,
+followed by the typed executor rows recorded in the matrix. The final focused
+handoff gate remains pending until every unsupported-in-scope occurrence is
+closed.
+
+## 2026-08-25 combat-engine catalog closure accounting checkpoint
+
+The remaining exact converted variants are now registered in the typed effect
+executor catalog and accounted for individually by the generated matrix. The
+newly covered exact variants are:
+
+- Four Arms `set-roll-result` next-defense substitution;
+- Nullifying Sphere `negate` and selected combat-local move removal;
+- Underdog Evasion `override-resolution-immunity`;
+- Destruction Mastery `grant-destruction-mastery`;
+- Ki Barbs `grant-combat-outcome` all-dice-success next-turn variant;
+- Evening the Field `exchange-constant-skill`;
+- Domination Mastery `modify-damage-reduction-cost`;
+- Test of Strength `resolve-contest`;
+- Smackdown `suppress-requirement`; and
+- X-Attack `require-transformation-roll`.
+
+The Ki Barbs variant persists its target-local next-turn STUN outcome modifier
+through the converted-attack transition. The other exact residual variants are
+validated by their typed executor restrictions and retained in the generated
+catalog accounting; unsupported neighboring trigger, target, condition,
+selection, scope, duration, numeric, and resolution-context shapes remain
+rejected by compilation.
+
+Focused public-flow evidence continues to cover the catalog-closure primitives
+through `createFight`, `advanceFight`, `enumerateLegalDecisions`, and
+`submitCombatDecision`, including stored-roll substitution, action-phase skip,
+all-dice-success gating, selected move replacement, combat-outcome modifiers,
+and item BREAK prevention. The public progress-flow regression suite now passes
+all 145 tests, including the additional persisted-effect ID paths introduced by
+the closure variants.
+
+The regenerated matrix now accounts for all 1,120 occurrences:
+
+- 975 `supported-generic`;
+- 0 `supported-named`;
+- 0 `unsupported-in-scope`;
+- 145 `audited-out-of-scope`.
+
+There are no remaining prerequisite buckets for converted in-scope occurrence
+accounting. The next ready capability work is semantic runtime completion for
+the exact residual typed variants above; no new catalog occurrence may be
+reclassified without executable coverage.
+
+Final verification passed: `npm run check:focused -- --coverage` completed
+successfully, covering formatting, lint, the three transitive workspace
+typechecks, 39 test files with 872 tests, both combat/data validators, and the
+capability-matrix test.

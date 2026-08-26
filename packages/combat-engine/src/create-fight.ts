@@ -22,7 +22,10 @@ import type { CombatantId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
 import { applyCombatItemPassives } from "./item-effects-runtime.js";
 import { moveEffectsForTrigger } from "./move-effects-runtime.js";
-import { activeRollModifierFromApplication } from "./progress-fight.js";
+import {
+  activeRollModifierFromApplication,
+  startCombatCopySelectionFor,
+} from "./progress-fight.js";
 
 const knownMoveIds = new Set(MOVE_DEFINITIONS.map((move) => move.id));
 const knownItemIds = new Set(ITEM_DEFINITIONS.map((item) => item.id));
@@ -386,7 +389,16 @@ export const createFight = (
     resolutionFrames: [],
     eventSequence: 2 + initiative.tieBreakerRolls.length,
   };
-  const violations = validateFightState(state);
+  const initialCopySelection = startCombatCopySelectionFor(state, dependencies);
+  const stateWithInitialCopySelection =
+    initialCopySelection === undefined
+      ? state
+      : {
+          ...state,
+          pendingDecision: initialCopySelection.pendingDecision,
+          resolutionFrames: [...state.resolutionFrames, initialCopySelection.frame],
+        };
+  const violations = validateFightState(stateWithInitialCopySelection);
   if (violations.length > 0) {
     return { ok: false, error: { type: "invalid-fight-state", violations } };
   }
@@ -394,7 +406,7 @@ export const createFight = (
   return {
     ok: true,
     value: {
-      state,
+      state: stateWithInitialCopySelection,
       events: [
         {
           id: dependencies.ids.nextEventId(),

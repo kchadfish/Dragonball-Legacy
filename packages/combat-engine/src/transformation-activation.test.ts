@@ -227,4 +227,98 @@ describe("transformation activation", () => {
       expect.objectContaining({ type: "phase-changed" }),
     );
   });
+
+  it("serializes an optional highest-transformation opportunity at the next END boundary", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-04T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:forced-transformation")],
+      combatantIds: [ghostId, opponentId],
+      pendingDecisionIds: ["pending-decision:forced-transformation" as never],
+      eventIds: Array.from({ length: 8 }, (_, index) =>
+        combatEventIdSchema.parse(`event:forced-transformation-${index + 1}`),
+      ),
+    });
+    const created = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+            moveIds: [],
+            transformationIds: ["transformation-ghost-2-ghoul"],
+          },
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 1, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
+      },
+      dependencies,
+    );
+    if (!created.ok) throw new Error("Expected fight creation to succeed.");
+    const action = advanceFight(created.value.state, dependencies);
+    if (!action.ok || action.value.state.status !== "active")
+      throw new Error("Expected action state.");
+    const endState = {
+      ...action.value.state,
+      phase: "end" as const,
+      combatants: {
+        ...action.value.state.combatants,
+        [ghostId]: {
+          ...action.value.state.combatants[ghostId],
+          forcedTransformationOpportunities: [
+            {
+              sourceDefinitionId: "move-kiihakai-aura-clash",
+              sourceEffectIndex: 0,
+              targetTransformation: "highest" as const,
+              optional: true,
+            },
+          ],
+        },
+      },
+    };
+    const pending = advanceFight(endState, dependencies);
+    if (!pending.ok || pending.value.state.status !== "active")
+      throw new Error("Expected a forced-transformation choice.");
+    expect(pending.value.state.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      combatantId: ghostId,
+      options: [
+        expect.objectContaining({
+          transformationId: "transformation-ghost-2-ghoul",
+          forcedTransformation: {
+            sourceDefinitionId: "move-kiihakai-aura-clash",
+            sourceEffectIndex: 0,
+          },
+        }),
+        expect.objectContaining({ type: "decline" }),
+      ],
+    });
+    const option = pending.value.state.pendingDecision!.options[0]!;
+    const resolved = submitCombatDecision(
+      pending.value.state,
+      {
+        type: "respond-to-pending-decision",
+        id: combatDecisionIdSchema.parse("decision:forced-transformation"),
+        actorId: ghostId,
+        expectedStateVersion: pending.value.state.version,
+        pendingDecisionId: pending.value.state.pendingDecision!.id,
+        optionId: option.id,
+      },
+      dependencies,
+    );
+    if (!resolved.ok || resolved.value.state.status !== "active")
+      throw new Error("Expected forced transformation to resolve.");
+    expect(resolved.value.state.combatants[ghostId]).toMatchObject({
+      transformation: { transformationId: "transformation-ghost-2-ghoul" },
+      forcedTransformationOpportunities: undefined,
+    });
+    expect(resolved.value.events).toContainEqual(
+      expect.objectContaining({
+        type: "transformation-activated",
+        combatantId: ghostId,
+      }),
+    );
+  });
 });

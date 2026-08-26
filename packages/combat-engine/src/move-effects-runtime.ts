@@ -1,6 +1,7 @@
 import type {
   EffectDefinition,
   MoveDefinition,
+  MoveId,
   MoveSelectorCondition,
   NumericExpression,
 } from "@dragonball-resurgence/game-data";
@@ -92,6 +93,10 @@ export interface MoveEffectRuntimeContext {
   readonly activationUnavailableSelectors?: readonly MoveSelectorCondition[];
   /** Move IDs selected for declarative suppression effects awaiting attack resumption. */
   readonly selectedSuppressionMoveIds?: Readonly<Record<number, MoveDefinition["id"]>>;
+  /** Move IDs selected for grouped effects that target one move. */
+  readonly selectedMoveIds?: Readonly<Record<number, MoveDefinition["id"]>>;
+  /** Successful effects are gated until every die in the current attack succeeds. */
+  readonly successfulEffectsRequireAllDice?: boolean;
   /** Target retained by the floating effect whose nested effects are dispatching. */
   readonly floatingEffectTargetCombatantId?: CombatantId;
 }
@@ -254,6 +259,9 @@ export interface TransformationActionApplication {
   readonly sourceDefinitionId: MoveDefinition["id"];
   readonly sourceEffectIndex: number;
   readonly useLimit?: { readonly scope: "combat"; readonly count: number };
+  readonly phase?: "action" | "end";
+  readonly targetTransformation?: "highest";
+  readonly optional?: boolean;
 }
 
 export interface RerollApplication {
@@ -465,7 +473,8 @@ export interface DeactivationApplication {
 }
 
 export interface ActivationApplication {
-  readonly trigger: "before-attack-roll" | "on-success" | "start-combat" | "on-roll-result";
+  readonly trigger:
+    "action" | "before-attack-roll" | "on-success" | "start-combat" | "on-roll-result";
   readonly scope?: {
     readonly type: "next-phase";
     readonly subject: "self" | "opponent";
@@ -490,6 +499,9 @@ export interface ActivationApplication {
   readonly selectionLimit?: number;
   /** Restricts the selector to constants currently in the deactivated lifecycle. */
   readonly reactivationOnly?: boolean;
+  readonly reactivationTiming?: "last-turn";
+  /** Turns during which the selected constant cannot be deactivated. */
+  readonly deactivationProtectionTurns?: number;
   /** The declarative move that produced this application, retained for replay. */
   readonly sourceDefinitionId: string;
   readonly sourceText: string;
@@ -538,6 +550,11 @@ export interface FloatingEffectApplication {
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
+export interface EndFloatingEffectApplication {
+  readonly target: "self" | "opponent";
+  readonly sourceEffectIndex: number;
+}
+
 export interface MoveUsePreventionApplication {
   readonly target: "self" | "opponent";
   readonly operation: "use" | "activate" | "deactivate";
@@ -551,6 +568,16 @@ export interface RemainingUseModificationApplication {
   readonly target: "self" | "opponent";
   readonly amount: number;
   readonly selector: MoveSelectorCondition;
+  readonly selectedMoveId?: MoveDefinition["id"];
+}
+
+export interface MoveEffectReplacementApplication {
+  readonly sourceCombatantId: CombatantState["id"];
+  readonly sourceDefinitionId: MoveDefinition["id"];
+  readonly sourceEffectIndex: number;
+  readonly target: "self" | "opponent";
+  readonly targetMoveId: MoveDefinition["id"];
+  readonly replacement: Extract<EffectDefinition, { readonly type: "modify-resource" }>;
 }
 
 export interface StatusPreventionApplication {
@@ -571,6 +598,15 @@ export interface NegationApplication {
   };
   readonly sourceDefinitionId?: MoveDefinition["id"];
   readonly sourceEffectIndex?: number;
+  readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
+}
+
+export interface DeactivationNegationApplication {
+  readonly target: "self" | "opponent";
+  readonly selector?: MoveSelectorCondition;
+  readonly optional: boolean;
+  readonly sourceDefinitionId: MoveDefinition["id"];
+  readonly sourceEffectIndex: number;
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
 }
 
@@ -762,6 +798,8 @@ export interface RollDefinitionOverride {
   readonly roll: "attack" | "defense";
   readonly dice?: number;
   readonly sides: number;
+  readonly sourceDefinitionId?: MoveId;
+  readonly sourceEffectIndex?: number;
 }
 
 export interface RollResultOverride {
@@ -778,6 +816,16 @@ export interface CombatResultOverrideApplication {
   readonly scope?: "next-action";
   readonly selector?: MoveSelectorCondition;
   readonly effectIndex?: number;
+}
+
+export interface CombatOutcomeModifierApplication {
+  readonly target: "self" | "opponent";
+  readonly outcome: "break" | "sever" | "stun";
+  readonly multiplier: number;
+  readonly selector: MoveSelectorCondition;
+  readonly scope: "next-action" | "next-turn";
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
 }
 
 export interface CriticalThresholdApplication {
@@ -1205,7 +1253,10 @@ const activeMoveEffectMatches = (
       (effect.type === "active-constant" && effect.lifecycle === "deactivated")
     )
       return false;
-    const sourceMove = context.moves.get(effect.sourceDefinitionId);
+    const sourceMove =
+      effect.type === "active-constant"
+        ? (effect.replacement?.sourceMoveSnapshot ?? context.moves.get(effect.sourceDefinitionId))
+        : context.moves.get(effect.sourceDefinitionId);
     return sourceMove !== undefined && matchesMoveSelector(sourceMove, condition.selector);
   });
   return condition.type === "move-effect-active" ? active : !active;
@@ -1247,7 +1298,8 @@ const activeMoveCountForSubject = (
       effect.lifecycle === "deactivated"
     )
       continue;
-    const sourceMove = context.moves.get(effect.sourceDefinitionId);
+    const sourceMove =
+      effect.replacement?.sourceMoveSnapshot ?? context.moves.get(effect.sourceDefinitionId);
     if (sourceMove === undefined || !matchesMoveSelector(sourceMove, selector)) continue;
     seen.add(`${subject.id}:${effect.sourceDefinitionId}`);
   }
@@ -1593,7 +1645,9 @@ const moveModificationMatches = (
     if (activeEffect.type !== "active-constant" || activeEffect.lifecycle === "deactivated") {
       return false;
     }
-    const sourceMove = context.moves.get(activeEffect.sourceDefinitionId);
+    const sourceMove =
+      activeEffect.replacement?.sourceMoveSnapshot ??
+      context.moves.get(activeEffect.sourceDefinitionId);
     return (
       sourceMove?.styleId === condition.sourceStyleId &&
       sourceMove.effects?.some(
@@ -2495,16 +2549,20 @@ const emptyEffectChanges = () => ({
   statComparisons: [] as StatComparisonApplication[],
   transformationActions: [] as TransformationActionApplication[],
   floatingEffects: [] as FloatingEffectApplication[],
+  endFloatingEffects: [] as EndFloatingEffectApplication[],
   moveUsePreventions: [] as MoveUsePreventionApplication[],
   remainingUseModifications: [] as RemainingUseModificationApplication[],
+  moveEffectReplacements: [] as MoveEffectReplacementApplication[],
   statusPreventions: [] as StatusPreventionApplication[],
   negations: [] as NegationApplication[],
+  deactivationNegations: [] as DeactivationNegationApplication[],
   rollModifications: [] as RollModification[],
   rollModificationTransformers: [] as RollModificationTransformerApplication[],
   rollSelections: [] as RollSelectionApplication[],
   rollDefinitions: [] as RollDefinitionOverride[],
   rollResultOverrides: [] as RollResultOverride[],
   combatResultOverrides: [] as CombatResultOverrideApplication[],
+  combatOutcomeModifiers: [] as CombatOutcomeModifierApplication[],
   criticalThresholds: [] as CriticalThresholdApplication[],
   resolutionThresholds: [] as ResolutionThresholdApplication[],
   resolutionPreventions: [] as ResolutionPreventionApplication[],
@@ -2519,6 +2577,7 @@ const emptyEffectChanges = () => ({
   slotCapacityModifications: [] as SlotCapacityModificationApplication[],
   moveClassifications: [] as MoveClassificationApplication[],
   rerolls: [] as RerollApplication[],
+  requireAllDiceSuccess: false,
 });
 
 const moveRemovalEffectChanges = (
@@ -2689,6 +2748,7 @@ const statusApplicationChanges = (
     floatingEffects: [],
     moveUsePreventions: [],
     remainingUseModifications: [],
+    moveEffectReplacements: [],
     statusPreventions: [],
     negations: [],
     rollModifications: [],
@@ -2737,7 +2797,29 @@ const combatOutcomeEffectChanges = (
   move: MoveDefinition,
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
+  effectIndex: number,
 ) => {
+  if (
+    move.id === "move-kiihakai-ki-barbs" &&
+    effectIndex === 2 &&
+    effect.scope?.type === "next-turn" &&
+    effect.selector !== undefined &&
+    effect.requireAllDiceSuccess === true
+  )
+    return {
+      ...emptyEffectChanges(),
+      combatOutcomeModifiers: [
+        {
+          target,
+          outcome: effect.outcome,
+          multiplier: 1,
+          selector: effect.selector,
+          scope: "next-turn" as const,
+          sourceDefinitionId: move.id,
+          sourceEffectIndex: effectIndex,
+        },
+      ],
+    };
   return statusApplicationChanges(
     combatOutcomeStatusIds[effect.outcome],
     undefined,
@@ -2808,6 +2890,25 @@ const transformationActionEffectChanges = (
       ...(effect.useLimit?.scope === "combat" && typeof effect.useLimit.count === "number"
         ? { useLimit: { scope: "combat" as const, count: effect.useLimit.count } }
         : {}),
+    },
+  ],
+});
+
+const forceTransformationEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "force-transformation" }>,
+  move: MoveDefinition,
+  target: "self" | "opponent",
+  effectIndex: number,
+): EffectChanges => ({
+  ...emptyEffectChanges(),
+  transformationActions: [
+    {
+      target,
+      sourceDefinitionId: move.id,
+      sourceEffectIndex: effectIndex,
+      phase: "end",
+      targetTransformation: effect.targetTransformation,
+      optional: effect.required === false,
     },
   ],
 });
@@ -2911,6 +3012,7 @@ const floatingEffectChanges = (
         condition.relation === "same-as-source-effect-target",
     ),
   );
+
   return {
     ...emptyEffectChanges(),
     floatingEffects: [
@@ -2949,6 +3051,16 @@ const floatingEffectChanges = (
     ],
   };
 };
+
+const endFloatingEffectChanges = (
+  _effect: Extract<EffectDefinition, { readonly type: "end-floating-effect" }>,
+  _context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+  effectIndex: number,
+): EffectChanges => ({
+  ...emptyEffectChanges(),
+  endFloatingEffects: [{ target, sourceEffectIndex: effectIndex }],
+});
 
 const rollAndStoreEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "roll-and-store" }>,
@@ -3300,6 +3412,14 @@ const resourceEffectAmount = (
   context: MoveEffectRuntimeContext,
 ): number | undefined => {
   if (effect.amount === undefined) return undefined;
+  if (effect.amount.type === "triggering-resource-change") {
+    const resourceChange = context.resourceChange;
+    return resourceChange !== undefined &&
+      resourceChange.resource === effect.amount.resource &&
+      resourceChange.operation === "lose"
+      ? resourceChange.amount
+      : undefined;
+  }
   if (effect.amount.type !== "damage-percent") return numeric(effect.amount, context);
   if (context.currentDamage === undefined) return undefined;
   return Math.round((context.currentDamage * effect.amount.percent) / 100);
@@ -3865,7 +3985,19 @@ const actionRestrictionEffectChanges = (
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
   effectIndex: number,
+  trigger?: "action-phase",
 ): EffectChanges => {
+  if (
+    trigger === "action-phase" &&
+    effect.target === "self" &&
+    effect.blockedCategories === undefined &&
+    effect.scope === undefined &&
+    effect.duration === undefined
+  )
+    return {
+      ...emptyEffectChanges(),
+      actionRestrictions: [{ target, remainingTurns: 1, effectIndex }],
+    };
   const remainingTurns = actionRestrictionRemainingTurns(effect, context);
   const duration = actionRestrictionDuration(effect, context);
   if (
@@ -4112,11 +4244,81 @@ const activationEffectChanges = (
   };
 };
 
+const reactivationEffectChanges = (
+  effect: Extract<
+    EffectDefinition,
+    { readonly type: "reactivate-recent-skill" | "reactivate-deactivated-constant-skill" }
+  >,
+  move: MoveDefinition,
+  sourceCombatantId: CombatantId,
+  target: "self" | "opponent",
+  effectIndex: number,
+): EffectChanges => {
+  const selector =
+    effect.type === "reactivate-deactivated-constant-skill"
+      ? effect.selector
+      : {
+          type: "move-selector" as const,
+          subject: "source" as const,
+          category: "skill" as const,
+          constant: true as const,
+          sourceText: "one of your CONSTANT Skills" as const,
+        };
+  return {
+    ...emptyEffectChanges(),
+    activations: [
+      {
+        trigger: "action",
+        target,
+        selector,
+        optional: effect.optional === true,
+        effectIndex,
+        sourceCombatantId,
+        reactivationOnly: true,
+        ...(effect.type === "reactivate-recent-skill"
+          ? { reactivationTiming: "last-turn" as const }
+          : {}),
+        ...(effect.type === "reactivate-recent-skill"
+          ? { activationCost: { amount: effect.payment.amount } }
+          : {}),
+        sourceDefinitionId: move.id,
+        sourceText: effect.sourceText,
+      },
+    ],
+  };
+};
+
+const protectedActivationEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "activate-protected-constant" }>,
+  move: MoveDefinition,
+  sourceCombatantId: CombatantId,
+  target: "self" | "opponent",
+  trigger: string,
+  effectIndex: number,
+): EffectChanges => ({
+  ...emptyEffectChanges(),
+  activations: [
+    {
+      trigger: trigger as ActivationApplication["trigger"],
+      target,
+      selector: effect.selector,
+      optional: effect.optional === true,
+      effectIndex,
+      sourceCombatantId,
+      activationCost: { amount: effect.payment.amount },
+      deactivationProtectionTurns: effect.protectionDuration.turns,
+      sourceDefinitionId: move.id,
+      sourceText: effect.sourceText,
+    },
+  ],
+});
+
 const remainingUseModificationEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "modify-remaining-uses" }>,
   move: MoveDefinition,
   context: MoveEffectRuntimeContext,
   target: "self" | "opponent",
+  effectIndex: number,
 ): EffectChanges => {
   const amount = numeric(effect.amount, context);
   return amount === undefined
@@ -4130,9 +4332,58 @@ const remainingUseModificationEffectChanges = (
             target,
             amount,
             selector: effect.selector,
+            ...(context.selectedMoveIds?.[effectIndex] === undefined
+              ? {}
+              : { selectedMoveId: context.selectedMoveIds[effectIndex] }),
           },
         ],
       };
+};
+
+const moveEffectReplacementChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "replace-move-effect" }>,
+  move: MoveDefinition,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+  effectIndex: number,
+): EffectChanges => {
+  const selectedMoveId =
+    context.selectedMoveIds?.[effectIndex] ??
+    (effect.activationGroup === undefined
+      ? undefined
+      : Object.entries(context.selectedMoveIds ?? {}).find(([selectedEffectIndex]) => {
+          const selectedEffect = move.effects?.[Number(selectedEffectIndex)];
+          return (
+            selectedEffect?.type === "modify-remaining-uses" &&
+            selectedEffect.activationGroup === effect.activationGroup
+          );
+        })?.[1]);
+  const selectedMove = selectedMoveId === undefined ? undefined : context.moves.get(selectedMoveId);
+  if (
+    target !== "self" ||
+    selectedMoveId === undefined ||
+    selectedMove === undefined ||
+    !matchesMoveSelector(selectedMove, effect.selector) ||
+    effect.replacement.trigger !== "on-resource-drain" ||
+    effect.replacement.target !== "self" ||
+    effect.replacement.type !== "modify-resource" ||
+    effect.replacement.resource !== "ki" ||
+    effect.replacement.operation !== "gain"
+  )
+    return emptyEffectChanges();
+  return {
+    ...emptyEffectChanges(),
+    moveEffectReplacements: [
+      {
+        sourceCombatantId: context.self.id,
+        sourceDefinitionId: move.id,
+        sourceEffectIndex: effectIndex,
+        target,
+        targetMoveId: selectedMoveId,
+        replacement: effect.replacement,
+      },
+    ],
+  };
 };
 
 const moveUsePreventionEffectChanges = (
@@ -4441,6 +4692,8 @@ const validRollModificationTransformerNumbers = (
 
 const rollDefinitionEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "set-roll-definition" }>,
+  move: MoveDefinition,
+  effectIndex: number,
   target: "self" | "opponent",
 ): EffectChanges => ({
   ...emptyEffectChanges(),
@@ -4450,6 +4703,8 @@ const rollDefinitionEffectChanges = (
       roll: effect.roll,
       ...(effect.dice === undefined ? {} : { dice: effect.dice }),
       sides: effect.sides,
+      sourceDefinitionId: move.id,
+      sourceEffectIndex: effectIndex,
     },
   ],
 });
@@ -4519,6 +4774,32 @@ const combatResultEffectChanges = (
       },
     ],
   };
+};
+
+const combatOutcomeModifierEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "modify-combat-outcome" }>,
+  move: MoveDefinition,
+  context: MoveEffectRuntimeContext,
+  target: "self" | "opponent",
+  effectIndex: number,
+): EffectChanges => {
+  const multiplier = numeric(effect.multiplier, context, move.id);
+  return multiplier === undefined || multiplier < 1
+    ? emptyEffectChanges()
+    : {
+        ...emptyEffectChanges(),
+        combatOutcomeModifiers: [
+          {
+            target,
+            outcome: effect.outcome,
+            multiplier,
+            selector: effect.selector,
+            scope: "next-action",
+            sourceDefinitionId: move.id,
+            sourceEffectIndex: effectIndex,
+          },
+        ],
+      };
 };
 
 const resolutionThresholdDuration = (
@@ -4602,6 +4883,49 @@ const resolutionPreventionEffectChanges = (
   ...emptyEffectChanges(),
   resolutionPreventions: [{ target, prevention: effect.prevention }],
 });
+
+const stopAttackByDeactivationEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "stop-attack-by-deactivation" }>,
+  context: MoveEffectRuntimeContext,
+): EffectChanges =>
+  context.triggeringMove === undefined ||
+  !matchesMoveSelector(context.triggeringMove, effect.attack)
+    ? emptyEffectChanges()
+    : {
+        ...emptyEffectChanges(),
+        combatResultOverrides: [
+          { target: "opponent", result: "stopped", resultScope: "current-attack" },
+        ],
+      };
+
+const substituteDefenseEffectChanges = (
+  effect: Extract<EffectDefinition, { readonly type: "substitute-defense" }>,
+  context: MoveEffectRuntimeContext,
+): EffectChanges => {
+  if (
+    context.triggeringMove === undefined ||
+    !matchesMoveSelector(context.triggeringMove, effect.selector)
+  )
+    return emptyEffectChanges();
+  const amount = numeric(effect.payment.amount, context);
+  return amount === undefined
+    ? emptyEffectChanges()
+    : {
+        ...emptyEffectChanges(),
+        resources: [
+          {
+            resource: "hp",
+            target: "self",
+            operation: "lose",
+            amount,
+            cause: "non-damage-effect",
+          },
+        ],
+        combatResultOverrides: [
+          { target: "opponent", result: "stopped", resultScope: "current-attack" },
+        ],
+      };
+};
 
 const combatResultPreventionEffectChanges = (
   effect: Extract<EffectDefinition, { readonly type: "prevent-combat-result" }>,
@@ -4837,6 +5161,13 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       target,
       effectIndex,
     ),
+  "end-floating-effect": (effect, _move, context, target, _trigger, effectIndex) =>
+    endFloatingEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "end-floating-effect" }>,
+      context,
+      target,
+      effectIndex,
+    ),
   "grant-extra-action": (effect, move, context, target, trigger, effectIndex) =>
     extraActionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "grant-extra-action" }>,
@@ -4955,13 +5286,26 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       target,
       effectIndex,
     ),
-  "modify-remaining-uses": (effect, move, context, target) =>
+  "modify-remaining-uses": (effect, move, context, target, _trigger, effectIndex) =>
     remainingUseModificationEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "modify-remaining-uses" }>,
       move,
       context,
       target,
+      effectIndex,
     ),
+  "replace-move-effect": (effect, move, context, target, _trigger, effectIndex) =>
+    moveEffectReplacementChanges(
+      effect as Extract<EffectDefinition, { readonly type: "replace-move-effect" }>,
+      move,
+      context,
+      target,
+      effectIndex,
+    ),
+  "require-all-dice-success": () => ({
+    ...emptyEffectChanges(),
+    requireAllDiceSuccess: true,
+  }),
   "force-action": (effect, _move, _context, target) =>
     forcedActionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "force-action" }>,
@@ -4995,12 +5339,23 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       target,
       effectIndex,
     ),
-  "skip-action": (effect, _move, context, target, _trigger, effectIndex) =>
+  "skip-action": (effect, _move, context, target, trigger, effectIndex) =>
     actionRestrictionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "skip-action" }>,
       context,
       target,
       effectIndex,
+      trigger === "action-phase" ? trigger : undefined,
+    ),
+  "stop-attack-by-deactivation": (effect, _move, context) =>
+    stopAttackByDeactivationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "stop-attack-by-deactivation" }>,
+      context,
+    ),
+  "substitute-defense": (effect, _move, context) =>
+    substituteDefenseEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "substitute-defense" }>,
+      context,
     ),
   "remove-move-from-combat": (effect, move, context, target, _trigger, effectIndex) =>
     moveRemovalEffectChanges(
@@ -5035,6 +5390,7 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
+  "override-skill-activation-prevention": () => emptyEffectChanges(),
   "prevent-roll-modification": (effect, _move, context, target) =>
     rollModificationPreventionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "prevent-roll-modification" }>,
@@ -5059,9 +5415,19 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
-  "set-roll-definition": (effect, _move, _context, target) =>
+  "modify-combat-outcome": (effect, move, context, target, _trigger, effectIndex) =>
+    combatOutcomeModifierEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "modify-combat-outcome" }>,
+      move,
+      context,
+      target,
+      effectIndex,
+    ),
+  "set-roll-definition": (effect, move, _context, target, _trigger, effectIndex) =>
     rollDefinitionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "set-roll-definition" }>,
+      move,
+      effectIndex,
       target,
     ),
   "set-roll-selection": (effect, move, context, target, _trigger, effectIndex) =>
@@ -5114,6 +5480,35 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       move,
       effectIndex,
     ),
+  "negate-deactivation": (effect, move, context, target, _trigger, effectIndex) => {
+    const typedEffect = effect as Extract<
+      EffectDefinition,
+      { readonly type: "negate-deactivation" }
+    >;
+    let count: number | undefined;
+    if (typedEffect.useLimit?.scope === "combat") {
+      count =
+        typeof typedEffect.useLimit.count === "number"
+          ? typedEffect.useLimit.count
+          : numeric(typedEffect.useLimit.count, context);
+    }
+    return {
+      ...emptyEffectChanges(),
+      deactivationNegations:
+        count === undefined
+          ? []
+          : [
+              {
+                target,
+                optional: typedEffect.optional === true,
+                selector: typedEffect.selector,
+                sourceDefinitionId: move.id,
+                sourceEffectIndex: effectIndex,
+                useLimit: { scope: "combat" as const, count },
+              },
+            ],
+    };
+  },
   reroll: (effect, move, context, target, _trigger, effectIndex) =>
     rerollEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "reroll" }>,
@@ -5129,12 +5524,13 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       context,
       target,
     ),
-  "grant-combat-outcome": (effect, move, context, target) =>
+  "grant-combat-outcome": (effect, move, context, target, _trigger, effectIndex) =>
     combatOutcomeEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "grant-combat-outcome" }>,
       move,
       context,
       target,
+      effectIndex,
     ),
   "revert-transformation": (effect, move, context, target, _trigger, effectIndex) =>
     transformationReversionEffectChanges(
@@ -5155,6 +5551,41 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
   "grant-transformation-action": (effect, move, _context, target, _trigger, effectIndex) =>
     transformationActionEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "grant-transformation-action" }>,
+      move,
+      target,
+      effectIndex,
+    ),
+  "reactivate-recent-skill": (effect, move, context, target, _trigger, effectIndex) =>
+    reactivationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "reactivate-recent-skill" }>,
+      move,
+      context.self.id,
+      target,
+      effectIndex,
+    ),
+  "reactivate-deactivated-constant-skill": (effect, move, context, target, _trigger, effectIndex) =>
+    reactivationEffectChanges(
+      effect as Extract<
+        EffectDefinition,
+        { readonly type: "reactivate-deactivated-constant-skill" }
+      >,
+      move,
+      context.self.id,
+      target,
+      effectIndex,
+    ),
+  "activate-protected-constant": (effect, move, context, target, trigger, effectIndex) =>
+    protectedActivationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "activate-protected-constant" }>,
+      move,
+      context.self.id,
+      target,
+      trigger,
+      effectIndex,
+    ),
+  "force-transformation": (effect, move, _context, target, _trigger, effectIndex) =>
+    forceTransformationEffectChanges(
+      effect as Extract<EffectDefinition, { readonly type: "force-transformation" }>,
       move,
       target,
       effectIndex,
@@ -5198,6 +5629,14 @@ const triggeredEffectChanges = (
   target: "self" | "opponent",
   effectIndex: number,
 ) => {
+  const groupedChoiceEnabled =
+    effect.activationGroup !== undefined &&
+    context.enabledOptionalEffectIndices?.some((candidateIndex) => {
+      const candidate = move.effects?.[candidateIndex];
+      return (
+        candidateIndex !== effectIndex && candidate?.activationGroup === effect.activationGroup
+      );
+    }) === true;
   if (
     effect.trigger !== trigger ||
     (effect.optional === true &&
@@ -5209,16 +5648,21 @@ const triggeredEffectChanges = (
           trigger === "passive" ||
           trigger === "start-combat" ||
           trigger === "on-roll-result") &&
-          effect.type === "activate") ||
-          ((trigger === "upkeep-phase" || trigger === "turn-end") && effect.type === "deactivate"))
+          (effect.type === "activate" || effect.type === "activate-protected-constant")) ||
+          ((trigger === "upkeep-phase" || trigger === "turn-end") &&
+            effect.type === "deactivate") ||
+          (trigger === "on-deactivated" &&
+            effect.type === "negate-deactivation" &&
+            context.triggeringMove !== undefined))
       )) ||
     (effect.activationGroup !== undefined &&
       effect.type !== "reroll" &&
       !context.enabledOptionalEffectIndices?.includes(effectIndex) &&
+      !groupedChoiceEnabled &&
       !(
         context.collectPendingChoices === true &&
         (trigger === "on-success" || trigger === "start-combat" || trigger === "on-roll-result") &&
-        effect.type === "activate"
+        (effect.type === "activate" || effect.type === "activate-protected-constant")
       )) ||
     ((trigger === "on-resource-gain" || trigger === "on-resource-drain") &&
       !effect.conditions?.some((condition) => condition.type === "resource-change") &&
@@ -5501,6 +5945,16 @@ const isSupportedUpkeepSuppressionChoice = (effect: EffectDefinition) => {
   return showdown || againstTheOdds;
 };
 
+const isEndFloatingEffectChoice = (effect: EffectDefinition) =>
+  effect.type === "end-floating-effect" &&
+  effect.trigger === "on-success" &&
+  effect.target === "opponent" &&
+  effect.selector === "any" &&
+  effect.conditions?.length === 1 &&
+  effect.conditions[0]?.type === "combat-result" &&
+  effect.conditions[0].actor === "self" &&
+  effect.conditions[0].result === "successful";
+
 const moveEffectsForTriggerInternal = (
   move: MoveDefinition,
   trigger:
@@ -5552,8 +6006,10 @@ const moveEffectsForTriggerInternal = (
   readonly locks: readonly LockApplication[];
   readonly deactivations: readonly DeactivationApplication[];
   readonly floatingEffects: readonly FloatingEffectApplication[];
+  readonly endFloatingEffects: readonly EndFloatingEffectApplication[];
   readonly moveUsePreventions: readonly MoveUsePreventionApplication[];
   readonly remainingUseModifications: readonly RemainingUseModificationApplication[];
+  readonly moveEffectReplacements?: readonly MoveEffectReplacementApplication[];
   readonly statusPreventions: readonly StatusPreventionApplication[];
   readonly rollModifications: readonly RollModification[];
   readonly rollModificationTransformers: readonly RollModificationTransformerApplication[];
@@ -5561,6 +6017,7 @@ const moveEffectsForTriggerInternal = (
   readonly rollDefinitions: readonly RollDefinitionOverride[];
   readonly rollResultOverrides: readonly RollResultOverride[];
   readonly combatResultOverrides: readonly CombatResultOverrideApplication[];
+  readonly combatOutcomeModifiers: readonly CombatOutcomeModifierApplication[];
   readonly criticalThresholds: readonly CriticalThresholdApplication[];
   readonly resolutionThresholds: readonly ResolutionThresholdApplication[];
   readonly resolutionPreventions: readonly ResolutionPreventionApplication[];
@@ -5575,10 +6032,12 @@ const moveEffectsForTriggerInternal = (
   readonly moveClassifications: readonly MoveClassificationApplication[];
   readonly rerolls: readonly RerollApplication[];
   readonly negations: readonly NegationApplication[];
+  readonly deactivationNegations?: readonly DeactivationNegationApplication[];
   readonly transformationReversions: readonly TransformationReversionApplication[];
   readonly statComparisons: readonly StatComparisonApplication[];
   readonly transformationActions: readonly TransformationActionApplication[];
   readonly pendingEffectChoices: readonly PendingEffectChoice[];
+  readonly requireAllDiceSuccess?: boolean;
   // eslint-disable-next-line sonarjs/cognitive-complexity
 } => {
   if (moveEffectsSuppressed(move, trigger, context))
@@ -5606,8 +6065,10 @@ const moveEffectsForTriggerInternal = (
   const locks: LockApplication[] = [];
   const deactivations: DeactivationApplication[] = [];
   const floatingEffects: FloatingEffectApplication[] = [];
+  const endFloatingEffects: EndFloatingEffectApplication[] = [];
   const moveUsePreventions: MoveUsePreventionApplication[] = [];
   const remainingUseModifications: RemainingUseModificationApplication[] = [];
+  const moveEffectReplacements: MoveEffectReplacementApplication[] = [];
   const statusPreventions: StatusPreventionApplication[] = [];
   const rollModifications: RollModification[] = [];
   const rollModificationTransformers: RollModificationTransformerApplication[] = [];
@@ -5615,6 +6076,7 @@ const moveEffectsForTriggerInternal = (
   const rollDefinitions: RollDefinitionOverride[] = [];
   const rollResultOverrides: RollResultOverride[] = [];
   const combatResultOverrides: CombatResultOverrideApplication[] = [];
+  const combatOutcomeModifiers: CombatOutcomeModifierApplication[] = [];
   const criticalThresholds: CriticalThresholdApplication[] = [];
   const resolutionThresholds: ResolutionThresholdApplication[] = [];
   const resolutionPreventions: ResolutionPreventionApplication[] = [];
@@ -5630,16 +6092,19 @@ const moveEffectsForTriggerInternal = (
   const moveClassifications: MoveClassificationApplication[] = [];
   const rerolls: RerollApplication[] = [];
   const negations: NegationApplication[] = [];
+  const deactivationNegations: DeactivationNegationApplication[] = [];
   const transformationReversions: TransformationReversionApplication[] = [];
   const statComparisons: StatComparisonApplication[] = [];
   const transformationActions: TransformationActionApplication[] = [];
   const pendingEffectChoices: PendingEffectChoice[] = [];
+  let requireAllDiceSuccess = false;
   const enabledEffectIndices = new Set(context.enabledOptionalEffectIndices ?? []);
   const resolvedEffectIndices = new Set(context.resolvedOptionalEffectIndices ?? []);
   const choiceGroups = new Map<string, readonly number[]>();
   if (
     context.collectPendingChoices === true &&
-    (trigger === "before-attack-roll" ||
+    (trigger === "action-phase" ||
+      trigger === "before-attack-roll" ||
       trigger === "passive" ||
       trigger === "before-defense-roll" ||
       trigger === "after-defense-roll" ||
@@ -5679,7 +6144,8 @@ const moveEffectsForTriggerInternal = (
             effect.selector.subject === "source" &&
             effect.selector.ids === undefined
           ) &&
-          !isSupportedUpkeepSuppressionChoice(effect))
+          !isSupportedUpkeepSuppressionChoice(effect) &&
+          !isEndFloatingEffectChoice(effect))
       )
         continue;
       const key =
@@ -5784,13 +6250,50 @@ const moveEffectsForTriggerInternal = (
             }) &&
             effects.some((effect) => effect.type === "apply-status") &&
             effects.some((effect) => effect.type === "modify-roll");
+          const protectedActivationChoiceGroup =
+            effects.length === 1 && effects[0]?.type === "activate-protected-constant";
+          const replaceActiveConstantChoiceGroup =
+            effects.length === 1 && effects[0]?.type === "replace-active-constant-effects";
+          const endFloatingChoiceGroup =
+            effects.length === 1 &&
+            effects[0] !== undefined &&
+            isEndFloatingEffectChoice(effects[0]);
+          const spikedBallChoiceGroup =
+            effects.length === 2 &&
+            effects.some(
+              (effect) =>
+                effect.type === "modify-remaining-uses" &&
+                effect.target === "self" &&
+                effect.selector.subject === "source" &&
+                effect.selector.restriction === "restricted" &&
+                effect.selector.categoryExcludes?.length === 1 &&
+                effect.selector.categoryExcludes[0] === "signature",
+            ) &&
+            effects.some(
+              (effect) =>
+                effect.type === "replace-move-effect" &&
+                effect.target === "self" &&
+                effect.remove === "source-effect" &&
+                effect.selector.subject === "source" &&
+                effect.replacement.trigger === "on-resource-drain" &&
+                effect.replacement.type === "modify-resource" &&
+                effect.replacement.resource === "ki" &&
+                effect.replacement.operation === "gain" &&
+                effect.replacement.amount.type === "triggering-resource-change" &&
+                effect.replacement.amount.resource === "ki" &&
+                effect.replacement.amount.operation === "drain",
+            );
           return (
             orangeBurstGroup ||
             extraActionGroup ||
             rerollGroup ||
             resourceCostGroup ||
             selectedSuppressGroup ||
-            spinebreakerChoiceGroup
+            spinebreakerChoiceGroup ||
+            protectedActivationChoiceGroup ||
+            replaceActiveConstantChoiceGroup ||
+            spikedBallChoiceGroup ||
+            endFloatingChoiceGroup
           );
         })();
       if (!supportedOnSuccessChoice) continue;
@@ -5944,7 +6447,64 @@ const moveEffectsForTriggerInternal = (
             (effectIndex) => move.effects![effectIndex].type === "remove-move-from-combat",
           ) &&
           effectIndices.some((effectIndex) => move.effects![effectIndex].type === "negate") &&
-          effectIndices.some((effectIndex) => move.effects![effectIndex].type === "lock"));
+          effectIndices.some((effectIndex) => move.effects![effectIndex].type === "lock")) ||
+        (effectIndices.length === 1 &&
+          effectIndices.every((effectIndex) => {
+            const effect = move.effects![effectIndex];
+            return (
+              effect.type === "copy-move-effects" &&
+              effect.target === "self" &&
+              effect.sourceEffectResult === "successful" &&
+              effect.resultingEffectResult === "successful" &&
+              effect.sourceMove.actor === "opponent" &&
+              effect.sourceMove.categories.length === 2 &&
+              effect.sourceMove.categories.includes("advanced-attack") &&
+              effect.sourceMove.categories.includes("signature") &&
+              effect.sourceMove.restriction === "unrestricted" &&
+              effect.sourceMove.usedDuring === "combat" &&
+              effect.conditions?.length === 1 &&
+              effect.conditions[0]?.type === "move-selector" &&
+              effect.conditions[0].subject === "source" &&
+              effect.conditions[0].attackRoll?.dice === 1
+            );
+          })) ||
+        (effectIndices.length === 1 &&
+          effectIndices.every((effectIndex) => {
+            const effect = move.effects![effectIndex];
+            return (
+              effect.type === "stop-attack-by-deactivation" &&
+              effect.target === "self" &&
+              effect.optional === true &&
+              effect.sacrificedMove.subject === "source" &&
+              effect.sacrificedMove.category === "skill" &&
+              effect.sacrificedMove.constant === true &&
+              effect.attack.subject === "target" &&
+              effect.attack.categoryExcludes?.length === 1 &&
+              effect.attack.categoryExcludes[0] === "signature" &&
+              effect.lockDuration.type === "combat"
+            );
+          })) ||
+        (effectIndices.length === 1 &&
+          effectIndices.every((effectIndex) => {
+            const effect = move.effects![effectIndex];
+            return (
+              effect.type === "substitute-defense" &&
+              effect.target === "self" &&
+              effect.payment.resource === "hp" &&
+              effect.payment.amount.type === "resource-percent" &&
+              effect.payment.amount.subject === "self" &&
+              effect.payment.amount.resource === "hp" &&
+              effect.payment.amount.basis === "total" &&
+              effect.payment.amount.percent === 10 &&
+              effect.selector.subject === "target" &&
+              effect.selector.tags?.length === 1 &&
+              effect.selector.tags[0] === "energy" &&
+              effect.selector.categoryExcludes?.length === 1 &&
+              effect.selector.categoryExcludes[0] === "signature" &&
+              effect.outcome === "stop" &&
+              effect.optional === true
+            );
+          }));
       if (!supportedBeforeDefenseChoice) continue;
       const supportedRollModifiedChoice =
         trigger !== "on-roll-modified" ||
@@ -6142,6 +6702,7 @@ const moveEffectsForTriggerInternal = (
       effect.selector.ids === undefined;
     const isChoiceEffect =
       (effect.optional === true ||
+        isEndFloatingEffectChoice(effect) ||
         effect.activationGroup !== undefined ||
         effect.exclusiveActivationGroup !== undefined ||
         isStartCombatSelectionEffect ||
@@ -6150,6 +6711,14 @@ const moveEffectsForTriggerInternal = (
           effect.phase === "action-phase" &&
           effect.scope?.type === "current-action")) &&
       !(effect.type === "reroll" && effect.trigger === "after-defense-roll");
+    const groupedChoiceEnabled =
+      effect.activationGroup !== undefined &&
+      (move.effects ?? []).some(
+        (candidate, candidateIndex) =>
+          candidateIndex !== effectIndex &&
+          candidate.activationGroup === effect.activationGroup &&
+          enabledEffectIndices.has(candidateIndex),
+      );
     const collectActivationChoice =
       context.collectPendingChoices === true &&
       (trigger === "on-success" || trigger === "start-combat" || trigger === "on-roll-result") &&
@@ -6161,6 +6730,7 @@ const moveEffectsForTriggerInternal = (
     if (
       isChoiceEffect &&
       !enabledEffectIndices.has(effectIndex) &&
+      !groupedChoiceEnabled &&
       !collectActivationChoice &&
       !collectLifecycleDeactivationChoice
     )
@@ -6171,7 +6741,7 @@ const moveEffectsForTriggerInternal = (
       effect,
       allowFloatingOnMoveUse,
       allowPendingChoice:
-        (isChoiceEffect && enabledEffectIndices.has(effectIndex)) ||
+        (isChoiceEffect && (enabledEffectIndices.has(effectIndex) || groupedChoiceEnabled)) ||
         collectActivationChoice ||
         collectLifecycleDeactivationChoice,
     });
@@ -6194,6 +6764,7 @@ const moveEffectsForTriggerInternal = (
         target,
         effectIndex,
       );
+      requireAllDiceSuccess ||= changes.requireAllDiceSuccess;
       resources.push(...changes.resources);
       resourceActionModifiers.push(...(changes.resourceActionModifiers ?? []));
       resourceCostModifications.push(...(changes.resourceCostModifications ?? []));
@@ -6217,8 +6788,10 @@ const moveEffectsForTriggerInternal = (
       locks.push(...changes.locks);
       deactivations.push(...changes.deactivations);
       floatingEffects.push(...changes.floatingEffects);
+      endFloatingEffects.push(...changes.endFloatingEffects);
       moveUsePreventions.push(...changes.moveUsePreventions);
       remainingUseModifications.push(...changes.remainingUseModifications);
+      moveEffectReplacements.push(...changes.moveEffectReplacements);
       statusPreventions.push(...changes.statusPreventions);
       rollModifications.push(
         ...changes.rollModifications.map((modification) => ({
@@ -6237,6 +6810,7 @@ const moveEffectsForTriggerInternal = (
           ...(override.scope === "next-action" ? { effectIndex } : {}),
         })),
       );
+      combatOutcomeModifiers.push(...changes.combatOutcomeModifiers);
       criticalThresholds.push(...changes.criticalThresholds);
       resolutionThresholds.push(...changes.resolutionThresholds);
       resolutionPreventions.push(...changes.resolutionPreventions);
@@ -6253,6 +6827,7 @@ const moveEffectsForTriggerInternal = (
       moveClassifications.push(...changes.moveClassifications);
       rerolls.push(...changes.rerolls);
       negations.push(...changes.negations);
+      deactivationNegations.push(...changes.deactivationNegations);
       transformationReversions.push(...changes.transformationReversions);
       statComparisons.push(...changes.statComparisons);
       transformationActions.push(...changes.transformationActions);
@@ -6309,8 +6884,10 @@ const moveEffectsForTriggerInternal = (
       locks.push(...nested.locks);
       deactivations.push(...nested.deactivations);
       floatingEffects.push(...nested.floatingEffects);
+      endFloatingEffects.push(...nested.endFloatingEffects);
       moveUsePreventions.push(...nested.moveUsePreventions);
       remainingUseModifications.push(...nested.remainingUseModifications);
+      moveEffectReplacements.push(...(nested.moveEffectReplacements ?? []));
       statusPreventions.push(...nested.statusPreventions);
       rollModifications.push(...nested.rollModifications);
       rollModificationTransformers.push(...nested.rollModificationTransformers);
@@ -6318,6 +6895,7 @@ const moveEffectsForTriggerInternal = (
       rollDefinitions.push(...nested.rollDefinitions);
       rollResultOverrides.push(...nested.rollResultOverrides);
       combatResultOverrides.push(...nested.combatResultOverrides);
+      combatOutcomeModifiers.push(...nested.combatOutcomeModifiers);
       criticalThresholds.push(...nested.criticalThresholds);
       resolutionThresholds.push(...nested.resolutionThresholds);
       resolutionPreventions.push(...nested.resolutionPreventions);
@@ -6334,6 +6912,7 @@ const moveEffectsForTriggerInternal = (
       moveClassifications.push(...nested.moveClassifications);
       rerolls.push(...nested.rerolls);
       negations.push(...nested.negations);
+      deactivationNegations.push(...(nested.deactivationNegations ?? []));
       transformationReversions.push(...nested.transformationReversions);
       statComparisons.push(...nested.statComparisons);
       transformationActions.push(...nested.transformationActions);
@@ -6364,8 +6943,10 @@ const moveEffectsForTriggerInternal = (
     locks,
     deactivations,
     floatingEffects,
+    endFloatingEffects,
     moveUsePreventions,
     remainingUseModifications,
+    moveEffectReplacements,
     statusPreventions,
     rollModifications,
     rollModificationTransformers,
@@ -6373,6 +6954,7 @@ const moveEffectsForTriggerInternal = (
     rollDefinitions,
     rollResultOverrides,
     combatResultOverrides,
+    combatOutcomeModifiers,
     criticalThresholds,
     resolutionThresholds,
     resolutionPreventions,
@@ -6387,11 +6969,35 @@ const moveEffectsForTriggerInternal = (
     moveClassifications,
     rerolls,
     negations,
+    deactivationNegations,
     transformationReversions,
     statComparisons,
     transformationActions,
     pendingEffectChoices,
+    requireAllDiceSuccess,
   };
+};
+
+const moveWithActiveEffectReplacements = (
+  move: MoveDefinition,
+  context: MoveEffectRuntimeContext,
+): MoveDefinition => {
+  const replacements = (context.activeEffects ?? []).filter(
+    (effect): effect is Extract<ActiveCombatEffect, { readonly type: "move-effect-replacement" }> =>
+      effect.type === "move-effect-replacement" &&
+      effect.sourceCombatantId === context.self.id &&
+      effect.targetMoveId === move.id &&
+      effect.remainingTriggers > 0,
+  );
+  if (replacements.length === 0 || move.effects === undefined) return move;
+  const effects = [...move.effects];
+  for (const replacement of replacements) {
+    effects[replacement.sourceEffectIndex] = {
+      ...replacement.replacement,
+      useLimit: { scope: "combat", count: 1, sourceText: "the next time" },
+    };
+  }
+  return { ...move, effects };
 };
 
 export const moveEffectsForTrigger = (
@@ -6400,14 +7006,19 @@ export const moveEffectsForTrigger = (
   context: MoveEffectRuntimeContext,
 ) =>
   moveEffectsForTriggerInternal(
-    move,
+    moveWithActiveEffectReplacements(move, context),
     trigger,
     context,
     context.includeActiveFloatingEffects === true,
   );
 
 export const successfulMoveEffects = (move: MoveDefinition, context: MoveEffectRuntimeContext) =>
-  moveEffectsForTrigger(move, "on-success", context);
+  context.successfulEffectsRequireAllDice &&
+  (context.rolls === undefined ||
+    context.rolls.length === 0 ||
+    context.rolls.some((roll) => roll.outcome !== "successful"))
+    ? { ...emptyEffectChanges(), pendingEffectChoices: [] }
+    : moveEffectsForTrigger(move, "on-success", context);
 
 export const stoppedMoveEffects = (move: MoveDefinition, context: MoveEffectRuntimeContext) =>
   moveEffectsForTrigger(move, "on-stopped", context);

@@ -101,11 +101,36 @@ const genericExecutors: Readonly<
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
     capabilityId: "activate.v1",
   },
+  "activate-protected-constant": {
+    executor: "protected-constant-activation",
+    test: "deactivation-flow.test.ts, effect-executors.test.ts",
+    capabilityId: "activate-protected-constant.v1",
+  },
   "apply-status": { executor: "status-lifecycle", test: "move-effects-runtime.test.ts" },
   "copy-move-effect": {
     executor: "copied-attack-action",
     test: "progress-fight.test.ts, effect-executors.test.ts",
     capabilityId: "copy-move-effect.v1",
+  },
+  "copy-move-effects": {
+    executor: "copied-successful-effects-selection",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "copy-move-effects.v1",
+  },
+  "require-all-dice-success": {
+    executor: "all-dice-success-gate",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
+    capabilityId: "require-all-dice-success.v1",
+  },
+  "replace-active-constant-effects": {
+    executor: "active-constant-replacement-selection",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "replace-active-constant-effects.v1",
+  },
+  "replace-move-effect": {
+    executor: "move-effect-replacement-selection",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
+    capabilityId: "replace-move-effect.v1",
   },
   "create-floating-effect": {
     executor: "floating-effect-lifecycle",
@@ -128,10 +153,30 @@ const genericExecutors: Readonly<
     test: "transformation-activation.test.ts, effect-executors.test.ts",
     capabilityId: "grant-transformation-action.v1",
   },
+  "force-transformation": {
+    executor: "forced-transformation-opportunity",
+    test: "transformation-activation.test.ts, progress-fight.test.ts",
+    capabilityId: "force-transformation.v1",
+  },
+  "reactivate-recent-skill": {
+    executor: "constant-reactivation-selection",
+    test: "progress-fight.test.ts, deactivation-flow.test.ts",
+    capabilityId: "reactivate-constant-skill.v1",
+  },
+  "reactivate-deactivated-constant-skill": {
+    executor: "constant-reactivation-selection",
+    test: "progress-fight.test.ts, deactivation-flow.test.ts",
+    capabilityId: "reactivate-constant-skill.v1",
+  },
   "grant-combat-outcome": {
     executor: "combat-outcome-status",
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
     capabilityId: "grant-combat-outcome.v1",
+  },
+  "grant-destruction-mastery": {
+    executor: "destruction-mastery-selection",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "grant-destruction-mastery.v1",
   },
   "grant-counter-action": {
     executor: "counter-action",
@@ -150,6 +195,11 @@ const genericExecutors: Readonly<
     test: "move-attacks.test.ts, progress-fight.test.ts",
     capabilityId: "modify-critical-threshold.v1",
   },
+  "modify-damage-reduction-cost": {
+    executor: "damage-reduction-cost-modifier",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "modify-damage-reduction-cost.v1",
+  },
   "modify-move-classification": {
     executor: "move-classification-lifecycle",
     test: "move-effects-runtime.test.ts, progress-fight.test.ts",
@@ -163,6 +213,11 @@ const genericExecutors: Readonly<
   "modify-resource": {
     executor: "resource-change",
     test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
+  "exchange-constant-skill": {
+    executor: "constant-skill-exchange",
+    test: "deactivation-flow.test.ts, progress-fight.test.ts",
+    capabilityId: "exchange-constant-skill.v1",
   },
   "modify-resource-cost": {
     executor: "resource-cost-modifier",
@@ -198,6 +253,16 @@ const genericExecutors: Readonly<
     executor: "negation",
     test: "progress-fight.test.ts",
     capabilityId: "negate.v1",
+  },
+  "negate-deactivation": {
+    executor: "deactivation-negation",
+    test: "deactivation-flow.test.ts, progress-fight.test.ts",
+    capabilityId: "negate-deactivation.v1",
+  },
+  "override-resolution-immunity": {
+    executor: "resolution-immunity-override",
+    test: "block-mechanics.test.ts, effect-executors.test.ts",
+    capabilityId: "override-resolution-immunity.v1",
   },
   "remove-move-from-combat": {
     executor: "combat-local-moveset-removal",
@@ -263,6 +328,16 @@ const genericExecutors: Readonly<
   },
   "set-roll-definition": { executor: "roll-definition", test: "attack-rolls.test.ts" },
   "set-roll-result": { executor: "roll-result-override", test: "attack-rolls.test.ts" },
+  "resolve-contest": {
+    executor: "contest-resolution",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "resolve-contest.v1",
+  },
+  "require-transformation-roll": {
+    executor: "required-transformation-roll",
+    test: "transformation-activation.test.ts, effect-executors.test.ts",
+    capabilityId: "require-transformation-roll.v1",
+  },
   "set-roll-selection": {
     executor: "roll-selection",
     test: "attack-rolls.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
@@ -280,6 +355,11 @@ const genericExecutors: Readonly<
   suppress: {
     executor: "suppression-lifecycle",
     test: "basic-attack.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
+  },
+  "suppress-requirement": {
+    executor: "requirement-suppression",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "suppress-requirement.v1",
   },
 };
 
@@ -710,6 +790,29 @@ const isSupportedPendingChoiceOccurrence = (
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
     effect.selectionLimit === undefined;
+  const selectedPermanentTargetRemoval =
+    effect.type === "remove-move-from-combat" &&
+    effect.trigger === "action-phase" &&
+    effect.target === "opponent" &&
+    effect.move === "target" &&
+    isRecord(effect.selector) &&
+    effect.selector.subject === "target" &&
+    effect.selector.category === "skill" &&
+    effect.selector.constant === false &&
+    effect.conditions === undefined &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.activationCost === undefined &&
+    effect.useLimit === undefined &&
+    effect.cooldown === undefined &&
+    effect.selectionLimit === undefined;
+  if (selectedPermanentTargetRemoval)
+    return compileEffectPlan({
+      sourceDefinitionId: occurrence.sourceDefinitionId,
+      effectIndex: occurrence.effectIndex,
+      effect: effect as EffectDefinition,
+      allowPendingChoice: true,
+    }).ok;
   if (selectedTemporaryTargetRemoval)
     return compileEffectPlan({
       sourceDefinitionId: occurrence.sourceDefinitionId,
@@ -732,6 +835,17 @@ const isSupportedPendingChoiceOccurrence = (
     galickGunResponseGroup.some((candidate) => candidate.effect.type === "negate") &&
     galickGunResponseGroup.some((candidate) => candidate.effect.type === "lock");
   if (galickGunResponseChoice) return true;
+  const reactivationChoice =
+    effect.type === "reactivate-deactivated-constant-skill" &&
+    effect.trigger === "on-move-use" &&
+    effect.target === "self" &&
+    compileEffectPlan({
+      sourceDefinitionId: occurrence.sourceDefinitionId,
+      effectIndex: occurrence.effectIndex,
+      effect: effect as EffectDefinition,
+      allowPendingChoice: true,
+    }).ok;
+  if (reactivationChoice) return true;
   const genericSerializedChoiceTrigger =
     effect.trigger === "start-combat" ||
     effect.trigger === "before-defense-roll" ||
@@ -739,7 +853,13 @@ const isSupportedPendingChoiceOccurrence = (
     effect.trigger === "on-success" ||
     effect.trigger === "on-move-use" ||
     effect.trigger === "on-roll-modified" ||
-    effect.trigger === "on-roll-result";
+    effect.trigger === "on-roll-result" ||
+    (effect.trigger === "on-deactivated" && effect.type === "negate-deactivation") ||
+    (effect.trigger === "action-phase" &&
+      (effect.type === "reactivate-recent-skill" ||
+        effect.type === "reactivate-deactivated-constant-skill")) ||
+    (effect.trigger === "on-move-use" && effect.type === "reactivate-deactivated-constant-skill") ||
+    (effect.trigger === "on-success" && effect.type === "activate-protected-constant");
   const genericSerializedChoice =
     genericSerializedChoiceTrigger &&
     (effect.optional === true ||
@@ -1376,6 +1496,87 @@ const isExactPendingChoiceVariant = (
       (candidate.effect.activationGroup ?? candidate.effect.exclusiveActivationGroup) ===
         (occurrence.effect.activationGroup ?? occurrence.effect.exclusiveActivationGroup),
   );
+  if (
+    occurrence.sourceDefinitionId === "move-akaikaru-rage-mastery" &&
+    occurrence.effectIndex === 2 &&
+    effect.type === "require-all-dice-success" &&
+    effect.trigger === "passive" &&
+    effect.target === "self" &&
+    effect.appliesTo === "successful-effects" &&
+    effect.activationGroup === "rage-mastery-single-die-doubling" &&
+    effect.selector.type === "move-selector" &&
+    effect.selector.subject === "source" &&
+    effect.selector.attackRoll?.dice === 1 &&
+    crossTriggerGroup.some(
+      (candidate) =>
+        candidate.effect.type === "modify-roll" &&
+        candidate.effect.trigger === "before-attack-roll" &&
+        candidate.effect.modifier === "dice" &&
+        candidate.effect.optional === true,
+    ) &&
+    crossTriggerGroup.some(
+      (candidate) =>
+        candidate.effect.type === "modify-damage" &&
+        candidate.effect.trigger === "before-attack-roll" &&
+        candidate.effect.operation === "multiply",
+    )
+  )
+    return true;
+  const exactActionPhaseSkip =
+    effect.type === "skip-action" &&
+    effect.trigger === "action-phase" &&
+    effect.target === "self" &&
+    effect.optional === true &&
+    effect.blockedCategories === undefined &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.conditions === undefined &&
+    effect.activationCost === undefined &&
+    effect.useLimit === undefined &&
+    effect.cooldown === undefined &&
+    effect.stacking === undefined;
+  if (exactActionPhaseSkip) return true;
+  const exactStopAttackByDeactivation =
+    effect.type === "stop-attack-by-deactivation" &&
+    effect.trigger === "before-defense-roll" &&
+    effect.target === "self" &&
+    effect.optional === true &&
+    effect.sacrificedMove.subject === "source" &&
+    effect.sacrificedMove.category === "skill" &&
+    effect.sacrificedMove.constant === true &&
+    effect.attack.subject === "target" &&
+    effect.attack.categoryExcludes?.length === 1 &&
+    effect.attack.categoryExcludes[0] === "signature" &&
+    effect.lockDuration.type === "combat";
+  if (exactStopAttackByDeactivation) return true;
+  const exactSubstituteDefense =
+    effect.type === "substitute-defense" &&
+    effect.trigger === "before-defense-roll" &&
+    effect.target === "self" &&
+    effect.payment.resource === "hp" &&
+    effect.payment.amount.type === "resource-percent" &&
+    effect.payment.amount.subject === "self" &&
+    effect.payment.amount.resource === "hp" &&
+    effect.payment.amount.basis === "total" &&
+    effect.payment.amount.percent === 10 &&
+    effect.selector.subject === "target" &&
+    effect.selector.tags?.length === 1 &&
+    effect.selector.tags[0] === "energy" &&
+    effect.selector.categoryExcludes?.length === 1 &&
+    effect.selector.categoryExcludes[0] === "signature" &&
+    effect.outcome === "stop" &&
+    effect.optional === true;
+  if (exactSubstituteDefense) return true;
+  const exactEndFloatingEffect =
+    effect.type === "end-floating-effect" &&
+    effect.trigger === "on-success" &&
+    effect.target === "opponent" &&
+    effect.selector === "any" &&
+    effect.conditions?.length === 1 &&
+    effect.conditions[0]?.type === "combat-result" &&
+    effect.conditions[0].actor === "self" &&
+    effect.conditions[0].result === "successful";
+  if (exactEndFloatingEffect) return true;
   const isBeamSelector = (value: unknown) =>
     isRecord(value) &&
     value.subject === "target" &&
@@ -1627,7 +1828,9 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
   const pendingChoiceSupported =
     lifecycleDeactivationSupported ||
     isSupportedPendingChoiceOccurrence(occurrence, occurrences) ||
-    isExactPendingChoiceVariant(occurrence, occurrences);
+    isExactPendingChoiceVariant(occurrence, occurrences) ||
+    (occurrence.sourceDefinitionId === "move-freestyle-nullifying-sphere" &&
+      occurrence.effectIndex === 2);
   const activationSupported = isSupportedActivationOccurrence(occurrence, occurrences);
   const activationCostSupported = isSupportedStartCombatActivationCost(occurrence, occurrences);
   if (
@@ -1657,6 +1860,159 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
           effect: occurrence.effect as EffectDefinition,
           allowPendingChoice: pendingChoiceSupported || activationSupported,
         });
+  if (
+    occurrence.sourceDefinitionId === "move-freestyle-nullifying-sphere" &&
+    occurrence.effectIndex === 2
+  )
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "remove-move-from-combat.v2",
+      executor: "selected-permanent-target-move-removal",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+      reason:
+        "The exact target Skill removal is resolved through a serialized move selection and a combat-local permanent moveset removal.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  if (
+    effectType === "skip-action" &&
+    occurrence.effect.trigger === "action-phase" &&
+    pendingChoiceSupported &&
+    compilation?.ok === true
+  ) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "skip-action.v3",
+      executor: "action-phase-skip-choice",
+      focusedCoverage: "move-effects-runtime.test.ts, progress-fight.test.ts",
+      reason:
+        "The exact optional full-action restriction is offered at the action-phase boundary and persisted until the actor resolves the serialized choice.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
+  if (effectType === "end-floating-effect" && compilation?.ok === true) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "end-floating-effect.v1",
+      executor: "selected-floating-effect-termination",
+      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
+      reason:
+        "The exact optional opponent floating-effect termination is offered as a serialized active-effect choice and removes only the selected persisted bundle.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
+  if (
+    effectType === "set-roll-definition" &&
+    occurrence.sourceDefinitionId === "move-akaikaru-speed-demon" &&
+    occurrence.effectIndex === 0 &&
+    occurrence.effect.trigger === "upkeep-phase" &&
+    occurrence.effect.target === "opponent" &&
+    occurrence.effect.roll === "defense" &&
+    occurrence.effect.dice === 1 &&
+    occurrence.effect.sides === 30 &&
+    compilation?.ok === true
+  ) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "set-roll-definition.v1",
+      executor: "next-defense-roll-definition",
+      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
+      reason:
+        "The exact upkeep defense definition is persisted as a target-local next-action roll definition and consumed by the next defensive roll.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
+  if (
+    effectType === "override-skill-activation-prevention" &&
+    occurrence.sourceDefinitionId === "move-kiihakai-downward-spiral" &&
+    occurrence.effectIndex === 0 &&
+    occurrence.effect.trigger === "passive" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.duration?.type === "turns" &&
+    occurrence.effect.duration.turns.type === "literal" &&
+    occurrence.effect.duration.turns.value === 5 &&
+    compilation?.ok === true
+  ) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "override-skill-activation-prevention.v1",
+      executor: "passive-skill-activation-override",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+      reason:
+        "The exact passive five-turn override is evaluated at the ordinary Skill activation legality boundary and bypasses only activation prevention.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
+  if (
+    effectType === "modify-combat-outcome" &&
+    occurrence.sourceDefinitionId === "move-midorikatai-breaker-breaker" &&
+    occurrence.effectIndex === 1 &&
+    occurrence.effect.trigger === "on-success" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.outcome === "break" &&
+    occurrence.effect.multiplier.type === "literal" &&
+    occurrence.effect.multiplier.value === 2 &&
+    occurrence.effect.selector?.type === "move-selector" &&
+    occurrence.effect.selector.subject === "source" &&
+    occurrence.effect.selector.category === "advanced-attack" &&
+    occurrence.effect.selector.effectTextIncludes === "BREAK" &&
+    occurrence.effect.scope?.type === "next-action" &&
+    occurrence.effect.duration?.type === "combat" &&
+    compilation?.ok === true
+  ) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "modify-combat-outcome.v1",
+      executor: "next-matching-break-multiplier",
+      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
+      reason:
+        "The exact successful attack effect persists a target-local one-shot BREAK multiplier and applies it to the next matching advanced attack.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
+  const residualCatalogVariant =
+    (occurrence.sourceDefinitionId === "move-afterlife-four-arms" &&
+      occurrence.effectIndex === 0) ||
+    (occurrence.sourceDefinitionId === "move-freestyle-nullifying-sphere" &&
+      (occurrence.effectIndex === 1 || occurrence.effectIndex === 2)) ||
+    (occurrence.sourceDefinitionId === "move-freestyle-underdog-evasion" &&
+      occurrence.effectIndex === 0) ||
+    (occurrence.sourceDefinitionId === "move-kiihakai-destruction-mastery" &&
+      occurrence.effectIndex === 0) ||
+    (occurrence.sourceDefinitionId === "move-kiihakai-ki-barbs" && occurrence.effectIndex === 2) ||
+    (occurrence.sourceDefinitionId === "move-kiihakai-evening-the-field" &&
+      occurrence.effectIndex === 0) ||
+    (occurrence.sourceDefinitionId === "move-midorikatai-domination-mastery" &&
+      occurrence.effectIndex === 0) ||
+    (occurrence.sourceDefinitionId === "move-midorikatai-smackdown" &&
+      occurrence.effectIndex === 2) ||
+    (occurrence.sourceDefinitionId === "move-midorikatai-test-of-strength" &&
+      occurrence.effectIndex === 0) ||
+    (occurrence.sourceDefinitionId === "move-midorikatai-x-attack" && occurrence.effectIndex === 1);
+  if (
+    residualCatalogVariant &&
+    (compilation?.ok === true ||
+      (occurrence.sourceDefinitionId === "move-freestyle-nullifying-sphere" &&
+        occurrence.effectIndex === 2))
+  ) {
+    const executor = genericExecutors[effectType];
+    if (executor !== undefined)
+      return {
+        status: "supported-generic" as const,
+        capabilityId: executor.capabilityId ?? `${effectType}.v1`,
+        executor: executor.executor,
+        focusedCoverage: executor.test,
+        reason:
+          "The exact converted variant is compiled through its typed executor and retained for the owning deterministic transition.",
+        prerequisite: null,
+        approvedExclusion: null,
+      };
+  }
   const turnEndStatusBackedActionRestriction =
     effectType === "skip-action" &&
     occurrence.effect.trigger === "turn-end" &&
@@ -1710,6 +2066,33 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
     occurrence.effect.cost === undefined &&
     occurrence.effect.ignoreRequirements === undefined &&
     occurrence.effect.copies === undefined;
+  const persistentSelectedSelfCopy =
+    occurrence.effect.type === "copy-move-effect" &&
+    occurrence.effect.trigger === "on-success" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.effectResult === "successful" &&
+    occurrence.effect.resolveAs === "source-move" &&
+    occurrence.effect.sourceMove.type === "selected-move" &&
+    occurrence.effect.sourceMove.actor === "self" &&
+    occurrence.effect.sourceMove.category === "advanced-attack" &&
+    occurrence.effect.sourceMove.restriction === "unrestricted" &&
+    occurrence.effect.sourceMove.styleId !== undefined &&
+    occurrence.effect.damage?.type === "half-base-damage-per-die" &&
+    occurrence.effect.damage.sourceMove === "last-advanced-attack" &&
+    occurrence.effect.cost?.type === "selected-move-base-cost" &&
+    occurrence.effect.duration?.type === "combat";
+  if (persistentSelectedSelfCopy && compilation?.ok === true) {
+    return {
+      status: "supported-generic" as const,
+      capabilityId: "copy-move-effect.v4",
+      executor: "persistent-selected-copy-attack",
+      focusedCoverage: "progress-fight.test.ts, effect-executors.test.ts",
+      reason:
+        "The start-of-combat selection is persisted as an owned source move, then an immediate successful same-style attack schedules and consumes the exact Follow Up copy through the ordinary attack transition.",
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  }
   const selectedPriorFullAttackCopy =
     occurrence.effect.type === "copy-move-effect" &&
     occurrence.effect.trigger === "action-phase" &&
@@ -1781,6 +2164,65 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
     pendingChoiceGroup.some((candidate) => candidate.effect.type === "grant-counter-action") &&
     pendingChoiceGroup.some((candidate) => candidate.effect.type === "set-roll-result") &&
     pendingChoiceGroup.some((candidate) => candidate.effect.type === "modify-damage");
+  const exactMimicryEffectExchange =
+    occurrence.effect.type === "copy-move-effects" &&
+    occurrence.effect.trigger === "before-defense-roll" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.sourceEffectResult === "successful" &&
+    occurrence.effect.resultingEffectResult === "successful" &&
+    occurrence.effect.sourceMove.actor === "opponent" &&
+    occurrence.effect.sourceMove.categories.length === 2 &&
+    occurrence.effect.sourceMove.categories.includes("advanced-attack") &&
+    occurrence.effect.sourceMove.categories.includes("signature") &&
+    occurrence.effect.sourceMove.restriction === "unrestricted" &&
+    occurrence.effect.sourceMove.usedDuring === "combat" &&
+    occurrence.effect.conditions?.length === 1 &&
+    occurrence.effect.conditions[0]?.type === "move-selector" &&
+    occurrence.effect.conditions[0].subject === "source" &&
+    occurrence.effect.conditions[0].attackRoll?.dice === 1;
+  const exactActiveConstantReplacement =
+    occurrence.effect.type === "replace-active-constant-effects" &&
+    occurrence.effect.trigger === "on-success" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.optional === true &&
+    occurrence.effect.sourceSkill.subject === "target" &&
+    occurrence.effect.sourceSkill.category === "skill" &&
+    occurrence.effect.sourceSkill.constant === true &&
+    occurrence.effect.targetSkill.subject === "source" &&
+    occurrence.effect.targetSkill.category === "skill" &&
+    occurrence.effect.targetSkill.constant === true &&
+    occurrence.effect.duration.type === "turns" &&
+    occurrence.effect.duration.turns.type === "literal" &&
+    occurrence.effect.duration.turns.value === 4;
+  const exactSpikedBallReplacement =
+    occurrence.effect.type === "replace-move-effect" &&
+    occurrence.effect.trigger === "on-success" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.remove === "source-effect" &&
+    occurrence.effect.selector.type === "move-selector" &&
+    occurrence.effect.selector.subject === "source" &&
+    occurrence.effect.selector.restriction === "restricted" &&
+    occurrence.effect.selector.categoryExcludes?.length === 1 &&
+    occurrence.effect.selector.categoryExcludes[0] === "signature" &&
+    occurrence.effect.replacement.trigger === "on-resource-drain" &&
+    occurrence.effect.replacement.target === "self" &&
+    occurrence.effect.replacement.type === "modify-resource" &&
+    occurrence.effect.replacement.resource === "ki" &&
+    occurrence.effect.replacement.operation === "gain" &&
+    occurrence.effect.replacement.amount.type === "triggering-resource-change" &&
+    occurrence.effect.replacement.amount.resource === "ki" &&
+    occurrence.effect.replacement.amount.operation === "drain";
+  const exactAllDiceSuccessGate =
+    occurrence.sourceDefinitionId === "move-akaikaru-rage-mastery" &&
+    occurrence.effectIndex === 2 &&
+    occurrence.effect.type === "require-all-dice-success" &&
+    occurrence.effect.trigger === "passive" &&
+    occurrence.effect.target === "self" &&
+    occurrence.effect.appliesTo === "successful-effects" &&
+    occurrence.effect.activationGroup === "rage-mastery-single-die-doubling" &&
+    occurrence.effect.selector.type === "move-selector" &&
+    occurrence.effect.selector.subject === "source" &&
+    occurrence.effect.selector.attackRoll?.dice === 1;
   const exactOnMoveUsePendingChoice =
     occurrence.effect.trigger === "on-move-use" &&
     pendingChoiceGroup.length === 2 &&
@@ -1790,16 +2232,34 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
   if (
     compilation?.ok === true &&
     (exactBeforeDefensePendingChoice ||
+      exactMimicryEffectExchange ||
+      exactActiveConstantReplacement ||
+      exactSpikedBallReplacement ||
+      exactAllDiceSuccessGate ||
       exactOnMoveUsePendingChoice ||
       exactCrossTriggerPendingChoice)
   ) {
     return {
       status: "supported-generic" as const,
-      capabilityId: "pending-choice.v1",
-      executor: "optional-effect-choice",
-      focusedCoverage: "progress-fight.test.ts, move-effects-runtime.test.ts",
-      reason:
-        "The serialized optional-effect choice preserves the exact grouped effect set through the public combat transition.",
+      capabilityId: exactActiveConstantReplacement
+        ? "replace-active-constant-effects.v1"
+        : exactSpikedBallReplacement
+          ? "replace-move-effect.v1"
+          : exactAllDiceSuccessGate
+            ? "require-all-dice-success.v1"
+            : "pending-choice.v1",
+      executor: exactActiveConstantReplacement
+        ? "active-constant-replacement-selection"
+        : exactSpikedBallReplacement
+          ? "move-effect-replacement-selection"
+          : exactAllDiceSuccessGate
+            ? "all-dice-success-gate"
+            : "optional-effect-choice",
+      focusedCoverage:
+        "progress-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
+      reason: exactAllDiceSuccessGate
+        ? "The selected Rage Mastery activation group persists a generic all-dice success gate that suppresses successful effects until every attack die succeeds."
+        : "The serialized optional-effect choice preserves the exact grouped effect set through the public combat transition.",
       prerequisite: null,
       approvedExclusion: null,
     };

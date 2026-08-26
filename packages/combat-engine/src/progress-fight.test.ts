@@ -408,6 +408,111 @@ describe("deferred move catalog capabilities", () => {
   });
 });
 
+describe("generic floating-effect termination executor", () => {
+  it("selects and ends one opponent floating effect through the public attack transition", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-25T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:slow-charge-end-floating")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 40 }, (_, index) =>
+          combatEventIdSchema.parse(`event:slow-charge-end-floating-${index + 1}`),
+        ),
+        pendingDecisionIds: Array.from({ length: 10 }, (_, index) =>
+          pendingDecisionIdSchema.parse(`pending-decision:slow-charge-${index + 1}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 10 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:slow-charge-${index + 1}`),
+        ),
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:slow-charge-floating")],
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 500,
+                stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-aoyosumu-slow-charge"],
+              },
+              {
+                maximumHitPoints: 500,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const floatingEffect = {
+      id: activeEffectIdSchema.parse("active-effect:slow-charge-floating"),
+      type: "floating-effect" as const,
+      sourceCombatantId: secondCombatantId,
+      targetCombatantId: secondCombatantId,
+      sourceDefinitionId: "move-freestyle-hidden-power-level",
+      floatingEffectId: "slow-charge-test-floating-effect",
+      effects: [],
+      termination: [],
+      scope: { type: "combat" as const },
+      createdOnTurn: action.turnNumber,
+    };
+    const prepared = {
+      ...action,
+      activeEffects: [...action.activeEffects, floatingEffect],
+    } satisfies ActiveFightState;
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          prepared,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:slow-charge"),
+            actorId: firstCombatantId,
+            expectedStateVersion: prepared.version,
+            moveId: "move-aoyosumu-slow-charge",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(pending.pendingDecision?.type).toBe("optional-effect");
+    const option = pending.pendingDecision?.options.find(
+      (candidate) => candidate.activeEffectId === floatingEffect.id,
+    );
+    expect(option).toBeDefined();
+    if (option === undefined) throw new Error("Expected a floating-effect termination option.");
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:slow-charge-end"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: option.id,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resolved.activeEffects).not.toContainEqual(
+      expect.objectContaining({ id: floatingEffect.id }),
+    );
+  });
+});
+
 describe("deferred cost catalog capabilities", () => {
   it("uses the opponent's next attack cost for BOOMerang on the user's next turn", () => {
     const dependencies = createDeferredDependencies("boomerang-next-cost", [20, 1, 20, 1, 20, 1]);
@@ -868,6 +973,701 @@ describe("generic before-attack pending effect choices", () => {
   });
 });
 
+describe("generic all-dice success gates", () => {
+  it("suppresses successful effects when Rage Mastery's changed attack misses one die", () => {
+    const dependencies = createTestCombatDependencies(
+      [30, 1, 1, 30],
+      new Date("2026-08-25T14:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:rage-mastery-gate")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:rage-mastery-gate-${index + 1}`),
+        ),
+        pendingDecisionIds: ["choice"].map((suffix) =>
+          pendingDecisionIdSchema.parse(`pending-decision:rage-mastery-${suffix}`),
+        ),
+        resolutionFrameIds: ["choice"].map((suffix) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:rage-mastery-${suffix}`),
+        ),
+        activeEffectIds: Array.from({ length: 12 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:rage-mastery-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-akaikaru-rage-mastery", "move-akaikaru-chained-strikes"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:rage-mastery-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-akaikaru-chained-strikes",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(pending.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      options: [
+        { id: "activate-effect:0,1", effectIndices: [0, 1] },
+        { id: "decline", type: "decline" },
+      ],
+    });
+
+    const completed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:rage-mastery-activate"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate-effect:0,1",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(completed.pendingDecision).toBeUndefined();
+    expect(completed.activeEffects.some((effect) => effect.type === "extra-action")).toBe(false);
+  });
+});
+
+describe("generic action-phase skip choices", () => {
+  it("offers Power Boost at the action boundary and skips the action when activated", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-25T15:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:power-boost-action-phase")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      eventIds: Array.from({ length: 40 }, (_, index) =>
+        combatEventIdSchema.parse(`event:power-boost-action-phase-${index + 1}`),
+      ),
+      pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:power-boost")],
+      resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:power-boost")],
+      decisionIds: [combatDecisionIdSchema.parse("decision:power-boost-frame")],
+    });
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-power-boost"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const pending = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    expect(pending.phase).toBe("action");
+    expect(pending.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      options: [
+        {
+          id: "activate-effect:move-kiihakai-power-boost:0",
+          type: "activate-effect",
+          moveId: "move-kiihakai-power-boost",
+          effectIndices: [0],
+        },
+        { id: "decline", type: "decline" },
+      ],
+    });
+    expect(pending.resolutionFrames).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "effect-choice",
+          effectTrigger: "action-phase",
+          returnPhase: "action",
+          sourceDefinitionId: "move-kiihakai-power-boost",
+          effectIndices: [0],
+        }),
+      ]),
+    );
+    expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([]);
+
+    const skipped = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:power-boost-activate"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate-effect:move-kiihakai-power-boost:0",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(skipped.phase).toBe("end");
+    expect(skipped.pendingDecision).toBeUndefined();
+    expect(skipped.actionHistory).toContainEqual({
+      type: "turn-skipped",
+      actorId: firstCombatantId,
+      turnNumber: created.turnNumber,
+      phase: "action",
+      reason: "effect",
+    });
+  });
+});
+
+describe("generic deactivation-based defense choices", () => {
+  it("deactivates and locks the selected CONSTANT Skill while stopping Focus Breaker's attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-25T16:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:focus-breaker-stop")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:focus-breaker-stop-${index + 1}`),
+        ),
+        activeEffectIds: [
+          activeEffectIdSchema.parse("active-effect:focus-breaker-lock"),
+          activeEffectIdSchema.parse("active-effect:focus-breaker"),
+        ],
+        pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:focus-breaker")],
+        resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:focus-breaker")],
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-afterlife-masenko"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-focus-breaker", "move-afterlife-energy-blade"],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const active = {
+      ...action,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:focus-breaker"),
+          type: "active-constant" as const,
+          sourceCombatantId: secondCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-afterlife-energy-blade" as const,
+          activatedOnTurn: action.turnNumber,
+          duration: "combat" as const,
+          paidActivationCost: 2,
+          lifecycle: "active" as const,
+        },
+      ],
+    };
+    const defensePending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          active,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:focus-breaker-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: active.version,
+            moveId: "move-afterlife-masenko",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const stopOption = defensePending.pendingDecision?.options.find(
+      (option) => option.type === "activate-effect" && option.selectedMoveId !== undefined,
+    );
+    expect(stopOption).toMatchObject({
+      type: "activate-effect",
+      moveId: "move-kiihakai-focus-breaker",
+      effectIndices: [0],
+      selectedMoveId: "move-afterlife-energy-blade",
+    });
+    if (stopOption === undefined) throw new Error("Expected Focus Breaker stop option.");
+    const stoppedTransition = requireTransition(
+      submitCombatDecision(
+        defensePending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:focus-breaker-stop"),
+          actorId: secondCombatantId,
+          expectedStateVersion: defensePending.version,
+          pendingDecisionId: defensePending.pendingDecision!.id,
+          optionId: stopOption.id,
+        },
+        dependencies,
+      ),
+    );
+    const stopped = requireActiveFightState(stoppedTransition.state);
+    expect(stopped.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "active-constant",
+          sourceDefinitionId: "move-afterlife-energy-blade",
+          lifecycle: "deactivated",
+        }),
+        expect.objectContaining({
+          type: "action-lock",
+          affectedType: "skill",
+          targetCombatantId: secondCombatantId,
+          duration: { type: "combat" },
+        }),
+      ]),
+    );
+    expect(stopped.actionHistory).toContainEqual(
+      expect.objectContaining({ type: "use-move", outcome: "stopped" }),
+    );
+    expect(stoppedTransition.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "effect-deactivated" }),
+        expect.objectContaining({ type: "effect-activated" }),
+      ]),
+    );
+  });
+});
+
+describe("generic defense substitution choices", () => {
+  it("pays High Threshold's exact HP substitution and stops an energy attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-25T16:30:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:high-threshold-substitution")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:high-threshold-substitution-${index + 1}`),
+        ),
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:high-threshold")],
+        pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:high-threshold")],
+        resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:high-threshold")],
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-afterlife-masenko"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: ["move-haokiru-high-threshold"],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const active = {
+      ...action,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:high-threshold"),
+          type: "active-constant" as const,
+          sourceCombatantId: secondCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-haokiru-high-threshold" as const,
+          activatedOnTurn: action.turnNumber,
+          duration: "combat" as const,
+          paidActivationCost: 2,
+          lifecycle: "active" as const,
+        },
+      ],
+    };
+    const defensePending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          active,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:high-threshold-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: active.version,
+            moveId: "move-afterlife-masenko",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const substituteOption = defensePending.pendingDecision?.options.find(
+      (option) => option.id === "activate-before-defense:move-haokiru-high-threshold:0:none",
+    );
+    expect(substituteOption).toBeDefined();
+    if (substituteOption === undefined) throw new Error("Expected High Threshold option.");
+    const stoppedTransition = requireTransition(
+      submitCombatDecision(
+        defensePending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:high-threshold-substitute"),
+          actorId: secondCombatantId,
+          expectedStateVersion: defensePending.version,
+          pendingDecisionId: defensePending.pendingDecision!.id,
+          optionId: substituteOption.id,
+        },
+        dependencies,
+      ),
+    );
+    const stopped = requireActiveFightState(stoppedTransition.state);
+    expect(stopped.combatants[secondCombatantId].hitPoints.current).toBe(90);
+    expect(stopped.actionHistory).toContainEqual(
+      expect.objectContaining({ type: "use-move", outcome: "stopped" }),
+    );
+  });
+});
+
+describe("generic active CONSTANT replacement", () => {
+  it("selects an opponent CONSTANT Skill, replaces one active constant, and resumes the attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-04T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:downward-spiral-replacement")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:downward-spiral-replacement-${index + 1}`),
+        ),
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:downward-target")],
+        pendingDecisionIds: [
+          pendingDecisionIdSchema.parse("pending-decision:downward-defense"),
+          pendingDecisionIdSchema.parse("pending-decision:downward-effect"),
+          pendingDecisionIdSchema.parse("pending-decision:downward-source"),
+          pendingDecisionIdSchema.parse("pending-decision:downward-target"),
+        ],
+        resolutionFrameIds: Array.from({ length: 8 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:downward-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 500,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-downward-spiral", "move-aoyosumu-inner-peace"],
+              },
+              {
+                maximumHitPoints: 500,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: ["move-afterlife-energy-blade"],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const armed: ActiveFightState = {
+      ...action,
+      activeEffects: [
+        ...action.activeEffects,
+        {
+          id: activeEffectIdSchema.parse("active-effect:downward-target"),
+          type: "active-constant",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-aoyosumu-inner-peace",
+          activatedOnTurn: action.turnNumber,
+          duration: "combat",
+          paidActivationCost: 1,
+          lifecycle: "active",
+        },
+      ],
+    };
+    const attack = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          armed,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:downward-spiral"),
+            actorId: firstCombatantId,
+            expectedStateVersion: armed.version,
+            moveId: "move-kiihakai-downward-spiral",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const effectChoice = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          attack,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:downward-effect"),
+            actorId: firstCombatantId,
+            expectedStateVersion: attack.version,
+            pendingDecisionId: attack.pendingDecision!.id,
+            optionId: "activate-effect:1",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(effectChoice.pendingDecision).toMatchObject({
+      type: "select-move",
+      options: [expect.objectContaining({ moveId: "move-afterlife-energy-blade" })],
+    });
+    const targetChoice = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          effectChoice,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:downward-source"),
+            actorId: firstCombatantId,
+            expectedStateVersion: effectChoice.version,
+            pendingDecisionId: effectChoice.pendingDecision!.id,
+            optionId: "replace-source:move-afterlife-energy-blade",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const targetOption = targetChoice.pendingDecision!.options.find(
+      (option) => option.type === "select-move",
+    )!;
+    const replacementTransition = requireTransition(
+      submitCombatDecision(
+        targetChoice,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:downward-target"),
+          actorId: firstCombatantId,
+          expectedStateVersion: targetChoice.version,
+          pendingDecisionId: targetChoice.pendingDecision!.id,
+          optionId: targetOption.id,
+        },
+        dependencies,
+      ),
+    );
+    const resumed = requireActiveFightState(replacementTransition.state);
+    const replaced = resumed.activeEffects.find(
+      (effect) => effect.id === "active-effect:downward-target",
+    );
+    expect(replaced).toMatchObject({
+      type: "active-constant",
+      replacement: {
+        sourceDefinitionId: "move-afterlife-energy-blade",
+        sourceMoveSnapshot: { id: "move-afterlife-energy-blade" },
+        duration: { type: "turns", remaining: 4, ownerCombatantId: firstCombatantId },
+      },
+    });
+    expect(replacementTransition.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "effect-replaced",
+          activeEffectId: "active-effect:downward-target",
+          replacementSourceDefinitionId: "move-afterlife-energy-blade",
+        }),
+      ]),
+    );
+  });
+});
+
+describe("generic move-effect replacement", () => {
+  it("selects the restricted move, increments its uses, and persists the replacement", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-25T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:spiked-ball-replacement")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 70 }, (_, index) =>
+          combatEventIdSchema.parse(`event:spiked-ball-replacement-${index + 1}`),
+        ),
+        activeEffectIds: [activeEffectIdSchema.parse("active-effect:spiked-ball-replacement")],
+        pendingDecisionIds: ["effects", "target", "resume", "extra"].map((suffix) =>
+          pendingDecisionIdSchema.parse(`pending-decision:spiked-ball-${suffix}`),
+        ),
+        resolutionFrameIds: ["effects", "target", "resume"].map((suffix) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:spiked-ball-${suffix}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 500,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-kurokonwaku-spiked-ball", "move-kurokonwaku-dimension-scream"],
+              },
+              {
+                maximumHitPoints: 500,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:spiked-ball"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-kurokonwaku-spiked-ball",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(pending.pendingDecision).toMatchObject({
+      type: "optional-effect",
+      options: expect.arrayContaining([
+        expect.objectContaining({ id: "activate-effect:1,2" }),
+        expect.objectContaining({ id: "decline" }),
+      ]),
+    });
+    const selected = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:spiked-ball-effects"),
+            actorId: firstCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision!.id,
+            optionId: "activate-effect:1,2",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(selected.pendingDecision).toMatchObject({
+      type: "select-move",
+      options: [expect.objectContaining({ moveId: "move-kurokonwaku-dimension-scream" })],
+    });
+    const resumed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          selected,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:spiked-ball-target"),
+            actorId: firstCombatantId,
+            expectedStateVersion: selected.version,
+            pendingDecisionId: selected.pendingDecision!.id,
+            optionId: "select-move-target:1:move-kurokonwaku-dimension-scream",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resumed.combatants[firstCombatantId].moveUseLimitModifiers).toMatchObject({
+      "move-kurokonwaku-dimension-scream": 1,
+    });
+    expect(resumed.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "active-effect:spiked-ball-replacement",
+          type: "move-effect-replacement",
+          targetMoveId: "move-kurokonwaku-dimension-scream",
+          remainingTriggers: 1,
+          replacement: expect.objectContaining({
+            trigger: "on-resource-drain",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+          }),
+        }),
+      ]),
+    );
+  });
+});
+
 describe("generic combat-local move removal", () => {
   it("removes the source move through the public action transition and updates legal decisions", () => {
     const dependencies = createTestCombatDependencies(
@@ -1084,6 +1884,124 @@ describe("generic combat-local move removal", () => {
 });
 
 describe("generic copied attack executor", () => {
+  it("persists Follow Up's start-of-combat source selection and grants its immediate follow-up attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 20, 1, 20, 1],
+      new Date("2026-08-25T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:follow-up-selection")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 120 }, (_, index) =>
+          combatEventIdSchema.parse(`event:follow-up-selection-${index + 1}`),
+        ),
+        pendingDecisionIds: Array.from({ length: 10 }, (_, index) =>
+          pendingDecisionIdSchema.parse(`pending-decision:follow-up-selection-${index + 1}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 10 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:follow-up-selection-${index + 1}`),
+        ),
+        activeEffectIds: Array.from({ length: 10 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:follow-up-selection-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-follow-up", "move-akaikaru-dexterous-glaive"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-masenko"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const createdState = requireActiveFightState(created.state);
+    expect(createdState.pendingDecision?.type).toBe("select-move");
+    const selectionOption = createdState.pendingDecision?.options.find(
+      (option) =>
+        option.type === "select-move" && option.moveId === "move-akaikaru-dexterous-glaive",
+    );
+    expect(selectionOption).toBeDefined();
+    if (selectionOption === undefined) throw new Error("Expected Follow Up source selection.");
+    const selected = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          created.state,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:follow-up-select"),
+            actorId: firstCombatantId,
+            expectedStateVersion: createdState.version,
+            pendingDecisionId: createdState.pendingDecision!.id,
+            optionId: selectionOption.id,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(
+      Object.values(selected.combatants[firstCombatantId].storedMoveSelections ?? {}),
+    ).toContainEqual(expect.objectContaining({ moveId: "move-akaikaru-dexterous-glaive" }));
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(selected, dependencies)).state,
+    );
+    const sourceAttack = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:follow-up-source"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-akaikaru-dexterous-glaive",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(sourceAttack.phase).toBe("action");
+    expect(enumerateLegalDecisions(sourceAttack, firstCombatantId)).toContainEqual(
+      expect.objectContaining({ type: "use-move", moveId: "move-akaikaru-follow-up" }),
+    );
+    const followUp = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          sourceAttack,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:follow-up-use"),
+            actorId: firstCombatantId,
+            expectedStateVersion: sourceAttack.version,
+            moveId: "move-akaikaru-follow-up",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(followUp.actionHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          moveId: "move-akaikaru-dexterous-glaive",
+          outcome: "successful",
+        }),
+        expect.objectContaining({ moveId: "move-akaikaru-follow-up" }),
+      ]),
+    );
+  });
+
   it("replays the last unrestricted attack with a durable source snapshot and bonus damage", () => {
     const dependencies = createTestCombatDependencies(
       [20, 1, 20, 1],
@@ -1698,6 +2616,112 @@ describe("generic copied attack executor", () => {
       damageDealt: 50,
     });
     expect(resolved.resolutionFrames).toHaveLength(0);
+  });
+
+  it("offers Mimicry Master's successful-effect exchange from a prior unrestricted attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1],
+      new Date("2026-08-22T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:mimicry-effects")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 40 }, (_, index) =>
+          combatEventIdSchema.parse(`event:mimicry-effects-${index + 1}`),
+        ),
+        pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:mimicry-effects")],
+        resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:mimicry-effects")],
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-back-brain-kick", "move-afterlife-kamehameha"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 100, dexterity: 1, dexterityBonus: 0 },
+              moveIds: ["move-kurokonwaku-mimicry-mastery"],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireTransition(advanceFight(created.state, dependencies));
+    const actionState = requireActiveFightState(action.state);
+    const prepared = {
+      ...actionState,
+      actionHistory: [
+        ...actionState.actionHistory,
+        {
+          type: "use-move" as const,
+          decisionId: combatDecisionIdSchema.parse("decision:mimicry-prior-attack"),
+          actorId: firstCombatantId,
+          targetCombatantId: secondCombatantId,
+          moveId: "move-afterlife-kamehameha" as const,
+          outcome: "successful" as const,
+          damageDealt: 10,
+          turnNumber: actionState.turnNumber,
+          phase: "action" as const,
+        },
+      ],
+    } satisfies ActiveFightState;
+    const pending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          prepared,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:mimicry-effects-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: prepared.version,
+            moveId: "move-akaikaru-back-brain-kick",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const exchange = pending.pendingDecision?.options.find(
+      (option) => option.type === "activate-effect" && option.sourceActionId !== undefined,
+    );
+    expect(exchange).toMatchObject({
+      type: "activate-effect",
+      moveId: "move-kurokonwaku-mimicry-mastery",
+      effectIndices: [1],
+      sourceActionId: "decision:mimicry-prior-attack",
+      sourceMoveSnapshot: { id: "move-afterlife-kamehameha" },
+    });
+    if (exchange === undefined || pending.pendingDecision === undefined)
+      throw new Error("Expected Mimicry's prior-attack effect exchange option.");
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          pending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:mimicry-effects-select"),
+            actorId: secondCombatantId,
+            expectedStateVersion: pending.version,
+            pendingDecisionId: pending.pendingDecision.id,
+            optionId: exchange.id,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resolved.pendingDecision).toBeUndefined();
+    expect(resolved.resolutionFrames).toHaveLength(0);
+    expect(resolved.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      moveId: "move-akaikaru-back-brain-kick",
+      outcome: "successful",
+    });
   });
 });
 
@@ -3899,7 +4923,7 @@ describe("stored-roll transitions", () => {
       {
         fightIds: [fightIdSchema.parse("fight:solar-flare-stored-roll")],
         combatantIds: [firstCombatantId, secondCombatantId],
-        activeEffectIds: Array.from({ length: 3 }, (_, index) =>
+        activeEffectIds: Array.from({ length: 8 }, (_, index) =>
           activeEffectIdSchema.parse(`active-effect:solar-flare-${index + 1}`),
         ),
         eventIds: Array.from({ length: 30 }, (_, index) =>
@@ -3985,6 +5009,48 @@ describe("stored-roll transitions", () => {
     expect(attack.state.activeEffects).not.toContainEqual(
       expect.objectContaining({
         floatingEffectId: "solar-flare-same-turn-single-die-follow-up",
+      }),
+    );
+  });
+
+  it("persists Speed Demon's upkeep defense definition for the opponent's next defense", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-25T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:speed-demon-definition")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+        activeEffectIdSchema.parse(`active-effect:speed-demon-${index + 1}`),
+      ),
+      eventIds: Array.from({ length: 24 }, (_, index) =>
+        combatEventIdSchema.parse(`event:speed-demon-${index + 1}`),
+      ),
+    });
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-akaikaru-speed-demon"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+
+    const transition = requireTransition(advanceFight(created.state, dependencies));
+    expect(transition.state.activeEffects).toContainEqual(
+      expect.objectContaining({
+        type: "modify-next-action",
+        targetCombatantId: secondCombatantId,
+        modifier: { type: "roll-definition", roll: "defense", dice: 1, sides: 30 },
       }),
     );
   });
@@ -7686,6 +8752,48 @@ describe("initial turn progression", () => {
     ).toMatchObject({ ok: false, error: { type: "illegal-decision" } });
   });
 
+  it("lets Downward Spiral's typed passive override bypass Skill activation prevention", () => {
+    const { state, dependencies } = createInitialState();
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(state, dependencies)).state,
+    );
+    const withDownwardSpiral: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId],
+          moveIds: [
+            ...action.combatants[firstCombatantId].moveIds,
+            "move-kiihakai-downward-spiral",
+            "move-kurokonwaku-shadow-stalker",
+          ],
+        },
+      },
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:prevent-skill-activation"),
+          type: "prevent-move-use",
+          sourceCombatantId: secondCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-kurokonwaku-shadow-stalker",
+          operation: "activate",
+          selector: {
+            type: "move-selector",
+            subject: "target",
+            category: "skill",
+            constant: true,
+            sourceText: "any CONSTANT Skill",
+          },
+          duration: { type: "combat" },
+        },
+      ],
+    };
+    expect(enumerateLegalDecisions(withDownwardSpiral, firstCombatantId)).toContainEqual(
+      expect.objectContaining({ type: "use-move", moveId: "move-kurokonwaku-shadow-stalker" }),
+    );
+  });
+
   it("blocks a persisted generic resource gain before the public power-up transition", () => {
     const { state, dependencies } = createInitialState();
     const action = requireActiveFightState(
@@ -10180,7 +11288,9 @@ describe("initial turn progression", () => {
       {
         fightIds: [fightIdSchema.parse("fight:ki-barbs-choice")],
         combatantIds: [firstCombatantId, secondCombatantId],
-        activeEffectIds: [activeEffectIdSchema.parse("active-effect:ki-barbs")],
+        activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:ki-barbs-${index + 1}`),
+        ),
         pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:ki-barbs")],
         resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:ki-barbs")],
         eventIds: Array.from({ length: 12 }, (_, index) =>
@@ -11661,6 +12771,12 @@ describe("initial turn progression", () => {
           activeEffectIdSchema.parse("active-effect:following-action-power-boost"),
           activeEffectIdSchema.parse("active-effect:following-action-skip"),
         ],
+        pendingDecisionIds: Array.from({ length: 8 }, (_, index) =>
+          pendingDecisionIdSchema.parse(`pending-decision:following-action-${index + 1}`),
+        ),
+        resolutionFrameIds: Array.from({ length: 8 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:following-action-${index + 1}`),
+        ),
       },
     );
     const created = requireActiveFightState(
@@ -11672,7 +12788,7 @@ describe("initial turn progression", () => {
               {
                 maximumHitPoints: 100,
                 stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
-                moveIds: ["move-kiihakai-power-boost", "move-afterlife-kamehameha"],
+                moveIds: ["move-afterlife-kamehameha"],
               },
               {
                 maximumHitPoints: 100,
@@ -12019,6 +13135,9 @@ describe("initial turn progression", () => {
       {
         fightIds: [fightIdSchema.parse("fight:breaker-breaker")],
         combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:breaker-breaker-${index + 1}`),
+        ),
         eventIds: Array.from({ length: 40 }, (_, index) =>
           combatEventIdSchema.parse(`event:breaker-breaker-${index + 1}`),
         ),
@@ -12085,6 +13204,119 @@ describe("initial turn progression", () => {
     );
   });
 
+  it("consumes Breaker Breaker's next matching BREAK multiplier at the public decision boundary", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 20, 1],
+      new Date("2026-08-25T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:breaker-breaker-follow-up")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:breaker-breaker-follow-up-${index + 1}`),
+        ),
+        activeEffectIds: Array.from({ length: 20 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:breaker-breaker-follow-up-${index + 1}`),
+        ),
+      },
+    );
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-midorikatai-breaker-breaker"],
+              },
+              {
+                maximumHitPoints: 100,
+                stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    let state = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const firstAttack = requireTransition(
+      submitCombatDecision(
+        state,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:breaker-breaker-follow-up-first"),
+          actorId: firstCombatantId,
+          expectedStateVersion: state.version,
+          moveId: "move-midorikatai-breaker-breaker",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+    state = requireActiveFightState(firstAttack.state);
+    expect(state.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-next-action",
+          targetCombatantId: firstCombatantId,
+          modifier: { type: "combat-outcome", outcome: "break", multiplier: 2 },
+        }),
+      ]),
+    );
+
+    state = {
+      ...state,
+      phase: "action",
+      activeCombatantId: firstCombatantId,
+      activeEffects: [
+        ...state.activeEffects,
+        {
+          id: activeEffectIdSchema.parse("active-effect:breaker-breaker-follow-up-extra"),
+          type: "extra-action",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-midorikatai-breaker-breaker",
+          sourceEffectIndex: 1,
+          phase: "action",
+          moveCategory: "advanced-attack",
+          sourceMoveOnly: true,
+          remainingActions: 1,
+          availableFromTurn: state.turnNumber,
+          expiresAfterTurn: state.turnNumber,
+        },
+      ],
+    };
+
+    const secondAttack = requireTransition(
+      submitCombatDecision(
+        state,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:breaker-breaker-follow-up-second"),
+          actorId: firstCombatantId,
+          expectedStateVersion: state.version,
+          moveId: "move-midorikatai-breaker-breaker",
+          targetCombatantId: secondCombatantId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(secondAttack.events).toContainEqual(
+      expect.objectContaining({
+        type: "status-applied",
+        targetCombatantId: secondCombatantId,
+        statusId: "break",
+        stacks: 2,
+      }),
+    );
+  });
+
   it.each(["item-technology-spare-parts", "item-technology-cybernetic-replacements"])(
     "uses %s to prevent the incoming BREAK outcome",
     (itemId) => {
@@ -12094,6 +13326,9 @@ describe("initial turn progression", () => {
         {
           fightIds: [fightIdSchema.parse(`fight:${itemId}`)],
           combatantIds: [firstCombatantId, secondCombatantId],
+          activeEffectIds: Array.from({ length: 8 }, (_, index) =>
+            activeEffectIdSchema.parse(`active-effect:${itemId}-${index + 1}`),
+          ),
           pendingDecisionIds: [pendingDecisionIdSchema.parse(`pending-decision:${itemId}`)],
           resolutionFrameIds: [resolutionFrameIdSchema.parse(`resolution-frame:${itemId}`)],
           eventIds: Array.from({ length: 40 }, (_, index) =>
