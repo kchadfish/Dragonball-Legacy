@@ -42,6 +42,7 @@ interface SourceEffect {
   };
   readonly percent?: { readonly type?: unknown };
   readonly selector?: unknown;
+  readonly conflictPolicy?: { readonly type?: unknown };
   readonly activationGroup?: unknown;
   readonly optional?: unknown;
   readonly asIf?: unknown;
@@ -75,13 +76,14 @@ export interface CombatCapabilityMatrixRow {
   readonly capabilityId: string | null;
   readonly executor: string | null;
   readonly focusedCoverage: string | null;
+  readonly conflictPolicy: string | null;
   readonly reason: string;
   readonly prerequisite: string | null;
   readonly approvedExclusion: string | null;
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-24";
+  readonly generatedAt: "2026-08-26";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -426,6 +428,22 @@ const approvedMoveOccurrenceExclusions: Readonly<Record<string, string>> = {
 
 const stringValue = (value: unknown): string | null => (typeof value === "string" ? value : null);
 
+const ordinaryModifierEffectTypes = new Set([
+  "modify-damage",
+  "modify-next-action",
+  "modify-roll",
+  "modify-roll-modifier",
+  "modify-stat",
+]);
+
+const conflictPolicyFor = (effect: SourceEffect): string | null => {
+  const explicit = stringValue(effect.conflictPolicy?.type);
+  if (explicit !== null) return explicit;
+  if (effect.stacking === "prevent") return "prevent-duplicate";
+  if (effect.stacking === "allow") return "allow";
+  return ordinaryModifierEffectTypes.has(stringValue(effect.type) ?? "") ? "allow-default" : null;
+};
+
 const variantFor = (effect: SourceEffect) =>
   [
     `trigger=${stringValue(effect.trigger) ?? "none"}`,
@@ -437,6 +455,7 @@ const variantFor = (effect: SourceEffect) =>
     `cap=${effect.cap === undefined ? "none" : `${stringValue(effect.cap.type) ?? "unknown"}:${stringValue(effect.cap.scope) ?? "none"}`}`,
     `selector=${effect.selector === undefined ? "none" : "present"}`,
     `conditions=${(effect.conditions ?? []).map((condition) => stringValue(condition.type) ?? "unknown").join(",") || "none"}`,
+    `policy=${conflictPolicyFor(effect) ?? "none"}`,
     ...(effect.relativeTo === undefined
       ? []
       : [
@@ -2574,11 +2593,12 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
       target: stringValue(occurrence.effect.target),
       scope: stringValue(occurrence.effect.scope?.type),
       duration: stringValue(occurrence.effect.duration?.type),
+      conflictPolicy: conflictPolicyFor(occurrence.effect),
       ...classification,
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-24",
+    generatedAt: "2026-08-26",
     activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
       raceId.slice(5, -1),
     ),
@@ -2670,12 +2690,12 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
     "",
     "## Occurrences",
     "",
-    "| Source definition | Origin | Effect index | Effect type | Variant | Status | Capability | Executor | Coverage | Reason | Prerequisite | Approved exclusion |",
-    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Source definition | Origin | Effect index | Effect type | Variant | Conflict policy | Status | Capability | Executor | Coverage | Reason | Prerequisite | Approved exclusion |",
+    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of matrix.occurrences) {
     lines.push(
-      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.status} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
+      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
     );
   }
   return `${lines.join("\n")}\n`;

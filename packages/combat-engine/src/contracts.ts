@@ -287,6 +287,36 @@ export interface AdvancedAttackCostSelector {
   readonly baseKiCost: number;
 }
 
+/** Normalized, runtime-safe conflict semantics for durable combat effects. */
+export type ConflictPolicy =
+  | { readonly type: "allow" }
+  | { readonly type: "prevent-duplicate" }
+  | {
+      readonly type: "replace";
+      readonly provenance: "existing" | "incoming";
+    }
+  | {
+      readonly type: "refresh";
+      readonly duration: "existing" | "incoming";
+      readonly uses: "existing" | "incoming";
+      readonly provenance: "existing" | "incoming";
+    }
+  | {
+      readonly type: "retain";
+      readonly selection: "highest" | "lowest";
+      readonly value: "amount";
+      readonly tie: "existing" | "incoming";
+    }
+  | { readonly type: "unique-group"; readonly group: string }
+  | { readonly type: "mutually-exclusive-group"; readonly group: string };
+
+export interface ActiveEffectConflictMetadata {
+  /** Explicit policy compiled from source-backed game data. */
+  readonly conflictPolicy?: ConflictPolicy;
+  /** Canonical identity used by the shared conflict resolver. */
+  readonly conflictKey?: string;
+}
+
 /** A durable permission to bypass the standard dice-side/result limit. */
 export interface ActiveRollModificationCap {
   readonly type: "allow-exceed";
@@ -1077,7 +1107,7 @@ export interface ActiveExchangeSkillCooldownEffect {
   readonly remainingTurns: number;
 }
 
-export type ActiveCombatEffect =
+export type ActiveCombatEffect = (
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
   | ActiveRollModifierTransformerEffect
@@ -1109,7 +1139,9 @@ export type ActiveCombatEffect =
   | ActiveMoveEffectReplacementEffect
   | ActiveTransformationRollRequirementEffect
   | ActiveExchangeSkillReactivationEffect
-  | ActiveExchangeSkillCooldownEffect;
+  | ActiveExchangeSkillCooldownEffect
+) &
+  ActiveEffectConflictMetadata;
 
 /**
  * An effective resource change retained with the action that caused it.

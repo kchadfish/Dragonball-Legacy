@@ -36,6 +36,8 @@ describe("combat capability matrix", () => {
     expect(rendered).toContain("source-text-only abilities are not executable");
     expect(rendered).toContain("cap=maximum:roll");
     expect(rendered).toContain("cap=maximum:total");
+    expect(rendered).toContain("policy=prevent-duplicate");
+    expect(rendered).toContain("| Conflict policy |");
     expect(rendered).toContain("## Unsupported in-scope priorities");
     expect(rendered).toContain("| Rank | Prerequisite | Effect type | Occurrences | Definitions |");
     expect(createCombatCapabilityMatrix().occurrences).not.toEqual(

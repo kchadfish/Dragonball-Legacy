@@ -24,6 +24,7 @@ import type {
   ResolutionFrame,
 } from "./contracts.js";
 import { matchesMoveSelector } from "./declarative-runtime.js";
+import { conflictKeyFor, conflictMatchKeyFor, conflictPolicyFor } from "./conflict-policy.js";
 
 // Invariants validate serializable runtime data even when the in-memory union
 // type has already narrowed a discriminant to one literal value.
@@ -1393,10 +1394,36 @@ const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatE
 };
 /* eslint-enable sonarjs/cognitive-complexity */
 
+const hasValidConflictPolicy = (effect: ActiveCombatEffect) => {
+  const policy = effect.conflictPolicy;
+  if (policy === undefined) return true;
+  if (policy.type === "allow" || policy.type === "prevent-duplicate") return true;
+  if (policy.type === "unique-group" || policy.type === "mutually-exclusive-group")
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(policy.group);
+  if (policy.type === "replace")
+    return policy.provenance === "existing" || policy.provenance === "incoming";
+  if (policy.type === "refresh")
+    return (
+      (policy.duration === "existing" || policy.duration === "incoming") &&
+      (policy.uses === "existing" || policy.uses === "incoming") &&
+      (policy.provenance === "existing" || policy.provenance === "incoming")
+    );
+  return (
+    policy.type === "retain" &&
+    policy.value === "amount" &&
+    (policy.selection === "highest" || policy.selection === "lowest") &&
+    (policy.tie === "existing" || policy.tie === "incoming")
+  );
+};
+
+const hasValidConflictMetadata = (effect: ActiveCombatEffect) =>
+  hasValidConflictPolicy(effect) &&
+  (effect.conflictKey === undefined || effect.conflictKey === conflictKeyFor(effect));
+
 const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
   const activeEffectIds = new Set<string>();
 
-  for (const effect of state.activeEffects) {
+  for (const [effectIndex, effect] of state.activeEffects.entries()) {
     const validEffect =
       activeEffectIdSchema.safeParse(effect.id).success &&
       !activeEffectIds.has(effect.id) &&
@@ -1406,7 +1433,26 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
         effect.scope.type !== "next-turn" ||
         isActiveCombatant(state, effect.scope.combatantId)) &&
       hasValidActiveEffectReferences(state, effect) &&
-      hasValidEffectDetails(effect);
+      hasValidEffectDetails(effect) &&
+      hasValidConflictMetadata(effect) &&
+      !state.activeEffects.some((candidate, candidateIndex) => {
+        if (candidateIndex <= effectIndex) return false;
+        const policy = conflictPolicyFor(effect);
+        const candidatePolicy = conflictPolicyFor(candidate);
+        if (
+          policy === undefined ||
+          candidatePolicy === undefined ||
+          policy.type === "allow" ||
+          candidatePolicy.type === "allow" ||
+          policy.type !== candidatePolicy.type
+        )
+          return false;
+        if (policy.type === "unique-group" || policy.type === "mutually-exclusive-group") {
+          if (candidatePolicy.type !== policy.type || candidatePolicy.group !== policy.group)
+            return false;
+        }
+        return conflictMatchKeyFor(effect, policy) === conflictMatchKeyFor(candidate, policy);
+      });
     if (!validEffect) {
       addViolation(
         violations,

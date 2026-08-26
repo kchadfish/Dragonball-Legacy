@@ -1,6 +1,7 @@
 import {
   ATTACK_TAG,
   type EffectCondition,
+  type EffectConflictPolicy,
   type EffectDefinition,
   type MoveDefinition,
   type MoveSelectorCondition,
@@ -205,6 +206,40 @@ const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
 ]);
 
 const supportedTargets = new Set(["self", "opponent", "participants"]);
+
+const conflictPolicyIssues = (
+  effect: EffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): readonly EffectCompilationIssue[] => {
+  const policy: EffectConflictPolicy | undefined = effect.conflictPolicy;
+  if (policy === undefined) return [];
+  if (
+    (policy.type === "unique-group" || policy.type === "mutually-exclusive-group") &&
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(policy.group)
+  )
+    return [
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Conflict groups must use lowercase, hyphenated IDs.",
+      ),
+    ];
+  if (
+    policy.type === "retain" &&
+    !["modify-damage", "modify-roll", "modify-stat"].includes(effect.type)
+  )
+    return [
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Highest/lowest conflict policies require a safely comparable modifier amount.",
+      ),
+    ];
+  return [];
+};
 
 const supportedConditions = new Set<EffectCondition["type"]>([
   "combat-result",
@@ -5850,7 +5885,10 @@ export const compileEffectPlan = ({
         ),
       ],
     };
-  const issues = executor.validate(effect as never, sourceDefinitionId, effectIndex);
+  const issues = [
+    ...conflictPolicyIssues(effect, sourceDefinitionId, effectIndex),
+    ...executor.validate(effect as never, sourceDefinitionId, effectIndex),
+  ];
   const filteredIssues = issues.filter((candidate) => {
     if (
       allowFloatingOnMoveUse &&

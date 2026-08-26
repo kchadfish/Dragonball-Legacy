@@ -4977,3 +4977,32 @@ an accounting guard, not a substitute for the public-flow tests above.
 Remaining work is integration hardening: replay/full-fight regression coverage,
 coverage and quality gates, and documentation of the active 1v1 boundary for
 interferer-targeting behavior that requires a multi-participant combat model.
+
+## 2026-08-26 CE-230 stacking and conflict semantics
+
+Added the reusable combat-engine conflict-policy layer. Durable effect
+creation now normalizes legacy `stacking: "prevent"` and `stacking: "allow"`
+values, keeps ordinary modifiers stackable by default, and leaves non-modifier
+effects without an implicit policy. The resolver preserves source and target
+combatants, selectors, scopes, lifecycle state, and effect identity in a
+deterministic conflict key.
+
+The normalized contract supports duplicate prevention, replacement, refresh,
+highest/lowest retention with explicit tie behavior, unique groups, and
+mutually-exclusive groups. Refresh policies explicitly select duration, use,
+and provenance ownership. Policies that require an unavailable comparable
+value are rejected as unsupported rather than inferred.
+
+Triggered effects, upkeep/start/end scheduled effects, item effects, rerolls,
+deferred work, block follow-ups, activation protection, and exchange effects
+use the shared resolver before appending to `FightState`. Existing serialized
+states remain compatible because policy and conflict-key metadata are optional.
+The generated capability matrix now records the normalized policy per
+occurrence, including `allow-default` only for ordinary modifiers.
+
+Focused conflict-policy tests cover default stacking, target/scope identity,
+duplicate prevention, replacement, refresh ownership, highest/lowest ties, and
+unsupported value selection. Existing public combat-flow suites remain green;
+`npm run test:coverage` passed with 45 files and 902 tests. The final quality
+gate passed, including duplication detection and the production dependency
+audit.

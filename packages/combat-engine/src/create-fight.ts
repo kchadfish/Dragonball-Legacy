@@ -17,6 +17,7 @@ import type {
   SlotCapacityModification,
 } from "./contracts.js";
 import { createFightInputSchema } from "./contracts.js";
+import { resolveActiveEffectConflicts } from "./conflict-policy.js";
 import type { CombatDependencies } from "./dependencies.js";
 import type { CombatantId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
@@ -290,7 +291,10 @@ const startCombatRollState = (
         );
     }
   }
-  return { activeEffects, initiativeModifiers };
+  return {
+    activeEffects: resolveActiveEffectConflicts([], activeEffects).effects,
+    initiativeModifiers,
+  };
 };
 
 /**

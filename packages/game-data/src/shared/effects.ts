@@ -512,6 +512,40 @@ export type EffectScope =
   | { readonly type: "next-cost-modification"; readonly sourceText: string }
   | { readonly type: "combat"; readonly sourceText: string };
 
+/**
+ * Source-backed conflict semantics for effects that survive the current
+ * resolution.  `stacking` remains available as a legacy shorthand while the
+ * catalog is migrated to this explicit vocabulary.
+ */
+export type EffectConflictPolicy =
+  | { readonly type: "allow"; readonly sourceText: string }
+  | { readonly type: "prevent-duplicate"; readonly sourceText: string }
+  | {
+      readonly type: "replace";
+      readonly provenance: "existing" | "incoming";
+      readonly sourceText: string;
+    }
+  | {
+      readonly type: "refresh";
+      readonly duration: "existing" | "incoming";
+      readonly uses: "existing" | "incoming";
+      readonly provenance: "existing" | "incoming";
+      readonly sourceText: string;
+    }
+  | {
+      readonly type: "retain";
+      readonly selection: "highest" | "lowest";
+      readonly value: "amount";
+      readonly tie: "existing" | "incoming";
+      readonly sourceText: string;
+    }
+  | { readonly type: "unique-group"; readonly group: string; readonly sourceText: string }
+  | {
+      readonly type: "mutually-exclusive-group";
+      readonly group: string;
+      readonly sourceText: string;
+    };
+
 export interface BaseEffectDefinition {
   readonly trigger: (typeof EFFECT_TRIGGER)[keyof typeof EFFECT_TRIGGER];
   readonly target?: (typeof EFFECT_TARGET)[keyof typeof EFFECT_TARGET];
@@ -520,6 +554,7 @@ export interface BaseEffectDefinition {
   readonly scope?: EffectScope;
   readonly duration?: EffectDuration;
   readonly stacking?: "allow" | "prevent";
+  readonly conflictPolicy?: EffectConflictPolicy;
   readonly useLimit?: {
     readonly scope: "combat" | "turn";
     readonly count: number | NumericExpression;

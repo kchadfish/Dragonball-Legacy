@@ -2,6 +2,7 @@ export * from "./contracts.js";
 export * from "./attack-rolls.js";
 export * from "./block-mechanics.js";
 export * from "./combat-mechanics.js";
+export * from "./conflict-policy.js";
 export * from "./create-fight.js";
 export * from "./dependencies.js";
 export * from "./declarative-runtime.js";

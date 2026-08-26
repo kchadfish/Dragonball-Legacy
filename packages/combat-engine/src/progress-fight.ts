@@ -35,6 +35,7 @@ import {
   isCombatResultCountNextActionsDamageModifier,
   isSelectedMoveUntilAttackThresholdDamageModifier,
 } from "./damage-modifier-capabilities.js";
+import { normalizeConflictPolicy, resolveActiveEffectConflicts } from "./conflict-policy.js";
 import {
   classifyCurrentActionMove,
   effectConditionsMatch,
@@ -7927,12 +7928,14 @@ const resolveDeferredMoveDeclaration = (
     deferredEffect,
   ];
   const consumedExtraActionEffects = consumeExtraActionForDecision(state, decision);
-  const activeEffects = [...state.activeEffects, ...activatedEffects].flatMap((effect) => {
-    if (effect.type !== "extra-action") return [effect];
-    if (!state.activeEffects.some((candidate) => candidate.id === effect.id)) return [effect];
-    const consumed = consumedExtraActionEffects.find((candidate) => candidate.id === effect.id);
-    return consumed === undefined ? [] : [consumed];
-  });
+  const activeEffects = activeEffectsAfterAdditions(state.activeEffects, activatedEffects).flatMap(
+    (effect) => {
+      if (effect.type !== "extra-action") return [effect];
+      if (!state.activeEffects.some((candidate) => candidate.id === effect.id)) return [effect];
+      const consumed = consumedExtraActionEffects.find((candidate) => candidate.id === effect.id);
+      return consumed === undefined ? [] : [consumed];
+    },
+  );
   const nextState: ActiveFightState = {
     ...state,
     version: state.version + 1,
@@ -10898,7 +10901,6 @@ const convertedAttackActivatedEffects = ({
     dependencies,
   );
   const scheduledResources = activeScheduledResourcesFromApplications(
-    state,
     effects.scheduledResources,
     attacker.id,
     target.id,
@@ -11128,7 +11130,7 @@ const convertedAttackActivatedEffects = ({
     target.id,
     dependencies,
   );
-  return [
+  const additions: readonly ActiveCombatEffect[] = [
     ...suppressions,
     ...locks,
     ...moveUsePreventions,
@@ -11164,6 +11166,10 @@ const convertedAttackActivatedEffects = ({
     ...moveRemovals,
     ...moveEffectReplacements,
   ];
+  return resolveActiveEffectConflicts(
+    [],
+    additions.map((effect) => activeEffectWithDefinitionPolicy(effect, move)),
+  ).effects;
 };
 
 const powerUpTriggeredEffects = (
@@ -11227,6 +11233,25 @@ interface StartCombatTriggeredEffects {
   readonly effects: ReturnType<typeof moveEffectsForTrigger>;
   readonly pendingChoice?: PendingEffectChoice;
 }
+
+const activeEffectWithDefinitionPolicy = (
+  effect: ActiveCombatEffect,
+  sourceMove: MoveDefinition,
+): ActiveCombatEffect => {
+  const runtimeEffect = effect as ActiveCombatEffect & { readonly sourceEffectIndex?: number };
+  const sourceEffectIndex = runtimeEffect.sourceEffectIndex;
+  const sourcePolicy =
+    sourceEffectIndex === undefined
+      ? undefined
+      : sourceMove.effects?.[sourceEffectIndex]?.conflictPolicy;
+  const conflictPolicy = normalizeConflictPolicy(sourcePolicy);
+  return conflictPolicy === undefined ? effect : { ...effect, conflictPolicy };
+};
+
+const activeEffectsAfterAdditions = (
+  existing: readonly ActiveCombatEffect[],
+  additions: readonly ActiveCombatEffect[],
+) => resolveActiveEffectConflicts(existing, additions).effects;
 
 const startCombatTriggeredEffects = (
   state: ActiveFightState,
@@ -13197,32 +13222,8 @@ const lifecycleDeactivationApplication = (
   return undefined;
 };
 
-const powerUpActiveEffects = (
-  state: ActiveFightState,
-  additions: readonly ActiveCombatEffect[],
-) => {
-  const nonStackingRolls = additions.filter(
-    (effect): effect is Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }> =>
-      effect.type === "modify-next-action" && effect.stacking === "prevent",
-  );
-  return [
-    ...state.activeEffects.filter(
-      (existing) =>
-        !nonStackingRolls.some(
-          (addition) =>
-            existing.type === "modify-next-action" &&
-            existing.sourceDefinitionId === addition.sourceDefinitionId &&
-            existing.targetCombatantId === addition.targetCombatantId &&
-            existing.modifier.type === "roll" &&
-            addition.modifier.type === "roll" &&
-            existing.modifier.roll === addition.modifier.roll &&
-            existing.modifier.modifier === addition.modifier.modifier &&
-            JSON.stringify(existing.selector) === JSON.stringify(addition.selector),
-        ),
-    ),
-    ...additions,
-  ];
-};
+const powerUpActiveEffects = (state: ActiveFightState, additions: readonly ActiveCombatEffect[]) =>
+  activeEffectsAfterAdditions(state.activeEffects, additions);
 
 const floatingEffectsAfterPowerUp = (state: ActiveFightState, actorId: CombatantId) =>
   state.activeEffects.filter(
@@ -16745,10 +16746,10 @@ const advanceUpkeepFight = (
     ? state
     : {
         ...stateAfterTurnStartAndTransformation,
-        activeEffects: [
-          ...stateAfterTurnStartAndTransformation.activeEffects,
-          ...passiveExtraActions,
-        ],
+        activeEffects: activeEffectsAfterAdditions(
+          stateAfterTurnStartAndTransformation.activeEffects,
+          passiveExtraActions,
+        ),
       };
   const priorUpkeepEvents = [
     ...turnStartChecks.events,
@@ -16794,7 +16795,7 @@ const advanceUpkeepFight = (
   const upkeepEffectActivations = [...passiveExtraActions, ...upkeepActivatedEffects];
   const upkeepStateWithEffects: ActiveFightState = {
     ...upkeepStateAfterEffects,
-    activeEffects: [...upkeepState.activeEffects, ...upkeepActivatedEffects],
+    activeEffects: activeEffectsAfterAdditions(upkeepState.activeEffects, upkeepActivatedEffects),
   };
   const startTriggered =
     state.turnNumber === 1 ? startCombatTriggeredEffects(upkeepStateWithEffects) : [];
@@ -16849,7 +16850,10 @@ const advanceUpkeepFight = (
     ...upkeepEvents,
     ...startEvents,
   ];
-  const activeEffects = [...upkeepStateWithEffects.activeEffects, ...startActivatedEffects];
+  const activeEffects = activeEffectsAfterAdditions(
+    upkeepStateWithEffects.activeEffects,
+    startActivatedEffects,
+  );
   const combatants = { ...upkeepStateWithEffects.combatants, ...startCombatants };
   const pendingStartChoice = startTriggered.find((entry) => entry.pendingChoice !== undefined);
   if (pendingStartChoice !== undefined)
@@ -17104,10 +17108,10 @@ const advanceEndFight = (
   const turnEndState = {
     ...state,
     combatants: turnEndCombatants,
-    activeEffects: [
-      ...state.activeEffects,
-      ...activeEffectsFromTriggered(state, turnEndTriggered, dependencies),
-    ],
+    activeEffects: activeEffectsAfterAdditions(
+      state.activeEffects,
+      activeEffectsFromTriggered(state, turnEndTriggered, dependencies),
+    ),
     eventSequence: state.eventSequence,
   };
   const turnEndActivatedEffects = turnEndState.activeEffects.slice(state.activeEffects.length);
@@ -17328,7 +17332,6 @@ const simpleActionActivatedEffects = (
     dependencies,
   );
   const scheduledResources = activeScheduledResourcesFromApplications(
-    state,
     effects.scheduledResources,
     actor.id,
     target.id,
@@ -17364,7 +17367,7 @@ const simpleActionActivatedEffects = (
     target.id,
     dependencies,
   );
-  return [
+  const additions: readonly ActiveCombatEffect[] = [
     ...suppressions,
     ...forcedActions,
     ...locks,
@@ -17383,6 +17386,10 @@ const simpleActionActivatedEffects = (
     ...moveRemovals,
     ...moveEffectReplacements,
   ];
+  return resolveActiveEffectConflicts(
+    [],
+    additions.map((effect) => activeEffectWithDefinitionPolicy(effect, move)),
+  ).effects;
 };
 
 interface SimpleActionMoveResolutionOptions {
@@ -17896,14 +17903,15 @@ const resolveSimpleActionMove = (
         !(effect.scope.type === "next-action" && effect.targetCombatantId === actor.id)),
   );
   const consumedExtraActionEffects = consumeExtraActionForDecision(state, decision);
-  const nextActiveEffects = [...remainingActiveEffects, ...modifiers, ...activatedEffects].flatMap(
-    (effect) => {
-      if (effect.type !== "extra-action") return [effect];
-      if (!state.activeEffects.some((candidate) => candidate.id === effect.id)) return [effect];
-      const consumed = consumedExtraActionEffects.find((candidate) => candidate.id === effect.id);
-      return consumed === undefined ? [] : [consumed];
-    },
-  );
+  const nextActiveEffects = activeEffectsAfterAdditions(remainingActiveEffects, [
+    ...modifiers,
+    ...activatedEffects,
+  ]).flatMap((effect) => {
+    if (effect.type !== "extra-action") return [effect];
+    if (!state.activeEffects.some((candidate) => candidate.id === effect.id)) return [effect];
+    const consumed = consumedExtraActionEffects.find((candidate) => candidate.id === effect.id);
+    return consumed === undefined ? [] : [consumed];
+  });
   const continueWithExtraAction =
     state.phase === "action" &&
     hasAvailableExtraAction({ ...state, activeEffects: nextActiveEffects }, actor.id);
@@ -18723,28 +18731,28 @@ const resolveBlockedBasicAttack = (
     blockCost: cost,
     effects,
   });
+  const blockActiveEffects = activeEffectsAfterAdditions(baseState.activeEffects, [
+    ...activeFloatingEffectsFromApplications(
+      effects.floatingEffects,
+      defender.id,
+      attacker.id,
+      block.id,
+      state.turnNumber,
+      dependencies,
+    ),
+    ...activeCombatResultEffectsFromApplications(
+      effects.combatResultOverrides,
+      defender.id,
+      attacker.id,
+      block.id,
+      dependencies,
+    ),
+  ]);
   const nextState: ActiveFightState = {
     ...baseState,
     version: state.version + 1,
     phase: "end",
-    activeEffects: [
-      ...baseState.activeEffects,
-      ...activeFloatingEffectsFromApplications(
-        effects.floatingEffects,
-        defender.id,
-        attacker.id,
-        block.id,
-        state.turnNumber,
-        dependencies,
-      ),
-      ...activeCombatResultEffectsFromApplications(
-        effects.combatResultOverrides,
-        defender.id,
-        attacker.id,
-        block.id,
-        dependencies,
-      ),
-    ],
+    activeEffects: blockActiveEffects,
     combatants: {
       ...state.combatants,
       [defender.id]: defenderAfter,
@@ -18821,7 +18829,7 @@ const resolveBlockedBasicAttack = (
         {
           ...nextState,
           version: pendingVersion,
-          activeEffects: [...nextState.activeEffects, ...pendingAllowances],
+          activeEffects: activeEffectsAfterAdditions(nextState.activeEffects, pendingAllowances),
           pendingDecision: {
             id: pendingDecisionId,
             stateVersion: pendingVersion,
@@ -19093,10 +19101,7 @@ const preparedDefenseState = (
     beforeDefenseChoice,
     dependencies,
   );
-  let activeEffects =
-    selectedEffects.length === 0
-      ? [...baseState.activeEffects]
-      : [...baseState.activeEffects, ...selectedEffects];
+  let activeEffects = [...activeEffectsAfterAdditions(baseState.activeEffects, selectedEffects)];
   const events: CombatEvent[] = [];
   if (beforeDefenseChoice.sacrificedMoveId !== undefined) {
     const sacrificed = activeEffects.find(
@@ -20363,7 +20368,7 @@ const materializeInitialRerolls = (
         moveActivationCounts: activationCounts,
         successfulHitCount: 0,
         actionHistory: state.actionHistory,
-        activeEffects: [...state.activeEffects, ...additions],
+        activeEffects: activeEffectsAfterAdditions(state.activeEffects, additions),
         rolls: rolls.map((roll) => ({
           attackNaturalResult: roll.attackNaturalResult,
           attackResult: roll.attackResult,
@@ -20395,7 +20400,10 @@ const requestPostDefenseReaction = (
   const preparedState =
     initialRerolls.length === 0
       ? state
-      : { ...state, activeEffects: [...state.activeEffects, ...initialRerolls] };
+      : {
+          ...state,
+          activeEffects: activeEffectsAfterAdditions(state.activeEffects, initialRerolls),
+        };
   const attacker = preparedState.combatants[frame.attackerId];
   const defender = preparedState.combatants[frame.targetCombatantId];
   const reaction = postDefenseReaction(preparedState, frame, rolls);
@@ -21588,7 +21596,10 @@ const requestBeforeDefenseRerollReaction = (
   const armedState =
     selectedEffects.length === 0
       ? state
-      : { ...state, activeEffects: [...state.activeEffects, ...selectedEffects] };
+      : {
+          ...state,
+          activeEffects: activeEffectsAfterAdditions(state.activeEffects, selectedEffects),
+        };
   return requestPostDefenseReaction(armedState, frame, dependencies);
 };
 
@@ -22820,15 +22831,7 @@ const activeResolutionThresholdsFromApplications = (
   });
 
 const activeScheduledResourcesFromApplications = (
-  ...[
-    state,
-    applications,
-    sourceCombatantId,
-    opponentCombatantId,
-    sourceDefinitionId,
-    dependencies,
-  ]: [
-    state: ActiveFightState,
+  ...[applications, sourceCombatantId, opponentCombatantId, sourceDefinitionId, dependencies]: [
     applications: readonly ScheduledResourceApplication[],
     sourceCombatantId: CombatantId,
     opponentCombatantId: CombatantId,
@@ -22839,18 +22842,6 @@ const activeScheduledResourcesFromApplications = (
   applications.flatMap<ActiveCombatEffect>((application) => {
     const targetCombatantId =
       application.target === "self" ? sourceCombatantId : opponentCombatantId;
-    if (
-      application.stacking === "prevent" &&
-      state.activeEffects.some(
-        (effect) =>
-          effect.type === "scheduled-resource" &&
-          effect.sourceCombatantId === sourceCombatantId &&
-          effect.targetCombatantId === targetCombatantId &&
-          effect.sourceDefinitionId === sourceDefinitionId &&
-          effect.sourceEffectIndex === application.effectIndex,
-      )
-    )
-      return [];
     const relativeCombatantId = (subject: "self" | "opponent") =>
       subject === "self" ? sourceCombatantId : opponentCombatantId;
     return [
@@ -24605,7 +24596,7 @@ const resolveItemUse = (
     ...state,
     version: state.version + 1,
     eventSequence: state.eventSequence + events.length,
-    activeEffects: [...state.activeEffects, ...activatedEffects],
+    activeEffects: activeEffectsAfterAdditions(state.activeEffects, activatedEffects),
     combatants: {
       ...state.combatants,
       [combatant.id]: {
@@ -25564,7 +25555,7 @@ const resolveSelectedTemporaryMoveRemovalSelection = (
       ...state.combatants,
       [target.id]: removeTemporaryMoveFromState(target, selectedMove.id),
     },
-    activeEffects: [...state.activeEffects, activeEffect],
+    activeEffects: activeEffectsAfterAdditions(state.activeEffects, [activeEffect]),
     resolutionFrames: state.resolutionFrames.filter((candidate) => candidate.id !== frame.id),
     eventSequence: state.eventSequence + 2,
   };
@@ -26047,28 +26038,29 @@ const activeEffectsAfterActivation = (
     activeEffectId: Extract<ActiveCombatEffect, { readonly type: "active-constant" }>["id"],
     cost: number,
   ]
-) =>
-  deactivated === undefined
-    ? [
-        ...state.activeEffects,
-        {
-          id: activeEffectId,
-          type: "active-constant" as const,
-          sourceCombatantId: actor.id,
-          targetCombatantId: actor.id,
-          sourceDefinitionId: move.id,
-          activatedOnTurn: state.turnNumber,
-          duration: "combat" as const,
-          paidActivationCost: cost,
-          lifecycle: "active" as const,
-          ...(frame.selectionKey === undefined ? {} : { selectionKey: frame.selectionKey }),
-        },
-      ]
-    : state.activeEffects.map((effect) =>
-        effect.id === deactivated.id
-          ? { ...effect, lifecycle: "active" as const, deactivatedOnTurn: undefined }
-          : effect,
-      );
+) => {
+  if (deactivated !== undefined)
+    return state.activeEffects.map((effect) =>
+      effect.id === deactivated.id
+        ? { ...effect, lifecycle: "active" as const, deactivatedOnTurn: undefined }
+        : effect,
+    );
+  const activated = {
+    id: activeEffectId,
+    type: "active-constant" as const,
+    sourceCombatantId: actor.id,
+    targetCombatantId: actor.id,
+    sourceDefinitionId: move.id,
+    activatedOnTurn: state.turnNumber,
+    duration: "combat" as const,
+    paidActivationCost: cost,
+    lifecycle: "active" as const,
+    ...(frame.selectionKey === undefined ? {} : { selectionKey: frame.selectionKey }),
+  } satisfies Extract<ActiveCombatEffect, { readonly type: "active-constant" }>;
+  return activeEffectsAfterAdditions(state.activeEffects, [
+    activeEffectWithDefinitionPolicy(activated, move),
+  ]);
+};
 
 const remainingActivationMoveIds = (
   frame: ActivationFrame,
@@ -26236,7 +26228,10 @@ const resolveActivationSelection = (
             },
           },
         ];
-  const effectsAfterActivation = [...activeEffects, ...asIfEffects, ...protectionEffects];
+  const effectsAfterActivation = activeEffectsAfterAdditions(activeEffects, [
+    ...asIfEffects,
+    ...protectionEffects,
+  ]);
   const stateWithoutPending = { ...state };
   Reflect.deleteProperty(stateWithoutPending, "pendingDecision");
   const remainingSelections = Math.max(0, (frame.remainingSelections ?? 1) - 1);
@@ -26652,7 +26647,7 @@ const resolveDeactivationSelection = (
       : { effects: [] as ActiveCombatEffect[], events: [] as CombatEvent[] };
   const nextState = createNextDeactivationState({
     stateWithoutPending: stateForDeactivation,
-    activeEffects: [...activeEffects, ...exchangeEffects.effects],
+    activeEffects: activeEffectsAfterAdditions(activeEffects, exchangeEffects.effects),
     shouldContinue,
     nextPendingDecisionId,
     frame,
