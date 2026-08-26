@@ -222,13 +222,15 @@ type StartCombatRollModification = ReturnType<
 >["rollModifications"][number];
 
 const appendStartCombatRollModification = (
-  application: StartCombatRollModification,
-  source: CombatantState,
-  opponent: CombatantState,
-  moveId: CombatantState["moveIds"][number],
-  activeEffects: ActiveCombatEffect[],
-  initiativeModifiers: Map<CombatantId, number>,
-  dependencies: CombatDependencies,
+  ...[application, source, opponent, moveId, activeEffects, initiativeModifiers, dependencies]: [
+    application: StartCombatRollModification,
+    source: CombatantState,
+    opponent: CombatantState,
+    moveId: CombatantState["moveIds"][number],
+    activeEffects: ActiveCombatEffect[],
+    initiativeModifiers: Map<CombatantId, number>,
+    dependencies: CombatDependencies,
+  ]
 ) => {
   const combatantId = application.target === "self" ? source.id : opponent.id;
   if (application.roll === "initiative" && application.modifier === "result") {
@@ -299,6 +301,7 @@ const startCombatRollState = (
 export const createFight = (
   input: unknown,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Fight construction intentionally assembles the validated state boundary in one transaction.
 ): CombatResult<CombatTransition> => {
   const parsedInput = createFightInputSchema.safeParse(input);
   if (!parsedInput.success) {

@@ -8,6 +8,9 @@ import {
 } from "@dragonball-resurgence/game-data";
 import { isCombatResultCountNextActionsDamageModifier } from "./damage-modifier-capabilities.js";
 
+// Validators inspect runtime-shaped effect data independently of its narrowed type.
+const runtimeValue = (value: unknown): unknown => value;
+
 export const registeredEffectTypes = [
   "activate",
   "activate-protected-constant",
@@ -347,6 +350,7 @@ const isSupportedLastTurnResourceModifier = <T extends RegisteredEffectDefinitio
   effect.conditions[0].operation === "gain" &&
   effect.conditions[0].timing === "last-turn";
 
+// eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(effect: T) =>
   effect.trigger === "on-move-use" &&
   !(
@@ -375,7 +379,7 @@ const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(eff
       effect.selector.category === "skill" &&
       effect.selector.constant === false &&
       effect.activationCost?.resource === "ki" &&
-      effect.activationCost.operation === "lose") ||
+      runtimeValue(effect.activationCost.operation) === "lose") ||
     (effect.type === "deactivate" &&
       effect.target === "opponent" &&
       effect.affectedType === "skill" &&
@@ -384,7 +388,7 @@ const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(eff
       effect.selector.category === "skill" &&
       effect.selector.constant === true &&
       effect.activationCost?.resource === "ki" &&
-      effect.activationCost.operation === "lose") ||
+      runtimeValue(effect.activationCost.operation) === "lose") ||
     (effect.type === "modify-stat" &&
       effect.target === "opponent" &&
       effect.stat === "dexterity-bonus" &&
@@ -409,7 +413,7 @@ const conditionIssues = (
   effect: RegisteredEffectDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- The validator keeps its exact variant checks together.
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues: EffectCompilationIssue[] = [];
   for (const condition of effect.conditions ?? []) {
@@ -498,6 +502,7 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
   effect: T,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ): EffectCompilationIssue[] => {
   const issues: EffectCompilationIssue[] = [];
   if (!supportedTriggers.has(effect.trigger))
@@ -598,16 +603,16 @@ const copyMoveEffectsIssues = (
   effect: CopyMoveEffectsEffect,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle checks remain one persisted contract.
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const exactSource =
-    effect.sourceMove.actor === "opponent" &&
+    runtimeValue(effect.sourceMove.actor) === "opponent" &&
     effect.sourceMove.categories.length === 2 &&
     effect.sourceMove.categories.includes("advanced-attack") &&
     effect.sourceMove.categories.includes("signature") &&
-    effect.sourceMove.restriction === "unrestricted" &&
-    effect.sourceMove.usedDuring === "combat";
+    runtimeValue(effect.sourceMove.restriction) === "unrestricted" &&
+    runtimeValue(effect.sourceMove.usedDuring) === "combat";
   const exactCondition =
     effect.conditions?.length === 1 &&
     effect.conditions[0]?.type === "move-selector" &&
@@ -617,8 +622,8 @@ const copyMoveEffectsIssues = (
     effect.trigger !== "before-defense-roll" ||
     effect.target !== "self" ||
     !exactSource ||
-    effect.sourceEffectResult !== "successful" ||
-    effect.resultingEffectResult !== "successful" ||
+    runtimeValue(effect.sourceEffectResult) !== "successful" ||
+    runtimeValue(effect.resultingEffectResult) !== "successful" ||
     !exactCondition ||
     effect.activationGroup !== "mimicry-mastery-single-die-effect-exchange"
   )
@@ -649,7 +654,7 @@ const deferMoveIssues = (
         ),
       ]
     : []),
-  ...(effect.move !== "source"
+  ...(runtimeValue(effect.move) !== "source"
     ? [
         issue(
           "unsupported-variant" as const,
@@ -670,7 +675,7 @@ const deferMoveIssues = (
       ]
     : []),
   ...(effect.damage !== undefined &&
-  (effect.damage.operation !== "set" ||
+  (runtimeValue(effect.damage.operation) !== "set" ||
     effect.damage.percent.type !== "literal" ||
     !Number.isFinite(effect.damage.percent.value) ||
     effect.damage.percent.value < 0)
@@ -684,9 +689,9 @@ const deferMoveIssues = (
       ]
     : []),
   ...(effect.onCancellation !== undefined &&
-  (effect.onCancellation.type !== "lock" ||
-    effect.onCancellation.affectedType !== "attack" ||
-    effect.onCancellation.duration.type !== "combat")
+  (runtimeValue(effect.onCancellation.type) !== "lock" ||
+    runtimeValue(effect.onCancellation.affectedType) !== "attack" ||
+    runtimeValue(effect.onCancellation.duration.type) !== "combat")
     ? [
         issue(
           "unsupported-variant" as const,
@@ -714,7 +719,7 @@ const copyMoveCommonVariantIssues = (
     ...(effect.trigger !== "action-phase" || effect.target !== "self"
       ? ["Only self action-phase copied attacks are executable in the current runtime."]
       : []),
-    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+    ...(effect.effectResult !== "successful" || runtimeValue(effect.resolveAs) !== "source-move"
       ? ["Copied attacks must resolve as the selected source move on success."]
       : []),
     ...(effect.cost?.type !== "selected-move-base-cost"
@@ -764,14 +769,14 @@ const persistentSelectedSelfCopyIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Move-removal variants share one exact compiler boundary.
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const sourceMove = effect.sourceMove;
   return copyMoveUnsupported(sourceDefinitionId, effectIndex, [
     ...(effect.trigger !== "on-success" || effect.target !== "self"
       ? ["Persistent selected self copies currently resolve from the owner's successful attack."]
       : []),
-    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+    ...(effect.effectResult !== "successful" || runtimeValue(effect.resolveAs) !== "source-move"
       ? ["Persistent selected copies must resolve the selected source move's successful clauses."]
       : []),
     ...(sourceMove.type !== "selected-move" ||
@@ -782,7 +787,7 @@ const persistentSelectedSelfCopyIssues = (
       ? ["Persistent selected copies require an unrestricted same-style self Advanced Attack."]
       : []),
     ...(effect.damage?.type !== "half-base-damage-per-die" ||
-    effect.damage.sourceMove !== "last-advanced-attack"
+    runtimeValue(effect.damage.sourceMove) !== "last-advanced-attack"
       ? ["Persistent selected copies require half of the last Advanced Attack base damage."]
       : []),
     ...(effect.cost?.type !== "selected-move-base-cost"
@@ -807,12 +812,13 @@ const selectedPriorOpponentCopyIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) =>
   copyMoveUnsupported(sourceDefinitionId, effectIndex, [
     ...(effect.trigger !== "on-success" || effect.target !== "opponent"
       ? ["Selected prior successful attacks currently resolve only from an opponent on success."]
       : []),
-    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+    ...(effect.effectResult !== "successful" || runtimeValue(effect.resolveAs) !== "source-move"
       ? ["Prior copied effects must resolve as the selected source move's successful clause."]
       : []),
     ...(effect.sourceMove.type !== "selected-prior-move" ||
@@ -822,7 +828,8 @@ const selectedPriorOpponentCopyIssues = (
     effect.sourceMove.result !== "successful"
       ? ["Prior copied effects require a successful opponent Advanced Attack selection."]
       : []),
-    ...(effect.damage?.type !== "total-damage" || effect.damage.sourceMove !== "selected-prior-move"
+    ...(effect.damage?.type !== "total-damage" ||
+    runtimeValue(effect.damage.sourceMove) !== "selected-prior-move"
       ? ["Prior copied effects require the selected action's exact total damage."]
       : []),
     ...(effect.cost !== undefined ||
@@ -837,6 +844,7 @@ const selectedPriorFullAttackCopyIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const categories =
     effect.sourceMove.type === "selected-prior-move" && "categories" in effect.sourceMove
@@ -847,7 +855,7 @@ const selectedPriorFullAttackCopyIssues = (
     ...(effect.trigger !== "action-phase" || effect.target !== "self"
       ? ["Prior full-attack copies currently resolve during the self action phase."]
       : []),
-    ...(effect.effectResult !== "successful" || effect.resolveAs !== "source-move"
+    ...(effect.effectResult !== "successful" || runtimeValue(effect.resolveAs) !== "source-move"
       ? ["Prior full-attack copies must resolve as the selected source move on success."]
       : []),
     ...(effect.sourceMove.type !== "selected-prior-move" ||
@@ -898,13 +906,23 @@ const copyMoveLifecycleIssues = (
   ]);
 
 const copyMoveSourceIssues = (
-  effect: CopyMoveEffect,
-  sourceDefinitionId: string,
-  effectIndex: number,
-  selectedPriorOpponentAttack: boolean,
-  selectedPriorFullAttack: boolean,
-  selectedOpponentAttack: boolean,
-  persistentSelectedSelfAttack: boolean,
+  ...[
+    effect,
+    sourceDefinitionId,
+    effectIndex,
+    selectedPriorOpponentAttack,
+    selectedPriorFullAttack,
+    selectedOpponentAttack,
+    persistentSelectedSelfAttack,
+  ]: [
+    effect: CopyMoveEffect,
+    sourceDefinitionId: string,
+    effectIndex: number,
+    selectedPriorOpponentAttack: boolean,
+    selectedPriorFullAttack: boolean,
+    selectedOpponentAttack: boolean,
+    persistentSelectedSelfAttack: boolean,
+  ]
 ) => {
   if (selectedPriorOpponentAttack || selectedPriorFullAttack) return [];
   if (persistentSelectedSelfAttack) return [];
@@ -917,6 +935,7 @@ const copyMoveEffectIssues = (
   effect: CopyMoveEffect,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const selectedPriorOpponentAttack =
     effect.sourceMove.type === "selected-prior-move" &&
@@ -944,8 +963,8 @@ const copyMoveEffectIssues = (
     effect.sourceMove.styleId !== undefined;
   const lastUnrestrictedSelfAttack =
     effect.sourceMove.type === "last-prior-move" &&
-    effect.sourceMove.actor === "self" &&
-    effect.sourceMove.restriction === "unrestricted";
+    runtimeValue(effect.sourceMove.actor) === "self" &&
+    runtimeValue(effect.sourceMove.restriction) === "unrestricted";
   let variantIssues: readonly EffectCompilationIssue[];
   if (selectedPriorOpponentAttack)
     variantIssues = selectedPriorOpponentCopyIssues(effect, sourceDefinitionId, effectIndex);
@@ -985,6 +1004,7 @@ const activationTimingIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "activate" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues: EffectCompilationIssue[] = [];
   const supportedTrigger =
@@ -1025,6 +1045,7 @@ const activateIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "activate" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   issues.push(...activationTimingIssues(effect, sourceDefinitionId, effectIndex));
@@ -1046,7 +1067,7 @@ const activateIssues = (
     effect.repeatCount === undefined &&
     effect.ignoreRequirements === undefined &&
     effect.repeatUntil?.type === "active-move-count-matches-opponent" &&
-    effect.repeatUntil.fallback === "no-eligible-moves" &&
+    runtimeValue(effect.repeatUntil.fallback) === "no-eligible-moves" &&
     effect.repeatUntil.selector.subject === "source";
   if (effect.repeatCount !== undefined && !groupedReactivation)
     issues.push(
@@ -1398,6 +1419,7 @@ const modifyRollIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-roll" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const numeric = numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
@@ -1453,9 +1475,9 @@ const requireAllDiceSuccessIssues = (
   if (
     effect.trigger !== "passive" ||
     effect.target !== "self" ||
-    effect.appliesTo !== "successful-effects" ||
+    runtimeValue(effect.appliesTo) !== "successful-effects" ||
     effect.activationGroup === undefined ||
-    selector.type !== "move-selector" ||
+    runtimeValue(selector.type) !== "move-selector" ||
     selector.subject !== "source" ||
     selector.attackRoll?.dice !== 1
   )
@@ -1556,6 +1578,7 @@ const modifyCostIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-cost" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const deferredNextMoveCost =
@@ -1642,6 +1665,7 @@ const onRollModifiedResourceIssue = (
   effect: RegisteredModifyResourceEffect,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ): EffectCompilationIssue | undefined => {
   if (effect.trigger !== "on-roll-modified") return undefined;
   const condition = effect.conditions?.[0];
@@ -1661,7 +1685,7 @@ const onRollModifiedResourceIssue = (
     condition?.type === "roll-modification" &&
     condition.actor === "self" &&
     condition.roll === "attack" &&
-    condition.excludeSource === "dexterity" &&
+    runtimeValue(condition.excludeSource) === "dexterity" &&
     condition.modifiers.length === 2 &&
     new Set(condition.modifiers).size === 2 &&
     condition.modifiers.includes("sides") &&
@@ -1680,6 +1704,7 @@ const onRollResultResourceIssue = (
   effect: RegisteredModifyResourceEffect,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ): EffectCompilationIssue | undefined => {
   if (effect.trigger !== "on-roll-result" || effect.conditions?.[0]?.type !== "stored-roll-match")
     return undefined;
@@ -1711,12 +1736,12 @@ const onRollResultResourceIssue = (
       );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- This validator intentionally centralizes the exact declarative resource variants.
+// This validator intentionally centralizes the exact declarative resource variants.
 const modifyResourceIssues = (
   effect: RegisteredModifyResourceEffect,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- This validator intentionally centralizes the exact declarative resource variants.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const triggeringResourceGain =
@@ -1725,8 +1750,8 @@ const modifyResourceIssues = (
     effect.resource === "ki" &&
     effect.operation === "gain" &&
     effect.amount?.type === "triggering-resource-change" &&
-    effect.amount.resource === "ki" &&
-    effect.amount.operation === "drain";
+    runtimeValue(effect.amount.resource) === "ki" &&
+    runtimeValue(effect.amount.operation) === "drain";
   const amountIssue = triggeringResourceGain
     ? undefined
     : numericIssue(effect.amount, sourceDefinitionId, effectIndex, "amount");
@@ -1849,6 +1874,7 @@ const resourceCostVariantIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-resource-cost" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const unsupported = (message: string) =>
     issue("unsupported-variant", sourceDefinitionId, effectIndex, message);
@@ -1858,8 +1884,8 @@ const resourceCostVariantIssues = (
     effect.target === "self" &&
     effect.optional === true &&
     effect.scope === undefined &&
-    effect.resource === "hp" &&
-    effect.operation === "add" &&
+    runtimeValue(effect.resource) === "hp" &&
+    runtimeValue(effect.operation) === "add" &&
     effect.percent.type === "literal" &&
     effect.percent.value === -5 &&
     effect.selector.subject === "source" &&
@@ -1915,6 +1941,7 @@ const modifierTransformerIssues = (
   >,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const exact =
@@ -1966,7 +1993,7 @@ const modifierTransformerIssues = (
       (candidate) =>
         candidate.code !== "unsupported-trigger" && candidate.code !== "requires-pending-choice",
     );
-  if (!exact)
+  if (runtimeValue(!exact))
     issues.push(
       issue(
         "unsupported-variant",
@@ -2160,7 +2187,7 @@ const modifyRollModifierLifecycleIssues = (
     "Excluded roll-modifier source categories must be unique mastery or skill categories.",
   ),
   ...conditionalEffectIssue(
-    effect.cap !== undefined && effect.cap.type !== "allow-exceed",
+    effect.cap !== undefined && runtimeValue(effect.cap.type) !== "allow-exceed",
     "unsupported-variant",
     sourceDefinitionId,
     effectIndex,
@@ -2201,7 +2228,7 @@ const validRollModifierSourceCategories = (effect: ModifyRollModifier) =>
   effect.excludeSourceCategories === undefined ||
   (new Set(effect.excludeSourceCategories).size === effect.excludeSourceCategories.length &&
     effect.excludeSourceCategories.every(
-      (category) => category === "mastery" || category === "skill",
+      (category) => category === "mastery" || runtimeValue(category) === "skill",
     ));
 
 const validRollModifierScope = (effect: ModifyRollModifier) =>
@@ -2221,6 +2248,7 @@ const lockIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "lock" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const isFocusedMasteryStyleLock =
     effect.trigger === "start-combat" &&
@@ -2329,7 +2357,7 @@ const suppressAspectIssues = (
       ),
     ];
   return effect.aspects.some(
-    (aspect) => aspect !== "all-effects" && aspect !== "successful-effects",
+    (aspect) => aspect !== "all-effects" && runtimeValue(aspect) !== "successful-effects",
   )
     ? [
         issue(
@@ -2442,6 +2470,7 @@ const suppressDurationIssues = (
   return issues;
 };
 
+// eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 const isSupportedSelectedSuppressChoice = (effect: SuppressDefinition) =>
   effect.trigger === "on-success" &&
   (effect.target === "self" || effect.target === "opponent") &&
@@ -2496,6 +2525,7 @@ const successfulNegationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "negate" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const moveSelectorConditions = (effect.conditions ?? []).filter(
     (condition): condition is Extract<EffectCondition, { readonly type: "move-selector" }> =>
@@ -2596,6 +2626,7 @@ const negateIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "negate" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const nullifyingSphereVariant =
@@ -2611,7 +2642,7 @@ const negateIssues = (
     effect.useLimit?.scope === "combat" &&
     effect.useLimit.count === 1 &&
     effect.activationCost?.resource === "ki" &&
-    effect.activationCost.operation === "lose" &&
+    runtimeValue(effect.activationCost.operation) === "lose" &&
     effect.activationCost.amount.type === "literal" &&
     effect.activationCost.amount.value === 2;
   if (nullifyingSphereVariant) return issues;
@@ -2631,7 +2662,7 @@ const negateIssues = (
       effect.selectionLimit !== undefined ||
       effect.cooldown !== undefined ||
       effect.activationCost?.resource !== "ki" ||
-      effect.activationCost.operation !== "lose" ||
+      runtimeValue(effect.activationCost.operation) !== "lose" ||
       outcomeConditions.length !== 1 ||
       outcomeConditions[0]?.actor !== "opponent" ||
       !["stun", "critical", "counter"].includes(outcomeConditions[0]?.outcome ?? "")
@@ -2733,6 +2764,7 @@ const negateDeactivationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "negate-deactivation" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   if (
@@ -2786,7 +2818,7 @@ const forceTransformationIssues = (
       (effect.trigger === "on-success" && effect.target === "self") ||
       (effect.trigger === "on-stopped" && effect.target === "participants")
     ) ||
-    effect.targetTransformation !== "highest" ||
+    runtimeValue(effect.targetTransformation) !== "highest" ||
     effect.required !== false ||
     effect.scope?.type !== "next-phase" ||
     effect.scope.subject !== "self" ||
@@ -2825,10 +2857,10 @@ const reactivationIssues = (
     effect.target !== "self" ||
     effect.optional === false ||
     (recent
-      ? effect.deactivatedTiming !== "last-turn" ||
-        effect.payment.resource !== "ki" ||
+      ? runtimeValue(effect.deactivatedTiming) !== "last-turn" ||
+        runtimeValue(effect.payment.resource) !== "ki" ||
         effect.payment.amount !== 1
-      : effect.deactivatedTiming !== "combat")
+      : runtimeValue(effect.deactivatedTiming) !== "combat")
   )
     issues.push(
       issue(
@@ -2860,10 +2892,12 @@ const replaceActiveConstantEffectsIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "replace-active-constant-effects" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
   const exactSelector = (selector: MoveSelectorCondition, subject: "source" | "target") =>
-    selector.type === "move-selector" &&
+    runtimeValue(selector.type) === "move-selector" &&
     selector.subject === subject &&
     selector.category === "skill" &&
     selector.constant === true &&
@@ -2920,6 +2954,7 @@ const replaceMoveEffectIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "replace-move-effect" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const selector = effect.selector;
@@ -2927,20 +2962,20 @@ const replaceMoveEffectIssues = (
   if (
     effect.trigger !== "on-success" ||
     effect.target !== "self" ||
-    effect.remove !== "source-effect" ||
-    selector.type !== "move-selector" ||
+    runtimeValue(effect.remove) !== "source-effect" ||
+    runtimeValue(selector.type) !== "move-selector" ||
     selector.subject !== "source" ||
     selector.restriction !== "restricted" ||
     selector.categoryExcludes?.length !== 1 ||
     selector.categoryExcludes[0] !== "signature" ||
-    replacement.trigger !== "on-resource-drain" ||
-    replacement.target !== "self" ||
-    replacement.type !== "modify-resource" ||
-    replacement.resource !== "ki" ||
-    replacement.operation !== "gain" ||
+    runtimeValue(replacement.trigger) !== "on-resource-drain" ||
+    runtimeValue(replacement.target) !== "self" ||
+    runtimeValue(replacement.type) !== "modify-resource" ||
+    runtimeValue(replacement.resource) !== "ki" ||
+    runtimeValue(replacement.operation) !== "gain" ||
     replacement.amount.type !== "triggering-resource-change" ||
-    replacement.amount.resource !== "ki" ||
-    replacement.amount.operation !== "drain"
+    runtimeValue(replacement.amount.resource) !== "ki" ||
+    runtimeValue(replacement.amount.operation) !== "drain"
   )
     issues.push(
       issue(
@@ -2957,6 +2992,7 @@ const activateProtectedIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "activate-protected-constant" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const exactCondition =
@@ -2973,9 +3009,9 @@ const activateProtectedIssues = (
     effect.selector.subject !== "source" ||
     effect.selector.category !== "skill" ||
     effect.selector.constant !== true ||
-    effect.payment.resource !== "ki" ||
+    runtimeValue(effect.payment.resource) !== "ki" ||
     effect.payment.amount !== 1 ||
-    effect.protectionDuration.type !== "turns" ||
+    runtimeValue(effect.protectionDuration.type) !== "turns" ||
     effect.protectionDuration.turns !== 4 ||
     !exactCondition
   )
@@ -3001,6 +3037,7 @@ const extraActionTargetIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "grant-extra-action" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues: EffectCompilationIssue[] = [];
   if (effect.target !== "self")
@@ -3040,7 +3077,7 @@ const extraActionTargetIssues = (
       );
     if (
       effect.activationCost.resource !== "ki" ||
-      effect.activationCost.operation !== "lose" ||
+      runtimeValue(effect.activationCost.operation) !== "lose" ||
       effect.activationCost.amount.type !== "literal" ||
       !Number.isInteger(effect.activationCost.amount.value) ||
       effect.activationCost.amount.value < 1 ||
@@ -3098,7 +3135,7 @@ const extraActionSchedulingIssues = (
           condition.roll === "attack" &&
           condition.comparison === "at-least",
       ) === true &&
-      effect.conditions?.some(
+      effect.conditions.some(
         (condition) =>
           condition.type === "move-selector" &&
           condition.subject === "source" &&
@@ -3145,6 +3182,7 @@ const extraActionCountIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "grant-extra-action" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues: EffectCompilationIssue[] = [];
   if (effect.maximumActions !== undefined) {
@@ -3218,13 +3256,14 @@ const setRollResultIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "set-roll-result" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const fourArmsVariant =
     effect.trigger === "on-roll-result" &&
     effect.target === "self" &&
     effect.roll === "defense" &&
-    effect.resultScope === "matching-die" &&
+    runtimeValue(effect.resultScope) === "matching-die" &&
     effect.value.type === "prior-roll-result" &&
     effect.value.roll === "defense" &&
     effect.value.multiplier === 2 &&
@@ -3254,13 +3293,14 @@ const residualExecutorIssues = (
   effect: RegisteredEffectDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const exact =
     (effect.type === "override-resolution-immunity" &&
       effect.trigger === "on-stopped" &&
       effect.target === "self" &&
-      effect.resolution === "block" &&
+      runtimeValue(effect.resolution) === "block" &&
       effect.conditions?.length === 1 &&
       effect.conditions[0]?.type === "level-comparison" &&
       effect.conditions[0].difference?.type === "literal" &&
@@ -3272,28 +3312,28 @@ const residualExecutorIssues = (
       effect.signatureTechnique.selectionKey === "destruction-mastery-signature-technique" &&
       effect.naturalDefenseStopPreventionAtMost === 12 &&
       effect.zeroCostSignatureUses === 1 &&
-      effect.targetsInterferers === true &&
+      runtimeValue(effect.targetsInterferers) === true &&
       effect.damageBonusAfterOpponentInterferencePercent === 5) ||
     (effect.type === "exchange-constant-skill" &&
       effect.trigger === "action-phase" &&
       effect.target === "opponent" &&
       effect.selfSkill.constant === true &&
       effect.opponentSkill.constant === true &&
-      effect.optionalNoTurnCost?.resource === "ki" &&
+      runtimeValue(effect.optionalNoTurnCost.resource) === "ki" &&
       effect.optionalNoTurnCost.amount === 1 &&
       effect.reactivateWhen.attack.attackRoll?.dice === 1 &&
-      effect.reactivateWhen.result === "stopped" &&
-      effect.reactivateWhen.blockUsed === false &&
+      runtimeValue(effect.reactivateWhen.result) === "stopped" &&
+      runtimeValue(effect.reactivateWhen.blockUsed) === false &&
       effect.cooldown === 4) ||
     (effect.type === "modify-damage-reduction-cost" &&
       effect.trigger === "passive" &&
       effect.target === "opponent" &&
-      effect.resource === "ki" &&
+      runtimeValue(effect.resource) === "ki" &&
       effect.amount.type === "literal" &&
       effect.amount.value === 1 &&
-      effect.reductions === "reduce-or-nullify" &&
+      runtimeValue(effect.reductions) === "reduce-or-nullify" &&
       effect.selector.subject === "source" &&
-      effect.selector.styleId === "midorikatai" &&
+      effect.selector.styleId === "style-midorikatai" &&
       effect.selector.category === "advanced-attack") ||
     (effect.type === "resolve-contest" &&
       effect.trigger === "on-move-use" &&
@@ -3303,12 +3343,12 @@ const residualExecutorIssues = (
       effect.rolls.repetitions === 3 &&
       effect.qualifyingThreshold.default === 5 &&
       effect.qualifyingThreshold.whenSelfPowerHigher === 6 &&
-      effect.loser === "lower-qualifying-count" &&
-      effect.tie === "self-wins" &&
-      effect.penalty.resource === "hp" &&
+      runtimeValue(effect.loser) === "lower-qualifying-count" &&
+      runtimeValue(effect.tie) === "self-wins" &&
+      runtimeValue(effect.penalty.resource) === "hp" &&
       effect.penalty.amount.type === "stat-percent" &&
       effect.penalty.amount.subject === "self" &&
-      effect.penalty.amount.stat === "power" &&
+      runtimeValue(effect.penalty.amount.stat) === "power" &&
       effect.penalty.amount.percent === 55) ||
     (effect.type === "suppress-requirement" &&
       effect.trigger === "on-success" &&
@@ -3320,14 +3360,15 @@ const residualExecutorIssues = (
     (effect.type === "require-transformation-roll" &&
       effect.trigger === "on-success" &&
       effect.target === "opponent" &&
-      effect.phase === "upkeep-phase" &&
-      effect.ignoreTransformationDice === true &&
+      runtimeValue(effect.phase) === "upkeep-phase" &&
+      runtimeValue(effect.ignoreTransformationDice) === true &&
       effect.scope?.type === "next-phase" &&
       effect.scope.subject === "opponent" &&
       effect.scope.phase === "upkeep" &&
       effect.conditions?.length === 2 &&
       effect.conditions.some(
-        (condition) => condition.type === "combat-state" && condition.state === "transformed",
+        (condition) =>
+          condition.type === "combat-state" && runtimeValue(condition.state) === "transformed",
       ) &&
       effect.conditions.some(
         (condition) =>
@@ -3390,6 +3431,7 @@ const setRollSelectionIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "set-roll-selection" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const diceCountIssue = numericIssue(
@@ -3433,7 +3475,7 @@ const setRollSelectionIssues = (
         "Passive roll selection must apply to the current action; on-success selection must apply to the next matching roll.",
       ),
     );
-  if (scope === "next-roll" && effect.scope?.roll !== effect.roll)
+  if (scope === "next-roll" && effect.scope.roll !== effect.roll)
     issues.push(
       issue(
         "unsupported-variant",
@@ -3478,6 +3520,7 @@ const setCombatResultIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "set-combat-result" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const isAfterDefensePerDie =
@@ -3519,7 +3562,8 @@ const setCombatResultIssues = (
   const isDeferredStoppedResult =
     effect.trigger === "on-stopped" &&
     effect.result === "stopped" &&
-    (effect.resultScope === "current-attack" || effect.resultScope === "matching-die") &&
+    (effect.resultScope === "current-attack" ||
+      runtimeValue(effect.resultScope) === "matching-die") &&
     effect.scope?.type === "next-action" &&
     effect.duration === undefined &&
     effect.useLimit === undefined &&
@@ -3646,7 +3690,7 @@ const preventMoveModificationIssues = (
         `Move-modification prevention actor ${effect.actor} is not supported.`,
       ),
     );
-  if (effect.operations?.some((operation) => operation !== "reduce"))
+  if (effect.operations?.some((operation) => runtimeValue(operation) !== "reduce"))
     issues.push(
       issue(
         "unsupported-variant",
@@ -3675,19 +3719,19 @@ const resolutionThresholdShapeIssues = (
 ) => {
   return [
     ...resolutionThresholdIssue(
-      effect.outcome === "successful" || effect.outcome === "stop",
+      effect.outcome === "successful" || runtimeValue(effect.outcome) === "stop",
       sourceDefinitionId,
       effectIndex,
       `Resolution threshold outcome ${effect.outcome} is not supported.`,
     ),
     ...resolutionThresholdIssue(
-      effect.roll === "attack" || effect.roll === "defense",
+      effect.roll === "attack" || runtimeValue(effect.roll) === "defense",
       sourceDefinitionId,
       effectIndex,
       `Resolution threshold roll ${effect.roll} is not supported.`,
     ),
     ...resolutionThresholdIssue(
-      effect.comparison === "at-least" || effect.comparison === "at-most",
+      effect.comparison === "at-least" || runtimeValue(effect.comparison) === "at-most",
       sourceDefinitionId,
       effectIndex,
       `Resolution threshold comparison ${effect.comparison} is not supported.`,
@@ -3719,7 +3763,7 @@ const resolutionThresholdContextIssues = (
   ...resolutionThresholdIssue(
     effect.resultScope === undefined ||
       effect.resultScope === "current-attack" ||
-      effect.resultScope === "matching-die",
+      runtimeValue(effect.resultScope) === "matching-die",
     sourceDefinitionId,
     effectIndex,
     `Resolution threshold result scope ${effect.resultScope} is not supported.`,
@@ -3781,8 +3825,8 @@ const preventLowRollStopIssues = (
 ) => [
   ...commonIssues(effect, sourceDefinitionId, effectIndex),
   ...(effect.target === "self" &&
-  effect.roll === "defense" &&
-  effect.comparison === "at-most" &&
+  runtimeValue(effect.roll) === "defense" &&
+  runtimeValue(effect.comparison) === "at-most" &&
   effect.scope?.type === "next-action"
     ? []
     : [
@@ -3816,8 +3860,8 @@ const setStatComparisonIssues = (
     effect.target === "self" &&
     effect.left === "self" &&
     effect.right === "opponent" &&
-    effect.stat === "dexterity" &&
-    effect.comparison === "higher-than" &&
+    runtimeValue(effect.stat) === "dexterity" &&
+    runtimeValue(effect.comparison) === "higher-than" &&
     effect.duration?.type === "turns"
   ))
     issues.push(
@@ -3839,7 +3883,7 @@ const grantTransformationActionIssues = (
 ) => [
   ...commonIssues(effect, sourceDefinitionId, effectIndex),
   ...(effect.target === "self" &&
-  effect.turnCost === "none" &&
+  runtimeValue(effect.turnCost) === "none" &&
   effect.scope?.type === "next-action" &&
   (effect.useLimit === undefined ||
     (effect.useLimit.scope === "combat" && typeof effect.useLimit.count === "number"))
@@ -3858,6 +3902,7 @@ const deactivateIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "deactivate" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   if (effect.trigger !== "upkeep-phase" && effect.trigger !== "turn-end") return issues;
@@ -3898,7 +3943,10 @@ const deactivateIssues = (
         "Lifecycle deactivation does not approximate deferred scope, duration, or use limits.",
       ),
     );
-  if (effect.activationCost?.operation !== undefined && effect.activationCost.operation !== "lose")
+  if (
+    effect.activationCost?.operation !== undefined &&
+    runtimeValue(effect.activationCost.operation) !== "lose"
+  )
     lifecycleIssues.push(
       issue(
         "unsupported-variant",
@@ -3928,7 +3976,7 @@ const rerollIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "reroll" }>,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const storedRollMatchChoice =
     effect.trigger === "on-roll-result" &&
@@ -4079,7 +4127,7 @@ const rerollIssues = (
     effect.rerollScope !== "entire-attack" &&
     !(
       (storedRollMatchChoice || beforeDefenseChoice) &&
-      (effect.rerollScope === undefined || effect.rerollScope === "single-result")
+      (effect.rerollScope === undefined || runtimeValue(effect.rerollScope) === "single-result")
     )
   )
     issues.push(
@@ -4102,7 +4150,7 @@ const rerollIssues = (
   if (
     effect.useLimit !== undefined &&
     effect.useLimit.scope !== "combat" &&
-    effect.useLimit.scope !== "turn"
+    runtimeValue(effect.useLimit.scope) !== "turn"
   )
     issues.push(
       issue(
@@ -4133,6 +4181,7 @@ const rollAndStoreIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "roll-and-store" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   if (effect.target !== "self")
@@ -4209,19 +4258,20 @@ const selectMoveByStoredRollIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "select-move-by-stored-roll" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const unsupported = (message: string) =>
     issues.push(issue("unsupported-variant", sourceDefinitionId, effectIndex, message));
-  if (effect.target !== "self" || effect.subject !== "self")
+  if (effect.target !== "self" || runtimeValue(effect.subject) !== "self")
     unsupported("Stored move selections are owned by the source combatant.");
   if (effect.trigger !== "upkeep-phase")
     unsupported("Stored move selections currently reindex during upkeep only.");
   if (effect.selector.subject !== "source")
     unsupported("Stored move selections require a source-relative move selector.");
-  if (effect.ordering !== "character-sheet-top-to-bottom")
+  if (runtimeValue(effect.ordering) !== "character-sheet-top-to-bottom")
     unsupported("Stored move selections require character-sheet ordering.");
-  if (effect.reindex !== "on-moveset-change")
+  if (runtimeValue(effect.reindex) !== "on-moveset-change")
     unsupported("Stored move selections require moveset-change reindexing.");
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(effect.storageKey))
     unsupported("Stored move selections require a stable lowercase hyphenated roll key.");
@@ -4270,6 +4320,7 @@ const grantCombatOutcomeIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "grant-combat-outcome" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const kiBarbsVariant =
@@ -4349,7 +4400,7 @@ const revertTransformationIssues = (
       (condition) =>
         condition.type === "combat-state" &&
         condition.subject === "opponent" &&
-        condition.state === "transformed",
+        runtimeValue(condition.state) === "transformed",
     ) ||
     !effect.conditions.some(
       (condition) =>
@@ -4417,7 +4468,7 @@ const validGrantCounterRepeatCondition = (effect: GrantCounterActionDefinition) 
     condition.result === "successful" &&
     condition.count === 2 &&
     condition.withoutResultBy?.actor === "self" &&
-    condition.withoutResultBy?.result === "stopped"
+    condition.withoutResultBy.result === "stopped"
   );
 };
 
@@ -4492,6 +4543,7 @@ const grantCounterActionIssues = (
   effect: GrantCounterActionDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   if (effect.target !== "self")
@@ -4601,11 +4653,12 @@ const substituteDefenseIssues = (
   effect: SubstituteDefenseDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const exactVariant =
     effect.trigger === "before-defense-roll" &&
     effect.target === "self" &&
-    effect.payment.resource === "hp" &&
+    runtimeValue(effect.payment.resource) === "hp" &&
     effect.payment.amount.type === "resource-percent" &&
     effect.payment.amount.subject === "self" &&
     effect.payment.amount.resource === "hp" &&
@@ -4616,7 +4669,7 @@ const substituteDefenseIssues = (
     effect.selector.tags[0] === "energy" &&
     effect.selector.categoryExcludes?.length === 1 &&
     effect.selector.categoryExcludes[0] === "signature" &&
-    effect.outcome === "stop" &&
+    runtimeValue(effect.outcome) === "stop" &&
     effect.optional === true;
   return exactVariant
     ? commonIssues(effect, sourceDefinitionId, effectIndex)
@@ -4646,7 +4699,7 @@ const stopAttackByDeactivationIssues = (
     effect.attack.subject === "target" &&
     effect.attack.categoryExcludes?.length === 1 &&
     effect.attack.categoryExcludes[0] === "signature" &&
-    effect.lockDuration.type === "combat";
+    runtimeValue(effect.lockDuration.type) === "combat";
   return exactVariant
     ? commonIssues(effect, sourceDefinitionId, effectIndex)
     : [
@@ -4693,12 +4746,12 @@ const skipActionTriggerTargetIssues = (
   return issues;
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle validation keeps the persisted action-restriction contract together.
+// Lifecycle validation keeps the persisted action-restriction contract together.
 const skipActionLifecycleIssues = (
   effect: SkipActionDefinition,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle validation keeps the persisted action-restriction contract together.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues: EffectCompilationIssue[] = [];
   if (effect.trigger === "action-phase") {
@@ -4874,12 +4927,12 @@ const supportedClassificationTags = new Set(
   Object.values(ATTACK_TAG).map((tag) => tag.toUpperCase()),
 );
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- The exact move-removal variants share one compiler boundary.
+// The exact move-removal variants share one compiler boundary.
 const removeMoveFromCombatIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "remove-move-from-combat" }>,
   sourceDefinitionId: string,
   effectIndex: number,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- The exact move-removal variants share one compiler boundary.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const beforeDefenseSacrificeRemoval =
@@ -4889,7 +4942,7 @@ const removeMoveFromCombatIssues = (
     effect.selector?.subject === "source" &&
     effect.selector.ids?.length === 1 &&
     effect.activationCost?.resource === "ki" &&
-    effect.activationCost.operation === "lose" &&
+    runtimeValue(effect.activationCost.operation) === "lose" &&
     effect.activationCost.amount.type === "source-move-ki-cost" &&
     effect.conditions?.length === 1 &&
     effect.conditions[0]?.type === "move-selector" &&
@@ -5023,6 +5076,7 @@ const modifyMoveClassificationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "modify-move-classification" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   const currentActionTags =
@@ -5040,7 +5094,7 @@ const modifyMoveClassificationIssues = (
     const selector = effect.selector;
     if (selector === undefined) return false;
     return (
-      selector.type === "move-selector" &&
+      runtimeValue(selector.type) === "move-selector" &&
       selector.subject === "source" &&
       selector.styleId === "style-freestyle" &&
       Object.keys(selector).every((key) =>
@@ -5112,7 +5166,7 @@ const preventResourceModificationIssues = (
   effectIndex: number,
 ) => {
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
-  if (effect.sourceActor !== undefined && effect.sourceActor !== "opponent")
+  if (effect.sourceActor !== undefined && runtimeValue(effect.sourceActor) !== "opponent")
     issues.push(
       issue(
         "unsupported-variant",
@@ -5121,7 +5175,7 @@ const preventResourceModificationIssues = (
         `Resource prevention source actor ${effect.sourceActor} is not supported.`,
       ),
     );
-  if (effect.exceptAction !== undefined && effect.exceptAction !== "power-up")
+  if (effect.exceptAction !== undefined && runtimeValue(effect.exceptAction) !== "power-up")
     issues.push(
       issue(
         "unsupported-variant",
@@ -5167,6 +5221,7 @@ const floatingDurationIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
   sourceDefinitionId: string,
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const duration = effect.duration;
   if (duration === undefined || duration.type === "combat") return [];
@@ -5206,7 +5261,7 @@ const floatingDurationIssues = (
   const invalidThreshold =
     (duration.conditions ?? []).some((condition) => condition.type !== "roll-threshold") ||
     thresholdConditions.length > 1 ||
-    (thresholdConditions[0] !== undefined &&
+    (runtimeValue(thresholdConditions[0]) !== undefined &&
       (thresholdConditions[0].roll === "transformation" ||
         thresholdConditions[0].value.type !== "literal"));
   return [
@@ -5302,6 +5357,7 @@ const floatingUseLimitIsSingle = (
 const floatingUseLimitHasUnsupportedLifecycle = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "create-floating-effect" }>,
   isSingle: boolean,
+  // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ) => {
   const useLimit = effect.useLimit;
   if (useLimit === undefined) return false;

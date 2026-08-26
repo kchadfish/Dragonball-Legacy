@@ -11,6 +11,7 @@ const isLiteral = (value: unknown, expected: number) =>
   value.value === expected;
 
 /** The exact durable action modifier represented by the counter-count variant. */
+// eslint-disable-next-line complexity -- This exact capability matcher intentionally enumerates the declarative contract.
 export const isCombatResultCountNextActionsDamageModifier = (effect: DamageModifierEffect) =>
   effect.trigger === "action-phase" &&
   effect.target === "self" &&
@@ -28,7 +29,6 @@ export const isCombatResultCountNextActionsDamageModifier = (effect: DamageModif
   effect.scope?.type === "next-actions" &&
   isLiteral(effect.scope.count, 2) &&
   effect.activationCost?.resource === "ki" &&
-  effect.activationCost.operation === "lose" &&
   isLiteral(effect.activationCost.amount, 2) &&
   effect.activationCost.minimum === undefined &&
   effect.duration === undefined &&
@@ -41,6 +41,7 @@ export const isCombatResultCountNextActionsDamageModifier = (effect: DamageModif
   (effect.conditions?.length ?? 0) === 0;
 
 /** The exact selected-future-attack damage replacement variant. */
+// eslint-disable-next-line complexity -- This exact capability matcher intentionally enumerates the declarative contract.
 export const isSelectedMoveUntilAttackThresholdDamageModifier = (effect: DamageModifierEffect) =>
   effect.trigger === "on-success" &&
   effect.target === "opponent" &&

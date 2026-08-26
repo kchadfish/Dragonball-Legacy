@@ -1,6 +1,8 @@
+import { TRANSFORMATION_DEFINITIONS } from "@dragonball-resurgence/game-data";
 import { describe, expect, it } from "vitest";
 
 import {
+  activeEffectIdSchema,
   advanceFight,
   createFight,
   enumerateLegalDecisions,
@@ -165,6 +167,107 @@ describe("transformation activation", () => {
     );
   });
 
+  it("forces the transformed defender's next upkeep roll after X-Attack", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 20, 1, 20, 1, 20, 1, 20, 1, 20, 1, 1],
+      new Date("2026-08-04T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:x-attack-transformation-roll")],
+        combatantIds: [ghostId, opponentId],
+        eventIds: Array.from({ length: 80 }, (_, index) =>
+          combatEventIdSchema.parse(`event:x-attack-transformation-roll-${index + 1}`),
+        ),
+        activeEffectIds: Array.from({ length: 10 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:x-attack-transformation-roll-${index + 1}`),
+        ),
+      },
+    );
+    const created = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 200,
+            stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+            moveIds: ["move-midorikatai-x-attack"],
+          },
+          {
+            maximumHitPoints: 200,
+            stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
+      },
+      dependencies,
+    );
+    if (!created.ok) throw new Error("Expected fight creation to succeed.");
+    const action = advanceFight(created.value.state, dependencies);
+    if (!action.ok || action.value.state.status !== "active")
+      throw new Error("Expected action state.");
+    const ghoul = TRANSFORMATION_DEFINITIONS.find(
+      (transformation) => transformation.id === "transformation-ghost-2-ghoul",
+    );
+    if (ghoul === undefined) throw new Error("Expected Ghoul transformation data.");
+    const armed = {
+      ...action.value.state,
+      combatants: {
+        ...action.value.state.combatants,
+        [opponentId]: {
+          ...action.value.state.combatants[opponentId],
+          hitPoints: { current: 100, maximum: 280 },
+          stats: { power: 24, dexterity: 14, dexterityBonus: 0 },
+          transformation: {
+            transformationId: ghoul.id,
+            activatedOnTurn: 1,
+            baseline: {
+              currentHitPoints: 200,
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+            },
+          },
+        },
+      },
+    };
+    const attack = submitCombatDecision(
+      armed,
+      {
+        type: "use-move",
+        id: combatDecisionIdSchema.parse("decision:x-attack-transformation-roll"),
+        actorId: ghostId,
+        expectedStateVersion: armed.version,
+        moveId: "move-midorikatai-x-attack",
+        targetCombatantId: opponentId,
+      },
+      dependencies,
+    );
+    if (!attack.ok || attack.value.state.status !== "active")
+      throw new Error("Expected X-Attack to resolve.");
+    expect(attack.value.state.combatants[opponentId].transformation).toBeDefined();
+    expect(attack.value.state.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "require-transformation-roll",
+          targetCombatantId: opponentId,
+        }),
+      ]),
+    );
+
+    const nextUpkeep = advanceFight(attack.value.state, dependencies);
+    if (!nextUpkeep.ok || nextUpkeep.value.state.status !== "active")
+      throw new Error("Expected the next upkeep state.");
+    expect(nextUpkeep.value.state.combatants[opponentId].transformation).toBeDefined();
+    const afterRoll = advanceFight(nextUpkeep.value.state, dependencies);
+    if (!afterRoll.ok || afterRoll.value.state.status !== "active")
+      throw new Error("Expected forced transformation roll resolution.");
+    expect(afterRoll.value.state.combatants[opponentId].transformation).toBeUndefined();
+    expect([...attack.value.events, ...nextUpkeep.value.events, ...afterRoll.value.events]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "transformation-rolled", combatantId: opponentId }),
+        expect.objectContaining({ type: "transformation-deactivated", combatantId: opponentId }),
+      ]),
+    );
+  });
+
   it("consumes a granted transformation action without ending the action phase", () => {
     const dependencies = createTestCombatDependencies([], new Date("2026-08-04T12:00:00.000Z"), {
       fightIds: [fightIdSchema.parse("fight:free-transformation")],
@@ -295,7 +398,7 @@ describe("transformation activation", () => {
         expect.objectContaining({ type: "decline" }),
       ],
     });
-    const option = pending.value.state.pendingDecision!.options[0]!;
+    const option = pending.value.state.pendingDecision!.options[0];
     const resolved = submitCombatDecision(
       pending.value.state,
       {

@@ -1076,7 +1076,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          styleId: "midorikatai",
+          styleId: MIDORIKATAI_STYLE.id,
           category: "advanced-attack",
           sourceText: "your next Midorikatai Advanced Attack",
         },
@@ -1728,7 +1728,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         conditions: [
           {
             type: "successful-hit-count",
-            comparison: "at-most",
+            comparison: "at-least",
             value: { type: "literal", value: 3 },
             sourceText: "If 3 or more dice rolls are STOPPED",
           },
@@ -1985,7 +1985,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          styleId: "midorikatai",
+          styleId: MIDORIKATAI_STYLE.id,
           category: "advanced-attack",
           sourceText: "the damage of your attacks",
         },
@@ -2024,7 +2024,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             selector: {
               type: "move-selector",
               subject: "source",
-              styleId: "midorikatai",
+              styleId: MIDORIKATAI_STYLE.id,
               category: "advanced-attack",
               sourceText: "your next Midorikatai Advanced Attack",
             },
@@ -2042,7 +2042,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             selector: {
               type: "move-selector",
               subject: "source",
-              styleId: "midorikatai",
+              styleId: MIDORIKATAI_STYLE.id,
               category: "advanced-attack",
               sourceText: "your next Midorikatai Advanced Attack",
             },

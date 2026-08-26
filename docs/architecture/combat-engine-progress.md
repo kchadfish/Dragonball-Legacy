@@ -4956,3 +4956,24 @@ Final verification passed: `npm run check:focused -- --coverage` completed
 successfully, covering formatting, lint, the three transitive workspace
 typechecks, 39 test files with 872 tests, both combat/data validators, and the
 capability-matrix test.
+
+## 2026-08-26 semantic runtime and lifecycle checkpoint
+
+The exact residual catalog variants now have executable public transition
+coverage. Four Arms persists and consumes its next-defense roll-result
+substitution; Underdog Evasion, Smackdown, and Domination Mastery resolve their
+typed defenses, requirement suppression, and damage-reduction cost behavior;
+Destruction Mastery selects its protected attacks at combat start; Test of
+Strength resolves its independent contest rolls; Evening the Field persists
+its two-stage exchange, reactivation window, and cooldown; and X-Attack forces
+and records the transformed defender's next upkeep roll.
+
+The work is in Phase 2 executable semantics and lifecycle completion, while
+maintaining Phase 1 capability accounting. The regenerated capability matrix
+continues to report 975 supported-generic, 0 supported-named, 0
+unsupported-in-scope, and 145 audited-out-of-scope occurrences. The matrix is
+an accounting guard, not a substitute for the public-flow tests above.
+
+Remaining work is integration hardening: replay/full-fight regression coverage,
+coverage and quality gates, and documentation of the active 1v1 boundary for
+interferer-targeting behavior that requires a multi-participant combat model.

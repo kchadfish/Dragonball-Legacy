@@ -137,6 +137,14 @@ export interface CombatantState {
   readonly storedRolls?: Readonly<Record<string, StoredRoll>>;
   /** Combat-local named move selections; a later selection with the same key replaces the prior value. */
   readonly storedMoveSelections?: Readonly<Record<string, StoredMoveSelection>>;
+  /** Combat-local selections and protections granted by Destruction Mastery. */
+  readonly destructionMastery?: {
+    readonly advancedAttackId?: MoveId;
+    readonly signatureTechniqueId?: MoveId;
+    readonly zeroCostSignatureUsesRemaining: number;
+    readonly naturalDefenseStopPreventionAtMost: number;
+    readonly damageBonusAfterOpponentInterferencePercent: number;
+  };
   /** Per-fight consumption counts for combat-usable inventory items. */
   readonly itemUses?: Readonly<Record<ItemId, number>>;
   readonly activeStatuses: readonly ActiveStatus[];
@@ -429,6 +437,13 @@ type ActiveNextActionModifier =
       readonly cap?: NonNullable<ActiveRollModifierEffect["cap"]>;
     }
   | {
+      /** Replaces a matching die result instead of adding a modifier to it. */
+      readonly type: "roll-result";
+      readonly roll: "attack" | "defense";
+      readonly value: number;
+      readonly resultScope: "matching-die";
+    }
+  | {
       readonly type: "roll-definition";
       readonly roll: "attack" | "defense";
       readonly dice?: number;
@@ -604,6 +619,8 @@ export interface ActiveSuppressionEffect {
   readonly selector?: MoveSelectorCondition;
   /** When present, the declarative selector was resolved to one combat-local move. */
   readonly selectedMoveId?: MoveId;
+  /** A requirement suppressed on the target's future move uses. */
+  readonly requirement?: string;
   readonly aspects: readonly ("all-effects" | "successful-effects")[];
   readonly duration:
     | { readonly type: "combat" }
@@ -1028,6 +1045,38 @@ export interface ActiveMoveEffectReplacementEffect {
   readonly remainingTriggers: number;
 }
 
+/** A forced transformation stability roll retained until the target's next upkeep. */
+export interface ActiveTransformationRollRequirementEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "require-transformation-roll";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex: number;
+  readonly ignoreTransformationDice: true;
+}
+
+/** A pending Evening The Field reactivation tied to the opponent's next single-die attack. */
+export interface ActiveExchangeSkillReactivationEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "exchange-skill-reactivation";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly deactivatedEffectId: ActiveEffectId;
+  readonly attackSelector: MoveSelectorCondition;
+}
+
+/** The cooldown created after an Evening The Field exchange resolves. */
+export interface ActiveExchangeSkillCooldownEffect {
+  readonly id: ActiveEffectId;
+  readonly type: "exchange-skill-cooldown";
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: MoveId;
+  readonly remainingTurns: number;
+}
+
 export type ActiveCombatEffect =
   | ActiveCostModifierEffect
   | ActiveRollModifierEffect
@@ -1057,7 +1106,10 @@ export type ActiveCombatEffect =
   | ActiveScheduledResourceEffect
   | ActiveDeferredMoveEffect
   | ActiveMoveRemovalEffect
-  | ActiveMoveEffectReplacementEffect;
+  | ActiveMoveEffectReplacementEffect
+  | ActiveTransformationRollRequirementEffect
+  | ActiveExchangeSkillReactivationEffect
+  | ActiveExchangeSkillCooldownEffect;
 
 /**
  * An effective resource change retained with the action that caused it.
@@ -1481,6 +1533,46 @@ export type ResolutionFrame =
           readonly minimum?: number;
           readonly resource?: "hp" | "ki";
         };
+        /** Additional deactivation applications from one compound effect. */
+        readonly remainingApplications?: readonly {
+          readonly target: "self" | "opponent";
+          readonly affectedType: "skill" | "transformation";
+          readonly selection: "one" | "all";
+          readonly optional: boolean;
+          readonly selector?: MoveSelectorCondition;
+          readonly count?: number;
+          readonly activationCost?: {
+            readonly resource: "hp" | "ki";
+            readonly amount: number;
+            readonly minimum?: number;
+          };
+          readonly sourceDefinitionId: string;
+          readonly sourceText: string;
+        }[];
+      };
+      /** Additional deactivation applications awaiting this selection. */
+      readonly remainingDeactivationApplications?: readonly {
+        readonly target: "self" | "opponent";
+        readonly affectedType: "skill" | "transformation";
+        readonly selection: "one" | "all";
+        readonly optional: boolean;
+        readonly selector?: MoveSelectorCondition;
+        readonly count?: number;
+        readonly activationCost?: {
+          readonly resource: "hp" | "ki";
+          readonly amount: number;
+          readonly minimum?: number;
+        };
+        readonly sourceDefinitionId: string;
+        readonly sourceText: string;
+      }[];
+      /** Reactivation and cooldown metadata for Evening The Field. */
+      readonly exchangeSkillReactivation?: {
+        readonly sourceCombatantId: CombatantId;
+        readonly targetCombatantId: CombatantId;
+        readonly sourceDefinitionId: MoveId;
+        readonly selfSelector: MoveSelectorCondition;
+        readonly attackSelector: MoveSelectorCondition;
       };
       /** Selection identity retained on every CONSTANT Skill activated by this frame. */
       readonly selectionKey?: string;
@@ -1876,6 +1968,15 @@ export interface TransformationDeactivatedEvent extends CombatEventBase {
   readonly transformationId: TransformationId;
 }
 
+export interface TransformationRolledEvent extends CombatEventBase {
+  readonly type: "transformation-rolled";
+  readonly combatantId: CombatantId;
+  readonly naturalResult: number;
+  readonly result: number;
+  readonly sides: number;
+  readonly forced: true;
+}
+
 export interface KiChangedEvent extends CombatEventBase {
   readonly type: "ki-changed";
   readonly combatantId: CombatantId;
@@ -1977,6 +2078,7 @@ export type CombatEvent =
   | StatusRolledEvent
   | TransformationActivatedEvent
   | TransformationDeactivatedEvent
+  | TransformationRolledEvent
   | KiChangedEvent
   | HpChangedEvent
   | DamageAppliedEvent

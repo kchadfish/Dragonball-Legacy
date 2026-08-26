@@ -320,7 +320,10 @@ describe("basic attacks", () => {
   });
 
   it("applies a prior-action selector through the public converted move transition", () => {
-    const { state, dependencies } = createActionState([10, 1]);
+    const { state, dependencies } = createActionState(
+      [10, 1],
+      [activeEffectIdSchema.parse("active-effect:smackdown-suppression")],
+    );
     const armed: ActiveFightState = {
       ...state,
       combatants: {
@@ -1818,6 +1821,117 @@ describe("basic attacks", () => {
       expect.objectContaining({ type: "defense-rolled", naturalResult: 1, result: 3 }),
     );
     expect(second.state.activeEffects).toEqual([]);
+  });
+
+  it("applies and consumes a durable next-defense result substitution", () => {
+    const { state, dependencies } = createActionState(
+      [10, 1, 10, 1],
+      [activeEffectIdSchema.parse("active-effect:next-defense-result")],
+    );
+    const armed: ActiveFightState = {
+      ...state,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:next-defense-result"),
+          type: "modify-next-action",
+          sourceCombatantId: defenderId,
+          targetCombatantId: defenderId,
+          sourceDefinitionId: "move-afterlife-four-arms",
+          scope: "next-roll",
+          stacking: "prevent",
+          modifier: {
+            type: "roll-result",
+            roll: "defense",
+            value: 20,
+            resultScope: "matching-die",
+          },
+        },
+      ],
+    };
+
+    const first = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:next-defense-result-1"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    expect(first.events).toContainEqual(
+      expect.objectContaining({ type: "defense-rolled", naturalResult: 1, result: 20 }),
+    );
+    expect(first.state.activeEffects).toEqual([]);
+  });
+
+  it("arms Four Arms from a low defensive roll against a basic attack", () => {
+    const { state, dependencies } = createActionState(
+      [20, 1, 20, 1],
+      [activeEffectIdSchema.parse("active-effect:four-arms-result")],
+    );
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          moveIds: ["move-afterlife-four-arms"],
+          stats: { ...state.combatants[defenderId].stats, dexterityBonus: 0 },
+        },
+      },
+    };
+
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:four-arms-arm"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.state.activeEffects).toEqual([
+      expect.objectContaining({
+        sourceDefinitionId: "move-afterlife-four-arms",
+        targetCombatantId: defenderId,
+        scope: "next-roll",
+        modifier: expect.objectContaining({ type: "roll-result", value: 2 }),
+      }),
+    ]);
+
+    const consumed = requireTransition(
+      submitCombatDecision(
+        {
+          ...requireActiveState(transition.state),
+          phase: "action",
+          activeCombatantId: attackerId,
+        },
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:four-arms-consume"),
+          actorId: attackerId,
+          expectedStateVersion: transition.state.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    expect(consumed.events).toContainEqual(
+      expect.objectContaining({ type: "defense-rolled", naturalResult: 1, result: 2 }),
+    );
+    expect(consumed.state.activeEffects).toEqual([]);
   });
 
   it("consumes counted next-action roll modifiers once per matching action", () => {

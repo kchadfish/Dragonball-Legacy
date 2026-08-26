@@ -13,6 +13,8 @@ import {
   enumerateLegalDecisions,
   submitCombatDecision,
 } from "./index.js";
+
+const runtimeOptional = <T>(value: T | undefined): T | undefined => value;
 import {
   combatDecisionIdSchema,
   combatantIdSchema,
@@ -87,6 +89,9 @@ const createDeferredDependencies = (
     combatantIds: [firstCombatantId, secondCombatantId],
     eventIds: Array.from({ length: 160 }, (_, index) =>
       combatEventIdSchema.parse(`event:${name}-${index + 1}`),
+    ),
+    decisionIds: Array.from({ length: 30 }, (_, index) =>
+      combatDecisionIdSchema.parse(`decision:${name}-${index + 1}`),
     ),
     activeEffectIds: Array.from({ length: 30 }, (_, index) =>
       activeEffectIdSchema.parse(`active-effect:${name}-${index + 1}`),
@@ -405,6 +410,430 @@ describe("deferred move catalog capabilities", () => {
         moveId: "move-afterlife-warp-kamehameha",
       }),
     );
+  });
+});
+
+describe("Test of Strength public resolution", () => {
+  it("resolves the contest with the stronger combatant's higher threshold and penalizes the loser", () => {
+    const dependencies = createDeferredDependencies("test-of-strength", [20, 1, 6, 4, 4, 5, 5, 4]);
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-midorikatai-test-of-strength"],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 80, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:test-of-strength"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-midorikatai-test-of-strength",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(resolved.combatants[firstCombatantId].hitPoints.current).toBe(145);
+    expect(resolved.combatants[secondCombatantId].hitPoints.current).toBe(200);
+    expect(resolved.actionHistory.at(-1)).toEqual(
+      expect.objectContaining({
+        moveId: "move-midorikatai-test-of-strength",
+        outcome: "successful",
+      }),
+    );
+  });
+});
+
+describe("Evening The Field public lifecycle", () => {
+  it("deactivates one constant from each combatant and preserves the no-turn payment", () => {
+    const dependencies = createDeferredDependencies("evening-exchange", [20, 1]);
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 200,
+                stats: { power: 50, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-evening-the-field", "move-kiihakai-energy-gathering"],
+              },
+              {
+                maximumHitPoints: 200,
+                stats: { power: 50, dexterity: 1, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-energy-gathering"],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const actionStart: ActiveFightState = {
+      ...created,
+      activeCombatantId: firstCombatantId,
+      combatants: {
+        ...created.combatants,
+        [firstCombatantId]: {
+          ...created.combatants[firstCombatantId],
+          ki: { ...created.combatants[firstCombatantId].ki, current: 5 },
+        },
+      },
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:evening-source"),
+          type: "active-constant",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-kiihakai-evening-the-field",
+          activatedOnTurn: 1,
+          duration: "combat",
+          lifecycle: "active",
+        },
+        {
+          id: activeEffectIdSchema.parse("active-effect:evening-self-target"),
+          type: "active-constant",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-kiihakai-energy-gathering",
+          activatedOnTurn: 1,
+          duration: "combat",
+          lifecycle: "active",
+        },
+        {
+          id: activeEffectIdSchema.parse("active-effect:evening-opponent-target"),
+          type: "active-constant",
+          sourceCombatantId: secondCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-kiihakai-energy-gathering",
+          activatedOnTurn: 1,
+          duration: "combat",
+          lifecycle: "active",
+        },
+      ],
+    };
+    const pendingTransition = requireTransition(advanceFight(actionStart, dependencies));
+    const pending = requireActiveFightState(pendingTransition.state);
+    expect(pending.pendingDecision?.options).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "activate-effect", selectedNumericValue: 1 }),
+        expect.objectContaining({ type: "decline" }),
+      ]),
+    );
+    const noTurnOption = pending.pendingDecision?.options.find(
+      (option) => option.type === "activate-effect" && option.selectedNumericValue === 1,
+    );
+    if (noTurnOption === undefined) throw new Error("Expected Evening's no-turn option.");
+    const selfSelection = requireTransition(
+      submitCombatDecision(
+        pending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:evening-pay"),
+          actorId: firstCombatantId,
+          expectedStateVersion: pending.version,
+          pendingDecisionId: pending.pendingDecision!.id,
+          optionId: noTurnOption.id,
+        },
+        dependencies,
+      ),
+    );
+    const selfPending = requireActiveFightState(selfSelection.state);
+    const selfOption = selfPending.pendingDecision?.options.find(
+      (option) =>
+        option.type === "select-move" && option.moveId === "move-kiihakai-energy-gathering",
+    );
+    if (selfOption === undefined) throw new Error("Expected self constant selection.");
+    const opponentSelection = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          selfPending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:evening-self"),
+            actorId: firstCombatantId,
+            expectedStateVersion: selfPending.version,
+            pendingDecisionId: selfPending.pendingDecision!.id,
+            optionId: selfOption.id,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const opponentOption = opponentSelection.pendingDecision?.options.find(
+      (option) =>
+        option.type === "select-move" && option.moveId === "move-kiihakai-energy-gathering",
+    );
+    if (opponentOption === undefined) throw new Error("Expected opponent constant selection.");
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          opponentSelection,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:evening-opponent"),
+            actorId: firstCombatantId,
+            expectedStateVersion: opponentSelection.version,
+            pendingDecisionId: opponentSelection.pendingDecision!.id,
+            optionId: opponentOption.id,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resolved.phase).toBe("action");
+    expect(resolved.combatants[firstCombatantId].ki.current).toBe(4);
+    expect(resolved.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "active-effect:evening-self-target",
+          lifecycle: "deactivated",
+        }),
+        expect.objectContaining({
+          id: "active-effect:evening-opponent-target",
+          lifecycle: "deactivated",
+        }),
+        expect.objectContaining({
+          type: "exchange-skill-reactivation",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: secondCombatantId,
+          deactivatedEffectId: "active-effect:evening-self-target",
+        }),
+        expect.objectContaining({
+          type: "exchange-skill-cooldown",
+          targetCombatantId: firstCombatantId,
+          remainingTurns: 4,
+        }),
+      ]),
+    );
+  });
+
+  it("reactivates the exchanged skill after an unblocked stopped single-die attack", () => {
+    const dependencies = createDeferredDependencies("evening-reactivation", [1, 20]);
+    const created = requireActiveFightState(
+      requireTransition(
+        createFight(
+          {
+            mode: "spar",
+            combatants: [
+              {
+                maximumHitPoints: 200,
+                stats: { power: 50, dexterity: 10, dexterityBonus: 0 },
+                moveIds: ["move-kiihakai-energy-gathering"],
+              },
+              {
+                maximumHitPoints: 200,
+                stats: { power: 50, dexterity: 1, dexterityBonus: 0 },
+                moveIds: [],
+              },
+            ],
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created, dependencies)).state,
+    );
+    const deactivatedEffectId = activeEffectIdSchema.parse("active-effect:evening-reactivated");
+    const waitingEffectId = activeEffectIdSchema.parse("active-effect:evening-waiting");
+    const prepared: ActiveFightState = {
+      ...action,
+      activeCombatantId: secondCombatantId,
+      activeEffects: [
+        {
+          id: deactivatedEffectId,
+          type: "active-constant",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-kiihakai-energy-gathering",
+          activatedOnTurn: 1,
+          deactivatedOnTurn: 1,
+          duration: "combat",
+          lifecycle: "deactivated",
+        },
+        {
+          id: waitingEffectId,
+          type: "exchange-skill-reactivation",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: secondCombatantId,
+          sourceDefinitionId: "move-kiihakai-evening-the-field",
+          deactivatedEffectId,
+          attackSelector: {
+            type: "move-selector",
+            subject: "target",
+            attackRoll: { dice: 1 },
+            sourceText: "your opponent's next single dice attack",
+          },
+        },
+      ],
+    };
+    const resolvedTransition = requireTransition(
+      submitCombatDecision(
+        prepared,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:evening-reactivation"),
+          actorId: secondCombatantId,
+          expectedStateVersion: prepared.version,
+          targetCombatantId: firstCombatantId,
+          basicAttack: "basic-punch",
+        },
+        dependencies,
+      ),
+    );
+    const resolved = requireActiveFightState(resolvedTransition.state);
+    expect(resolved.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: deactivatedEffectId, lifecycle: "active" }),
+      ]),
+    );
+    expect(resolved.activeEffects).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: waitingEffectId })]),
+    );
+    expect(resolvedTransition.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "effect-expired", activeEffectId: waitingEffectId }),
+        expect.objectContaining({ type: "effect-activated", activeEffectId: deactivatedEffectId }),
+      ]),
+    );
+  });
+});
+
+describe("Destruction Mastery public lifecycle", () => {
+  it("selects its Kiihakai attacks at combat start and protects them from low natural defenses", () => {
+    const dependencies = createDeferredDependencies(
+      "destruction-mastery-defense",
+      [1, 10, 1, 10, 1, 10],
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: [
+                "move-kiihakai-destruction-mastery",
+                "move-kiihakai-earthpound",
+                "move-kiihakai-planetary-uproar",
+              ],
+            },
+            {
+              maximumHitPoints: 200,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    expect(action.combatants[firstCombatantId].destructionMastery).toMatchObject({
+      advancedAttackId: "move-kiihakai-earthpound",
+      signatureTechniqueId: "move-kiihakai-planetary-uproar",
+      zeroCostSignatureUsesRemaining: 1,
+      naturalDefenseStopPreventionAtMost: 12,
+    });
+
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:destruction-mastery-defense"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-kiihakai-earthpound",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resolved.actionHistory.at(-1)).toEqual(
+      expect.objectContaining({ moveId: "move-kiihakai-earthpound", outcome: "successful" }),
+    );
+  });
+
+  it("spends the selected signature technique's one zero-cost use", () => {
+    const dependencies = createDeferredDependencies("destruction-mastery-signature", [20, 1]);
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 500,
+              stats: { power: 1, dexterity: 10, dexterityBonus: 0 },
+              moveIds: [
+                "move-kiihakai-destruction-mastery",
+                "move-kiihakai-earthpound",
+                "move-kiihakai-planetary-uproar",
+              ],
+            },
+            {
+              maximumHitPoints: 500,
+              stats: { power: 1, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const lateAction = { ...action, turnNumber: 10 } satisfies ActiveFightState;
+    const resolved = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          lateAction,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:destruction-mastery-signature"),
+            actorId: firstCombatantId,
+            expectedStateVersion: lateAction.version,
+            moveId: "move-kiihakai-planetary-uproar",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(resolved.combatants[firstCombatantId].ki.current).toBe(5);
+    expect(resolved.combatants[firstCombatantId].destructionMastery).toMatchObject({
+      zeroCostSignatureUsesRemaining: 0,
+    });
   });
 });
 
@@ -2981,12 +3410,12 @@ describe("generic on-damage pending effect choices", () => {
             {
               maximumHitPoints: 100,
               stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
-              moveIds: ["move-afterlife-masenko"],
+              moveIds: ["move-midorikatai-smackdown"],
             },
             {
               maximumHitPoints: 10000,
               stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
-              moveIds: ["move-haokiru-muscle-infusion"],
+              moveIds: ["move-haokiru-muscle-infusion", "move-midorikatai-domination-mastery"],
             },
           ],
         },
@@ -3027,7 +3456,7 @@ describe("generic on-damage pending effect choices", () => {
         id: combatDecisionIdSchema.parse("decision:muscle-infusion-attack"),
         actorId: firstCombatantId,
         expectedStateVersion: prepared.version,
-        moveId: "move-afterlife-masenko",
+        moveId: "move-midorikatai-smackdown",
         targetCombatantId: secondCombatantId,
       },
       dependencies,
@@ -3067,7 +3496,7 @@ describe("generic on-damage pending effect choices", () => {
     if (!resumedResult.ok) throw new Error(JSON.stringify(resumedResult));
     const resumed = requireActiveFightState(resumedResult.value.state);
 
-    expect(resumed.combatants[secondCombatantId].ki.current).toBe(4);
+    expect(resumed.combatants[secondCombatantId].ki.current).toBe(3);
     expect(
       resumed.combatants[secondCombatantId].effectUseCounts?.["move-haokiru-muscle-infusion:0"],
     ).toBe(1);
@@ -6747,7 +7176,7 @@ describe("move-modification prevention", () => {
     expect(transition.events).toContainEqual(
       expect.objectContaining({ type: "attack-rolled", naturalResult: 20, result: 20 }),
     );
-    expect(resolved.combatants[secondCombatantId]?.hitPoints.current).toBe(455);
+    expect(runtimeOptional(resolved.combatants[secondCombatantId])?.hitPoints.current).toBe(455);
     expect(resolved.version).toBe(prepared.version + 1);
   });
 
@@ -6823,7 +7252,7 @@ describe("move-modification prevention", () => {
     );
     const resolved = requireActiveFightState(transition.state);
 
-    expect(resolved.combatants[secondCombatantId]?.hitPoints.current).toBe(459);
+    expect(runtimeOptional(resolved.combatants[secondCombatantId])?.hitPoints.current).toBe(459);
     expect(resolved.version).toBe(prepared.version + 1);
   });
 

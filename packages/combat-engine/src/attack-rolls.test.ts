@@ -277,6 +277,44 @@ describe("contested attack rolls", () => {
     ).toThrow("A relative threshold requires an explicit operation.");
   });
 
+  it("rejects malformed threshold and selection shapes at the runtime boundary", () => {
+    expect(() =>
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          resolutionThresholds: [
+            {
+              outcome: "invalid",
+              roll: "defense",
+              comparison: "at-most",
+              value: 10,
+              resultScope: "matching-die",
+            } as never,
+          ],
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toThrow("Resolution thresholds must contain a valid outcome.");
+
+    expect(() =>
+      resolveContestedAttackRolls(
+        {
+          attack: { dice: 1, sides: 30 },
+          attackerDexterityBonus: 0,
+          defenderDexterityBonus: 0,
+          rollSelection: {
+            roll: "defense",
+            diceCount: 1,
+            selection: "lowest",
+          },
+        },
+        new SequenceRandomSource([]),
+      ),
+    ).toThrow("Roll selection requires at least two candidate dice.");
+  });
+
   it("uses a declared defense die size for both random and persisted rolls", () => {
     expect(
       resolveContestedAttackRolls(

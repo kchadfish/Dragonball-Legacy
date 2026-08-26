@@ -5,6 +5,8 @@ import {
   renderCombatCapabilityMatrix,
 } from "./combat-capability-matrix.js";
 
+const runtimeValue = (value: unknown): unknown => value;
+
 describe("combat capability matrix", () => {
   it("accounts for every converted structured effect with an explicit status", () => {
     const matrix = createCombatCapabilityMatrix();
@@ -455,7 +457,7 @@ describe("combat capability matrix", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (candidate) =>
         candidate.sourceDefinitionId === "move-haokiru-creationist" &&
-        candidate.effectIndex !== undefined,
+        runtimeValue(candidate.effectIndex) !== undefined,
     );
 
     expect(rows).toHaveLength(2);

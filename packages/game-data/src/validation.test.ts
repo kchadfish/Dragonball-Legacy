@@ -25,6 +25,10 @@ import {
   validateTransformationDefinitions,
 } from "./validation.js";
 
+const runtimeValue = (value: unknown): unknown => value;
+const isDefinedAtRuntime = <T>(value: T | undefined): value is T =>
+  runtimeValue(value) !== undefined;
+
 describe("game-data validation boundaries", () => {
   it("rejects malformed document and move metadata", () => {
     const document = GAME_DATA_DOCUMENTS[0];
@@ -91,7 +95,8 @@ describe("game-data validation boundaries", () => {
     if (item === undefined) throw new Error("Expected an item fixture with rules and effects.");
     const rule = item.rules[0];
     const effect = item.effects?.[0];
-    if (rule === undefined || effect === undefined) throw new Error("Expected item details.");
+    if (!isDefinedAtRuntime(rule) || !isDefinedAtRuntime(effect))
+      throw new Error("Expected item details.");
 
     const invalidItem = {
       ...item,
@@ -157,21 +162,21 @@ describe("game-data validation boundaries", () => {
     const rule = RULE_SECTION_DEFINITIONS[0];
     const transformation = TRANSFORMATION_DEFINITIONS[0];
     if (
-      location === undefined ||
-      trainer === undefined ||
-      npc === undefined ||
-      quest === undefined ||
-      encounter === undefined ||
-      saga === undefined ||
-      rule === undefined ||
-      transformation === undefined
+      !isDefinedAtRuntime(location) ||
+      !isDefinedAtRuntime(trainer) ||
+      !isDefinedAtRuntime(npc) ||
+      !isDefinedAtRuntime(quest) ||
+      !isDefinedAtRuntime(encounter) ||
+      !isDefinedAtRuntime(saga) ||
+      !isDefinedAtRuntime(rule) ||
+      !isDefinedAtRuntime(transformation)
     ) {
       throw new Error("Expected canonical validation fixtures.");
     }
     const combatProfile = npc.combatProfile;
     if (combatProfile === undefined) throw new Error("Expected combat profile fixture.");
     const reward = quest.rewards[0];
-    if (reward === undefined) throw new Error("Expected quest reward fixture.");
+    if (!isDefinedAtRuntime(reward)) throw new Error("Expected quest reward fixture.");
 
     expect(
       validateLocationDefinitions([

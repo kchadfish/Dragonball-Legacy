@@ -83,7 +83,7 @@ describe("converted move effects", () => {
           type: "set-stat-comparison" as const,
           sourceCombatantId: self.id,
           targetCombatantId: self.id,
-          sourceDefinitionId: "move-afterlife-kaio-ken" as never,
+          sourceDefinitionId: "move-afterlife-kaio-ken",
           leftCombatantId: self.id,
           rightCombatantId: opponent.id,
           stat: "dexterity" as const,
@@ -3167,7 +3167,16 @@ describe("converted move effects", () => {
     } as MoveDefinition;
 
     expect(moveEffectsForTrigger(move, "before-defense-roll", context).rollResultOverrides).toEqual(
-      [{ target: "self", roll: "defense", value: 0, resultScope: "matching-die" }],
+      [
+        {
+          target: "self",
+          roll: "defense",
+          value: 0,
+          resultScope: "matching-die",
+          sourceDefinitionId: "move-afterlife-light-grenade",
+          sourceEffectIndex: 0,
+        },
+      ],
     );
   });
 
@@ -3682,6 +3691,33 @@ describe("converted move effects", () => {
         slot: "skill",
         amount: 1,
       },
+    ]);
+  });
+
+  it("retains Smackdown requirement suppression and Domination reduction cost", () => {
+    const smackdown = moves.get("move-midorikatai-smackdown");
+    const domination = moves.get("move-midorikatai-domination-mastery");
+    if (smackdown === undefined || domination === undefined)
+      throw new Error("Expected Midorikatai mastery data.");
+
+    const smackdownEffects = moveEffectsForTrigger(smackdown, "on-success", {
+      ...context,
+      triggeringMove: smackdown,
+    });
+    expect(smackdownEffects.suppressions).toEqual([
+      expect.objectContaining({
+        requirement: "Bukujutsu",
+        aspects: [],
+        duration: { type: "turns", remaining: 2 },
+      }),
+    ]);
+
+    const dominationEffects = moveEffectsForTrigger(domination, "passive", {
+      ...context,
+      triggeringMove: smackdown,
+    });
+    expect(dominationEffects.damageReductionCostModifications).toEqual([
+      expect.objectContaining({ amount: 1, resource: "ki", reductions: "reduce-or-nullify" }),
     ]);
   });
 });

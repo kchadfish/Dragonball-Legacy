@@ -25,6 +25,10 @@ import type {
 } from "./contracts.js";
 import { matchesMoveSelector } from "./declarative-runtime.js";
 
+// Invariants validate serializable runtime data even when the in-memory union
+// type has already narrowed a discriminant to one literal value.
+const runtimeValue = (value: unknown): unknown => value;
+
 const validCounter = (value: number, minimum: number) =>
   Number.isFinite(value) && Number.isInteger(value) && value >= minimum;
 
@@ -110,6 +114,7 @@ const validateSlotCapacities = (
   combatant: CombatantState,
   recordId: string,
   violations: FightStateInvariantViolation[],
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   if (combatant.slotCapacities !== undefined) {
     for (const slot of combatSlots) {
@@ -230,6 +235,7 @@ const validateStoredRolls = (
   recordId: string,
   turnNumber: number,
   violations: FightStateInvariantViolation[],
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   for (const [storageKey, storedRoll] of Object.entries(combatant.storedRolls ?? {})) {
     const sourceMove = MOVE_DEFINITIONS.find(
@@ -251,7 +257,7 @@ const validateStoredRolls = (
       !combatant.moveIds.includes(storedRoll.sourceDefinitionId) ||
       !validSourceEffect ||
       storedRoll.naturalResults.length !==
-        (sourceEffect?.type === "roll-and-store" ? sourceEffect.dice : 0) ||
+        (runtimeValue(sourceEffect.type) === "roll-and-store" ? sourceEffect.dice : 0) ||
       !Number.isInteger(storedRoll.sides) ||
       storedRoll.sides < 1 ||
       !validResults ||
@@ -273,6 +279,7 @@ const validateStoredMoveSelections = (
   recordId: string,
   turnNumber: number,
   violations: FightStateInvariantViolation[],
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   for (const [selectionKey, selection] of Object.entries(combatant.storedMoveSelections ?? {})) {
     const sourceMove = MOVE_DEFINITIONS.find(
@@ -323,6 +330,7 @@ const validateStoredMoveSelections = (
   }
 };
 
+// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const hasValidStatusDetails = (combatant: CombatantState, statusIndex: number) => {
   const activeStatus = combatant.activeStatuses[statusIndex];
   const priorStatuses = combatant.activeStatuses.slice(0, statusIndex);
@@ -516,39 +524,47 @@ const hasValidCostEffectDetails = (effect: ActiveCostModifierEffect) => {
   );
 };
 
+// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const hasValidRollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "modify-roll" }>) =>
   (effect.roll === "attack" ||
     effect.roll === "defense" ||
     effect.roll === "escape" ||
     effect.roll === "initiative" ||
-    effect.roll === "transformation") &&
-  (effect.modifier === "dice" || effect.modifier === "result" || effect.modifier === "sides") &&
+    runtimeValue(effect.roll) === "transformation") &&
+  (effect.modifier === "dice" ||
+    effect.modifier === "result" ||
+    runtimeValue(effect.modifier) === "sides") &&
   (effect.cap === undefined ||
     (effect.cap.type === "allow-exceed"
-      ? effect.cap.scope === "amount" || effect.cap.scope === "total" || effect.cap.scope === "roll"
-      : (effect.cap.type === "maximum" || effect.cap.type === "minimum") &&
+      ? effect.cap.scope === "amount" ||
+        effect.cap.scope === "total" ||
+        runtimeValue(effect.cap.scope) === "roll"
+      : (effect.cap.type === "maximum" || runtimeValue(effect.cap.type) === "minimum") &&
         (effect.cap.scope === "amount" ||
           effect.cap.scope === "total" ||
-          effect.cap.scope === "roll") &&
+          runtimeValue(effect.cap.scope) === "roll") &&
         Number.isFinite(effect.cap.value))) &&
   Number.isFinite(effect.amount) &&
   (effect.duration === "combat" ||
-    ((effect.duration.type === "turns" || effect.duration.type === "turns-or-until-perfect-roll") &&
+    ((effect.duration.type === "turns" ||
+      runtimeValue(effect.duration.type) === "turns-or-until-perfect-roll") &&
       typeof effect.duration.ownerCombatantId === "string" &&
       validCounter(effect.duration.remaining, 1))) &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
 
+// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const hasValidRerollEffectDetails = (effect: Extract<ActiveCombatEffect, { type: "reroll" }>) =>
-  (effect.roll === "attack" || effect.roll === "defense") &&
-  (effect.rerollScope === "single-result" || effect.rerollScope === "entire-attack") &&
+  (effect.roll === "attack" || runtimeValue(effect.roll) === "defense") &&
+  (effect.rerollScope === "single-result" ||
+    runtimeValue(effect.rerollScope) === "entire-attack") &&
   typeof effect.optional === "boolean" &&
   Number.isFinite(effect.bonus) &&
   (effect.activationCost === undefined || effect.activationResource === "ki") &&
   (effect.activationCost === undefined || validNonnegativeNumber(effect.activationCost)) &&
   (effect.useLimit === undefined ||
     (validCounter(effect.useLimit.remaining, 0) &&
-      (effect.useLimit.scope === "combat" || effect.useLimit.scope === "turn"))) &&
+      (effect.useLimit.scope === "combat" || runtimeValue(effect.useLimit.scope) === "turn"))) &&
   (effect.duration.type === "combat" ||
     (effect.duration.type === "next-action" && typeof effect.duration.combatantId === "string") ||
     (effect.duration.type === "next-roll" &&
@@ -564,24 +580,27 @@ const hasValidRerollEffectDetails = (effect: Extract<ActiveCombatEffect, { type:
 
 const hasValidResolutionThresholdDetails = (
   effect: Extract<ActiveCombatEffect, { type: "set-resolution-threshold" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) =>
-  (effect.outcome === "successful" || effect.outcome === "stopped") &&
-  (effect.roll === "attack" || effect.roll === "defense") &&
-  (effect.comparison === "at-least" || effect.comparison === "at-most") &&
+  (effect.outcome === "successful" || runtimeValue(effect.outcome) === "stopped") &&
+  (effect.roll === "attack" || runtimeValue(effect.roll) === "defense") &&
+  (effect.comparison === "at-least" || runtimeValue(effect.comparison) === "at-most") &&
   (effect.relativeTo === undefined
     ? effect.relativeOperation === undefined
-    : (effect.relativeTo === "attack-roll" || effect.relativeTo === "defense-roll") &&
+    : (effect.relativeTo === "attack-roll" || runtimeValue(effect.relativeTo) === "defense-roll") &&
       (effect.relativeOperation === "add" || effect.relativeOperation === "multiply") &&
       ((effect.relativeTo === "attack-roll" && effect.roll === "defense") ||
         (effect.relativeTo === "defense-roll" && effect.roll === "attack"))) &&
-  (effect.resultScope === "current-attack" || effect.resultScope === "matching-die") &&
-  (effect.appliesTo === "source" || effect.appliesTo === "target") &&
-  (effect.scope === undefined || effect.scope === "next-action") &&
+  (effect.resultScope === "current-attack" ||
+    runtimeValue(effect.resultScope) === "matching-die") &&
+  (effect.appliesTo === "source" || runtimeValue(effect.appliesTo) === "target") &&
+  (effect.scope === undefined || runtimeValue(effect.scope) === "next-action") &&
   Number.isFinite(effect.value) &&
   (effect.duration.type === "combat" ||
-    (effect.duration.type === "until-roll-threshold" &&
-      (effect.duration.roll === "attack" || effect.duration.roll === "defense") &&
-      (effect.duration.comparison === "at-least" || effect.duration.comparison === "at-most") &&
+    (runtimeValue(effect.duration.type) === "until-roll-threshold" &&
+      (effect.duration.roll === "attack" || runtimeValue(effect.duration.roll) === "defense") &&
+      (effect.duration.comparison === "at-least" ||
+        runtimeValue(effect.duration.comparison) === "at-most") &&
       Number.isFinite(effect.duration.value))) &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0;
@@ -592,29 +611,29 @@ const isValidCombatResultModifier = (
 ) =>
   modifier.type !== "combat-result" ||
   (scope === "next-action" &&
-    (modifier.result === "successful" || modifier.result === "stopped") &&
-    (modifier.resultScope === "current-attack" || modifier.resultScope === "matching-die"));
+    (modifier.result === "successful" || runtimeValue(modifier.result) === "stopped") &&
+    (modifier.resultScope === "current-attack" ||
+      runtimeValue(modifier.resultScope) === "matching-die"));
 
 const hasValidCostModifierDetails = (
   modifier: Extract<ActiveCombatEffect, { type: "modify-next-action" }>["modifier"],
 ) => {
   if (modifier.type !== "cost") return true;
-  const validOperation = modifier.operation === "add" || modifier.operation === "set";
+  const validOperation = modifier.operation === "add" || runtimeValue(modifier.operation) === "set";
   const validBounds =
     (modifier.minimum === undefined || Number.isFinite(modifier.minimum)) &&
     (modifier.maximum === undefined || Number.isFinite(modifier.maximum));
   const validExpression =
     modifier.amountExpression === undefined ||
-    (modifier.amountExpression.type === "next-move-ki-cost" &&
+    (runtimeValue(modifier.amountExpression.type) === "next-move-ki-cost" &&
       (modifier.amountExpression.actor === "self" ||
-        modifier.amountExpression.actor === "opponent"));
+        runtimeValue(modifier.amountExpression.actor) === "opponent"));
   return validOperation && validBounds && validExpression;
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- This invariant validates one discriminated serialized modifier union.
 const hasValidNextActionModifierDetails = (
   effect: Extract<ActiveCombatEffect, { type: "modify-next-action" }>,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Modifier invariants are intentionally centralized.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const scope = effect.scope ?? "next-action";
   const validScope =
@@ -624,7 +643,7 @@ const hasValidNextActionModifierDetails = (
     scope === "next-actions" ||
     scope === "next-rolls" ||
     scope === "next-phase" ||
-    scope === "next-turn";
+    runtimeValue(scope) === "next-turn";
   const validRemaining = effect.remaining === undefined || validCounter(effect.remaining, 1);
   const validFollowingTurn =
     effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1);
@@ -633,59 +652,65 @@ const hasValidNextActionModifierDetails = (
     effect.modifier.operation === undefined ||
     effect.modifier.operation === "add" ||
     effect.modifier.operation === "multiply" ||
-    effect.modifier.operation === "set";
+    runtimeValue(effect.modifier.operation) === "set";
   const validDamageBasis =
     effect.modifier.type !== "damage" ||
     effect.modifier.basis === undefined ||
     effect.modifier.basis === "power-percent" ||
-    effect.modifier.basis === "damage-percent";
+    runtimeValue(effect.modifier.basis) === "damage-percent";
   const validResourceOperation =
     effect.modifier.type !== "resource" ||
     effect.modifier.operation === "drain" ||
     effect.modifier.operation === "gain" ||
     effect.modifier.operation === "lose" ||
-    effect.modifier.operation === "set";
+    runtimeValue(effect.modifier.operation) === "set";
   const validResourceCostOperation =
     effect.modifier.type !== "resource-cost" ||
-    (effect.modifier.resource === "hp" && effect.modifier.operation === "add");
+    (runtimeValue(effect.modifier.resource) === "hp" &&
+      runtimeValue(effect.modifier.operation) === "add");
   const validCreatedAfterActionCount =
     effect.createdAfterActionCount === undefined || validCounter(effect.createdAfterActionCount, 0);
   const validRollCap = (
     cap: NonNullable<Extract<ActiveCombatEffect, { type: "modify-roll" }>["cap"]>,
   ) =>
     cap.type === "allow-exceed"
-      ? cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll"
+      ? cap.scope === "amount" || cap.scope === "total" || runtimeValue(cap.scope) === "roll"
       : Number.isFinite(cap.value) &&
-        (cap.scope === "amount" || cap.scope === "total" || cap.scope === "roll");
+        (cap.scope === "amount" || cap.scope === "total" || runtimeValue(cap.scope) === "roll");
   const validCombatResult = isValidCombatResultModifier(effect.modifier, scope);
   const validRollDefinition =
     effect.modifier.type !== "roll-definition" ||
-    ((effect.modifier.roll === "attack" || effect.modifier.roll === "defense") &&
+    ((effect.modifier.roll === "attack" || runtimeValue(effect.modifier.roll) === "defense") &&
       (effect.modifier.dice === undefined || validCounter(effect.modifier.dice, 1)) &&
       validCounter(effect.modifier.sides, 1));
   const validModifierDetails =
     effect.modifier.type === "damage" ||
     (effect.modifier.type === "stat" &&
-      (effect.modifier.stat === "dexterity" || effect.modifier.stat === "dexterity-bonus") &&
+      (effect.modifier.stat === "dexterity" ||
+        runtimeValue(effect.modifier.stat) === "dexterity-bonus") &&
       (effect.modifier.operation === "add" ||
         effect.modifier.operation === "set" ||
-        effect.modifier.operation === "multiply") &&
+        runtimeValue(effect.modifier.operation) === "multiply") &&
       (effect.modifier.roll === undefined ||
         effect.modifier.roll === "attack" ||
-        effect.modifier.roll === "defense")) ||
+        runtimeValue(effect.modifier.roll) === "defense")) ||
     (effect.modifier.type === "roll" &&
       (effect.modifier.roll === "attack" ||
         effect.modifier.roll === "defense" ||
         effect.modifier.roll === "escape" ||
         effect.modifier.roll === "initiative" ||
-        effect.modifier.roll === "transformation") &&
+        runtimeValue(effect.modifier.roll) === "transformation") &&
       (effect.modifier.modifier === "dice" ||
         effect.modifier.modifier === "result" ||
-        effect.modifier.modifier === "sides") &&
+        runtimeValue(effect.modifier.modifier) === "sides") &&
       (effect.modifier.cap === undefined || validRollCap(effect.modifier.cap))) ||
+    (effect.modifier.type === "roll-result" &&
+      (effect.modifier.roll === "attack" || effect.modifier.roll === "defense") &&
+      effect.modifier.resultScope === "matching-die" &&
+      Number.isFinite(effect.modifier.value)) ||
     (effect.modifier.type === "resource" &&
-      (effect.modifier.resource === "hp" || effect.modifier.resource === "ki") &&
-      effect.modifier.basis === "damage-percent") ||
+      (effect.modifier.resource === "hp" || runtimeValue(effect.modifier.resource) === "ki") &&
+      runtimeValue(effect.modifier.basis) === "damage-percent") ||
     effect.modifier.type === "resource-cost" ||
     effect.modifier.type === "cost" ||
     effect.modifier.type === "combat-result" ||
@@ -693,7 +718,7 @@ const hasValidNextActionModifierDetails = (
     (effect.modifier.type === "combat-outcome" &&
       (effect.modifier.outcome === "break" ||
         effect.modifier.outcome === "sever" ||
-        effect.modifier.outcome === "stun") &&
+        runtimeValue(effect.modifier.outcome) === "stun") &&
       Number.isFinite(effect.modifier.multiplier));
   return (
     validDamageOperation &&
@@ -721,18 +746,21 @@ const hasValidNextActionModifierDetails = (
 
 const hasValidDamageModifierDetails = (
   effect: Extract<ActiveCombatEffect, { type: "modify-damage" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const duration = effect.duration;
   const validDuration =
     duration.type === "combat" ||
     (duration.type === "turns" && validCounter(duration.remaining, 1)) ||
     (duration.type === "until-roll-threshold" &&
-      duration.roll === "attack" &&
-      (duration.comparison === "at-least" || duration.comparison === "at-most") &&
+      runtimeValue(duration.roll) === "attack" &&
+      (duration.comparison === "at-least" || runtimeValue(duration.comparison) === "at-most") &&
       Number.isFinite(duration.value));
   return (
-    (effect.operation === "add" || effect.operation === "multiply" || effect.operation === "set") &&
-    (effect.basis === "power-percent" || effect.basis === "damage-percent") &&
+    (effect.operation === "add" ||
+      effect.operation === "multiply" ||
+      runtimeValue(effect.operation) === "set") &&
+    (effect.basis === "power-percent" || runtimeValue(effect.basis) === "damage-percent") &&
     Number.isFinite(effect.amount) &&
     (effect.selectedMoveId === undefined || effect.selectedMoveId.length > 0) &&
     validDuration &&
@@ -756,7 +784,7 @@ const hasValidDamageModifierCombatantReferences = (
 const hasValidStatModifierEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "modify-stat" }>,
 ) =>
-  effect.duration.type === "turns" &&
+  runtimeValue(effect.duration.type) === "turns" &&
   validCounter(effect.duration.remaining, 1) &&
   Number.isFinite(effect.amount) &&
   effect.amount >= 0 &&
@@ -767,8 +795,8 @@ const hasValidMoveClassificationEffectDetails = (
 ) =>
   effect.sourceDefinitionId.length > 0 &&
   validCounter(effect.sourceEffectIndex, 0) &&
-  effect.selector.type === "move-selector" &&
-  effect.classification.type === "replace-style" &&
+  runtimeValue(effect.selector.type) === "move-selector" &&
+  runtimeValue(effect.classification.type) === "replace-style" &&
   effect.classification.style === "declared-style" &&
   effect.duration.type === "turns" &&
   validCounter(effect.duration.remaining, 1) &&
@@ -776,6 +804,7 @@ const hasValidMoveClassificationEffectDetails = (
 
 const hasValidSuppressionEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "suppress" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const selector: unknown = effect.selector;
   const validSelector =
@@ -790,15 +819,21 @@ const hasValidSuppressionEffectDetails = (
     (effect.duration.type === "next-actions" && validCounter(effect.duration.remaining, 1)) ||
     (effect.duration.type === "following-action" && validCounter(effect.duration.remaining, 1)) ||
     (effect.duration.type === "until-roll-threshold" &&
-      effect.duration.roll === "attack" &&
-      (effect.duration.comparison === "at-least" || effect.duration.comparison === "at-most") &&
+      runtimeValue(effect.duration.roll) === "attack" &&
+      (effect.duration.comparison === "at-least" ||
+        runtimeValue(effect.duration.comparison) === "at-most") &&
       Number.isFinite(effect.duration.value));
   return (
-    effect.aspects.length > 0 &&
-    effect.aspects.every((aspect) => aspect === "all-effects" || aspect === "successful-effects") &&
+    (effect.requirement !== undefined
+      ? effect.requirement.length > 0 && effect.aspects.length === 0
+      : effect.aspects.length > 0) &&
+    effect.aspects.every(
+      (aspect) => aspect === "all-effects" || runtimeValue(aspect) === "successful-effects",
+    ) &&
     validSelector &&
     validDuration &&
     (effect.selectedMoveId === undefined || effect.selectedMoveId.length > 0) &&
+    (effect.requirement === undefined || effect.requirement.length > 0) &&
     effect.sourceDefinitionId.length > 0
   );
 };
@@ -835,14 +870,17 @@ const validMoveModificationAspects = new Set<string>([
 
 const hasValidMoveModificationPreventionDetails = (
   effect: Extract<ActiveCombatEffect, { type: "prevent-move-modification" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const selector: unknown = effect.selector;
   return (
-    (effect.actor === "self" || effect.actor === "opponent" || effect.actor === "any") &&
+    (effect.actor === "self" ||
+      effect.actor === "opponent" ||
+      runtimeValue(effect.actor) === "any") &&
     effect.aspects.length > 0 &&
     effect.aspects.every((aspect) => validMoveModificationAspects.has(aspect)) &&
     (effect.operations === undefined ||
-      effect.operations.every((operation) => operation === "reduce")) &&
+      effect.operations.every((operation) => runtimeValue(operation) === "reduce")) &&
     typeof selector === "object" &&
     selector !== null &&
     "type" in selector &&
@@ -861,16 +899,19 @@ const hasValidMoveModificationPreventionDetails = (
 const hasValidResourceModificationPreventionDetails = (
   effect: Extract<ActiveCombatEffect, { type: "prevent-resource-modification" }>,
 ) =>
-  (effect.resource === "hp" || effect.resource === "ki") &&
-  (effect.operation === "gain" || effect.operation === "lose" || effect.operation === "set") &&
-  (effect.sourceActor === undefined || effect.sourceActor === "opponent") &&
-  (effect.exceptAction === undefined || effect.exceptAction === "power-up") &&
+  (effect.resource === "hp" || runtimeValue(effect.resource) === "ki") &&
+  (effect.operation === "gain" ||
+    effect.operation === "lose" ||
+    runtimeValue(effect.operation) === "set") &&
+  (effect.sourceActor === undefined || runtimeValue(effect.sourceActor) === "opponent") &&
+  (effect.exceptAction === undefined || runtimeValue(effect.exceptAction) === "power-up") &&
   (effect.availableFromTurn === undefined || validCounter(effect.availableFromTurn, 1));
 
 const hasValidConstantEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "active-constant" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) =>
-  effect.duration === "combat" &&
+  runtimeValue(effect.duration) === "combat" &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0 &&
   validCounter(effect.activatedOnTurn, 1) &&
@@ -879,14 +920,15 @@ const hasValidConstantEffectDetails = (
     (typeof effect.selectionKey === "string" && effect.selectionKey.length > 0)) &&
   (effect.lifecycle === undefined ||
     effect.lifecycle === "active" ||
-    (effect.lifecycle === "deactivated" && validCounter(effect.deactivatedOnTurn ?? 0, 1))) &&
+    (runtimeValue(effect.lifecycle) === "deactivated" &&
+      validCounter(effect.deactivatedOnTurn ?? 0, 1))) &&
   (effect.replacement === undefined ||
     (effect.replacement.sourceDefinitionId === effect.replacement.sourceMoveSnapshot.id &&
       effect.replacement.sourceMoveSnapshot.category === "skill" &&
       effect.replacement.sourceMoveSnapshot.effectClauses.some(
         (clause) => clause.text === "Constant.",
       ) &&
-      effect.replacement.duration.type === "turns" &&
+      runtimeValue(effect.replacement.duration.type) === "turns" &&
       effect.replacement.duration.ownerCombatantId === effect.targetCombatantId &&
       validCounter(effect.replacement.duration.remaining, 1)));
 
@@ -895,7 +937,7 @@ const hasValidForcedActionEffectDetails = (
 ) =>
   effect.allowedCategories.length > 0 &&
   effect.allowedCategories.every(
-    (category) => category === "advanced-attack" || category === "signature",
+    (category) => category === "advanced-attack" || runtimeValue(category) === "signature",
   ) &&
   typeof effect.sourceDefinitionId === "string" &&
   effect.sourceDefinitionId.length > 0 &&
@@ -914,7 +956,7 @@ const hasValidMoveRemovalEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "remove-move-from-combat" }>,
 ) =>
   (effect.duration === "combat" ||
-    (effect.duration.type === "until-perfect-roll" &&
+    (runtimeValue(effect.duration.type) === "until-perfect-roll" &&
       typeof effect.duration.combatantId === "string")) &&
   effect.sourceDefinitionId.length > 0 &&
   effect.moveId.length > 0 &&
@@ -937,11 +979,12 @@ const hasValidMoveEffectReplacementDetails = (
   effect.replacement.operation === "gain" &&
   effect.replacement.amount !== undefined &&
   effect.replacement.amount.type === "triggering-resource-change" &&
-  effect.replacement.amount.resource === "ki" &&
-  effect.replacement.amount.operation === "drain";
+  runtimeValue(effect.replacement.amount.resource) === "ki" &&
+  runtimeValue(effect.replacement.amount.operation) === "drain";
 
 const hasValidFloatingEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "floating-effect" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const duration = effect.duration;
   return (
@@ -953,52 +996,54 @@ const hasValidFloatingEffectDetails = (
     validCounter(effect.createdOnTurn, 1) &&
     (effect.scope.type === "combat" ||
       effect.scope.type === "next-action" ||
-      (effect.scope.type === "next-turn" && typeof effect.scope.combatantId === "string")) &&
+      (runtimeValue(effect.scope.type) === "next-turn" &&
+        typeof effect.scope.combatantId === "string")) &&
     (effect.stacking === undefined ||
       effect.stacking === "allow" ||
-      effect.stacking === "prevent") &&
+      runtimeValue(effect.stacking) === "prevent") &&
     (duration === undefined ||
       (duration.type === "until-combat-result" &&
         typeof duration.combatantId === "string" &&
         (duration.result === "successful" ||
           duration.result === "stopped" ||
           duration.result === "critical" ||
-          duration.result === "counter") &&
+          runtimeValue(duration.result) === "counter") &&
         (duration.rollThreshold === undefined ||
           ((duration.rollThreshold.roll === "attack" ||
             duration.rollThreshold.roll === "defense" ||
-            duration.rollThreshold.roll === "transformation") &&
+            runtimeValue(duration.rollThreshold.roll) === "transformation") &&
             (duration.rollThreshold.comparison === "at-least" ||
-              duration.rollThreshold.comparison === "at-most") &&
+              runtimeValue(duration.rollThreshold.comparison) === "at-most") &&
             Number.isFinite(duration.rollThreshold.value)))) ||
       (duration.type === "until-roll-threshold" &&
         typeof duration.combatantId === "string" &&
-        (duration.roll === "attack" || duration.roll === "defense") &&
-        (duration.comparison === "at-least" || duration.comparison === "at-most") &&
+        (duration.roll === "attack" || runtimeValue(duration.roll) === "defense") &&
+        (duration.comparison === "at-least" || runtimeValue(duration.comparison) === "at-most") &&
         Number.isFinite(duration.value))) &&
     effect.effects.every((nestedEffect) => nestedEffect.type !== "create-floating-effect") &&
     effect.termination.every(
       (termination) =>
         (termination.trigger === "on-power-up" ||
           termination.trigger === "on-stopped" ||
-          termination.trigger === "on-success") &&
-        (termination.actor === "self" || termination.actor === "opponent"),
+          runtimeValue(termination.trigger) === "on-success") &&
+        (termination.actor === "self" || runtimeValue(termination.actor) === "opponent"),
     )
   );
 };
 
 const hasValidExtraActionEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "extra-action" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) =>
   effect.sourceDefinitionId.length > 0 &&
   Number.isInteger(effect.sourceEffectIndex) &&
   effect.sourceEffectIndex >= 0 &&
-  (effect.phase === "action" || effect.phase === "upkeep") &&
+  (effect.phase === "action" || runtimeValue(effect.phase) === "upkeep") &&
   validCounter(effect.remainingActions, 1) &&
   validCounter(effect.availableFromTurn, 1) &&
   validCounter(effect.expiresAfterTurn, effect.availableFromTurn) &&
   (effect.activationCost === undefined ||
-    (effect.activationCost.resource === "ki" &&
+    (runtimeValue(effect.activationCost.resource) === "ki" &&
       Number.isInteger(effect.activationCost.amount) &&
       effect.activationCost.amount >= 1 &&
       (effect.activationCost.minimum === undefined ||
@@ -1006,7 +1051,7 @@ const hasValidExtraActionEffectDetails = (
           effect.activationCost.minimum >= 0)))) &&
   (effect.useLimit === undefined ||
     (validCounter(effect.useLimit.count, 1) &&
-      (effect.useLimit.scope === "combat" || effect.useLimit.scope === "turn")));
+      (effect.useLimit.scope === "combat" || runtimeValue(effect.useLimit.scope) === "turn")));
 
 const hasValidActionRestrictionEffectDetails = (
   effect: Extract<ActiveCombatEffect, { readonly type: "action-restriction" }>,
@@ -1023,7 +1068,7 @@ const hasValidActionRestrictionEffectDetails = (
         new Set(categories).size === categories.length &&
         categories.every((category) => allowedCategories.has(category)))) &&
     (effect.duration === undefined ||
-      (effect.duration.type === "until-turn-start-roll-threshold" &&
+      (runtimeValue(effect.duration.type) === "until-turn-start-roll-threshold" &&
         validCounter(effect.duration.dice, 1) &&
         validCounter(effect.duration.sides, 1) &&
         Number.isFinite(effect.duration.value) &&
@@ -1036,11 +1081,15 @@ const hasValidScheduledAmount = (
 ) => {
   if (amount.type === "literal") return Number.isFinite(amount.value) && amount.value >= 0;
   if (amount.type === "stat-percent")
-    return amount.stat === "power" && Number.isFinite(amount.percent) && amount.percent >= 0;
+    return (
+      runtimeValue(amount.stat) === "power" &&
+      Number.isFinite(amount.percent) &&
+      amount.percent >= 0
+    );
   return (
     amount.type === "resource-percent" &&
-    (amount.resource === "hp" || amount.resource === "ki") &&
-    (amount.basis === "current" || amount.basis === "total") &&
+    (amount.resource === "hp" || runtimeValue(amount.resource) === "ki") &&
+    (amount.basis === "current" || runtimeValue(amount.basis) === "total") &&
     Number.isFinite(amount.percent) &&
     amount.percent >= 0
   );
@@ -1048,6 +1097,7 @@ const hasValidScheduledAmount = (
 
 const hasValidScheduledResourceEffectDetails = (
   effect: Extract<ActiveCombatEffect, { readonly type: "scheduled-resource" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const duration = effect.duration;
   const validDuration =
@@ -1055,13 +1105,14 @@ const hasValidScheduledResourceEffectDetails = (
     (duration.type === "turns" && validCounter(duration.remaining, 1)) ||
     (duration.type === "until-roll-threshold" &&
       Number.isFinite(duration.value) &&
-      (duration.moveSelector === undefined || duration.moveSelector.type === "move-selector"));
+      (duration.moveSelector === undefined ||
+        runtimeValue(duration.moveSelector.type) === "move-selector"));
   const threshold = effect.cancellation?.rollThreshold;
   return (
     effect.sourceDefinitionId.length > 0 &&
     validCounter(effect.sourceEffectIndex, 0) &&
     validCounter(effect.remainingBoundaries, 1) &&
-    (effect.repeat === "once" || effect.repeat === "each-turn") &&
+    (effect.repeat === "once" || runtimeValue(effect.repeat) === "each-turn") &&
     (effect.timing.type === "phase-start"
       ? effect.timing.phase === "upkeep"
       : effect.timing.phase === undefined) &&
@@ -1080,10 +1131,10 @@ const hasValidDeferredMoveEffectDetails = (
   validCounter(effect.performOnTurn, 1) &&
   (effect.damageOverridePercent === undefined ||
     (Number.isFinite(effect.damageOverridePercent) && effect.damageOverridePercent >= 0)) &&
-  effect.cancellation.result === "successful" &&
+  runtimeValue(effect.cancellation.result) === "successful" &&
   (effect.onCancellation === undefined ||
-    (effect.onCancellation.affectedType === "attack" &&
-      effect.onCancellation.duration === "combat"));
+    (runtimeValue(effect.onCancellation.affectedType) === "attack" &&
+      runtimeValue(effect.onCancellation.duration) === "combat"));
 
 const hasValidActionLockEffectDetails = (
   effect: Extract<
@@ -1100,6 +1151,7 @@ const hasValidActionLockEffectDetails = (
         | "set-resolution-threshold";
     }
   >,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const duration = effect.duration;
   const validDuration =
@@ -1152,34 +1204,37 @@ const hasValidActionLockCombatantReferences = (
 
 const hasValidRollModifierTransformerDetails = (
   effect: Extract<ActiveCombatEffect, { type: "modify-roll-modifier" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) =>
   effect.sourceDefinitionId.length > 0 &&
   validCounter(effect.sourceEffectIndex, 0) &&
-  (effect.modifier === "result" || effect.modifier === "sides" || effect.modifier === "any") &&
+  (effect.modifier === "result" ||
+    effect.modifier === "sides" ||
+    runtimeValue(effect.modifier) === "any") &&
   (effect.multiplier === undefined || Number.isFinite(effect.multiplier)) &&
   (effect.increment === undefined || Number.isFinite(effect.increment)) &&
   !(effect.multiplier === undefined && effect.increment === undefined) &&
   (effect.excludeSourceCategories === undefined ||
     new Set(effect.excludeSourceCategories).size === effect.excludeSourceCategories.length) &&
   (effect.cap === undefined ||
-    (effect.cap.type === "allow-exceed" &&
+    (runtimeValue(effect.cap.type) === "allow-exceed" &&
       (effect.cap.scope === "amount" ||
         effect.cap.scope === "total" ||
-        effect.cap.scope === "roll"))) &&
+        runtimeValue(effect.cap.scope) === "roll"))) &&
   (effect.duration === "combat" ||
-    (effect.duration.type === "next-roll" &&
+    (runtimeValue(effect.duration.type) === "next-roll" &&
       typeof effect.duration.combatantId === "string" &&
-      (effect.duration.roll === "attack" || effect.duration.roll === "defense")));
+      (effect.duration.roll === "attack" || runtimeValue(effect.duration.roll) === "defense")));
 
 const hasValidRollSelectionDetails = (
   effect: Extract<ActiveCombatEffect, { type: "set-roll-selection" }>,
 ) =>
-  (effect.roll === "attack" || effect.roll === "defense") &&
+  (effect.roll === "attack" || runtimeValue(effect.roll) === "defense") &&
   validCounter(effect.diceCount, 2) &&
-  (effect.selection === "highest" || effect.selection === "lowest") &&
+  (effect.selection === "highest" || runtimeValue(effect.selection) === "lowest") &&
   effect.sourceDefinitionId.length > 0 &&
   validCounter(effect.sourceEffectIndex, 0) &&
-  effect.duration.type === "next-roll" &&
+  runtimeValue(effect.duration.type) === "next-roll" &&
   effect.duration.roll === effect.roll &&
   typeof effect.duration.combatantId === "string";
 
@@ -1188,13 +1243,14 @@ const hasValidNonFloatingEffectDetails = (
     ActiveCombatEffect,
     { type: "floating-effect" | "extra-action" | "scheduled-resource" }
   >,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   switch (effect.type) {
     case "set-stat-comparison":
       return (
-        effect.stat === "dexterity" &&
-        effect.comparison === "higher-than" &&
-        effect.duration.type === "turns" &&
+        runtimeValue(effect.stat) === "dexterity" &&
+        runtimeValue(effect.comparison) === "higher-than" &&
+        runtimeValue(effect.duration.type) === "turns" &&
         validCounter(effect.duration.remaining, 1)
       );
     case "modify-ki-cost":
@@ -1251,6 +1307,20 @@ const hasValidNonFloatingEffectDetails = (
       return hasValidNextActionModifierDetails(effect);
     case "deferred-move":
       return hasValidDeferredMoveEffectDetails(effect);
+    case "require-transformation-roll":
+      return (
+        effect.sourceDefinitionId.length > 0 &&
+        validCounter(effect.sourceEffectIndex, 0) &&
+        runtimeValue(effect.ignoreTransformationDice) === true
+      );
+    case "exchange-skill-reactivation":
+      return (
+        effect.sourceDefinitionId.length > 0 &&
+        activeEffectIdSchema.safeParse(effect.deactivatedEffectId).success &&
+        typeof effect.attackSelector === "object"
+      );
+    case "exchange-skill-cooldown":
+      return effect.sourceDefinitionId.length > 0 && validCounter(effect.remainingTurns, 1);
   }
 };
 
@@ -1270,6 +1340,7 @@ const hasValidFloatingEffectReferences = (
     isActiveCombatant(state, effect.targetRelationCombatantId));
 
 /* eslint-disable sonarjs/cognitive-complexity -- active-effect reference validation mirrors the persisted effect union. */
+// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const hasValidActiveEffectReferences = (state: FightState, effect: ActiveCombatEffect) => {
   if (effect.type === "floating-effect" && !hasValidFloatingEffectReferences(state, effect))
     return false;
@@ -1358,6 +1429,7 @@ type AttackActionHistoryRecord = Extract<
 
 const validAttackResolutionSnapshot = (
   snapshot: NonNullable<AttackActionHistoryRecord["resolutionSnapshot"]>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) =>
   Number.isFinite(snapshot.paidKiCost) &&
   snapshot.paidKiCost >= 0 &&
@@ -1392,14 +1464,15 @@ const validAttackResolutionSnapshot = (
   snapshot.criticalThresholds.every(
     (threshold) =>
       Number.isFinite(threshold.threshold) &&
-      (threshold.basis === "natural-result" || threshold.basis === "final-result"),
+      (threshold.basis === "natural-result" || runtimeValue(threshold.basis) === "final-result"),
   ) &&
   snapshot.resolutionThresholds.every(
     (threshold) =>
       Number.isFinite(threshold.value) &&
-      (threshold.roll === "attack" || threshold.roll === "defense") &&
-      (threshold.comparison === "at-least" || threshold.comparison === "at-most") &&
-      (threshold.resultScope === "current-attack" || threshold.resultScope === "matching-die"),
+      (threshold.roll === "attack" || runtimeValue(threshold.roll) === "defense") &&
+      (threshold.comparison === "at-least" || runtimeValue(threshold.comparison) === "at-most") &&
+      (threshold.resultScope === "current-attack" ||
+        runtimeValue(threshold.resultScope) === "matching-die"),
   ) &&
   typeof snapshot.preventCritical === "boolean" &&
   typeof snapshot.preventCounter === "boolean";
@@ -1408,6 +1481,7 @@ const validResourceChangeHistory = (
   record: ResourceChangeHistoryRecord,
   actionTurnNumber: number,
   state: FightState,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) =>
   combatantForId(state, record.affectedCombatantId) !== undefined &&
   (record.sourceCombatantId === undefined ||
@@ -1415,20 +1489,21 @@ const validResourceChangeHistory = (
   (record.sourceDefinitionId === undefined || record.sourceDefinitionId.length > 0) &&
   (record.sourceEffectIndex === undefined ||
     (Number.isInteger(record.sourceEffectIndex) && record.sourceEffectIndex >= 0)) &&
-  (record.resource === "hp" || record.resource === "ki") &&
-  (record.operation === "gain" || record.operation === "lose") &&
+  (record.resource === "hp" || runtimeValue(record.resource) === "ki") &&
+  (record.operation === "gain" || runtimeValue(record.operation) === "lose") &&
   Number.isFinite(record.amount) &&
   record.amount >= 0 &&
   record.turnNumber === actionTurnNumber &&
   (record.cause === undefined ||
     record.cause === "non-damage-effect" ||
-    record.cause === "opponent-effect") &&
+    runtimeValue(record.cause) === "opponent-effect") &&
   (record.sourceStyleId === undefined || record.sourceStyleId.length > 0);
 
+// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const validAttackActionResults = (action: AttackActionHistoryRecord, state: FightState) =>
   (action.outcome === undefined ||
     action.outcome === "successful" ||
-    action.outcome === "stopped") &&
+    runtimeValue(action.outcome) === "stopped") &&
   (action.critical === undefined || typeof action.critical === "boolean") &&
   (action.counter === undefined || typeof action.counter === "boolean") &&
   (action.attackRollResult === undefined || Number.isFinite(action.attackRollResult)) &&
@@ -1445,6 +1520,7 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
   let previousTurnNumber = 0;
 
   for (const action of state.actionHistory) {
+    // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
     const validAction = (action: CombatActionRecord) => {
       const baseValid =
         (action.type === "turn-skipped" ||
@@ -1457,7 +1533,8 @@ const validateActionHistory = (state: FightState, violations: FightStateInvarian
       if (!baseValid) return false;
       if (action.type === "turn-skipped")
         return (
-          action.phase === "action" && (action.reason === "status" || action.reason === "effect")
+          runtimeValue(action.phase) === "action" &&
+          (action.reason === "status" || runtimeValue(action.reason) === "effect")
         );
       if (action.type === "basic-attack") {
         return (
@@ -1518,8 +1595,7 @@ const validRequiredIndexList = (indices: readonly number[]) =>
   indices.every((index) => Number.isInteger(index) && index >= 0) &&
   new Set(indices).size === indices.length;
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Copy references require one centralized replay-safety invariant.
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Copy references require one centralized replay-safety invariant.
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
   if (attack.type !== "move") return true;
   const {
@@ -1565,6 +1641,7 @@ const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
   );
 };
 
+// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const validCounterActionReference = (reference: CounterActionReference) => {
   const activationCost = reference.activationCost;
   const costModifier = reference.costModifier;
@@ -1575,16 +1652,16 @@ const validCounterActionReference = (reference: CounterActionReference) => {
     typeof reference.stopsTriggeringAttack === "boolean" &&
     typeof reference.ignoreRequirements === "boolean" &&
     (activationCost === undefined ||
-      (activationCost.resource === "ki" &&
+      (runtimeValue(activationCost.resource) === "ki" &&
         validNonnegativeNumber(activationCost.amount) &&
         (activationCost.minimum === undefined ||
           validNonnegativeNumber(activationCost.minimum)))) &&
     (costModifier === undefined ||
-      ((costModifier.operation === "add" || costModifier.operation === "set") &&
+      ((costModifier.operation === "add" || runtimeValue(costModifier.operation) === "set") &&
         Number.isFinite(costModifier.amount) &&
         (costModifier.minimum === undefined || validNonnegativeNumber(costModifier.minimum)))) &&
     (sourceAction === undefined ||
-      ((sourceAction.type === "basic-attack" || sourceAction.type === "use-move") &&
+      ((sourceAction.type === "basic-attack" || runtimeValue(sourceAction.type) === "use-move") &&
         combatantIdSchema.safeParse(sourceAction.actorId).success &&
         combatantIdSchema.safeParse(sourceAction.targetCombatantId).success &&
         (sourceAction.type !== "use-move" ||
@@ -1721,17 +1798,16 @@ const validAttackPendingBoundary = (
   state.pendingDecision?.id === frame.pendingDecisionId &&
   (suppressionSelectionPhase
     ? state.pendingDecision.type === "select-move"
-    : state.pendingDecision?.type === "optional-effect") &&
+    : state.pendingDecision.type === "optional-effect") &&
   state.pendingDecision.combatantId === choiceCombatantId &&
   (suppressionSelectionPhase
     ? frame.resolvedEffectIndices.length > 0 && frame.enabledEffectIndices.length > 0
     : frame.resolvedEffectIndices.length === 0 && frame.enabledEffectIndices.length === 0);
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Attack frames intentionally validate all persisted continuation branches together.
 const validAttackResolutionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Attack continuation branches are validated together.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const validCopiedMoveReference =
     !("attack" in frame) || validCopiedMoveAttackReference(frame.attack);
@@ -1797,7 +1873,8 @@ const validAttackResolutionFrame = (
       )) &&
     (frame.resultOverrides === undefined ||
       frame.resultOverrides.every(
-        (result) => result === undefined || result === "stopped" || result === "successful",
+        (result) =>
+          result === undefined || result === "stopped" || runtimeValue(result) === "successful",
       ));
   const preventedDefenseStatusesValid =
     frame.defenseItem?.preventedStatuses === undefined ||
@@ -1805,7 +1882,7 @@ const validAttackResolutionFrame = (
       new Set(frame.defenseItem.preventedStatuses).size ===
         frame.defenseItem.preventedStatuses.length &&
       frame.defenseItem.preventedStatuses.every(
-        (statusId) => statusId === "break" || statusId === "sever",
+        (statusId) => statusId === "break" || runtimeValue(statusId) === "sever",
       ));
   const serializedReactionReferencesValid =
     (frame.block === undefined ||
@@ -1848,7 +1925,7 @@ const validAttackResolutionFrame = (
       choiceCombatantId,
       suppressionSelectionPhase || moveTargetSelectionPhase || replacementSelectionPhase,
     ) &&
-    frame.attack.type === "move" &&
+    runtimeValue(frame.attack.type) === "move" &&
     validAwaitingEffectChoiceSource(frame) &&
     validRequiredIndexList(frame.effectIndices) &&
     effectIndicesValid &&
@@ -1872,7 +1949,7 @@ const validActivationCostFrame = (
   activationCost === undefined ||
   ((activationCost.resource === undefined ||
     activationCost.resource === "hp" ||
-    activationCost.resource === "ki") &&
+    runtimeValue(activationCost.resource) === "ki") &&
     validNonnegativeNumber(activationCost.amount) &&
     (activationCost.minimum === undefined || validNonnegativeNumber(activationCost.minimum)));
 
@@ -1903,8 +1980,8 @@ const validActivationFrameMetadata = (
 ) =>
   (frame.selectionKey === undefined ||
     (typeof frame.selectionKey === "string" && frame.selectionKey.length > 0)) &&
-  (frame.activationAsIf === undefined || frame.activationAsIf === "power-up") &&
-  (frame.activationSelection === undefined || frame.activationSelection === "all") &&
+  (frame.activationAsIf === undefined || runtimeValue(frame.activationAsIf) === "power-up") &&
+  (frame.activationSelection === undefined || runtimeValue(frame.activationSelection) === "all") &&
   (frame.deactivationProtectionTurns === undefined ||
     validCounter(frame.deactivationProtectionTurns, 1)) &&
   (frame.activationContinuation === undefined ||
@@ -1914,6 +1991,7 @@ const validActivationFrameMetadata = (
 const validCopyMoveSelectionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const sourceMove = MOVE_DEFINITIONS.find(
     (candidate) => candidate.id === frame.sourceDefinitionId,
@@ -1932,7 +2010,7 @@ const validCopyMoveSelectionFrame = (
     frameEffect.sourceMove.styleId !== undefined;
   if (persistentSelfCopy) {
     const effect = frameEffect;
-    if (effect.type !== "copy-move-effect") return false;
+    if (runtimeValue(effect.type) !== "copy-move-effect") return false;
     if (effect.sourceMove.type !== "selected-move") return false;
     const sourceStyleId = effect.sourceMove.styleId;
     if (sourceStyleId === undefined) return false;
@@ -2054,6 +2132,7 @@ const validSelectedTemporaryMoveRemovalFrame = (
 const validSelectedSuppressionTargetFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
   const effect = sourceMove?.effects?.[frame.effectIndex];
@@ -2115,6 +2194,7 @@ const validSelectedMoveTargetFrame = (
 const validEffectSelectionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   if (
     !validActivationCostFrame(frame.activationCost) ||
@@ -2139,6 +2219,7 @@ const validEffectSelectionFrame = (
 const validEffectSelectionOperation = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const eligibleMoveIds = frame.eligibleMoveIds;
   if (eligibleMoveIds === undefined) return false;
@@ -2168,7 +2249,6 @@ const validEffectSelectionOperation = (
     const opponent = Object.values(state.combatants).find(
       (candidate) => candidate.id !== actor.id && candidate.status === "active",
     );
-    // eslint-disable-next-line sonarjs/no-nested-conditional -- Replacement eligibility has two persisted selection modes.
     const replacementSelectionValid =
       frame.replacementSourceMoveSnapshot === undefined
         ? eligibleMoveIds.every((moveId) => {
@@ -2213,11 +2293,10 @@ const validEffectSelectionOperation = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Effect frames intentionally validate their discriminated continuation branches together.
 const validEffectResolutionFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Effect continuation branches are validated together.
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   if (frame.operation === "defer-move")
     return (
@@ -2251,7 +2330,6 @@ const validEffectResolutionFrame = (
       allowance.activationCost !== undefined
     );
   }
-  // eslint-disable-next-line sonarjs/no-nested-conditional -- Frame validity mirrors the serialized phase discriminator.
   return (
     isActiveCombatant(state, frame.sourceCombatantId) &&
     isActiveCombatant(state, frame.targetCombatantId) &&
@@ -2269,6 +2347,7 @@ const validEffectResolutionFrame = (
 const validEffectChoiceFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect-choice" }>,
+  // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   const upkeepChoice =
     frame.effectTrigger === "upkeep-phase" || frame.effectTrigger === "start-combat";
@@ -2324,7 +2403,7 @@ const validEffectChoiceFrame = (
       actionPhaseChoice ||
       frame.effectTrigger === "on-power-up" ||
       frame.effectTrigger === "on-roll-result" ||
-      (frame.effectTrigger === "on-move-use" &&
+      (runtimeValue(frame.effectTrigger) === "on-move-use" &&
         frame.sourceCombatantId !== undefined &&
         isActiveCombatant(state, frame.sourceCombatantId) &&
         state.activeEffects.some(
@@ -2348,7 +2427,7 @@ const validEffectChoiceFrame = (
           frame.selectedEffectIndices.every((index) => frame.effectIndices.includes(index)))
       : pendingDecisionIdSchema.safeParse(frame.pendingDecisionId).success &&
         state.pendingDecision !== undefined &&
-        state.pendingDecision?.id === frame.pendingDecisionId &&
+        state.pendingDecision.id === frame.pendingDecisionId &&
         state.pendingDecision.type === "optional-effect" &&
         state.pendingDecision.combatantId === pendingCombatantId) &&
     (!upkeepChoice || actionPhaseChoice || frame.sourceCombatantId === frame.actorId)
@@ -2543,7 +2622,8 @@ const validPostDefenseNaturalRolls = (frame: PostDefenseReactionFrame | undefine
   if (frame.resultOverrides.length !== frame.naturalRolls.length) return false;
   if (frame.numericResultOverrides.length !== frame.naturalRolls.length) return false;
   const validResultOverrides = frame.resultOverrides.every(
-    (outcome) => outcome === undefined || outcome === "stopped" || outcome === "successful",
+    (outcome) =>
+      outcome === undefined || outcome === "stopped" || runtimeValue(outcome) === "successful",
   );
   const validNumericOverrides = frame.numericResultOverrides.every(
     (override) =>

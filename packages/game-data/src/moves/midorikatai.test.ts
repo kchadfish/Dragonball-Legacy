@@ -373,6 +373,24 @@ describe("MIDORIKATAI_MOVES", () => {
     );
   });
 
+  it("records X-Attack's stopped-dice threshold as three or more", () => {
+    const xAttack = MIDORIKATAI_MOVES.find((move) => move.name === "X-Attack");
+    expect(xAttack?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "modify-roll",
+          conditions: [
+            expect.objectContaining({
+              type: "successful-hit-count",
+              comparison: "at-least",
+              value: { type: "literal", value: 3 },
+            }),
+          ],
+        }),
+      ]),
+    );
+  });
+
   it("records Raining Bombs's cost floor and all-stopped end-phase escape roll", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Raining Bombs")?.effects).toEqual(
       expect.arrayContaining([

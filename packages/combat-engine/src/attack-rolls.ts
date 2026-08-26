@@ -23,6 +23,8 @@ export interface ContestedAttackRollInput {
     readonly diceCount: number;
     readonly selection: "highest" | "lowest";
   };
+  /** Selected Destruction Mastery attacks cannot be stopped by natural defense rolls up to this value. */
+  readonly naturalDefenseStopPreventionAtMost?: number;
   /** Replays a previously rolled contest while applying a later reaction modifier. */
   readonly naturalRolls?: readonly ContestedAttackNaturalRoll[];
   /** Per-die results declared by a validated after-defense-roll effect. */
@@ -73,13 +75,15 @@ const assertAttackDefinition = ({ dice, sides }: AttackRollDefinition) => {
 };
 
 const assertNaturalRolls = (
-  attack: AttackRollDefinition,
-  defenseSides: number,
-  blockedDice: number,
-  naturalRolls: readonly ContestedAttackNaturalRoll[] | undefined,
-  resultOverrides: readonly ("stopped" | "successful" | undefined)[] | undefined,
-  numericResultOverrides:
-    readonly ({ readonly attack?: number; readonly defense?: number } | undefined)[] | undefined,
+  ...[attack, defenseSides, blockedDice, naturalRolls, resultOverrides, numericResultOverrides]: [
+    attack: AttackRollDefinition,
+    defenseSides: number,
+    blockedDice: number,
+    naturalRolls: readonly ContestedAttackNaturalRoll[] | undefined,
+    resultOverrides: readonly ("stopped" | "successful" | undefined)[] | undefined,
+    numericResultOverrides:
+      readonly ({ readonly attack?: number; readonly defense?: number } | undefined)[] | undefined,
+  ]
 ) => {
   if (naturalRolls !== undefined && naturalRolls.length !== attack.dice) {
     throw new RangeError("Persisted attack rolls must contain one value per attack die.");
@@ -186,13 +190,15 @@ const assertPersistedDieValues = (
 };
 
 const resolvedUnblockedDie = (
-  attackNaturalResult: number,
-  attackResult: number,
-  persisted: ContestedAttackNaturalRoll | undefined,
-  index: number,
-  input: ContestedAttackRollInput,
-  random: RandomSource,
-  dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
+  ...[attackNaturalResult, attackResult, persisted, index, input, random, dynamicResultModifier]: [
+    attackNaturalResult: number,
+    attackResult: number,
+    persisted: ContestedAttackNaturalRoll | undefined,
+    index: number,
+    input: ContestedAttackRollInput,
+    random: RandomSource,
+    dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
+  ]
 ): AttackDieRoll => {
   const defenseNaturalResult =
     persisted?.defense ??
@@ -205,8 +211,14 @@ const resolvedUnblockedDie = (
       (dynamicResultModifier?.defense ?? 0);
   const defaultOutcome =
     attackResult >= defenseResult ? ("successful" as const) : ("stopped" as const);
+  const protectedOutcome =
+    defaultOutcome === "stopped" &&
+    input.naturalDefenseStopPreventionAtMost !== undefined &&
+    defenseNaturalResult <= input.naturalDefenseStopPreventionAtMost
+      ? ("successful" as const)
+      : defaultOutcome;
   const outcome = resolutionThresholdOutcome(
-    defaultOutcome,
+    protectedOutcome,
     attackResult,
     defenseResult,
     input.resolutionThresholds,
@@ -268,6 +280,7 @@ const resolveContestedAttackDie = (
   random: RandomSource,
   index: number,
   dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
+  // eslint-disable-next-line complexity -- The die resolver intentionally keeps persisted-roll, selection, block, and defense branches together.
 ): AttackDieRoll => {
   const persisted = input.naturalRolls?.[index];
   const selection = input.rollSelection;
@@ -365,6 +378,7 @@ export const resolveContestedAttackRolls = (
     afterDieResolved,
     resolutionThresholds,
     rollSelection,
+    naturalDefenseStopPreventionAtMost,
   }: ContestedAttackRollInput,
   random: RandomSource,
 ): readonly AttackDieRoll[] => {
@@ -400,6 +414,7 @@ export const resolveContestedAttackRolls = (
     afterDieResolved,
     resolutionThresholds,
     rollSelection,
+    naturalDefenseStopPreventionAtMost,
   };
   const rolls: AttackDieRoll[] = [];
   for (let index = 0; index < attack.dice; index += 1) {

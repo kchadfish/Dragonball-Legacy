@@ -9,6 +9,9 @@ import {
   isSelectedMoveUntilAttackThresholdDamageModifier,
 } from "../packages/combat-engine/src/damage-modifier-capabilities.js";
 
+// Capability audits inspect runtime-shaped effect data independently of its narrowed type.
+const runtimeValue = (value: unknown): unknown => value;
+
 export type CapabilityStatus =
   "supported-generic" | "supported-named" | "unsupported-in-scope" | "audited-out-of-scope";
 
@@ -1467,8 +1470,8 @@ const isExactPendingChoiceVariant = (
     effect.type === "modify-resource-cost" &&
     effect.trigger === "passive" &&
     effect.target === "self" &&
-    effect.resource === "hp" &&
-    effect.operation === "add" &&
+    runtimeValue(effect.resource) === "hp" &&
+    runtimeValue(effect.operation) === "add" &&
     effect.percent.type === "literal" &&
     effect.percent.value === -5 &&
     effect.selector.subject === "source" &&
@@ -1502,9 +1505,9 @@ const isExactPendingChoiceVariant = (
     effect.type === "require-all-dice-success" &&
     effect.trigger === "passive" &&
     effect.target === "self" &&
-    effect.appliesTo === "successful-effects" &&
+    runtimeValue(effect.appliesTo) === "successful-effects" &&
     effect.activationGroup === "rage-mastery-single-die-doubling" &&
-    effect.selector.type === "move-selector" &&
+    runtimeValue(effect.selector.type) === "move-selector" &&
     effect.selector.subject === "source" &&
     effect.selector.attackRoll?.dice === 1 &&
     crossTriggerGroup.some(
@@ -1547,13 +1550,13 @@ const isExactPendingChoiceVariant = (
     effect.attack.subject === "target" &&
     effect.attack.categoryExcludes?.length === 1 &&
     effect.attack.categoryExcludes[0] === "signature" &&
-    effect.lockDuration.type === "combat";
+    runtimeValue(effect.lockDuration.type) === "combat";
   if (exactStopAttackByDeactivation) return true;
   const exactSubstituteDefense =
     effect.type === "substitute-defense" &&
     effect.trigger === "before-defense-roll" &&
     effect.target === "self" &&
-    effect.payment.resource === "hp" &&
+    runtimeValue(effect.payment.resource) === "hp" &&
     effect.payment.amount.type === "resource-percent" &&
     effect.payment.amount.subject === "self" &&
     effect.payment.amount.resource === "hp" &&
@@ -1564,7 +1567,7 @@ const isExactPendingChoiceVariant = (
     effect.selector.tags[0] === "energy" &&
     effect.selector.categoryExcludes?.length === 1 &&
     effect.selector.categoryExcludes[0] === "signature" &&
-    effect.outcome === "stop" &&
+    runtimeValue(effect.outcome) === "stop" &&
     effect.optional === true;
   if (exactSubstituteDefense) return true;
   const exactEndFloatingEffect =
@@ -1631,7 +1634,7 @@ const isExactPendingChoiceVariant = (
       effect.amount.subject === "self" &&
       effect.amount.stat === "power" &&
       effect.amount.percent === 30 &&
-      effect.conditions?.some(
+      effect.conditions.some(
         (condition) =>
           condition.type === "incoming-damage" &&
           condition.subject === "self" &&
@@ -1685,7 +1688,10 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       approvedExclusion: approvedOccurrenceExclusion,
     };
   }
-  if (occurrence.origin === "item" && approvedItemExclusions[effectType] !== undefined) {
+  if (
+    occurrence.origin === "item" &&
+    runtimeValue(approvedItemExclusions[effectType]) !== undefined
+  ) {
     return {
       status: "audited-out-of-scope" as const,
       capabilityId: null,
@@ -1696,7 +1702,10 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       approvedExclusion: approvedItemExclusions[effectType],
     };
   }
-  if (occurrence.origin === "move" && approvedMoveExclusions[effectType] !== undefined) {
+  if (
+    occurrence.origin === "move" &&
+    runtimeValue(approvedMoveExclusions[effectType]) !== undefined
+  ) {
     return {
       status: "audited-out-of-scope" as const,
       capabilityId: null,
@@ -2001,7 +2010,7 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
         occurrence.effectIndex === 2))
   ) {
     const executor = genericExecutors[effectType];
-    if (executor !== undefined)
+    if (runtimeValue(executor) !== undefined)
       return {
         status: "supported-generic" as const,
         capabilityId: executor.capabilityId ?? `${effectType}.v1`,
@@ -2497,7 +2506,8 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
   }
   const executor =
     occurrence.origin === "item" ? itemExecutors[effectType] : genericExecutors[effectType];
-  return executor === undefined || (compilation !== undefined && !compilation.ok)
+  return runtimeValue(executor) === undefined ||
+    (runtimeValue(compilation) !== undefined && !compilation.ok)
     ? {
         status: "unsupported-in-scope" as const,
         capabilityId: null,

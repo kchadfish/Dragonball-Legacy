@@ -26,6 +26,7 @@ export interface MoveAttackDefinition {
     readonly diceCount: number;
     readonly selection: "highest" | "lowest";
   };
+  readonly naturalDefenseStopPreventionAtMost?: number;
   readonly preventCritical?: boolean;
   readonly preventCounter?: boolean;
   /** Previously rolled dice for resuming a post-roll reaction deterministically. */
@@ -88,6 +89,7 @@ export const resolveMoveAttack = (
       defenseSides: definition.defenseSides,
       defenderResultModifier: definition.defenseResultModifier,
       rollSelection: definition.rollSelection,
+      naturalDefenseStopPreventionAtMost: definition.naturalDefenseStopPreventionAtMost,
       naturalRolls: definition.naturalRolls,
       resultOverrides: definition.resultOverrides,
       numericResultOverrides: definition.numericResultOverrides,

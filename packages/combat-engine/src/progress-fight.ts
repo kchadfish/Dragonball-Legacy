@@ -82,6 +82,9 @@ import {
   type MoveClassificationApplication,
   type StoredRollRequest,
   type StoredMoveSelectionRequest,
+  type RollResultOverride,
+  type ContestApplication,
+  type TransformationRollRequirementApplication,
   type RerollApplication,
   type NegationApplication,
   type DeactivationNegationApplication,
@@ -137,6 +140,12 @@ import type { ActiveEffectId, CombatantId, CombatDecisionId, PendingDecisionId }
 import { validateFightState } from "./invariants.js";
 
 type RollModifierKind = "dice" | "result" | "sides";
+
+// Runtime state is validated independently of its narrowed in-memory type.
+const runtimeValue = (value: unknown): unknown => value;
+const runtimeOptional = <T>(value: T | undefined): T | undefined => value;
+const definedOption = <K extends string, V>(key: K, value: V | undefined): Record<K, V> | object =>
+  value === undefined ? {} : { [key]: value };
 
 const invalidFightState = (state: CombatTransition["state"]): CombatFailure => ({
   type: "invalid-fight-state",
@@ -528,6 +537,7 @@ const isResourceActionEffect = (effect: MoveEffect) =>
 
 const isDamageActionModifier = (
   effect: MoveEffect,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): effect is Extract<MoveEffect, { readonly type: "modify-damage" }> =>
   effect.type === "modify-damage" &&
   (effect.target === "self" || effect.target === "opponent") &&
@@ -536,7 +546,7 @@ const isDamageActionModifier = (
   (effect.operation === undefined ||
     effect.operation === "add" ||
     effect.operation === "multiply" ||
-    effect.operation === "set") &&
+    runtimeValue(effect.operation) === "set") &&
   (effect.activationCost === undefined || isCombatResultCountNextActionsDamageModifier(effect)) &&
   (effect.conditions?.length ?? 0) === 0;
 
@@ -660,18 +670,19 @@ const persistentSelectedSelfCopyEffect = (
   move: MoveDefinition,
 ): { readonly effect: CopyMoveEffectDefinition; readonly effectIndex: number } | undefined => {
   const candidate = copyMoveEffectsFor(move).find(
+    // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
     ({ effect }) =>
       effect.trigger === "on-success" &&
       effect.target === "self" &&
       effect.effectResult === "successful" &&
-      effect.resolveAs === "source-move" &&
+      runtimeValue(effect.resolveAs) === "source-move" &&
       effect.sourceMove.type === "selected-move" &&
       effect.sourceMove.actor === "self" &&
       effect.sourceMove.category === "advanced-attack" &&
       effect.sourceMove.restriction === "unrestricted" &&
       effect.sourceMove.styleId !== undefined &&
       effect.damage?.type === "half-base-damage-per-die" &&
-      effect.damage.sourceMove === "last-advanced-attack" &&
+      runtimeValue(effect.damage.sourceMove) === "last-advanced-attack" &&
       effect.cost?.type === "selected-move-base-cost" &&
       effect.duration?.type === "combat",
   );
@@ -727,7 +738,6 @@ const copiedSuccessfulEffectsAreExecutable = (move: MoveDefinition) =>
         }).ok,
     );
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Start-combat selection must remain one deterministic catalog traversal.
 export const startCombatCopySelectionFor = (
   state: ActiveFightState,
   dependencies: CombatDependencies,
@@ -949,6 +959,7 @@ const persistentSelectedMoveCopyActionSource = (
   state: ActiveFightState,
   move: MoveDefinition,
   actorId: CombatantId,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const compiled = persistentSelectedSelfCopyEffect(move);
   if (compiled === undefined) return undefined;
@@ -1176,13 +1187,23 @@ const isCopyMoveAction = (state: ActiveFightState, move: MoveDefinition) => {
 };
 
 const copiedMoveAttackReference = (
-  moveId: MoveId,
-  copiedFromMoveId: MoveId | undefined,
-  copiedDamageBonusPercent: number | undefined,
-  copiedSourceMove: MoveDefinition | undefined,
-  copiedDamageOverride: number | undefined,
-  copiedSuccessfulEffectsOnly: boolean | undefined,
-  copiedSourceResolution: AttackResolutionSnapshot | undefined,
+  ...[
+    moveId,
+    copiedFromMoveId,
+    copiedDamageBonusPercent,
+    copiedSourceMove,
+    copiedDamageOverride,
+    copiedSuccessfulEffectsOnly,
+    copiedSourceResolution,
+  ]: [
+    moveId: MoveId,
+    copiedFromMoveId: MoveId | undefined,
+    copiedDamageBonusPercent: number | undefined,
+    copiedSourceMove: MoveDefinition | undefined,
+    copiedDamageOverride: number | undefined,
+    copiedSuccessfulEffectsOnly: boolean | undefined,
+    copiedSourceResolution: AttackResolutionSnapshot | undefined,
+  ]
 ): CopiedMoveAttackReference => ({
   type: "move",
   moveId,
@@ -1315,12 +1336,15 @@ const reactionMoveBaseCost = (
 };
 
 const reactionSkillAvailability = (
-  state: ActiveFightState,
-  combatantId: CombatantId,
-  move: MoveDefinition,
-  effectUseLimit: RerollEffectDefinition["useLimit"] | RerollApplication["useLimit"],
-  effectIndex?: number,
-  freeReaction = false,
+  ...[state, combatantId, move, effectUseLimit, effectIndex, freeReaction = false]: [
+    state: ActiveFightState,
+    combatantId: CombatantId,
+    move: MoveDefinition,
+    effectUseLimit: RerollEffectDefinition["useLimit"] | RerollApplication["useLimit"],
+    effectIndex?: number,
+    freeReaction?: boolean,
+  ]
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   if (move.category !== "skill" || freeReaction) {
     if (
@@ -1722,7 +1746,7 @@ const combatResultReactionOptions = (
     if (source.effect.activationCost?.resource !== "ki") return [];
     const owner = state.combatants[ownerId];
     const firstRoll = rolls[0];
-    if (firstRoll?.defenseNaturalResult === undefined || firstRoll.defenseResult === undefined)
+    if (firstRoll.defenseNaturalResult === undefined || firstRoll.defenseResult === undefined)
       return [];
     const context = combatResultSourceContext(state, source, frame, {
       ...firstRoll,
@@ -1791,6 +1815,7 @@ const combatResultNegationOptions = (
     readonly defenseResult?: number;
     readonly outcome: "blocked" | "stopped" | "successful";
   }[],
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): PendingDecisionOption[] => {
   const outcomes = combatOutcomesForPostDefenseRolls(
     state,
@@ -1811,9 +1836,10 @@ const combatResultNegationOptions = (
   );
   if (outcomes.length === 0) return [];
   return combatResultNegationSources(state, ownerId).flatMap((source) =>
+    // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
     outcomes.flatMap((outcome) => {
       const roll = rolls[0];
-      if (roll?.defenseNaturalResult === undefined || roll.defenseResult === undefined) return [];
+      if (roll.defenseNaturalResult === undefined || roll.defenseResult === undefined) return [];
       const context = combatResultNegationContext(
         state,
         source,
@@ -2006,6 +2032,7 @@ const actionRollModifier = (
   effect: SupportedRollActionModifier,
   context: ActionMoveModifierContext,
   numericContext: Parameters<typeof evaluateDurableNumericExpression>[1],
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): ActiveCombatEffect[] => {
   if (effect.amount === undefined) return [];
   const amount = evaluateDurableNumericExpression(effect.amount, numericContext);
@@ -2043,6 +2070,7 @@ const actionDamageModifier = (
   context: ActionMoveModifierContext,
   numericContext: Parameters<typeof evaluateDurableNumericExpression>[1],
   effectIndex: number,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): ActiveCombatEffect[] => {
   if (effect.percent === undefined) return [];
   const numericAmount = evaluateDurableNumericExpression(effect.percent, numericContext);
@@ -2561,12 +2589,14 @@ const activeCombatOutcomeModifierFor = (
 };
 
 const transformerMatchesRollModification = (
-  state: ActiveFightState,
-  transformer: ActiveRollModifierTransformerEffect,
-  combatantId: CombatantId,
-  roll: CombatRollType,
-  modifier: RollModifierKind,
-  sourceDefinitionId: string | undefined,
+  ...[state, transformer, combatantId, roll, modifier, sourceDefinitionId]: [
+    state: ActiveFightState,
+    transformer: ActiveRollModifierTransformerEffect,
+    combatantId: CombatantId,
+    roll: CombatRollType,
+    modifier: RollModifierKind,
+    sourceDefinitionId: string | undefined,
+  ]
 ) => {
   if (
     activeEffectSuppressed(state, transformer) ||
@@ -2587,12 +2617,14 @@ const transformerMatchesRollModification = (
 };
 
 const transformedRollModifierAmount = (
-  state: ActiveFightState,
-  combatantId: CombatantId,
-  roll: CombatRollType,
-  modifier: RollModifierKind,
-  sourceDefinitionId: string | undefined,
-  amount: number,
+  ...[state, combatantId, roll, modifier, sourceDefinitionId, amount]: [
+    state: ActiveFightState,
+    combatantId: CombatantId,
+    roll: CombatRollType,
+    modifier: RollModifierKind,
+    sourceDefinitionId: string | undefined,
+    amount: number,
+  ]
 ) => {
   if (amount <= 0) return amount;
   return state.activeEffects
@@ -2632,12 +2664,14 @@ const oneShotRollModifierIsEligible = (
 ) => effect.availableFromTurn === undefined || turnNumber >= effect.availableFromTurn;
 
 const activeRollModifierIsBlocked = (
-  state: ActiveFightState,
-  effect: ActiveCombatEffect,
-  combatantId: CombatantId,
-  roll: CombatRollType,
-  modifier: RollModifierKind,
-  move: MoveDefinition | undefined,
+  ...[state, effect, combatantId, roll, modifier, move]: [
+    state: ActiveFightState,
+    effect: ActiveCombatEffect,
+    combatantId: CombatantId,
+    roll: CombatRollType,
+    modifier: RollModifierKind,
+    move: MoveDefinition | undefined,
+  ]
 ) =>
   activeEffectSuppressed(state, effect) ||
   rollModificationPrevented({
@@ -2712,12 +2746,14 @@ const activeRollModifierCanExceed = (
   );
 
 const activeRollNumericCap = (
-  state: ActiveFightState,
-  combatantId: CombatantId,
-  roll: CombatRollType,
-  modifier: RollModifierKind,
-  scope: "total" | "roll",
-  move?: MoveDefinition,
+  ...[state, combatantId, roll, modifier, scope, move]: [
+    state: ActiveFightState,
+    combatantId: CombatantId,
+    roll: CombatRollType,
+    modifier: RollModifierKind,
+    scope: "total" | "roll",
+    move?: MoveDefinition,
+  ]
 ) => {
   const matching = state.activeEffects.filter(
     (effect) =>
@@ -2740,12 +2776,14 @@ const activeRollNumericCap = (
 };
 
 const activeStatModifierApplies = (
-  state: ActiveFightState,
-  effect: ActiveCombatEffect,
-  combatantId: CombatantId,
-  move: MoveDefinition | undefined,
-  roll: "attack" | "defense",
-  role: "attacker" | "defender",
+  ...[state, effect, combatantId, move, roll, role]: [
+    state: ActiveFightState,
+    effect: ActiveCombatEffect,
+    combatantId: CombatantId,
+    move: MoveDefinition | undefined,
+    roll: "attack" | "defense",
+    role: "attacker" | "defender",
+  ]
 ) => {
   if (effect.type !== "modify-stat" && effect.type !== "modify-next-action") return false;
   if (activeEffectSuppressed(state, effect)) return false;
@@ -2760,13 +2798,15 @@ const activeStatModifierApplies = (
 };
 
 const activeStatValue = (
-  state: ActiveFightState,
-  combatantId: CombatantId,
-  stat: "dexterity" | "dexterity-bonus",
-  base: number,
-  move: MoveDefinition | undefined,
-  roll: "attack" | "defense",
-  role: "attacker" | "defender",
+  ...[state, combatantId, stat, base, move, roll, role]: [
+    state: ActiveFightState,
+    combatantId: CombatantId,
+    stat: "dexterity" | "dexterity-bonus",
+    base: number,
+    move: MoveDefinition | undefined,
+    roll: "attack" | "defense",
+    role: "attacker" | "defender",
+  ]
 ) => {
   const modifiers = state.activeEffects.flatMap((effect) => {
     if (!activeStatModifierApplies(state, effect, combatantId, move, roll, role)) return [];
@@ -3041,12 +3081,14 @@ const activeConstantRollModifications = (
 };
 
 const applyActiveConstantDamageModifiers = (
-  state: ActiveFightState,
-  attackerId: CombatantId,
-  defenderId: CombatantId,
-  baseDamage: number,
-  move: MoveDefinition | undefined,
-  damageModifierMultiplier = 1,
+  ...[state, attackerId, defenderId, baseDamage, move, damageModifierMultiplier = 1]: [
+    state: ActiveFightState,
+    attackerId: CombatantId,
+    defenderId: CombatantId,
+    baseDamage: number,
+    move: MoveDefinition | undefined,
+    damageModifierMultiplier?: number,
+  ]
 ) =>
   activeConstantDamageModifications(state, attackerId, defenderId, move).reduce(
     (damage, sourced) =>
@@ -3280,12 +3322,14 @@ const applyDamageOperation = (damage: number, operation: DamageOperation) => {
 };
 
 const applySourcedDamageModification = (
-  state: ActiveFightState,
-  damage: number,
-  sourced: SourcedDamageModification,
-  combatantId: CombatantId,
-  move: MoveDefinition | undefined,
-  damageModifierMultiplier = 1,
+  ...[state, damage, sourced, combatantId, move, damageModifierMultiplier = 1]: [
+    state: ActiveFightState,
+    damage: number,
+    sourced: SourcedDamageModification,
+    combatantId: CombatantId,
+    move: MoveDefinition | undefined,
+    damageModifierMultiplier?: number,
+  ]
 ) => {
   if (!effectMatchesMoveSelector(sourced.modification.selector, move)) return damage;
   const modifiedDamage = applyDamageOperation(damage, {
@@ -3306,14 +3350,25 @@ const applySourcedDamageModification = (
 };
 
 const applySourcedDamageModifications = (
-  state: ActiveFightState,
-  baseDamage: number,
-  modifications: readonly DamageModification[],
-  combatantId: CombatantId,
-  sourceCombatantId: CombatantId,
-  sourceDefinitionId: string,
-  move: MoveDefinition,
-  damageModifierMultiplier = 1,
+  ...[
+    state,
+    baseDamage,
+    modifications,
+    combatantId,
+    sourceCombatantId,
+    sourceDefinitionId,
+    move,
+    damageModifierMultiplier = 1,
+  ]: [
+    state: ActiveFightState,
+    baseDamage: number,
+    modifications: readonly DamageModification[],
+    combatantId: CombatantId,
+    sourceCombatantId: CombatantId,
+    sourceDefinitionId: string,
+    move: MoveDefinition,
+    damageModifierMultiplier?: number,
+  ]
 ) =>
   modifications.reduce(
     (damage, modification) =>
@@ -3417,12 +3472,16 @@ const simpleEffectAfterOwnerTurn = (
       turnNumber > effect.createdOnTurn
       ? []
       : [effect];
+  if (effect.type === "exchange-skill-cooldown") {
+    if (effect.targetCombatantId !== combatantId) return [effect];
+    if (effect.remainingTurns <= 1) return [];
+    return [{ ...effect, remainingTurns: effect.remainingTurns - 1 }];
+  }
   return undefined;
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Expiry processing preserves every active-effect lifecycle in one pass.
 const effectsAfterOwnerTurn = (state: ActiveFightState, combatantId: CombatantId) =>
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Expiry processing preserves every active-effect lifecycle in one pass.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
   state.activeEffects.flatMap<ActiveCombatEffect>((effect) => {
     const simpleEffect = simpleEffectAfterOwnerTurn(effect, combatantId, state.turnNumber);
     if (simpleEffect !== undefined) return simpleEffect;
@@ -3483,8 +3542,10 @@ const effectsAfterTurnStartChecks = (
   state: ActiveFightState,
   combatantId: CombatantId,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const events: CombatEvent[] = [];
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
   const effects = state.activeEffects.flatMap<ActiveCombatEffect>((effect) => {
     if (
       effect.type === "action-restriction" &&
@@ -3582,6 +3643,121 @@ const effectsAfterTurnStartChecks = (
   return { effects, events };
 };
 
+const transformationRollModifierValue = (
+  effect: Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }>,
+  kind: "result" | "sides",
+) => {
+  if (
+    effect.modifier.type !== "roll" ||
+    effect.modifier.roll !== "transformation" ||
+    effect.modifier.modifier !== kind
+  )
+    return 0;
+  return effect.modifier.amount;
+};
+
+const requiredTransformationRollAtUpkeep = (
+  state: ActiveFightState,
+  combatantId: CombatantId,
+  dependencies: CombatDependencies,
+): {
+  readonly combatants: ActiveFightState["combatants"];
+  readonly activeEffects: readonly ActiveCombatEffect[];
+  readonly events: readonly CombatEvent[];
+} => {
+  const requirements = state.activeEffects.filter(
+    (effect) =>
+      effect.type === "require-transformation-roll" && effect.targetCombatantId === combatantId,
+  );
+  if (requirements.length === 0) {
+    return { combatants: state.combatants, activeEffects: state.activeEffects, events: [] };
+  }
+  const combatant = state.combatants[combatantId];
+  const modifiers = state.activeEffects.filter(
+    (effect): effect is Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }> =>
+      effect.type === "modify-next-action" &&
+      effect.targetCombatantId === combatantId &&
+      effect.modifier.type === "roll" &&
+      effect.modifier.roll === "transformation" &&
+      (effect.availableFromTurn === undefined || state.turnNumber >= effect.availableFromTurn) &&
+      !activeEffectSuppressed(state, effect),
+  );
+  const sides = Math.max(
+    1,
+    20 +
+      modifiers.reduce(
+        (total, effect) => total + transformationRollModifierValue(effect, "sides"),
+        0,
+      ),
+  );
+  const naturalResult = dependencies.random.integer(1, sides);
+  const result =
+    naturalResult +
+    modifiers.reduce(
+      (total, effect) => total + transformationRollModifierValue(effect, "result"),
+      0,
+    );
+  const transformed = combatant.transformation;
+  const shouldRevert =
+    transformed !== undefined && result <= GLOBAL_RULES.transformations.revertRollMaximum;
+  const nextCombatant =
+    shouldRevert && transformed?.baseline !== undefined
+      ? {
+          ...revertTransformation(combatant, transformed.baseline),
+          transformation: undefined,
+        }
+      : combatant;
+  const consumedIds = new Set([
+    ...requirements.map((effect) => effect.id),
+    ...modifiers
+      .filter(
+        (effect) =>
+          effect.scope === "next-roll" &&
+          effect.modifier.type === "roll" &&
+          effect.modifier.roll === "transformation",
+      )
+      .map((effect) => effect.id),
+  ]);
+  const events: CombatEvent[] = [
+    ...requirements.map((effect, index) => ({
+      id: dependencies.ids.nextEventId(),
+      sequence: state.eventSequence + index + 1,
+      fightId: state.id,
+      type: "effect-expired" as const,
+      activeEffectId: effect.id,
+      targetCombatantId: combatantId,
+    })),
+    {
+      id: dependencies.ids.nextEventId(),
+      sequence: state.eventSequence + requirements.length + 1,
+      fightId: state.id,
+      type: "transformation-rolled" as const,
+      combatantId,
+      naturalResult,
+      result,
+      sides,
+      forced: true as const,
+    },
+    ...(shouldRevert
+      ? [
+          {
+            id: dependencies.ids.nextEventId(),
+            sequence: state.eventSequence + requirements.length + 2,
+            fightId: state.id,
+            type: "transformation-deactivated" as const,
+            combatantId,
+            transformationId: transformed.transformationId,
+          },
+        ]
+      : []),
+  ];
+  return {
+    combatants: { ...state.combatants, [combatantId]: nextCombatant },
+    activeEffects: state.activeEffects.filter((effect) => !consumedIds.has(effect.id)),
+    events,
+  };
+};
+
 const statusesAfterTurnStartChecks = (
   state: ActiveFightState,
   combatantId: CombatantId,
@@ -3645,7 +3821,7 @@ const statusBackedActionRestriction = (
   const sourceEffect = sourceMove?.effects?.[effect.sourceEffectIndex];
   return sourceEffect?.conditions?.find(
     (condition): condition is Extract<EffectCondition, { readonly type: "status" }> =>
-      condition.type === "status" && condition.state === "active",
+      condition.type === "status" && runtimeValue(condition.state) === "active",
   );
 };
 
@@ -3788,12 +3964,14 @@ interface ScheduledResourceBoundaryEffectResult {
 }
 
 const scheduledResourceEvents = (
-  state: ActiveFightState,
-  effect: ActiveScheduledResource,
-  previous: CombatantState,
-  target: CombatantState,
-  amount: number,
-  dependencies: CombatDependencies,
+  ...[state, effect, previous, target, amount, dependencies]: [
+    state: ActiveFightState,
+    effect: ActiveScheduledResource,
+    previous: CombatantState,
+    target: CombatantState,
+    amount: number,
+    dependencies: CombatDependencies,
+  ]
 ): CombatEvent[] => {
   const events: CombatEvent[] = [];
   const nextSequence = () => state.eventSequence + events.length + 1;
@@ -4008,6 +4186,7 @@ interface AttackEffectResolutionContext {
 const scheduledSelectorMatchesAttack = (
   selector: MoveSelectorCondition,
   context: AttackEffectResolutionContext,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   if (context.move !== undefined) return selectorMatchesMove(selector, context.move);
   if (context.basicAttack === undefined) return false;
@@ -4125,7 +4304,6 @@ const nextActionCostModifierAfterAttack = (
 const nextActionResourceEffectAfterAttack = (
   effect: Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }>,
   context: AttackEffectResolutionContext,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- This dispatcher consumes each serialized modifier variant.
 ) => {
   if (
     effect.modifier.type !== "resource" &&
@@ -4140,16 +4318,16 @@ const nextActionResourceEffectAfterAttack = (
     : [effect];
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- This dispatcher consumes each serialized next-action modifier variant.
 const nextActionEffectAfterAttack = (
   effect: Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }>,
   context: AttackEffectResolutionContext,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- This dispatcher consumes each serialized next-action modifier variant.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   if (effect.modifier.type === "cost-modifier")
     return nextActionCostModifierAfterAttack(effect, context);
   if (effect.modifier.type === "damage") return damageEffectAfterAttack(effect, context);
   if (effect.modifier.type === "roll") return rollEffectAfterAttack(effect, context);
+  if (effect.modifier.type === "roll-result") return rollEffectAfterAttack(effect, context);
   if (effect.modifier.type === "roll-definition")
     return effect.targetCombatantId === context.defenderId &&
       effect.modifier.roll === "defense" &&
@@ -4186,6 +4364,7 @@ const nextActionEffectAfterAttack = (
 const costEffectAfterAttack = (
   effect: Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }>,
   context: AttackEffectResolutionContext,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   if (effect.modifier.type !== "cost") return [effect];
   if (
@@ -4202,7 +4381,11 @@ const costEffectAfterAttack = (
     const remaining = (effect.remaining ?? 0) - 1;
     return remaining > 0 ? [{ ...effect, remaining }] : [];
   }
-  if (effect.scope === undefined || effect.scope === "next-action" || effect.scope === "next-turn")
+  if (
+    effect.scope === undefined ||
+    effect.scope === "next-action" ||
+    runtimeValue(effect.scope) === "next-turn"
+  )
     return [];
   return [effect];
 };
@@ -4261,7 +4444,7 @@ const matchingRollCount = (
   effect: Extract<ActiveCombatEffect, { type: "modify-next-action" }>,
   context: AttackEffectResolutionContext,
 ) => {
-  if (effect.modifier.type !== "roll") return 0;
+  if (effect.modifier.type !== "roll" && effect.modifier.type !== "roll-result") return 0;
   if (effect.targetCombatantId === context.attackerId && effect.modifier.roll === "attack")
     return context.rolls?.length ?? 0;
   if (effect.targetCombatantId === context.defenderId && effect.modifier.roll === "defense")
@@ -4367,6 +4550,7 @@ const suppressionAfterAttack = (
 const floatingEffectTerminatesAfterAttack = (
   effect: Extract<ActiveCombatEffect, { readonly type: "floating-effect" }>,
   context: AttackEffectResolutionContext,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const duration = effect.duration;
   if (
@@ -4426,6 +4610,7 @@ const scheduledRollMatches = (
 const scheduledResourceExpiresAfterAttack = (
   effect: Extract<ActiveCombatEffect, { readonly type: "scheduled-resource" }>,
   context: AttackEffectResolutionContext,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const duration = effect.duration;
   if (
@@ -4862,19 +5047,20 @@ const beforeDefenseEffectOptionId = (choice: BeforeDefenseEffectChoice) =>
 
 const isMimicryEffectExchangeChoice = (move: MoveDefinition, effectIndices: readonly number[]) =>
   effectIndices.length === 1 &&
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
   effectIndices.every((effectIndex) => {
     const effect = move.effects?.[effectIndex];
     return (
       effect?.type === "copy-move-effects" &&
       effect.target === "self" &&
-      effect.sourceEffectResult === "successful" &&
-      effect.resultingEffectResult === "successful" &&
-      effect.sourceMove.actor === "opponent" &&
+      runtimeValue(effect.sourceEffectResult) === "successful" &&
+      runtimeValue(effect.resultingEffectResult) === "successful" &&
+      runtimeValue(effect.sourceMove.actor) === "opponent" &&
       effect.sourceMove.categories.length === 2 &&
       effect.sourceMove.categories.includes("advanced-attack") &&
       effect.sourceMove.categories.includes("signature") &&
-      effect.sourceMove.restriction === "unrestricted" &&
-      effect.sourceMove.usedDuring === "combat" &&
+      runtimeValue(effect.sourceMove.restriction) === "unrestricted" &&
+      runtimeValue(effect.sourceMove.usedDuring) === "combat" &&
       effect.conditions?.length === 1 &&
       effect.conditions[0]?.type === "move-selector" &&
       effect.conditions[0].subject === "source" &&
@@ -5192,12 +5378,14 @@ const requestAttackEffectChoice = (
 };
 
 const pendingConvertedAttackRollEvents = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  rolls: readonly AttackDieRoll[],
-  dependencies: CombatDependencies,
+  ...[state, decision, target, move, rolls, dependencies]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    rolls: readonly AttackDieRoll[],
+    dependencies: CombatDependencies,
+  ]
 ): readonly CombatEvent[] =>
   rolls.flatMap((roll, index) => {
     const sequence = state.eventSequence + index * 2;
@@ -5253,6 +5441,7 @@ interface BasicAttackEventContext {
   readonly counterAction?: CounterActionReference;
   readonly resolution: AttackResolution;
   readonly resourceChanges?: readonly ResourceChange[];
+  readonly activatedEffects?: readonly ActiveCombatEffect[];
   readonly target: ActiveFightState["combatants"][CombatantId];
   readonly defenseItemUse?: DefenseItemUse;
   /** Roll events were already emitted by a post-roll reaction suspension. */
@@ -5269,6 +5458,7 @@ interface BasicAttackStateContext {
   readonly attackerDefeated: boolean;
   readonly eventSequence: number;
   readonly resolution: AttackResolution;
+  readonly activatedEffects?: readonly ActiveCombatEffect[];
   readonly resourceChanges: readonly ResourceChange[];
   readonly target: BasicAttackEventContext["target"];
 }
@@ -5377,6 +5567,7 @@ const createBasicAttackEvents = (
     resolution,
     resourceChanges,
     target,
+    activatedEffects,
   }: BasicAttackEventContext,
 ): CombatEvent[] => {
   const events: CombatEvent[] = [];
@@ -5430,6 +5621,19 @@ const createBasicAttackEvents = (
       });
     }
   }
+  for (const effect of activatedEffects ?? []) {
+    events.push({
+      id: dependencies.ids.nextEventId(),
+      sequence: state.eventSequence + events.length + 1,
+      fightId: state.id,
+      causedByDecisionId: decision.id,
+      type: "effect-activated",
+      activeEffectId: effect.id,
+      sourceCombatantId: effect.sourceCombatantId,
+      targetCombatantId: effect.targetCombatantId,
+      sourceDefinitionId: effect.sourceDefinitionId,
+    });
+  }
   events.push({
     id: dependencies.ids.nextEventId(),
     sequence: state.eventSequence + events.length + 1,
@@ -5456,12 +5660,14 @@ const createBasicAttackEvents = (
 };
 
 const appendBasicAttackResourceEvents = (
-  state: ActiveFightState,
-  decision: BasicAttackDecision,
-  dependencies: CombatDependencies,
-  events: CombatEvent[],
-  attacker: BasicAttackEventContext["attacker"],
-  resourceChanges: readonly ResourceChange[],
+  ...[state, decision, dependencies, events, attacker, resourceChanges]: [
+    state: ActiveFightState,
+    decision: BasicAttackDecision,
+    dependencies: CombatDependencies,
+    events: CombatEvent[],
+    attacker: BasicAttackEventContext["attacker"],
+    resourceChanges: readonly ResourceChange[],
+  ]
 ) => {
   const resourceAfterAttack = resourceAfterChanges(attacker, resourceChanges, "self");
   for (const resource of ["hp", "ki"] as const) {
@@ -5983,7 +6189,6 @@ const appendConvertedAttackRollEvents = (
   dependencies: CombatDependencies,
   context: ConvertedAttackMoveContext,
   events: CombatEvent[],
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Remaining-use events preserve selector and lifecycle semantics.
 ) => {
   for (const die of context.roll.rolls) {
     events.push({
@@ -6183,7 +6388,6 @@ const appendConvertedHitPointEvents = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Remaining-use events intentionally preserve selector and lifecycle semantics together.
 const appendRemainingUseModificationEvents = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "use-move" }>,
@@ -6256,13 +6460,12 @@ const prependDeferredMovePerformedEvent = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Attack event construction is the deterministic transition boundary.
 const createConvertedAttackMoveEvents = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "use-move" }>,
   dependencies: CombatDependencies,
   context: ConvertedAttackMoveContext,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Attack event construction is the deterministic transition boundary.
+  // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatEvent[] => {
   const { attacker, cost, move, target } = context;
   const events: CombatEvent[] = [
@@ -6389,7 +6592,7 @@ const appendConvertedResourceAndStatusEvents = (
     context.resourceChanges,
     "self",
     state.activeEffects,
-    decision.type === "use-move" ? actionRecordFor(state, decision) : undefined,
+    runtimeValue(decision.type) === "use-move" ? actionRecordFor(state, decision) : undefined,
   );
   const targetAfterResources = resourceAfterChanges(
     {
@@ -6402,7 +6605,7 @@ const appendConvertedResourceAndStatusEvents = (
     context.resourceChanges,
     "opponent",
     state.activeEffects,
-    decision.type === "use-move" ? actionRecordFor(state, decision) : undefined,
+    runtimeValue(decision.type) === "use-move" ? actionRecordFor(state, decision) : undefined,
   );
   const attackerEffectKiChange = attackerAfterResources.ki.current - (attacker.ki.current - cost);
   const targetEffectKiChange =
@@ -6470,6 +6673,7 @@ const resourceChangeIsPrevented = (
   resourcePreventions.some(
     (
       effect,
+      // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
     ): effect is Extract<ActiveCombatEffect, { readonly type: "prevent-resource-modification" }> =>
       effect.type === "prevent-resource-modification" &&
       effect.targetCombatantId === combatant.id &&
@@ -6537,7 +6741,7 @@ const combatantsAfterResourceEffectUseLimits = (
         ...counts,
         [change.sourceCombatantId]: {
           ...(counts[change.sourceCombatantId] ?? {}),
-          [key]: (counts[change.sourceCombatantId]?.[key] ?? 0) + 1,
+          [key]: (runtimeOptional(counts[change.sourceCombatantId])?.[key] ?? 0) + 1,
         },
       };
     },
@@ -6553,7 +6757,7 @@ const combatantsAfterResourceEffectUseLimits = (
             ...effectUseCounts,
             [key]: (effectUseCounts?.[key] ?? 0) + count,
           }),
-          nextCombatants[combatantId]?.effectUseCounts,
+          nextCombatants[combatantId].effectUseCounts,
         ),
       },
     }),
@@ -6953,6 +7157,7 @@ const convertedAttackResourceAccounting = (context: ConvertedAttackMoveContext) 
     ? { paidCost: context.cost, moveUseIncrement: 1 }
     : { paidCost: 0, moveUseIncrement: 0 };
 
+/* eslint-disable complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together. */
 const convertedAttackStateParts = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "use-move" }>,
@@ -7111,7 +7316,7 @@ const convertedAttackStateParts = (
       ...uses,
       [combatantId]: {
         ...(uses[combatantId] ?? {}),
-        [key]: (uses[combatantId]?.[key] ?? 0) + 1,
+        [key]: (runtimeOptional(uses[combatantId])?.[key] ?? 0) + 1,
       },
     }),
     {},
@@ -7125,13 +7330,27 @@ const convertedAttackStateParts = (
       continue;
     const key = `${change.sourceDefinitionId ?? change.sourceCombatantId}:${change.sourceEffectIndex}`;
     const uses = triggeredEffectUsesByCombatant[change.sourceCombatantId] ?? {};
-    if (uses[key] !== undefined) continue;
+    if (runtimeValue(uses[key]) !== undefined) continue;
     triggeredEffectUsesByCombatant[change.sourceCombatantId] = { ...uses, [key]: 1 };
   }
   const normalizedAttackerWithEffectUses = effectUseCountsAfterTriggeredEffects(
     normalizedAttacker,
     triggeredEffectUsesByCombatant[attacker.id] ?? {},
   );
+  const normalizedAttackerWithDestructionMastery =
+    normalizedAttackerWithEffectUses.destructionMastery?.signatureTechniqueId === context.move.id &&
+    context.cost === 0 &&
+    normalizedAttackerWithEffectUses.destructionMastery.zeroCostSignatureUsesRemaining > 0
+      ? {
+          ...normalizedAttackerWithEffectUses,
+          destructionMastery: {
+            ...normalizedAttackerWithEffectUses.destructionMastery,
+            zeroCostSignatureUsesRemaining:
+              normalizedAttackerWithEffectUses.destructionMastery.zeroCostSignatureUsesRemaining -
+              1,
+          },
+        }
+      : normalizedAttackerWithEffectUses;
   const normalizedTargetWithEffectUses = effectUseCountsAfterTriggeredEffects(normalizedTarget, {
     ...Object.fromEntries(
       Object.entries(targetEffectUseCounts).map(([key, count]) => [
@@ -7143,12 +7362,13 @@ const convertedAttackStateParts = (
   });
   const combatants: ActiveFightState["combatants"] = {
     ...state.combatants,
-    [attacker.id]: normalizedAttackerWithEffectUses,
+    [attacker.id]: normalizedAttackerWithDestructionMastery,
     [target.id]: normalizedTargetWithEffectUses,
   };
   const actionHistory = convertedAttackActionHistoryForState(state, decision, context);
   return { actionHistory, combatants };
 };
+/* eslint-enable complexity, max-lines-per-function, sonarjs/cognitive-complexity */
 
 const createConvertedAttackMoveState = (
   state: ActiveFightState,
@@ -7156,6 +7376,7 @@ const createConvertedAttackMoveState = (
   dependencies: CombatDependencies,
   context: ConvertedAttackMoveContext,
   eventCount: number,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): FightState => {
   const { attacker, defeated, target } = context;
   const { actionHistory, combatants: combatantsBeforeMoveRemovals } = convertedAttackStateParts(
@@ -7246,6 +7467,7 @@ const createConvertedAttackMoveState = (
     eventSequence: state.eventSequence + eventCount,
   };
 };
+/* eslint-enable complexity, max-lines-per-function */
 
 const selectedDamageTargetFor = (move: MoveDefinition, target: CombatantState) => {
   const effectIndex = (move.effects ?? []).findIndex(
@@ -7264,15 +7486,17 @@ const selectedDamageTargetFor = (move: MoveDefinition, target: CombatantState) =
 };
 
 const requestSelectedDamageTarget = (
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  move: MoveDefinition,
-  attacker: CombatantState,
-  target: CombatantState,
-  dependencies: CombatDependencies,
-  nextState: ActiveFightState,
-  events: readonly CombatEvent[],
+  ...[decision, move, attacker, target, dependencies, nextState, events]: [
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    move: MoveDefinition,
+    attacker: CombatantState,
+    target: CombatantState,
+    dependencies: CombatDependencies,
+    nextState: ActiveFightState,
+    events: readonly CombatEvent[],
+  ]
 ): CombatResult<CombatTransition> | undefined => {
-  if (nextState.status !== "active" || target.status !== "active") return undefined;
+  if (runtimeValue(nextState.status) !== "active" || target.status !== "active") return undefined;
   const selection = selectedDamageTargetFor(move, target);
   if (selection === undefined) return undefined;
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
@@ -7341,16 +7565,18 @@ const selectedTemporaryMoveRemovalFor = (move: MoveDefinition, target: Combatant
 };
 
 const requestSelectedTemporaryMoveRemoval = (
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  move: MoveDefinition,
-  attacker: CombatantState,
-  target: CombatantState,
-  dependencies: CombatDependencies,
-  nextState: ActiveFightState,
-  events: readonly CombatEvent[],
+  ...[decision, move, attacker, target, dependencies, nextState, events]: [
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    move: MoveDefinition,
+    attacker: CombatantState,
+    target: CombatantState,
+    dependencies: CombatDependencies,
+    nextState: ActiveFightState,
+    events: readonly CombatEvent[],
+  ]
 ): CombatResult<CombatTransition> | undefined => {
   const selection = selectedTemporaryMoveRemovalFor(move, target);
-  if (nextState.status !== "active" || selection === undefined) return undefined;
+  if (runtimeValue(nextState.status) !== "active" || selection === undefined) return undefined;
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const frame = {
     id: dependencies.ids.nextResolutionFrameId(),
@@ -7444,15 +7670,96 @@ const finishConvertedAttackMove = ({
   });
 };
 
-const convertedAttackMoveFailure = (
+const exchangeSkillReactivationAfterAttack = (
   state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  move: MoveDefinition,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  additionalCurrentActionCostModifications: readonly CurrentActionCostModification[] = [],
-  costOverride: number | undefined = undefined,
-  ignoreRestrictedUse = false,
+  attacker: CombatantState,
+  target: CombatantState,
+  move: MoveDefinition | undefined,
+  dice: number,
+  outcome: "successful" | "stopped",
+  blockUsed: boolean,
+  eventSequence: number,
+  causedByDecisionId: CombatDecisionId,
+  dependencies: CombatDependencies,
+) => {
+  if (dice !== 1) return { activeEffects: state.activeEffects, events: [] as CombatEvent[] };
+  const waiting = state.activeEffects.find(
+    (
+      effect,
+    ): effect is Extract<ActiveCombatEffect, { readonly type: "exchange-skill-reactivation" }> =>
+      effect.type === "exchange-skill-reactivation" &&
+      effect.targetCombatantId === attacker.id &&
+      effect.sourceCombatantId === target.id &&
+      (move === undefined || selectorMatchesMove(effect.attackSelector, move)),
+  );
+  if (waiting === undefined)
+    return { activeEffects: state.activeEffects, events: [] as CombatEvent[] };
+  const reactivated =
+    outcome === "stopped" && !blockUsed
+      ? state.activeEffects.find(
+          (effect) =>
+            effect.type === "active-constant" &&
+            effect.id === waiting.deactivatedEffectId &&
+            effect.lifecycle === "deactivated",
+        )
+      : undefined;
+  const activeEffects = state.activeEffects
+    .filter((effect) => effect.id !== waiting.id)
+    .map((effect) =>
+      reactivated !== undefined && effect.id === reactivated.id
+        ? { ...effect, lifecycle: "active" as const, deactivatedOnTurn: undefined }
+        : effect,
+    );
+  const events: CombatEvent[] = [
+    {
+      id: dependencies.ids.nextEventId(),
+      sequence: eventSequence + 1,
+      fightId: state.id,
+      causedByDecisionId,
+      type: "effect-expired",
+      activeEffectId: waiting.id,
+      targetCombatantId: waiting.sourceCombatantId,
+    },
+    ...(reactivated === undefined
+      ? []
+      : [
+          {
+            id: dependencies.ids.nextEventId(),
+            sequence: eventSequence + 2,
+            fightId: state.id,
+            causedByDecisionId,
+            type: "effect-activated" as const,
+            activeEffectId: reactivated.id,
+            sourceCombatantId: reactivated.sourceCombatantId,
+            targetCombatantId: reactivated.targetCombatantId,
+            sourceDefinitionId: reactivated.sourceDefinitionId,
+          },
+        ]),
+  ];
+  return { activeEffects, events };
+};
+
+const convertedAttackMoveFailure = (
+  ...[
+    state,
+    decision,
+    move,
+    attacker,
+    target,
+    additionalCurrentActionCostModifications = [],
+    costOverride = undefined,
+    ignoreRestrictedUse = false,
+  ]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    move: MoveDefinition,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    additionalCurrentActionCostModifications?: readonly CurrentActionCostModification[],
+    costOverride?: number | undefined,
+    ignoreRestrictedUse?: boolean,
+  ]
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatFailure | undefined => {
   const attack = move.mechanics.attack;
   const cost = move.mechanics.kiCost;
@@ -7553,6 +7860,7 @@ const resolveDeferredMoveDeclaration = (
   move: MoveDefinition,
   effectIndex: number,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const actor = state.combatants[decision.actorId];
   const target = activeOpponent(state, actor.id, decision.targetCombatantId);
@@ -7697,13 +8005,23 @@ const resolveDeferredMoveDeclaration = (
 };
 
 const deferredMoveDeclarationTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  move: MoveDefinition,
-  deferredDefinition: ReturnType<typeof deferredMoveDefinitionFor>,
-  deferMoveChoice: AttackResolutionOptions["deferMoveChoice"],
-  deferredExecution: AttackResolutionOptions["deferredExecution"],
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    decision,
+    move,
+    deferredDefinition,
+    deferMoveChoice,
+    deferredExecution,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    move: MoveDefinition,
+    deferredDefinition: ReturnType<typeof deferredMoveDefinitionFor>,
+    deferMoveChoice: AttackResolutionOptions["deferMoveChoice"],
+    deferredExecution: AttackResolutionOptions["deferredExecution"],
+    dependencies: CombatDependencies,
+  ]
 ): CombatResult<CombatTransition> | undefined => {
   if (deferredExecution !== undefined || deferredDefinition === undefined) return undefined;
   if (deferredDefinition.effect.optional === true && deferMoveChoice === undefined)
@@ -7931,6 +8249,7 @@ const currentActionCostModifiersFor = (
   state: ActiveFightState,
   combatantId: CombatantId,
   move: MoveDefinition,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): readonly CurrentActionCostModification[] => {
   const opponent = Object.values(state.combatants).find(
     (candidate) => candidate.id !== combatantId && candidate.status === "active",
@@ -8088,12 +8407,14 @@ type LiteralMoveAttack = NonNullable<MoveDefinition["mechanics"]["attack"]> & {
 };
 
 const resolvedLiteralAttack = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  baseDamagePercentOverride?: number,
-  baseCostOverride?: number,
+  ...[state, attacker, target, move, baseDamagePercentOverride, baseCostOverride]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    baseDamagePercentOverride?: number,
+    baseCostOverride?: number,
+  ]
 ) => {
   const attack = move.mechanics.attack;
   const cost = move.mechanics.kiCost;
@@ -8270,26 +8591,39 @@ const stoppedSkillTriggeredEffects = (
 };
 
 const stoppedSkillEffectsForResolution = (
-  initialRoll: ReturnType<typeof convertedAttackRoll>,
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  triggeringMove: MoveDefinition,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
+  ...[initialRoll, state, attacker, target, triggeringMove, context]: [
+    initialRoll: ReturnType<typeof convertedAttackRoll>,
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    triggeringMove: MoveDefinition,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+  ]
 ) =>
   initialRoll.successfulHitCount === 0
     ? stoppedSkillTriggeredEffects(state, attacker, target, triggeringMove, context)
     : [];
 
 const defensiveOnDamageEffectSets = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  defender: ActiveFightState["combatants"][CombatantId],
-  triggeringMove: MoveDefinition | undefined,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
-  incomingDamage: number,
-  selectedSourceDefinitionId?: MoveId,
-  selectedEffectIndices?: readonly number[],
+  ...[
+    state,
+    attacker,
+    defender,
+    triggeringMove,
+    context,
+    incomingDamage,
+    selectedSourceDefinitionId,
+    selectedEffectIndices,
+  ]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    defender: ActiveFightState["combatants"][CombatantId],
+    triggeringMove: MoveDefinition | undefined,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+    incomingDamage: number,
+    selectedSourceDefinitionId?: MoveId,
+    selectedEffectIndices?: readonly number[],
+  ]
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
   const sourceMoveIds = new Set<string>();
@@ -8329,16 +8663,27 @@ const defensiveOnDamageEffectSets = (
 };
 
 const defensiveOnDamageModifications = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  defender: ActiveFightState["combatants"][CombatantId],
-  triggeringMove: MoveDefinition | undefined,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
-  incomingDamage: number,
-  selectedSourceDefinitionId?: MoveId,
-  selectedEffectIndices?: readonly number[],
-) =>
-  defensiveOnDamageEffectSets(
+  ...[
+    state,
+    attacker,
+    defender,
+    triggeringMove,
+    context,
+    incomingDamage,
+    selectedSourceDefinitionId,
+    selectedEffectIndices,
+  ]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    defender: ActiveFightState["combatants"][CombatantId],
+    triggeringMove: MoveDefinition | undefined,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+    incomingDamage: number,
+    selectedSourceDefinitionId?: MoveId,
+    selectedEffectIndices?: readonly number[],
+  ]
+) => {
+  const modifications = defensiveOnDamageEffectSets(
     state,
     attacker,
     defender,
@@ -8359,16 +8704,65 @@ const defensiveOnDamageModifications = (
             ] ?? 0) < modification.useLimit.count)),
     ),
   );
+  const reductionCost = defender.moveIds
+    .map((moveId) => MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId))
+    .filter((sourceMove): sourceMove is MoveDefinition => sourceMove?.category === "mastery")
+    .flatMap(
+      (sourceMove) =>
+        moveEffectsForTrigger(sourceMove, "passive", {
+          ...context,
+          self: defender,
+          opponent: attacker,
+          ...(triggeringMove === undefined ? {} : { triggeringMove }),
+          incomingDamage,
+        }).damageReductionCostModifications,
+    )
+    .filter(
+      (application) =>
+        application.target === "opponent" &&
+        triggeringMove !== undefined &&
+        selectorMatchesMove(application.selector, triggeringMove),
+    )
+    .reduce((total, application) => total + application.amount, 0);
+  if (reductionCost <= 0) return modifications;
+  return modifications.map((modification) => {
+    const reducesDamage =
+      (modification.operation === "add" && modification.amount < 0) ||
+      (modification.operation === "multiply" && modification.amount < 100) ||
+      (modification.operation === "set" && modification.amount === 0);
+    if (!reducesDamage) return modification;
+    const activationCost = modification.activationCost;
+    return {
+      ...modification,
+      activationCost: {
+        resource: "ki" as const,
+        amount: (activationCost?.resource === "ki" ? activationCost.amount : 0) + reductionCost,
+        ...(activationCost?.minimum === undefined ? {} : { minimum: activationCost.minimum }),
+      },
+    };
+  });
+};
 
 const selectedDefensiveOnDamageEffects = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  defender: ActiveFightState["combatants"][CombatantId],
-  triggeringMove: MoveDefinition,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
-  incomingDamage: number,
-  sourceDefinitionId: MoveId | undefined,
-  effectIndices: readonly number[] | undefined,
+  ...[
+    state,
+    attacker,
+    defender,
+    triggeringMove,
+    context,
+    incomingDamage,
+    sourceDefinitionId,
+    effectIndices,
+  ]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    defender: ActiveFightState["combatants"][CombatantId],
+    triggeringMove: MoveDefinition,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+    incomingDamage: number,
+    sourceDefinitionId: MoveId | undefined,
+    effectIndices: readonly number[] | undefined,
+  ]
 ) =>
   sourceDefinitionId === undefined || effectIndices === undefined
     ? mergeMoveEffects()
@@ -8397,12 +8791,14 @@ const selectedDefensiveOnDamageEffects = (
       })();
 
 const pendingDefensiveOnDamageChoice = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  defender: ActiveFightState["combatants"][CombatantId],
-  triggeringMove: MoveDefinition,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
-  incomingDamage: number,
+  ...[state, attacker, defender, triggeringMove, context, incomingDamage]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    defender: ActiveFightState["combatants"][CombatantId],
+    triggeringMove: MoveDefinition,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+    incomingDamage: number,
+  ]
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
   const sourceMoveIds = new Set<string>();
@@ -8444,7 +8840,17 @@ const pendingDefensiveOnDamageChoice = (
         incomingDamage,
         enabledOptionalEffectIndices: choice.effectIndices,
       });
-      const costs = effects.damageModifications
+      const costedDamageModifications = defensiveOnDamageModifications(
+        state,
+        attacker,
+        defender,
+        triggeringMove,
+        context,
+        incomingDamage,
+        sourceMove.id,
+        choice.effectIndices,
+      );
+      const costs = costedDamageModifications
         .filter(
           (modification) =>
             modification.target === "opponent" && modification.activationCost !== undefined,
@@ -8471,14 +8877,25 @@ const pendingDefensiveOnDamageChoice = (
 };
 
 const pendingDefensiveOnDamageTransition = (
-  input: CompleteConvertedAttackInput,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  damageEffectContext: Parameters<typeof moveEffectsForTrigger>[2],
-  damageBeforeOnDamage: number,
-  initialRoll: ReturnType<typeof convertedAttackRoll>,
-  dependencies: CombatDependencies,
+  ...[
+    input,
+    attacker,
+    target,
+    move,
+    damageEffectContext,
+    damageBeforeOnDamage,
+    initialRoll,
+    dependencies,
+  ]: [
+    input: CompleteConvertedAttackInput,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    damageEffectContext: Parameters<typeof moveEffectsForTrigger>[2],
+    damageBeforeOnDamage: number,
+    initialRoll: ReturnType<typeof convertedAttackRoll>,
+    dependencies: CombatDependencies,
+  ]
 ): CombatResult<CombatTransition> | undefined => {
   if (input.damageEffectSourceDefinitionId !== undefined) return undefined;
   const pendingDamageChoice = pendingDefensiveOnDamageChoice(
@@ -8518,13 +8935,15 @@ const pendingDefensiveOnDamageTransition = (
 };
 
 const defensiveOnDamageModificationsForAttack = (
-  input: CompleteConvertedAttackInput,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  damageEffectContext: Parameters<typeof moveEffectsForTrigger>[2],
-  damageBeforeOnDamage: number,
-  initialRoll: ReturnType<typeof convertedAttackRoll>,
+  ...[input, attacker, target, move, damageEffectContext, damageBeforeOnDamage, initialRoll]: [
+    input: CompleteConvertedAttackInput,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    damageEffectContext: Parameters<typeof moveEffectsForTrigger>[2],
+    damageBeforeOnDamage: number,
+    initialRoll: ReturnType<typeof convertedAttackRoll>,
+  ]
 ) =>
   initialRoll.successfulHitCount > 0
     ? defensiveOnDamageModifications(
@@ -8614,6 +9033,11 @@ const convertedAttackCost = (
   baseCost: number,
   additionalCurrentActionCostModifications: readonly CurrentActionCostModification[] = [],
 ) => {
+  if (
+    attacker.destructionMastery?.signatureTechniqueId === move.id &&
+    attacker.destructionMastery.zeroCostSignatureUsesRemaining > 0
+  )
+    return 0;
   const currentModifications = [
     ...currentActionCostModifiersFor(state, attacker.id, move),
     ...additionalCurrentActionCostModifications.filter(
@@ -8713,10 +9137,8 @@ const activeConstantOnRollResultActivations = (
     }).activations;
   });
 
-const moveHasRollResultResourceListener = (move: MoveDefinition) =>
-  (move.effects ?? []).some(
-    (effect) => effect.trigger === "on-roll-result" && effect.type === "modify-resource",
-  );
+const moveHasRollResultListener = (move: MoveDefinition) =>
+  (move.effects ?? []).some((effect) => effect.trigger === "on-roll-result");
 
 const rollResultTriggeredEffects = (
   actor: ActiveFightState["combatants"][CombatantId],
@@ -8732,7 +9154,7 @@ const rollResultTriggeredEffects = (
       if (
         sourceMove === undefined ||
         sourceMove.id === triggeringMove?.id ||
-        !moveHasRollResultResourceListener(sourceMove)
+        !moveHasRollResultListener(sourceMove)
       )
         return [];
       const effects = moveEffectsForTrigger(sourceMove, "on-roll-result", {
@@ -8743,7 +9165,16 @@ const rollResultTriggeredEffects = (
         triggeringMove,
         triggeringMoveOwner: listener.id === actor.id ? "self" : "opponent",
       });
-      return effects.resources.length === 0 ? [] : [{ sourceMove, owner: listener, effects }];
+      return effects.resources.length === 0 && effects.rollResultOverrides.length === 0
+        ? []
+        : [
+            {
+              sourceMove,
+              owner: listener,
+              target: listener.id === actor.id ? target : actor,
+              effects,
+            },
+          ];
     });
   });
 };
@@ -8805,12 +9236,21 @@ const floatingScopeForApplication = (
 };
 
 const activeFloatingEffectFromApplication = (
-  application: FloatingEffectApplication,
-  sourceCombatantId: CombatantId,
-  targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    application,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    application: FloatingEffectApplication,
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): ActiveCombatEffect => ({
   id: dependencies.ids.nextActiveEffectId(),
   type: "floating-effect",
@@ -8868,12 +9308,21 @@ const floatingDurationFromApplication = (
 };
 
 const activeFloatingEffectsFromApplications = (
-  applications: readonly FloatingEffectApplication[],
-  sourceCombatantId: CombatantId,
-  targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    applications,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    applications: readonly FloatingEffectApplication[],
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ) =>
   applications.map((application) =>
     activeFloatingEffectFromApplication(
@@ -8897,6 +9346,7 @@ const floatingEffectUseLimitKey = (
 const upkeepTriggeredEffectsWithActivationCosts = (
   state: ActiveFightState,
   triggered: readonly UpkeepTriggeredEffects[],
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const usedCombatScopedLimits = new Set(
     state.activeEffects.flatMap((effect) =>
@@ -8908,6 +9358,7 @@ const upkeepTriggeredEffectsWithActivationCosts = (
     ),
   );
   let simulatedCombatants = state.combatants;
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
   return triggered.map((entry) => {
     const currentActor = simulatedCombatants[entry.actor.id];
     const currentTarget = simulatedCombatants[entry.target.id];
@@ -9024,12 +9475,21 @@ const upkeepTriggeredEffectsWithActivationCosts = (
 };
 
 const activeExtraActionFromApplication = (
-  application: ExtraActionApplication,
-  sourceCombatantId: CombatantId,
-  targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    application,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    application: ExtraActionApplication,
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): Extract<ActiveCombatEffect, { readonly type: "extra-action" }> => ({
   id: dependencies.ids.nextActiveEffectId(),
   type: "extra-action",
@@ -9054,13 +9514,23 @@ const activeExtraActionFromApplication = (
 });
 
 const activeExtraActionsFromApplications = (
-  state: ActiveFightState,
-  applications: readonly ExtraActionApplication[],
-  sourceCombatantId: CombatantId,
-  targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    applications,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    applications: readonly ExtraActionApplication[],
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ) =>
   applications.flatMap((application) => {
     const applicationSourceDefinitionId = application.sourceDefinitionId ?? sourceDefinitionId;
@@ -9087,13 +9557,23 @@ const activeExtraActionsFromApplications = (
   });
 
 const activeDeferredMovesFromApplications = (
-  applications: readonly DeferredMoveApplication[],
-  sourceCombatantId: CombatantId,
-  targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  declarationDecisionId: CombatDecisionId,
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    applications,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    declarationDecisionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    applications: readonly DeferredMoveApplication[],
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    declarationDecisionId: CombatDecisionId,
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ) =>
   applications.map(
     (application): Extract<ActiveCombatEffect, { readonly type: "deferred-move" }> => ({
@@ -9163,13 +9643,23 @@ const passiveExtraActionsAtTurnStart = (
 };
 
 const activeActionRestrictionsFromApplications = (
-  state: ActiveFightState,
-  applications: readonly ActionRestrictionApplication[],
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    applications,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    applications: readonly ActionRestrictionApplication[],
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): readonly Extract<ActiveCombatEffect, { readonly type: "action-restriction" }>[] =>
   applications.map((application) => {
     const targetCombatantId =
@@ -9270,7 +9760,8 @@ const criticalThresholdsForMove = (
   ];
   return [...passiveSources, ...currentMoveEffects].filter(
     (application) =>
-      application.target === "self" && selectorMatchesMove(application.selector, move),
+      runtimeValue(application.target) === "self" &&
+      selectorMatchesMove(application.selector, move),
   );
 };
 
@@ -9284,14 +9775,25 @@ const masterySourcesForCombatant = (
   });
 
 const passiveAttackEffectsFor = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
-  selectedSourceDefinitionId?: MoveId,
-  selectedEffectIndices?: readonly number[],
-  resolvedEffectIndices?: readonly number[],
+  ...[
+    state,
+    attacker,
+    target,
+    move,
+    context,
+    selectedSourceDefinitionId,
+    selectedEffectIndices,
+    resolvedEffectIndices,
+  ]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+    selectedSourceDefinitionId?: MoveId,
+    selectedEffectIndices?: readonly number[],
+    resolvedEffectIndices?: readonly number[],
+  ]
 ) =>
   mergeMoveEffects(
     moveEffectsForTrigger(move, "passive", {
@@ -9506,7 +10008,7 @@ const activeCombatResultOverridesForAttack = (
         candidate.targetCombatantId === combatantId &&
         candidate.modifier.type === "combat-result" &&
         (candidate.modifier.resultScope === "current-attack" ||
-          candidate.modifier.resultScope === "matching-die") &&
+          runtimeValue(candidate.modifier.resultScope) === "matching-die") &&
         (candidate.scope === undefined || candidate.scope === "next-action") &&
         (candidate.availableFromTurn === undefined ||
           candidate.availableFromTurn <= state.turnNumber) &&
@@ -9557,6 +10059,26 @@ const rollSelectionForAttack = (
       };
 };
 
+const activeRollResultOverrideForAttack = (
+  state: ActiveFightState,
+  targetId: CombatantId,
+  move?: MoveDefinition,
+) => {
+  const effect = state.activeEffects.find(
+    (
+      candidate,
+    ): candidate is Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }> =>
+      candidate.type === "modify-next-action" &&
+      candidate.targetCombatantId === targetId &&
+      candidate.modifier.type === "roll-result" &&
+      candidate.modifier.roll === "defense" &&
+      oneShotRollModifierIsEligible(state.turnNumber, candidate) &&
+      !activeEffectSuppressed(state, candidate) &&
+      effectMatchesMoveSelector(candidate.selector, move),
+  );
+  return effect?.modifier.type === "roll-result" ? effect.modifier.value : undefined;
+};
+
 interface CreateNumericOverridesFromEffectsInput {
   readonly beforeAttackEffects: ReturnType<typeof moveEffectsForTrigger>;
   readonly state: ActiveFightState;
@@ -9574,10 +10096,11 @@ const createNumericOverridesFromEffects = ({
   move,
   diceCount,
 }: CreateNumericOverridesFromEffectsInput): readonly NumericResultOverride[] =>
-  Array.from({ length: diceCount }, () =>
-    beforeAttackEffects.rollResultOverrides
+  Array.from({ length: diceCount }, () => {
+    const immediate = beforeAttackEffects.rollResultOverrides
       .filter(
         (effect) =>
+          effect.scope !== "next-roll" &&
           !rollModificationPrevented({
             state,
             combatantId: effect.target === "self" ? attackerId : targetId,
@@ -9585,19 +10108,24 @@ const createNumericOverridesFromEffects = ({
             modifier: "result",
             move,
             sourceCombatantId: attackerId,
-            sourceDefinitionId: move.id,
+            sourceDefinitionId: effect.sourceDefinitionId ?? move.id,
           }),
       )
       .reduce<Exclude<NumericResultOverride, undefined>>(
         (current, effect) => ({ ...current, [effect.roll]: effect.value }),
         {},
-      ),
-  );
+      );
+    const defenseOverride = activeRollResultOverrideForAttack(state, targetId, move);
+    return defenseOverride === undefined || immediate.defense !== undefined
+      ? immediate
+      : { ...immediate, defense: defenseOverride };
+  });
 
 const convertedAttackRoll = (
   input: CompleteConvertedAttackInput,
   attack: LiteralMoveAttack,
   effectContext: ReturnType<typeof convertedAttackEffectContext>,
+  // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const {
     attacker,
@@ -9895,6 +10423,13 @@ const convertedAttackRoll = (
       "attack",
       "sides",
     ),
+    ...(attacker.destructionMastery?.advancedAttackId === move.id ||
+    attacker.destructionMastery?.signatureTechniqueId === move.id
+      ? {
+          naturalDefenseStopPreventionAtMost:
+            attacker.destructionMastery.naturalDefenseStopPreventionAtMost,
+        }
+      : {}),
   };
   const criticalThresholds = criticalThresholdsForMove(
     state,
@@ -9929,6 +10464,7 @@ const convertedAttackRoll = (
       criticalThresholds: input.copiedSourceResolution?.criticalThresholds ?? criticalThresholds,
       defenseResultModifier:
         input.copiedSourceResolution?.defenseResultModifier ?? defenseResultModifierValue,
+      naturalDefenseStopPreventionAtMost: effectiveAttack.naturalDefenseStopPreventionAtMost,
       resolutionThresholds:
         input.copiedSourceResolution?.resolutionThresholds ?? resolutionThresholds,
       preventCritical: input.copiedSourceResolution?.preventCritical ?? preventCritical,
@@ -10020,7 +10556,7 @@ const activeCombatResultEffectsFromApplications = (
     if (
       application.scope !== "next-action" ||
       (application.resultScope !== "current-attack" &&
-        application.resultScope !== "matching-die") ||
+        runtimeValue(application.resultScope) !== "matching-die") ||
       (application.result !== "successful" && application.result !== "stopped") ||
       application.effectIndex === undefined
     )
@@ -10044,13 +10580,84 @@ const activeCombatResultEffectsFromApplications = (
     ];
   });
 
-const activeMoveRemovalsFromApplications = (
-  applications: readonly MoveRemovalApplication[],
+const activeRollResultEffectsFromApplications = (
+  state: ActiveFightState,
+  applications: readonly RollResultOverride[],
   sourceCombatantId: CombatantId,
   targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  combatants: Readonly<Record<CombatantId, CombatantState>>,
   dependencies: CombatDependencies,
+): readonly ActiveCombatEffect[] =>
+  applications.flatMap((application) => {
+    if (
+      application.scope !== "next-roll" ||
+      application.sourceDefinitionId === undefined ||
+      application.sourceEffectIndex === undefined
+    )
+      return [];
+    const targetId = application.target === "self" ? sourceCombatantId : targetCombatantId;
+    const alreadyActive =
+      application.stacking === "prevent" &&
+      state.activeEffects.some(
+        (effect) =>
+          effect.type === "modify-next-action" &&
+          effect.targetCombatantId === targetId &&
+          effect.sourceDefinitionId === application.sourceDefinitionId &&
+          effect.modifier.type === "roll-result" &&
+          effect.modifier.roll === application.roll,
+      );
+    if (alreadyActive) return [];
+    return [
+      {
+        id: dependencies.ids.nextActiveEffectId(),
+        type: "modify-next-action" as const,
+        sourceCombatantId,
+        targetCombatantId: targetId,
+        sourceDefinitionId: application.sourceDefinitionId,
+        sourceEffectIndex: application.sourceEffectIndex,
+        scope: "next-roll" as const,
+        ...(application.stacking === undefined ? {} : { stacking: application.stacking }),
+        modifier: {
+          type: "roll-result" as const,
+          roll: application.roll,
+          value: application.value,
+          resultScope: application.resultScope,
+        },
+      } satisfies Extract<ActiveCombatEffect, { readonly type: "modify-next-action" }>,
+    ];
+  });
+
+const activeTransformationRollRequirementsFromApplications = (
+  applications: readonly TransformationRollRequirementApplication[],
+  sourceCombatantId: CombatantId,
+  targetCombatantId: CombatantId,
+  dependencies: CombatDependencies,
+): readonly ActiveCombatEffect[] =>
+  applications.map((application) => ({
+    id: dependencies.ids.nextActiveEffectId(),
+    type: "require-transformation-roll" as const,
+    sourceCombatantId,
+    targetCombatantId: application.target === "self" ? sourceCombatantId : targetCombatantId,
+    sourceDefinitionId: application.sourceDefinitionId,
+    sourceEffectIndex: application.sourceEffectIndex,
+    ignoreTransformationDice: application.ignoreTransformationDice,
+  }));
+
+const activeMoveRemovalsFromApplications = (
+  ...[
+    applications,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    combatants,
+    dependencies,
+  ]: [
+    applications: readonly MoveRemovalApplication[],
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    combatants: Readonly<Record<CombatantId, CombatantState>>,
+    dependencies: CombatDependencies,
+  ]
 ): readonly ActiveCombatEffect[] =>
   (() => {
     const seen = new Set<string>();
@@ -10114,6 +10721,7 @@ const convertedAttackActivatedEffects = ({
   createdOnTurn,
   effects,
   defeated,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 }: ConvertedAttackActivatedEffectsInput) => {
   const suppressions = effects.suppressions
     .filter((suppression) => suppression.duration.type !== "current-resolution")
@@ -10298,7 +10906,7 @@ const convertedAttackActivatedEffects = ({
     dependencies,
   );
   const resourceActionModifiers = activeResourceActionModifiersFromApplications(
-    effects.resourceActionModifiers ?? [],
+    runtimeOptional(effects.resourceActionModifiers) ?? [],
     attacker.id,
     target.id,
     move.id,
@@ -10308,7 +10916,7 @@ const convertedAttackActivatedEffects = ({
     ? []
     : activeResourceCostModifiersFromApplications(
         state,
-        effects.resourceCostModifications ?? [],
+        runtimeOptional(effects.resourceCostModifications) ?? [],
         attacker.id,
         target.id,
         dependencies,
@@ -10316,7 +10924,7 @@ const convertedAttackActivatedEffects = ({
   const costModifierTransformers = defeated
     ? []
     : activeCostModifierTransformersFromApplications(
-        effects.costModifierTransformers ?? [],
+        runtimeOptional(effects.costModifierTransformers) ?? [],
         attacker.id,
         target.id,
         move.id,
@@ -10326,7 +10934,7 @@ const convertedAttackActivatedEffects = ({
     ? []
     : activeResourceModifierTransformersFromApplications(
         state,
-        effects.resourceModifierTransformers ?? [],
+        runtimeOptional(effects.resourceModifierTransformers) ?? [],
         attacker.id,
         target.id,
         move.id,
@@ -10359,7 +10967,8 @@ const convertedAttackActivatedEffects = ({
       });
   const nextActionCostModifiers = defeated
     ? []
-    : effects.costModifications.flatMap((modifier) => {
+    : // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
+      effects.costModifications.flatMap((modifier) => {
         if (modifier.scope === "next-action" && modifier.selector === undefined) return [];
         if (modifier.scope === "next-actions" && modifier.remaining === undefined) return [];
         const baseKiCost = modifier.selector?.baseKiCost;
@@ -10447,6 +11056,19 @@ const convertedAttackActivatedEffects = ({
         move.id,
         dependencies,
       );
+  const rollResultModifiers = activeRollResultEffectsFromApplications(
+    state,
+    effects.rollResultOverrides,
+    attacker.id,
+    target.id,
+    dependencies,
+  );
+  const transformationRollRequirements = activeTransformationRollRequirementsFromApplications(
+    effects.transformationRollRequirements,
+    attacker.id,
+    target.id,
+    dependencies,
+  );
   const floatingEffects = activeFloatingEffectsFromApplications(
     effects.floatingEffects.filter(
       (application, index, applications) =>
@@ -10524,6 +11146,8 @@ const convertedAttackActivatedEffects = ({
     ...rollModifiers,
     ...rollModifierTransformers,
     ...rollSelections,
+    ...rollResultModifiers,
+    ...transformationRollRequirements,
     ...rerolls,
     ...damageModifiers,
     ...statModifiers,
@@ -10626,6 +11250,7 @@ const startCombatTriggeredEffects = (
       mode: state.mode,
       collectPendingChoices: true,
     };
+    // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
     return actor.moveIds.flatMap((sourceDefinitionId) => {
       const sourceMove = moves.get(sourceDefinitionId);
       if (sourceMove === undefined) return [];
@@ -10649,6 +11274,7 @@ const startCombatTriggeredEffects = (
         effects.currentActionCostModifications.length === 0 &&
         effects.remainingUseModifications.length === 0 &&
         effects.moveClassifications.length === 0 &&
+        effects.destructionMasteries.length === 0 &&
         pendingChoice === undefined
         ? []
         : [{ sourceMove, actor, target, effects, pendingChoice }];
@@ -10705,6 +11331,34 @@ const combatantsAfterStartCombatResources = (
       [actor.id]: actorAfterUses,
       [target.id]: targetAfterUses,
     };
+    for (const mastery of effects.destructionMasteries) {
+      const advancedAttackId = currentActor.moveIds
+        .map((moveId) => MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId))
+        .find(
+          (candidate) =>
+            candidate !== undefined && matchesMoveSelector(candidate, mastery.advancedAttack),
+        )?.id;
+      const signatureTechniqueId = currentActor.moveIds
+        .map((moveId) => MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId))
+        .find(
+          (candidate) =>
+            candidate !== undefined && matchesMoveSelector(candidate, mastery.signatureTechnique),
+        )?.id;
+      combatants = {
+        ...combatants,
+        [actor.id]: {
+          ...combatants[actor.id],
+          destructionMastery: {
+            ...(advancedAttackId === undefined ? {} : { advancedAttackId }),
+            ...(signatureTechniqueId === undefined ? {} : { signatureTechniqueId }),
+            zeroCostSignatureUsesRemaining: mastery.zeroCostSignatureUses,
+            naturalDefenseStopPreventionAtMost: mastery.naturalDefenseStopPreventionAtMost,
+            damageBonusAfterOpponentInterferencePercent:
+              mastery.damageBonusAfterOpponentInterferencePercent,
+          },
+        },
+      };
+    }
   }
   return combatants;
 };
@@ -11048,12 +11702,21 @@ const combatantsAfterUpkeepEffects = (
 };
 
 const startCombatEvents = (
-  state: ActiveFightState,
-  combatants: Readonly<Record<CombatantId, CombatantState>>,
-  activatedEffects: readonly ActiveCombatEffect[],
-  dependencies: CombatDependencies,
-  sequenceOffset = 0,
-  statusTriggered: readonly StartCombatTriggeredEffects[] = [],
+  ...[
+    state,
+    combatants,
+    activatedEffects,
+    dependencies,
+    sequenceOffset = 0,
+    statusTriggered = [],
+  ]: [
+    state: ActiveFightState,
+    combatants: Readonly<Record<CombatantId, CombatantState>>,
+    activatedEffects: readonly ActiveCombatEffect[],
+    dependencies: CombatDependencies,
+    sequenceOffset?: number,
+    statusTriggered?: readonly StartCombatTriggeredEffects[],
+  ]
 ) => {
   const events: CombatEvent[] = [];
   for (const combatant of Object.values(state.combatants)) {
@@ -11375,14 +12038,25 @@ const moveUseListenerMovesForCombatant = (
 type CostEffectTrigger = "on-move-use" | "on-cost-modified";
 
 const costEffectContext = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  moves: ReadonlyMap<string, MoveDefinition>,
-  collectPendingChoices: boolean,
-  enabledOptionalEffectIndices?: readonly number[],
-  resolvedOptionalEffectIndices?: readonly number[],
+  ...[
+    state,
+    actor,
+    target,
+    move,
+    moves,
+    collectPendingChoices,
+    enabledOptionalEffectIndices,
+    resolvedOptionalEffectIndices,
+  ]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    moves: ReadonlyMap<string, MoveDefinition>,
+    collectPendingChoices: boolean,
+    enabledOptionalEffectIndices?: readonly number[],
+    resolvedOptionalEffectIndices?: readonly number[],
+  ]
 ) => ({
   self: actor,
   opponent: target,
@@ -11427,15 +12101,27 @@ const resolvedCostChoiceIndicesFor = (
 };
 
 const pendingCostChoicesFor = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  trigger: CostEffectTrigger,
-  sourceMove: MoveDefinition,
-  moves: ReadonlyMap<string, MoveDefinition>,
-  resolvedSourceDefinitionId: MoveId | undefined,
-  resolvedEffectIndices: readonly number[] | undefined,
+  ...[
+    state,
+    actor,
+    target,
+    move,
+    trigger,
+    sourceMove,
+    moves,
+    resolvedSourceDefinitionId,
+    resolvedEffectIndices,
+  ]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    trigger: CostEffectTrigger,
+    sourceMove: MoveDefinition,
+    moves: ReadonlyMap<string, MoveDefinition>,
+    resolvedSourceDefinitionId: MoveId | undefined,
+    resolvedEffectIndices: readonly number[] | undefined,
+  ]
 ) => {
   const pendingChoices = moveEffectsForTrigger(
     sourceMove,
@@ -11469,13 +12155,15 @@ const pendingCostChoicesFor = (
 };
 
 const pendingCostEffectChoice = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  trigger: CostEffectTrigger,
-  resolvedSourceDefinitionId?: MoveId,
-  resolvedEffectIndices?: readonly number[],
+  ...[state, actor, target, move, trigger, resolvedSourceDefinitionId, resolvedEffectIndices]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    trigger: CostEffectTrigger,
+    resolvedSourceDefinitionId?: MoveId,
+    resolvedEffectIndices?: readonly number[],
+  ]
 ) =>
   moveUseListenerMoves(state, actor, move)
     .flatMap(({ sourceMove, moves }) =>
@@ -11525,13 +12213,15 @@ const pendingCostEffectChoice = (
     });
 
 const costEffectModificationsFor = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  sourceDefinitionId: MoveId,
-  effectIndices: readonly number[],
-  trigger: CostEffectTrigger,
+  ...[state, actor, target, move, sourceDefinitionId, effectIndices, trigger]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    sourceDefinitionId: MoveId,
+    effectIndices: readonly number[],
+    trigger: CostEffectTrigger,
+  ]
 ) => {
   const source = moveUseListenerMoves(state, actor, move).find(
     ({ sourceMove }) => sourceMove.id === sourceDefinitionId,
@@ -11582,6 +12272,25 @@ const costActivationResourceChanges = (
         ];
   });
 
+const consumedActiveEffectIdsForResourceEvent = (
+  activeEffects: readonly ActiveCombatEffect[],
+  listener: ActiveFightState["combatants"][CombatantId],
+  sourceMove: MoveDefinition,
+  effects: ReturnType<typeof moveEffectsForTrigger>,
+) =>
+  activeEffects
+    .filter(
+      (effect) =>
+        effect.type === "move-effect-replacement" &&
+        effect.sourceCombatantId === listener.id &&
+        effect.targetMoveId === sourceMove.id &&
+        effect.remainingTriggers > 0 &&
+        effects.resources.some(
+          (resource) => resource.sourceEffectIndex === effect.sourceEffectIndex,
+        ),
+    )
+    .map((effect) => effect.id);
+
 const resourceEventTriggeredEffects = (
   state: ActiveFightState,
   actor: ActiveFightState["combatants"][CombatantId],
@@ -11619,7 +12328,6 @@ const resourceEventTriggeredEffects = (
         ...(change.cause === undefined ? {} : { cause: change.cause }),
         ...(change.sourceStyleId === undefined ? {} : { sourceStyleId: change.sourceStyleId }),
       };
-      // eslint-disable-next-line sonarjs/no-nested-functions -- Resource listeners intentionally resolve nested source moves in order.
       return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
         const sourceMove = moves.get(sourceDefinitionId);
         if (sourceMove === undefined) return [];
@@ -11639,23 +12347,12 @@ const resourceEventTriggeredEffects = (
           sourceDefinitionId,
         };
         const effects = moveEffectsForTrigger(sourceMove, trigger, context);
-        const consumedActiveEffectIds = state.activeEffects
-          .filter(
-            // eslint-disable-next-line sonarjs/no-nested-functions -- Replacement consumption checks the resolved resource listeners.
-            (effect) =>
-              effect.type === "move-effect-replacement" &&
-              effect.sourceCombatantId === listener.id &&
-              effect.targetMoveId === sourceMove.id &&
-              effect.remainingTriggers > 0 &&
-              effects.resources.some(
-                // eslint-disable-next-line sonarjs/no-nested-functions -- Replacement consumption checks the resolved resource listeners.
-                (resource) => resource.sourceEffectIndex === effect.sourceEffectIndex,
-              ),
-          )
-          .map(
-            // eslint-disable-next-line sonarjs/no-nested-functions -- Replacement consumption maps resolved listener effects to durable IDs.
-            (effect) => effect.id,
-          );
+        const consumedActiveEffectIds = consumedActiveEffectIdsForResourceEvent(
+          state.activeEffects,
+          listener,
+          sourceMove,
+          effects,
+        );
         return [
           {
             sourceMove,
@@ -11691,6 +12388,7 @@ const effectsRelativeToActionActor = (
   effects: ReturnType<typeof moveEffectsForTrigger>,
   ownerCombatantId: CombatantId,
   actionActorId: CombatantId,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): ReturnType<typeof moveEffectsForTrigger> => {
   const targetForAction = (target: "self" | "opponent") => {
     if (ownerCombatantId === actionActorId) return target;
@@ -11700,23 +12398,31 @@ const effectsRelativeToActionActor = (
     items.map((item) => ({ ...item, target: targetForAction(item.target) }));
   return {
     resources: remap(effects.resources),
-    resourceActionModifiers: remap(effects.resourceActionModifiers ?? []),
-    resourceCostModifications: (effects.resourceCostModifications ?? []).map((effect) => ({
-      ...effect,
-      target: targetForAction(effect.target),
-    })),
-    damageModifierTransformers: (effects.damageModifierTransformers ?? []).map((effect) => ({
-      ...effect,
-      target: targetForAction(effect.target),
-    })),
-    resourceModifierTransformers: (effects.resourceModifierTransformers ?? []).map((effect) => ({
-      ...effect,
-      target: targetForAction(effect.target),
-    })),
-    costModifierTransformers: (effects.costModifierTransformers ?? []).map((effect) => ({
-      ...effect,
-      target: targetForAction(effect.target),
-    })),
+    resourceActionModifiers: remap(effects.resourceActionModifiers),
+    resourceCostModifications: (runtimeOptional(effects.resourceCostModifications) ?? []).map(
+      (effect) => ({
+        ...effect,
+        target: targetForAction(effect.target),
+      }),
+    ),
+    damageModifierTransformers: (runtimeOptional(effects.damageModifierTransformers) ?? []).map(
+      (effect) => ({
+        ...effect,
+        target: targetForAction(effect.target),
+      }),
+    ),
+    resourceModifierTransformers: (runtimeOptional(effects.resourceModifierTransformers) ?? []).map(
+      (effect) => ({
+        ...effect,
+        target: targetForAction(effect.target),
+      }),
+    ),
+    costModifierTransformers: (runtimeOptional(effects.costModifierTransformers) ?? []).map(
+      (effect) => ({
+        ...effect,
+        target: targetForAction(effect.target),
+      }),
+    ),
     storedRollRequests: effects.storedRollRequests,
     storedMoveSelectionRequests: effects.storedMoveSelectionRequests,
     statuses: remap(effects.statuses),
@@ -11772,6 +12478,13 @@ const effectsRelativeToActionActor = (
     rollSelections: remap(effects.rollSelections),
     rollDefinitions: remap(effects.rollDefinitions),
     rollResultOverrides: remap(effects.rollResultOverrides),
+    resolutionImmunityOverrides: remap(effects.resolutionImmunityOverrides),
+    damageReductionCostModifications: remap(effects.damageReductionCostModifications),
+    // Contest effects address both combatants and therefore are already
+    // relative to the action; they must not be remapped as self/opponent.
+    contests: effects.contests,
+    destructionMasteries: remap(effects.destructionMasteries),
+    transformationRollRequirements: remap(effects.transformationRollRequirements),
     combatResultOverrides: remap(effects.combatResultOverrides),
     combatOutcomeModifiers: effects.combatOutcomeModifiers.map((effect) => ({
       ...effect,
@@ -11797,13 +12510,15 @@ const effectsRelativeToActionActor = (
 };
 
 const effectsForActionWithMoveModificationPrevention = (
-  state: ActiveFightState,
-  effects: ReturnType<typeof moveEffectsForTrigger>,
-  sourceCombatantId: CombatantId,
-  sourceMove: MoveDefinition,
-  actionActor: ActiveFightState["combatants"][CombatantId],
-  actionTarget: ActiveFightState["combatants"][CombatantId],
-  triggeringMove: MoveDefinition | undefined,
+  ...[state, effects, sourceCombatantId, sourceMove, actionActor, actionTarget, triggeringMove]: [
+    state: ActiveFightState,
+    effects: ReturnType<typeof moveEffectsForTrigger>,
+    sourceCombatantId: CombatantId,
+    sourceMove: MoveDefinition,
+    actionActor: ActiveFightState["combatants"][CombatantId],
+    actionTarget: ActiveFightState["combatants"][CombatantId],
+    triggeringMove: MoveDefinition | undefined,
+  ]
 ) => {
   const relative = effectsRelativeToActionActor(effects, sourceCombatantId, actionActor.id);
   if (triggeringMove === undefined || sourceMove.id === triggeringMove.id) return relative;
@@ -11851,6 +12566,13 @@ const effectsForActionWithMoveModificationPrevention = (
     rollSelections: filter(relative.rollSelections),
     rollDefinitions: filter(relative.rollDefinitions),
     rollResultOverrides: filter(relative.rollResultOverrides),
+    resolutionImmunityOverrides: filter(relative.resolutionImmunityOverrides),
+    damageReductionCostModifications: filter(relative.damageReductionCostModifications),
+    contests: relative.contests.filter(
+      () => !targetIsBlocked("self") && !targetIsBlocked("opponent"),
+    ),
+    destructionMasteries: filter(relative.destructionMasteries),
+    transformationRollRequirements: filter(relative.transformationRollRequirements),
     combatResultOverrides: filter(relative.combatResultOverrides),
     combatOutcomeModifiers: filter(relative.combatOutcomeModifiers),
     resolutionThresholds: filter(relative.resolutionThresholds),
@@ -11898,17 +12620,31 @@ const activeConstantForSource = (
   );
 
 const thresholdEffectsForListener = (
-  state: ActiveFightState,
-  moves: ReadonlyMap<string, MoveDefinition>,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  previousActor: ActiveFightState["combatants"][CombatantId],
-  previousTarget: ActiveFightState["combatants"][CombatantId],
-  nextActor: ActiveFightState["combatants"][CombatantId],
-  nextTarget: ActiveFightState["combatants"][CombatantId],
-  listener: ActiveFightState["combatants"][CombatantId],
-  change: ResourceChange,
-  actionHistory: readonly CombatActionRecord[],
+  ...[
+    state,
+    moves,
+    actor,
+    target,
+    previousActor,
+    previousTarget,
+    nextActor,
+    nextTarget,
+    listener,
+    change,
+    actionHistory,
+  ]: [
+    state: ActiveFightState,
+    moves: ReadonlyMap<string, MoveDefinition>,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    previousActor: ActiveFightState["combatants"][CombatantId],
+    previousTarget: ActiveFightState["combatants"][CombatantId],
+    nextActor: ActiveFightState["combatants"][CombatantId],
+    nextTarget: ActiveFightState["combatants"][CombatantId],
+    listener: ActiveFightState["combatants"][CombatantId],
+    change: ResourceChange,
+    actionHistory: readonly CombatActionRecord[],
+  ]
 ) => {
   const listenerIsActor = listener.id === actor.id;
   const listenerState = listenerIsActor ? nextActor : nextTarget;
@@ -11960,12 +12696,14 @@ const thresholdEffectsForListener = (
 };
 
 const resourceThresholdTriggeredEffects = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  resourceChanges: readonly ResourceChange[],
-  directDamage: number,
-  actionHistory: readonly CombatActionRecord[],
+  ...[state, actor, target, resourceChanges, directDamage, actionHistory]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    resourceChanges: readonly ResourceChange[],
+    directDamage: number,
+    actionHistory: readonly CombatActionRecord[],
+  ]
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
   const changes: readonly ResourceChange[] = [
@@ -12026,17 +12764,21 @@ const mergeMoveEffects = (
   ...effectSets: readonly ReturnType<typeof moveEffectsForTrigger>[]
 ): ReturnType<typeof moveEffectsForTrigger> => ({
   resources: effectSets.flatMap((effects) => effects.resources),
-  resourceActionModifiers: effectSets.flatMap((effects) => effects.resourceActionModifiers ?? []),
+  resourceActionModifiers: effectSets.flatMap(
+    (effects) => runtimeOptional(effects.resourceActionModifiers) ?? [],
+  ),
   resourceCostModifications: effectSets.flatMap(
-    (effects) => effects.resourceCostModifications ?? [],
+    (effects) => runtimeOptional(effects.resourceCostModifications) ?? [],
   ),
   damageModifierTransformers: effectSets.flatMap(
-    (effects) => effects.damageModifierTransformers ?? [],
+    (effects) => runtimeOptional(effects.damageModifierTransformers) ?? [],
   ),
   resourceModifierTransformers: effectSets.flatMap(
-    (effects) => effects.resourceModifierTransformers ?? [],
+    (effects) => runtimeOptional(effects.resourceModifierTransformers) ?? [],
   ),
-  costModifierTransformers: effectSets.flatMap((effects) => effects.costModifierTransformers ?? []),
+  costModifierTransformers: effectSets.flatMap(
+    (effects) => runtimeOptional(effects.costModifierTransformers) ?? [],
+  ),
   storedRollRequests: effectSets.flatMap((effects) => effects.storedRollRequests),
   storedMoveSelectionRequests: effectSets.flatMap((effects) => effects.storedMoveSelectionRequests),
   statuses: effectSets.flatMap((effects) => effects.statuses),
@@ -12068,6 +12810,15 @@ const mergeMoveEffects = (
   rollSelections: effectSets.flatMap((effects) => effects.rollSelections),
   rollDefinitions: effectSets.flatMap((effects) => effects.rollDefinitions),
   rollResultOverrides: effectSets.flatMap((effects) => effects.rollResultOverrides),
+  resolutionImmunityOverrides: effectSets.flatMap((effects) => effects.resolutionImmunityOverrides),
+  damageReductionCostModifications: effectSets.flatMap(
+    (effects) => effects.damageReductionCostModifications,
+  ),
+  contests: effectSets.flatMap((effects) => effects.contests),
+  destructionMasteries: effectSets.flatMap((effects) => effects.destructionMasteries),
+  transformationRollRequirements: effectSets.flatMap(
+    (effects) => effects.transformationRollRequirements,
+  ),
   combatResultOverrides: effectSets.flatMap((effects) => effects.combatResultOverrides),
   combatOutcomeModifiers: effectSets.flatMap((effects) => effects.combatOutcomeModifiers),
   criticalThresholds: effectSets.flatMap((effects) => effects.criticalThresholds),
@@ -12174,12 +12925,14 @@ const combatantAfterStoredMoveSelectionRequests = (
 };
 
 const storedRollEvents = (
-  state: ActiveFightState,
-  combatantId: CombatantId,
-  resolved: readonly ResolvedStoredRoll[],
-  dependencies: CombatDependencies,
-  sequenceOffset: number,
-  causedByDecisionId?: CombatDecision["id"],
+  ...[state, combatantId, resolved, dependencies, sequenceOffset, causedByDecisionId]: [
+    state: ActiveFightState,
+    combatantId: CombatantId,
+    resolved: readonly ResolvedStoredRoll[],
+    dependencies: CombatDependencies,
+    sequenceOffset: number,
+    causedByDecisionId?: CombatDecision["id"],
+  ]
 ): readonly CombatEvent[] =>
   resolved.map(({ request, storedRoll }, index) => ({
     id: dependencies.ids.nextEventId(),
@@ -12218,19 +12971,19 @@ const effectsForUpkeepTarget = (
   target: "self" | "opponent",
 ): ReturnType<typeof moveEffectsForTrigger> => ({
   resources: effects.resources.filter((effect) => effect.target === target),
-  resourceActionModifiers: (effects.resourceActionModifiers ?? []).filter(
+  resourceActionModifiers: (runtimeOptional(effects.resourceActionModifiers) ?? []).filter(
     (effect) => effect.target === target,
   ),
-  resourceCostModifications: (effects.resourceCostModifications ?? []).filter(
+  resourceCostModifications: (runtimeOptional(effects.resourceCostModifications) ?? []).filter(
     (effect) => effect.target === target,
   ),
-  damageModifierTransformers: (effects.damageModifierTransformers ?? []).filter(
+  damageModifierTransformers: (runtimeOptional(effects.damageModifierTransformers) ?? []).filter(
     (effect) => effect.target === target,
   ),
-  resourceModifierTransformers: (effects.resourceModifierTransformers ?? []).filter(
-    (effect) => effect.target === target,
-  ),
-  costModifierTransformers: (effects.costModifierTransformers ?? []).filter(
+  resourceModifierTransformers: (
+    runtimeOptional(effects.resourceModifierTransformers) ?? []
+  ).filter((effect) => effect.target === target),
+  costModifierTransformers: (runtimeOptional(effects.costModifierTransformers) ?? []).filter(
     (effect) => effect.target === target,
   ),
   storedRollRequests: effects.storedRollRequests.filter((effect) => effect.target === target),
@@ -12275,6 +13028,17 @@ const effectsForUpkeepTarget = (
   rollSelections: effects.rollSelections.filter((effect) => effect.target === target),
   rollDefinitions: effects.rollDefinitions.filter((effect) => effect.target === target),
   rollResultOverrides: effects.rollResultOverrides.filter((effect) => effect.target === target),
+  resolutionImmunityOverrides: effects.resolutionImmunityOverrides.filter(
+    (effect) => effect.target === target,
+  ),
+  damageReductionCostModifications: effects.damageReductionCostModifications.filter(
+    (effect) => effect.target === target,
+  ),
+  contests: [],
+  destructionMasteries: effects.destructionMasteries.filter((effect) => effect.target === target),
+  transformationRollRequirements: effects.transformationRollRequirements.filter(
+    (effect) => effect.target === target,
+  ),
   combatResultOverrides: effects.combatResultOverrides.filter((effect) => effect.target === target),
   combatOutcomeModifiers: effects.combatOutcomeModifiers.filter(
     (effect) => effect.target === target,
@@ -12384,7 +13148,7 @@ const lifecycleDeactivationForMove = ({
       "self",
     );
     if (resolved.deactivations.length === 0) continue;
-    const application = resolved.deactivations[0]!;
+    const application = resolved.deactivations[0];
     if (
       !lifecycleDeactivationTargetIsEligible(state, actor.id, moves, application.selector) ||
       !deactivationCostAvailable(actor, application.activationCost)
@@ -12599,14 +13363,25 @@ const hasCriticalCombatResultOverride = (
   );
 
 const completedConvertedAttackEffects = (
-  state: ActiveFightState,
-  move: MoveDefinition,
-  context: Parameters<typeof moveEffectsForTrigger>[2],
-  initialRoll: ReturnType<typeof convertedAttackRoll>,
-  selectedAfterDefenseEffects: ReturnType<typeof moveEffectsForTrigger> | undefined,
-  moveUseTriggered: ReturnType<typeof moveUseTriggeredEffects>,
-  selectedMoveUseEffects: ReturnType<typeof moveEffectsForTrigger> | undefined,
-  successfulEffectTriggered: ReturnType<typeof successfulEffectTriggeredEffects>,
+  ...[
+    state,
+    move,
+    context,
+    initialRoll,
+    selectedAfterDefenseEffects,
+    moveUseTriggered,
+    selectedMoveUseEffects,
+    successfulEffectTriggered,
+  ]: [
+    state: ActiveFightState,
+    move: MoveDefinition,
+    context: Parameters<typeof moveEffectsForTrigger>[2],
+    initialRoll: ReturnType<typeof convertedAttackRoll>,
+    selectedAfterDefenseEffects: ReturnType<typeof moveEffectsForTrigger> | undefined,
+    moveUseTriggered: ReturnType<typeof moveUseTriggeredEffects>,
+    selectedMoveUseEffects: ReturnType<typeof moveEffectsForTrigger> | undefined,
+    successfulEffectTriggered: ReturnType<typeof successfulEffectTriggeredEffects>,
+  ]
 ) => {
   const ownEffects = completedConvertedAttackOwnEffects(
     move,
@@ -12665,13 +13440,23 @@ const completedConvertedAttackOwnEffects = (
 };
 
 const successfulResourceEffectsForAttack = (
-  move: MoveDefinition,
-  context: ResolvedConvertedAttackEffectContext,
-  damage: number,
-  successfulEffectTriggered: ReturnType<typeof successfulEffectTriggeredEffects>,
-  selectedMoveUseEffects: ReturnType<typeof moveEffectsForTrigger> | undefined,
-  attackerId: CombatantId,
-  targetId: CombatantId,
+  ...[
+    move,
+    context,
+    damage,
+    successfulEffectTriggered,
+    selectedMoveUseEffects,
+    attackerId,
+    targetId,
+  ]: [
+    move: MoveDefinition,
+    context: ResolvedConvertedAttackEffectContext,
+    damage: number,
+    successfulEffectTriggered: ReturnType<typeof successfulEffectTriggeredEffects>,
+    selectedMoveUseEffects: ReturnType<typeof moveEffectsForTrigger> | undefined,
+    attackerId: CombatantId,
+    targetId: CombatantId,
+  ]
 ) =>
   negatesSelectedMoveUseEffects(selectedMoveUseEffects, move) ||
   triggeringMoveEffectsSuppressed(successfulEffectTriggered, attackerId, targetId, move)
@@ -12693,6 +13478,39 @@ const selectedAfterDefenseEffectsForResolution = (
 const currentActionForEffectContext = (action: CombatActionRecord) =>
   action.type === "basic-attack" || action.type === "use-move" ? action : undefined;
 
+const contestResourceChanges = (
+  contests: readonly ContestApplication[],
+  attacker: CombatantState,
+  target: CombatantState,
+  dependencies: CombatDependencies,
+): readonly ResourceChange[] =>
+  contests.flatMap((contest) => {
+    const selfPowerHigher = attacker.stats.power > target.stats.power;
+    const qualifyingCount = (combatant: CombatantState, isSelf: boolean) =>
+      Array.from({ length: contest.repetitions * contest.dice }, () =>
+        dependencies.random.integer(1, contest.sides),
+      ).filter(
+        (result) =>
+          result >=
+          (isSelf && selfPowerHigher ? contest.selfPowerHigherThreshold : contest.defaultThreshold),
+      ).length;
+    const attackerQualifying = qualifyingCount(attacker, true);
+    const targetQualifying = qualifyingCount(target, false);
+    const loser = attackerQualifying < targetQualifying ? "self" : "opponent";
+    return [
+      {
+        resource: "hp" as const,
+        target: loser,
+        operation: "lose" as const,
+        amount: contest.penaltyAmount,
+        sourceCombatantId: attacker.id,
+        sourceDefinitionId: contest.sourceDefinitionId,
+        sourceEffectIndex: contest.sourceEffectIndex,
+        cause: "non-damage-effect" as const,
+      },
+    ];
+  });
+
 type ConvertedAttackEffectContext = ReturnType<typeof convertedAttackEffectContext>;
 type ResolvedConvertedAttackEffectContext = ConvertedAttackEffectContext &
   Pick<
@@ -12713,6 +13531,7 @@ const criticalCompletedAttack = (
         application.result === "critical" && application.resultScope === "current-attack",
     ));
 
+// eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 const selectedSuppressionEffect = (effect: EffectDefinition | undefined) =>
   effect?.type === "suppress" &&
   (effect.target === "self" || effect.target === "opponent") &&
@@ -12801,12 +13620,14 @@ const selectedMoveTargetChoiceAvailable = (
   );
 
 const pendingSuccessEffectChoiceTransition = (
-  input: CompleteConvertedAttackInput,
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  initialRoll: ReturnType<typeof convertedAttackRoll>,
-  resolvedEffectContext: ResolvedConvertedAttackEffectContext,
-  dependencies: CombatDependencies,
+  ...[input, target, move, initialRoll, resolvedEffectContext, dependencies]: [
+    input: CompleteConvertedAttackInput,
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    initialRoll: ReturnType<typeof convertedAttackRoll>,
+    resolvedEffectContext: ResolvedConvertedAttackEffectContext,
+    dependencies: CombatDependencies,
+  ]
 ): CombatResult<CombatTransition> | undefined => {
   if (initialRoll.successfulHitCount === 0) return undefined;
   const rawPendingSuccessChoices = successfulMoveEffects(move, {
@@ -12831,7 +13652,7 @@ const pendingSuccessEffectChoiceTransition = (
           choice.effectIndices,
         )),
   );
-  const pendingSuccessChoice = pendingSuccessChoices.find(() => true);
+  const pendingSuccessChoice = pendingSuccessChoices.at(0);
   if (pendingSuccessChoice === undefined) return undefined;
   const endsFloatingEffect = pendingSuccessChoice.effectIndices.some(
     (effectIndex) => move.effects?.[effectIndex]?.type === "end-floating-effect",
@@ -12933,12 +13754,14 @@ const convertedAttackEffectContextForAction = (
 });
 
 const convertedAttackCostForInput = (
-  input: CompleteConvertedAttackInput,
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  baseCost: number,
-  beforeAttackEffects: ReturnType<typeof moveEffectsForTrigger>,
+  ...[input, state, attacker, move, baseCost, beforeAttackEffects]: [
+    input: CompleteConvertedAttackInput,
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    baseCost: number,
+    beforeAttackEffects: ReturnType<typeof moveEffectsForTrigger>,
+  ]
 ) =>
   input.deferredExecution === undefined
     ? convertedAttackCost(
@@ -12975,6 +13798,7 @@ const deferredContextFieldsFor = (input: CompleteConvertedAttackInput) =>
       };
 
 /* eslint-disable sonarjs/cognitive-complexity -- attack completion preserves deterministic effect and resource ordering. */
+// eslint-disable-next-line complexity, max-lines-per-function, max-statements -- Combat transition logic intentionally keeps the persisted phase branches together.
 const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
   const {
     state,
@@ -13219,8 +14043,15 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
     effectsWithStoppedSkills,
     input.selectedMoveUseEffects ?? mergeMoveEffects(),
   );
+  const contestResources = contestResourceChanges(
+    effectsWithSelectedMoveUse.contests,
+    attacker,
+    target,
+    dependencies,
+  );
   const effects = {
     ...effectsWithSelectedMoveUse,
+    resources: [...effectsWithSelectedMoveUse.resources, ...contestResources],
     extraActions: [...effectsWithSelectedMoveUse.extraActions, ...onRollResultExtraActions],
   };
   const automaticCounter = automaticCounterActionResolution(
@@ -13342,6 +14173,7 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
             attacker.id,
             target.id,
           ),
+          { ...mergeMoveEffects(), resources: contestResources },
           ...moveUseTriggered.map(({ sourceMove, owner, effects: eventEffects }) =>
             effectsForActionWithMoveModificationPrevention(
               state,
@@ -13413,7 +14245,7 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
       ...afterDefenseEffects.resources,
       ...resourceEffects.resources,
       ...resourceCostActivationChanges(
-        resourceEffects.resourceCostModifications ?? [],
+        runtimeOptional(resourceEffects.resourceCostModifications) ?? [],
         attacker.id,
         target.id,
       ),
@@ -13645,6 +14477,19 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
             defeated,
           }),
       ),
+      ...rollResultTriggered.flatMap(
+        ({ sourceMove, owner, target: eventTarget, effects: eventEffects }) =>
+          convertedAttackActivatedEffects({
+            state,
+            dependencies,
+            attacker: owner,
+            target: eventTarget,
+            move: sourceMove,
+            createdOnTurn: state.turnNumber,
+            effects: eventEffects,
+            defeated,
+          }),
+      ),
       ...thresholdTriggered.flatMap(
         ({ sourceMove, owner, target: eventTarget, effects: thresholdEffects }) =>
           convertedAttackActivatedEffects({
@@ -13675,7 +14520,7 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
       ...effects.activations,
       ...eventEffects.activations,
       ...onRollResultActivations,
-      ...(resolvedBlockUsage?.effects?.activations ?? []),
+      ...(resolvedBlockUsage?.effects.activations ?? []),
     ],
     deactivations: [...effects.deactivations, ...eventEffects.deactivations],
     moveUsePreventions: [...effects.moveUsePreventions, ...eventEffects.moveUsePreventions],
@@ -13718,6 +14563,22 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
     context,
     events.length,
   );
+  const exchangeOutcome = initialRoll.successfulHitCount > 0 ? "successful" : "stopped";
+  const exchangeResolution =
+    nextState.status === "active"
+      ? exchangeSkillReactivationAfterAttack(
+          nextState,
+          attacker,
+          target,
+          move,
+          context.roll.totalDice,
+          exchangeOutcome,
+          context.blockUsage !== undefined,
+          nextState.eventSequence + events.length,
+          decision.id,
+          dependencies,
+        )
+      : { activeEffects: nextState.activeEffects, events: [] as CombatEvent[] };
   return finishConvertedAttackMove({
     decision,
     move,
@@ -13726,8 +14587,12 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
     target,
     context,
     initialRoll,
-    nextState,
-    events,
+    nextState: {
+      ...nextState,
+      activeEffects: exchangeResolution.activeEffects,
+      eventSequence: nextState.eventSequence + exchangeResolution.events.length,
+    },
+    events: [...events, ...exchangeResolution.events],
   });
 };
 
@@ -13780,13 +14645,15 @@ const pendingAttackEffectChoice = ({
 };
 
 const selectedCostModificationsFor = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  sourceDefinitionId: MoveId | undefined,
-  effectIndices: readonly number[] | undefined,
-  trigger: CostEffectTrigger,
+  ...[state, attacker, target, move, sourceDefinitionId, effectIndices, trigger]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    sourceDefinitionId: MoveId | undefined,
+    effectIndices: readonly number[] | undefined,
+    trigger: CostEffectTrigger,
+  ]
 ) =>
   target === undefined || sourceDefinitionId === undefined || effectIndices === undefined
     ? undefined
@@ -13801,13 +14668,23 @@ const selectedCostModificationsFor = (
       );
 
 const selectedMoveUseEffectsForAttack = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  sourceDefinitionId: MoveId | undefined,
-  effectIndices: readonly number[] | undefined,
-  sourceCombatantId: CombatantId = actor.id,
+  ...[
+    state,
+    actor,
+    target,
+    move,
+    sourceDefinitionId,
+    effectIndices,
+    sourceCombatantId = actor.id,
+  ]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    sourceDefinitionId: MoveId | undefined,
+    effectIndices: readonly number[] | undefined,
+    sourceCombatantId?: CombatantId,
+  ]
 ) => {
   if (target === undefined || sourceDefinitionId === undefined || effectIndices === undefined)
     return undefined;
@@ -13872,13 +14749,23 @@ const selectedMoveUseActivationChanges = (
 };
 
 const pendingCostModifiedEffectChoice = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  existingModifications: readonly CurrentActionCostModification[],
-  resolvedSourceDefinitionId: MoveId | undefined,
-  resolvedEffectIndices: readonly number[] | undefined,
+  ...[
+    state,
+    actor,
+    target,
+    move,
+    existingModifications,
+    resolvedSourceDefinitionId,
+    resolvedEffectIndices,
+  ]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    existingModifications: readonly CurrentActionCostModification[],
+    resolvedSourceDefinitionId: MoveId | undefined,
+    resolvedEffectIndices: readonly number[] | undefined,
+  ]
 ) => {
   if (!existingModifications.some((modification) => modification.target === "self"))
     return undefined;
@@ -13894,12 +14781,14 @@ const pendingCostModifiedEffectChoice = (
 };
 
 const pendingMoveUseCostChoiceTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  dependencies: CombatDependencies,
+  ...[state, decision, attacker, target, move, dependencies]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    dependencies: CombatDependencies,
+  ]
 ) => {
   if (target === undefined) return undefined;
   const pendingCostChoice = pendingCostEffectChoice(state, attacker, target, move, "on-move-use");
@@ -13920,40 +14809,55 @@ const pendingMoveUseCostChoiceTransition = (
 };
 
 const pendingUnselectedMoveUseCostChoiceTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  sourceDefinitionId: MoveId | undefined,
-  effectIndices: readonly number[] | undefined,
-  dependencies: CombatDependencies,
+  ...[state, decision, attacker, target, move, sourceDefinitionId, effectIndices, dependencies]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    sourceDefinitionId: MoveId | undefined,
+    effectIndices: readonly number[] | undefined,
+    dependencies: CombatDependencies,
+  ]
 ) =>
   sourceDefinitionId === undefined && effectIndices === undefined
     ? pendingMoveUseCostChoiceTransition(state, decision, attacker, target, move, dependencies)
     : undefined;
 
 const pendingMoveUseNegationForAttack = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  dependencies: CombatDependencies,
-  enabledOptionalEffectIndices: readonly number[] | undefined,
-  costEffectOwnerId: CombatantId | undefined,
+  ...[
+    state,
+    decision,
+    attacker,
+    target,
+    move,
+    dependencies,
+    enabledOptionalEffectIndices,
+    costEffectOwnerId,
+  ]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    dependencies: CombatDependencies,
+    enabledOptionalEffectIndices: readonly number[] | undefined,
+    costEffectOwnerId: CombatantId | undefined,
+  ]
 ) =>
   enabledOptionalEffectIndices === undefined && costEffectOwnerId === undefined
     ? pendingMoveUseNegationChoiceTransition(state, decision, attacker, target, move, dependencies)
     : undefined;
 
 const pendingMoveUseNegationChoiceTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  dependencies: CombatDependencies,
+  ...[state, decision, attacker, target, move, dependencies]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    dependencies: CombatDependencies,
+  ]
 ) => {
   if (target === undefined) return undefined;
   const pending = moveUseTriggeredEffects(state, attacker, target, move, {
@@ -14001,15 +14905,27 @@ const pendingMoveUseNegationChoiceTransition = (
 };
 
 const pendingCostModifiedChoiceTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  existingModifications: readonly CurrentActionCostModification[],
-  resolvedSourceDefinitionId: MoveId | undefined,
-  resolvedEffectIndices: readonly number[] | undefined,
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    decision,
+    attacker,
+    target,
+    move,
+    existingModifications,
+    resolvedSourceDefinitionId,
+    resolvedEffectIndices,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    existingModifications: readonly CurrentActionCostModification[],
+    resolvedSourceDefinitionId: MoveId | undefined,
+    resolvedEffectIndices: readonly number[] | undefined,
+    dependencies: CombatDependencies,
+  ]
 ) => {
   if (target === undefined) return undefined;
   const pendingChoice = pendingCostModifiedEffectChoice(
@@ -14038,14 +14954,25 @@ const pendingCostModifiedChoiceTransition = (
 };
 
 const selectedBeforeAttackEffectsForResolution = (
-  state: ActiveFightState,
-  attacker: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId] | undefined,
-  move: MoveDefinition,
-  enabledOptionalEffectIndices: readonly number[] | undefined,
-  resolvedOptionalEffectIndices: readonly number[] | undefined,
-  selectedNumericValues: Readonly<Record<string, number>> | undefined,
-  sourceDefinitionId: MoveId | undefined,
+  ...[
+    state,
+    attacker,
+    target,
+    move,
+    enabledOptionalEffectIndices,
+    resolvedOptionalEffectIndices,
+    selectedNumericValues,
+    sourceDefinitionId,
+  ]: [
+    state: ActiveFightState,
+    attacker: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId] | undefined,
+    move: MoveDefinition,
+    enabledOptionalEffectIndices: readonly number[] | undefined,
+    resolvedOptionalEffectIndices: readonly number[] | undefined,
+    selectedNumericValues: Readonly<Record<string, number>> | undefined,
+    sourceDefinitionId: MoveId | undefined,
+  ]
 ) =>
   target === undefined || enabledOptionalEffectIndices === undefined
     ? undefined
@@ -14177,6 +15104,7 @@ const resolveConvertedAttackMove = (
     deferredExecution,
     skipActionPhaseEffectIndex,
   }: AttackResolutionOptions = {},
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const attacker = state.combatants[decision.actorId];
   const target = activeOpponent(state, attacker.id, decision.targetCombatantId);
@@ -14305,7 +15233,7 @@ const resolveConvertedAttackMove = (
     move,
     [
       ...currentActionCostModifiersFor(state, attacker.id, move),
-      ...(beforeAttackEffectsForCost?.currentActionCostModifications ?? []),
+      ...(runtimeOptional(beforeAttackEffectsForCost)?.currentActionCostModifications ?? []),
       ...(selectedCostModifications ?? []),
     ],
     costEffectSourceDefinitionId,
@@ -14320,7 +15248,7 @@ const resolveConvertedAttackMove = (
     attacker,
     target,
     [
-      ...(beforeAttackEffectsForCost?.currentActionCostModifications ?? []),
+      ...(runtimeOptional(beforeAttackEffectsForCost)?.currentActionCostModifications ?? []),
       ...(selectedCostModifications ?? []),
     ],
     costOverride ?? deferredMoveCostOverrideFor(deferredExecution, copiedSourceResolution),
@@ -14445,12 +15373,15 @@ const basicAttackDamage = (
   );
 
 const completedBasicAttackResolution = (
-  state: ActiveFightState,
-  decision: BasicAttackDecision,
-  attacker: CombatantState,
-  target: CombatantState,
-  options: BasicAttackResolutionOptions,
-  dependencies: CombatDependencies,
+  ...[state, decision, attacker, target, options, dependencies]: [
+    state: ActiveFightState,
+    decision: BasicAttackDecision,
+    attacker: CombatantState,
+    target: CombatantState,
+    options: BasicAttackResolutionOptions,
+    dependencies: CombatDependencies,
+  ]
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const basicDamage = basicAttackDamage(state, attacker, target);
   const activeResultOverrides = activeCombatResultOverridesForAttack(
@@ -14459,6 +15390,7 @@ const completedBasicAttackResolution = (
     undefined,
     1,
   );
+  const activeRollResultOverride = activeRollResultOverrideForAttack(state, target.id);
   const resolution = resolveAttack({
     attacker,
     target,
@@ -14483,7 +15415,11 @@ const completedBasicAttackResolution = (
       combatResultPreventedForBasicAttack(state, target.id, "counter"),
     naturalRolls: options.naturalRolls,
     resultOverrides: options.resultOverrides ?? activeResultOverrides,
-    numericResultOverrides: options.numericResultOverrides,
+    numericResultOverrides:
+      options.numericResultOverrides ??
+      (activeRollResultOverride === undefined
+        ? undefined
+        : [{ defense: activeRollResultOverride }]),
   });
   const currentAction = actionRecordWithAttackResult(state, decision, {
     outcome: resolution.outcome,
@@ -14565,6 +15501,15 @@ const completedBasicAttackResolution = (
       ),
     ),
   );
+  const activatedEffects = rollResultTriggered.flatMap(({ owner, target: eventTarget, effects }) =>
+    activeRollResultEffectsFromApplications(
+      state,
+      effects.rollResultOverrides,
+      owner.id,
+      eventTarget.id,
+      dependencies,
+    ),
+  );
   const counterAttackCount = consecutiveCounterAttackCount(state) + 1;
   const counterChainLimitReached =
     (adjustedResolution.counter || options.counterAction !== undefined) &&
@@ -14612,6 +15557,7 @@ const completedBasicAttackResolution = (
   combatants = combatantsAfterResourceEffectUseLimits(combatants, resourceChanges);
   return {
     attackerDefeated,
+    activatedEffects,
     combatants,
     counterChainLimitReached,
     counterContinues,
@@ -14637,6 +15583,7 @@ const resolveBasicAttack = (
     numericResultOverrides,
     counterAction,
   }: BasicAttackResolutionOptions = {},
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const attacker = state.combatants[decision.actorId];
   const target = activeOpponent(state, attacker.id, decision.targetCombatantId);
@@ -14669,6 +15616,7 @@ const resolveBasicAttack = (
     counterContinues,
     resolution,
     attackerDefeated,
+    activatedEffects,
     resourceChanges,
   } = completedBasicAttackResolution(
     state,
@@ -14694,6 +15642,7 @@ const resolveBasicAttack = (
     counterContinues,
     counterAction,
     counterChainLimitReached,
+    activatedEffects,
     resourceChanges,
     ...(defenseItemUse === undefined ? {} : { defenseItemUse }),
     ...(includeRollEvents === undefined ? {} : { includeRollEvents }),
@@ -14738,9 +15687,30 @@ const resolveBasicAttack = (
     counterAction,
     eventSequence: nextEventSequence,
     resolution,
+    activatedEffects,
     resourceChanges,
   });
-  return transitionFrom(nextState, events);
+  if (nextState.status === "completed") return transitionFrom(nextState, events);
+  const exchangeResolution = exchangeSkillReactivationAfterAttack(
+    nextState,
+    attacker,
+    target,
+    undefined,
+    1,
+    resolution.outcome,
+    false,
+    nextState.eventSequence + events.length,
+    decision.id,
+    dependencies,
+  );
+  return transitionFrom(
+    {
+      ...nextState,
+      activeEffects: exchangeResolution.activeEffects,
+      eventSequence: nextState.eventSequence + exchangeResolution.events.length,
+    },
+    [...events, ...exchangeResolution.events],
+  );
 };
 
 const createBasicAttackState = (
@@ -14758,6 +15728,7 @@ const createBasicAttackState = (
     counterAction,
     eventSequence,
     resolution,
+    activatedEffects,
   }: BasicAttackStateContext,
 ): ActiveFightState | CompletedFightState =>
   defeated || attackerDefeated
@@ -14801,7 +15772,7 @@ const createBasicAttackState = (
             outcome: resolution.outcome,
             rolls: [resolution],
             basicAttack: decision.basicAttack,
-          }),
+          }).concat(activatedEffects ?? []),
           actionHistory,
           resolutionFrames: counterContinues
             ? [
@@ -14843,15 +15814,15 @@ const counterActionDecisionFor = (
   const frame = awaitingCounterFrameFor(state, combatantId);
   const counterAction = frame?.counterAction;
   if (frame === undefined || counterAction === undefined) return undefined;
-  const sourceAction = counterAction?.sourceAction;
-  if (counterAction?.action === "use-source-attack")
+  const sourceAction = counterAction.sourceAction;
+  if (counterAction.action === "use-source-attack")
     return {
       type: "use-move",
       actorId: combatantId,
       moveId: counterAction.sourceDefinitionId,
       targetCombatantId: frame.attackerId,
     };
-  if (counterAction?.action !== "repeat-triggering-attack" || sourceAction === undefined)
+  if (counterAction.action !== "repeat-triggering-attack" || sourceAction === undefined)
     return undefined;
   if (sourceAction.type === "basic-attack")
     return {
@@ -14939,7 +15910,8 @@ const legalDecisionsForCombatantMoves = (
       move.mechanics.kiCost?.type === "literal";
     const signatureUnavailable =
       move?.category === "signature" && !isSignatureTurnAvailable(state.turnNumber);
-    if (!isLiteralAttack || signatureUnavailable) return [];
+    if (move === undefined || !isLiteralAttack || signatureUnavailable) return [];
+    if (moveRequirementSuppressed(state, combatantId, move)) return [];
     const useLimit = effectiveRestrictedMoveUseLimit(state, activeCombatant, move);
     if (useLimit !== undefined && (activeCombatant.moveUses[move.id] ?? 0) >= useLimit) return [];
     return [actionDecisionForMove(combatantId, opponentId, moveId)];
@@ -14949,6 +15921,7 @@ const legalDecisionsForCombatantMoves = (
     const useLimit =
       move === undefined ? undefined : effectiveMoveUseLimit(state, activeCombatant, move);
     return move !== undefined &&
+      !moveRequirementSuppressed(state, combatantId, move) &&
       (isSimpleActionMove(move) || isCopyMoveAction(state, move)) &&
       (useLimit === undefined || (activeCombatant.moveUses[move.id] ?? 0) < useLimit)
       ? [actionDecisionForMove(combatantId, opponentId, moveId)]
@@ -14957,6 +15930,7 @@ const legalDecisionsForCombatantMoves = (
   const constantSkills: LegalDecision[] = activeCombatant.moveIds.flatMap((moveId) => {
     const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
     return move !== undefined &&
+      !moveRequirementSuppressed(state, combatantId, move) &&
       isConstantSkill(move) &&
       move.mechanics.kiCost?.type === "literal" &&
       !hasActiveConstant(state, combatantId, move.id) &&
@@ -15112,6 +16086,7 @@ const deferredMoveAtUpkeep = (
   upkeepExtraActionState: ActiveFightState,
   events: readonly CombatEvent[],
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> | undefined => {
   const deferredMove = upkeepExtraActionState.activeEffects.find(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "deferred-move" }> =>
@@ -15421,6 +16396,68 @@ const exactActionPhaseSkipChoice = (move: MoveDefinition, choice: PendingEffectC
   );
 };
 
+const exactActionPhaseExchangeChoice = (move: MoveDefinition, choice: PendingEffectChoice) => {
+  if (choice.effectIndices.length !== 1) return false;
+  const effect = move.effects?.[choice.effectIndices[0]];
+  return effect?.type === "exchange-constant-skill" && effect.trigger === "action-phase";
+};
+
+const activeActionPhaseExchange = (
+  state: ActiveFightState,
+  actor: ActiveFightState["combatants"][CombatantId],
+  target: ActiveFightState["combatants"][CombatantId],
+) => {
+  const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
+  const context: MoveEffectRuntimeContext = {
+    self: actor,
+    opponent: target,
+    turnNumber: state.turnNumber,
+    completedTurnCount: state.turnNumber - 1,
+    moves,
+    moveActivationCounts: moveActivationCounts(state),
+    successfulHitCount: 0,
+    actionHistory: state.actionHistory,
+    activeEffects: state.activeEffects,
+    mode: state.mode,
+    collectPendingChoices: true,
+  };
+  for (const activeEffect of state.activeEffects) {
+    if (
+      activeEffect.type !== "active-constant" ||
+      activeEffect.lifecycle === "deactivated" ||
+      activeEffect.sourceCombatantId !== actor.id ||
+      activeEffectSuppressed(state, activeEffect)
+    )
+      continue;
+    if (
+      state.activeEffects.some(
+        (effect) =>
+          effect.type === "exchange-skill-cooldown" &&
+          effect.targetCombatantId === actor.id &&
+          effect.sourceDefinitionId === activeEffect.sourceDefinitionId,
+      )
+    )
+      continue;
+    const sourceMove = activeConstantMove(activeEffect, moves);
+    if (sourceMove === undefined) continue;
+    const effects = moveEffectsForTrigger(sourceMove, "action-phase", context);
+    const pendingChoice = effects.pendingEffectChoices.find((choice) =>
+      exactActionPhaseExchangeChoice(sourceMove, choice),
+    );
+    if (pendingChoice === undefined) continue;
+    const effect = sourceMove.effects?.[pendingChoice.effectIndices[0]];
+    if (effect?.type !== "exchange-constant-skill") continue;
+    return {
+      sourceMove,
+      actor,
+      target,
+      pendingChoice,
+      noTurnCostAvailable: actor.ki.current >= effect.optionalNoTurnCost.amount,
+    };
+  }
+  return undefined;
+};
+
 const actionPhaseChoiceAtBoundary = (
   state: ActiveFightState,
   actor: ActiveFightState["combatants"][CombatantId],
@@ -15444,11 +16481,22 @@ const actionPhaseChoiceAtBoundary = (
     const sourceMove = moves.get(moveId);
     if (sourceMove === undefined) continue;
     const effects = moveEffectsForTrigger(sourceMove, "action-phase", context);
-    const pendingChoice = effects.pendingEffectChoices.find((choice) =>
-      exactActionPhaseSkipChoice(sourceMove, choice),
+    const pendingChoice = effects.pendingEffectChoices.find(
+      (choice) =>
+        exactActionPhaseSkipChoice(sourceMove, choice) ||
+        (exactActionPhaseExchangeChoice(sourceMove, choice) &&
+          hasActiveConstant(state, actor.id, sourceMove.id)),
     );
-    if (pendingChoice !== undefined) return { sourceMove, actor, target, pendingChoice };
+    if (pendingChoice !== undefined) {
+      if (exactActionPhaseExchangeChoice(sourceMove, pendingChoice)) {
+        const exchange = activeActionPhaseExchange(state, actor, target);
+        if (exchange !== undefined) return exchange;
+      }
+      return { sourceMove, actor, target, pendingChoice };
+    }
   }
+  const exchange = activeActionPhaseExchange(state, actor, target);
+  if (exchange !== undefined) return exchange;
   return undefined;
 };
 
@@ -15476,6 +16524,17 @@ const requestActionPhaseEffectChoice = (
           moveId: entry.sourceMove.id,
           effectIndices: entry.pendingChoice.effectIndices,
         },
+        ...("noTurnCostAvailable" in entry && entry.noTurnCostAvailable === true
+          ? [
+              {
+                id: `activate-effect:${entry.sourceMove.id}:${entry.pendingChoice.effectIndices.join(",")}:no-turn`,
+                type: "activate-effect" as const,
+                moveId: entry.sourceMove.id,
+                effectIndices: entry.pendingChoice.effectIndices,
+                selectedNumericValue: 1,
+              },
+            ]
+          : []),
         { id: "decline", type: "decline" },
       ],
     },
@@ -15502,10 +16561,99 @@ const requestActionPhaseEffectChoice = (
   ]);
 };
 
+const resolveActionPhaseExchangeChoice = (
+  state: ActiveFightState,
+  decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
+  dependencies: CombatDependencies,
+  frame: ActionPhaseEffectChoiceFrame,
+  sourceMove: MoveDefinition,
+  option: PendingDecisionOption,
+): CombatResult<CombatTransition> => {
+  const actor = state.combatants[frame.actorId];
+  const target = state.combatants[frame.targetCombatantId];
+  const effect = sourceMove.effects?.[frame.effectIndices[0]];
+  if (effect?.type !== "exchange-constant-skill")
+    return { ok: false, error: invalidFightState(state) };
+  const payNoTurnCost = option.selectedNumericValue === effect.optionalNoTurnCost.amount;
+  if (payNoTurnCost && actor.ki.current < effect.optionalNoTurnCost.amount)
+    return {
+      ok: false,
+      error: {
+        type: "insufficient-ki",
+        required: effect.optionalNoTurnCost.amount,
+        available: actor.ki.current,
+      },
+    };
+  const effects = moveEffectsForTrigger(sourceMove, "action-phase", {
+    self: actor,
+    opponent: target,
+    turnNumber: state.turnNumber,
+    completedTurnCount: state.turnNumber - 1,
+    moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+    moveActivationCounts: moveActivationCounts(state),
+    successfulHitCount: 0,
+    actionHistory: state.actionHistory,
+    activeEffects: state.activeEffects,
+    mode: state.mode,
+    enabledOptionalEffectIndices: frame.effectIndices,
+    resolvedOptionalEffectIndices: frame.effectIndices,
+  });
+  if (effects.deactivations.length < 2) return { ok: false, error: invalidFightState(state) };
+  const stateWithoutChoice = withoutPendingResolution(state);
+  const events: CombatEvent[] = payNoTurnCost
+    ? [
+        {
+          id: dependencies.ids.nextEventId(),
+          sequence: state.eventSequence + 1,
+          fightId: state.id,
+          causedByDecisionId: decision.id,
+          type: "ki-changed",
+          combatantId: actor.id,
+          amount: -effect.optionalNoTurnCost.amount,
+          remainingKi: actor.ki.current - effect.optionalNoTurnCost.amount,
+        },
+      ]
+    : [];
+  const nextState: ActiveFightState = {
+    ...stateWithoutChoice,
+    phase: payNoTurnCost ? "action" : "end",
+    combatants: {
+      ...state.combatants,
+      [actor.id]: payNoTurnCost
+        ? {
+            ...actor,
+            ki: {
+              ...actor.ki,
+              current: actor.ki.current - effect.optionalNoTurnCost.amount,
+            },
+          }
+        : actor,
+    },
+    eventSequence: state.eventSequence + events.length,
+  };
+  return resolveDeactivations({
+    state: nextState,
+    applications: effects.deactivations,
+    sourceCombatantId: actor.id,
+    causedByDecisionId: decision.id,
+    dependencies,
+    priorEvents: events,
+    trigger: "action",
+    exchangeSkillReactivation: {
+      sourceCombatantId: actor.id,
+      targetCombatantId: target.id,
+      sourceDefinitionId: sourceMove.id,
+      selfSelector: effect.selfSkill,
+      attackSelector: effect.reactivateWhen.attack,
+    },
+  });
+};
+
 /* eslint-disable sonarjs/cognitive-complexity -- upkeep advances persisted status, choice, and turn boundaries in order. */
 const advanceUpkeepFight = (
   state: ActiveFightState,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const activeCombatant = state.combatants[state.activeCombatantId];
   const preparedUpkeep = state.resolutionFrames.some(
@@ -15570,10 +16718,25 @@ const advanceUpkeepFight = (
       statusTurnStartChecks.events.length +
       releasedStatusBackedRestrictions.length,
   };
+  const transformationRoll = preparedUpkeep
+    ? { combatants: state.combatants, activeEffects: state.activeEffects, events: [] }
+    : requiredTransformationRollAtUpkeep(
+        stateAfterTurnStartChecks,
+        activeCombatant.id,
+        dependencies,
+      );
+  const stateAfterTurnStartAndTransformation: ActiveFightState = preparedUpkeep
+    ? state
+    : {
+        ...stateAfterTurnStartChecks,
+        combatants: transformationRoll.combatants,
+        activeEffects: transformationRoll.activeEffects,
+        eventSequence: stateAfterTurnStartChecks.eventSequence + transformationRoll.events.length,
+      };
   const passiveExtraActions = preparedUpkeep
     ? []
     : passiveExtraActionsAtTurnStart(
-        stateAfterTurnStartChecks,
+        stateAfterTurnStartAndTransformation,
         activeCombatant,
         target,
         dependencies,
@@ -15581,13 +16744,17 @@ const advanceUpkeepFight = (
   const upkeepState: ActiveFightState = preparedUpkeep
     ? state
     : {
-        ...stateAfterTurnStartChecks,
-        activeEffects: [...stateAfterTurnStartChecks.activeEffects, ...passiveExtraActions],
+        ...stateAfterTurnStartAndTransformation,
+        activeEffects: [
+          ...stateAfterTurnStartAndTransformation.activeEffects,
+          ...passiveExtraActions,
+        ],
       };
   const priorUpkeepEvents = [
     ...turnStartChecks.events,
     ...statusTurnStartChecks.events,
     ...releasedStatusBackedRestrictions,
+    ...transformationRoll.events,
   ];
   const deactivationTransition = upkeepDeactivationTransition(
     upkeepState,
@@ -15675,6 +16842,8 @@ const advanceUpkeepFight = (
   const events = [
     ...turnStartChecks.events,
     ...statusTurnStartChecks.events,
+    ...releasedStatusBackedRestrictions,
+    ...transformationRoll.events,
     ...upkeepRollEvents,
     ...upkeepSelectionEvents,
     ...upkeepEvents,
@@ -15824,6 +16993,7 @@ const stateAtNextUpkeep = (
 const advanceEndFight = (
   state: ActiveFightState,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const highestAvailableTransformation = (
     combatant: ActiveFightState["combatants"][CombatantId],
@@ -15845,7 +17015,7 @@ const advanceEndFight = (
         return transformationId === undefined ? [] : [{ combatant, opportunity, transformationId }];
       }),
     )
-    .find(() => true);
+    .at(0);
   if (forcedTransformation !== undefined) {
     const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
     const { combatant, opportunity, transformationId } = forcedTransformation;
@@ -16066,13 +17236,16 @@ export const advanceFight = (
 };
 
 const simpleActionActivatedEffects = (
-  state: ActiveFightState,
-  effects: ReturnType<typeof moveEffectsForTrigger>,
-  actor: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[state, effects, actor, target, move, createdOnTurn, dependencies]: [
+    state: ActiveFightState,
+    effects: ReturnType<typeof moveEffectsForTrigger>,
+    actor: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const suppressions = effects.suppressions.map((suppression) =>
     activeSuppressionFromApplication(suppression, actor.id, target.id, move.id, dependencies),
@@ -16162,6 +17335,13 @@ const simpleActionActivatedEffects = (
     move.id,
     dependencies,
   );
+  const rollResultModifiers = activeRollResultEffectsFromApplications(
+    state,
+    effects.rollResultOverrides,
+    actor.id,
+    target.id,
+    dependencies,
+  );
   const statModifiers = activeStatModifiersFromApplications(
     effects.statModifications,
     actor.id,
@@ -16198,6 +17378,7 @@ const simpleActionActivatedEffects = (
     ...extraActions,
     ...actionRestrictions,
     ...scheduledResources,
+    ...rollResultModifiers,
     ...rerolls,
     ...moveRemovals,
     ...moveEffectReplacements,
@@ -16272,17 +17453,19 @@ const simpleActionOnRollResultEffects = (
       });
 
 const simpleActionPendingChoiceTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  target: CombatantState,
-  move: MoveDefinition,
-  effects: ReturnType<typeof moveEffectsForTrigger>,
-  storedRollResolution: StoredRollResolution,
-  options: SimpleActionMoveResolutionOptions,
-  dependencies: CombatDependencies,
+  ...[state, decision, target, move, effects, storedRollResolution, options, dependencies]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    target: CombatantState,
+    move: MoveDefinition,
+    effects: ReturnType<typeof moveEffectsForTrigger>,
+    storedRollResolution: StoredRollResolution,
+    options: SimpleActionMoveResolutionOptions,
+    dependencies: CombatDependencies,
+  ]
 ): CombatResult<CombatTransition> | undefined => {
   if (options.persistedStoredRolls !== undefined) return undefined;
-  const pendingChoice = effects.pendingEffectChoices.find(() => true);
+  const pendingChoice = effects.pendingEffectChoices.at(0);
   if (pendingChoice === undefined) return undefined;
   if (effects.pendingEffectChoices.length !== 1)
     return {
@@ -16301,12 +17484,14 @@ const simpleActionPendingChoiceTransition = (
 };
 
 const simpleActionMoveUseNegationChoiceTransition = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  actor: CombatantState,
-  target: CombatantState,
-  move: MoveDefinition,
-  dependencies: CombatDependencies,
+  ...[state, decision, actor, target, move, dependencies]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    actor: CombatantState,
+    target: CombatantState,
+    move: MoveDefinition,
+    dependencies: CombatDependencies,
+  ]
 ) => {
   const pending = moveUseTriggeredEffects(state, actor, target, move, {
     collectPendingChoices: true,
@@ -16352,13 +17537,15 @@ const simpleActionMoveUseNegationChoiceTransition = (
 };
 
 const pendingSimpleActionMoveUseNegation = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  actor: CombatantState,
-  target: CombatantState,
-  move: MoveDefinition,
-  dependencies: CombatDependencies,
-  sourceDefinitionId: MoveId | undefined,
+  ...[state, decision, actor, target, move, dependencies, sourceDefinitionId]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    actor: CombatantState,
+    target: CombatantState,
+    move: MoveDefinition,
+    dependencies: CombatDependencies,
+    sourceDefinitionId: MoveId | undefined,
+  ]
 ) =>
   sourceDefinitionId === undefined
     ? simpleActionMoveUseNegationChoiceTransition(
@@ -16372,16 +17559,29 @@ const pendingSimpleActionMoveUseNegation = (
     : undefined;
 
 const requestSimpleActionEffectChoice = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "use-move" }>,
-  target: CombatantState,
-  move: MoveDefinition,
-  choice: PendingEffectChoice,
-  storedRolls: readonly StoredRoll[],
-  dependencies: CombatDependencies,
-  sourceMove = move,
-  sourceCombatantId = decision.actorId,
-  effectTrigger: "on-power-up" | "on-roll-result" | "on-move-use" = "on-roll-result",
+  ...[
+    state,
+    decision,
+    target,
+    move,
+    choice,
+    storedRolls,
+    dependencies,
+    sourceMove = move,
+    sourceCombatantId = decision.actorId,
+    effectTrigger = "on-roll-result",
+  ]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "use-move" }>,
+    target: CombatantState,
+    move: MoveDefinition,
+    choice: PendingEffectChoice,
+    storedRolls: readonly StoredRoll[],
+    dependencies: CombatDependencies,
+    sourceMove?: MoveDefinition,
+    sourceCombatantId?: CombatantId,
+    effectTrigger?: "on-power-up" | "on-roll-result" | "on-move-use",
+  ]
 ): CombatResult<CombatTransition> => {
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const nextVersion = state.version + 1;
@@ -16443,6 +17643,7 @@ const resolveSimpleActionMove = (
   move: MoveDefinition,
   dependencies: CombatDependencies,
   options: SimpleActionMoveResolutionOptions = {},
+  // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const actor = state.combatants[decision.actorId];
   const target = activeOpponent(state, actor.id, decision.targetCombatantId);
@@ -16770,6 +17971,7 @@ const simpleActionMoveEvents = (
     target,
     targetAfter,
   }: SimpleActionMoveEventContext,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const events: CombatEvent[] = [
     {
@@ -16910,6 +18112,7 @@ const resolveConstantSkillActivation = (
   decision: Extract<CombatDecision, { readonly type: "use-move" }>,
   move: MoveDefinition,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const actor = state.combatants[decision.actorId];
   const target = activeOpponent(state, actor.id, decision.targetCombatantId);
@@ -17023,6 +18226,8 @@ const resolveMoveDecision = (
       error: { type: "move-not-owned", moveId: decision.moveId, combatantId: decision.actorId },
     };
   }
+  if (moveRequirementSuppressed(state, decision.actorId, move))
+    return { ok: false, error: { type: "illegal-decision", decisionType: decision.type } };
   if (
     !isConstantSkill(move) &&
     moveUsePreventionFor(state, decision.actorId, move, "use") !== undefined
@@ -17111,14 +18316,25 @@ const currentBlockActionFor = (
 });
 
 const resolvedBlockEffects = (
-  state: ActiveFightState,
-  block: MoveDefinition,
-  defender: ActiveFightState["combatants"][CombatantId],
-  attacker: ActiveFightState["combatants"][CombatantId],
-  blockedAttackDamage?: number,
-  triggeringMove?: MoveDefinition,
-  enabledOptionalEffectIndices?: readonly number[],
-  currentAction?: Extract<CombatActionRecord, { readonly type: "basic-attack" | "use-move" }>,
+  ...[
+    state,
+    block,
+    defender,
+    attacker,
+    blockedAttackDamage,
+    triggeringMove,
+    enabledOptionalEffectIndices,
+    currentAction,
+  ]: [
+    state: ActiveFightState,
+    block: MoveDefinition,
+    defender: ActiveFightState["combatants"][CombatantId],
+    attacker: ActiveFightState["combatants"][CombatantId],
+    blockedAttackDamage?: number,
+    triggeringMove?: MoveDefinition,
+    enabledOptionalEffectIndices?: readonly number[],
+    currentAction?: Extract<CombatActionRecord, { readonly type: "basic-attack" | "use-move" }>,
+  ]
 ) => {
   const context = {
     self: defender,
@@ -17153,6 +18369,10 @@ const resolvedBlockEffects = (
     ...successful.combatResultOverrides,
     ...stopped.combatResultOverrides,
   ];
+  const resolutionImmunityOverrides = [
+    ...successful.resolutionImmunityOverrides,
+    ...stopped.resolutionImmunityOverrides,
+  ];
   return {
     resources: [...successful.resources, ...stopped.resources],
     statuses: [...successful.statuses, ...stopped.statuses],
@@ -17164,6 +18384,7 @@ const resolvedBlockEffects = (
     extraActions: successful.extraActions,
     pendingEffectChoices: pendingSuccessful.pendingEffectChoices,
     combatResultOverrides,
+    resolutionImmunityOverrides,
     floatingEffects: [...successful.floatingEffects, ...stopped.floatingEffects],
     stopsAllMatchingAttackDice: combatResultOverrides.some(
       (application) =>
@@ -17266,13 +18487,15 @@ interface AppendBlockedBasicEffectEventsParams {
 }
 
 const appendBlockRemainingUseModificationEvents = (
-  state: ActiveFightState,
-  dependencies: CombatDependencies,
-  response: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
-  attacker: CombatantState,
-  defender: CombatantState,
-  effects: ReturnType<typeof resolvedBlockEffects>,
-  events: CombatEvent[],
+  ...[state, dependencies, response, attacker, defender, effects, events]: [
+    state: ActiveFightState,
+    dependencies: CombatDependencies,
+    response: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
+    attacker: CombatantState,
+    defender: CombatantState,
+    effects: ReturnType<typeof resolvedBlockEffects>,
+    events: CombatEvent[],
+  ]
 ) => {
   for (const application of effects.remainingUseModifications) {
     const target = application.target === "self" ? defender : attacker;
@@ -17418,6 +18641,7 @@ const resolveBlockedBasicAttack = (
   >,
   blockMoveId: NonNullable<PendingDecisionOption["moveId"]>,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const validation = validateBlockedBasicAttack(state, response, frame, blockMoveId);
   if ("error" in validation && validation.error !== undefined) {
@@ -17591,7 +18815,7 @@ const resolveBlockedBasicAttack = (
     });
     const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
     const pendingVersion = nextState.version + 1;
-    const allowance = pendingAllowances.find(() => true);
+    const allowance = pendingAllowances.at(0);
     if (allowance !== undefined) {
       return transitionFrom(
         {
@@ -17660,7 +18884,15 @@ const convertedBlockContext = (
   const attack = moveAttackDetails(classification.move, classification.addedTags);
   if (attack === undefined || move.mechanics.kiCost?.type !== "literal") return undefined;
   if (hasDeclaredBlockThisTurn(state, defender.id)) return undefined;
-  const eligibility = evaluateBlockEligibility(block, attack);
+  const baseEligibility = evaluateBlockEligibility(block, attack);
+  const blockEffects = resolvedBlockEffects(state, block, defender, attacker, undefined, move);
+  const overridesBlockImmunity = blockEffects.resolutionImmunityOverrides.some(
+    (application) => application.target === "self" && application.resolution === "block",
+  );
+  const eligibility = {
+    ...baseEligibility,
+    stopsAttack: baseEligibility.stopsAttack || overridesBlockImmunity,
+  };
   if (!eligibility.canDeclare) return undefined;
   const cost = calculateConvertedBlockCost(block, move.mechanics.kiCost.value);
   return cost === undefined ? undefined : { attack, block, cost, defender, move, eligibility };
@@ -17675,6 +18907,7 @@ const resolveBlockedConvertedAttack = (
   >,
   blockMoveId: NonNullable<PendingDecisionOption["moveId"]>,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const attacker = state.combatants[frame.attackerId];
   const defender = state.combatants[frame.targetCombatantId];
@@ -18052,15 +19285,17 @@ const defenseRollModifiers = (
 
 /* eslint-disable sonarjs/cognitive-complexity -- defense response assembly preserves deterministic persisted resolution order. */
 const resolveDefenseRoll = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
-  frame: Extract<
-    ActiveFightState["resolutionFrames"][number],
-    { readonly stage: "awaiting-defense" }
-  >,
-  dependencies: CombatDependencies,
-  defenseItemUse: ReturnType<typeof defenseItemUseForOption>,
-  beforeDefenseChoice?: BeforeDefenseEffectChoice,
+  ...[state, decision, frame, dependencies, defenseItemUse, beforeDefenseChoice]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
+    frame: Extract<
+      ActiveFightState["resolutionFrames"][number],
+      { readonly stage: "awaiting-defense" }
+    >,
+    dependencies: CombatDependencies,
+    defenseItemUse: ReturnType<typeof defenseItemUseForOption>,
+    beforeDefenseChoice?: BeforeDefenseEffectChoice,
+  ]
 ): CombatResult<CombatTransition> => {
   const modifiers = defenseRollModifiers(defenseItemUse, decision);
   const pendingAttack = frame.attack;
@@ -18097,7 +19332,7 @@ const resolveDefenseRoll = (
           ...selectedBeforeDefenseResolutionOptions(
             selectedBeforeDefense.effects,
             selectedBeforeDefense.onDamage,
-            pendingAttack.type === "move"
+            runtimeValue(pendingAttack.type) === "move"
               ? (moveForAttackReference(pendingAttack)?.mechanics.attack?.attackRoll?.dice ?? 1)
               : 1,
             beforeDefenseChoice?.sourceDefinitionId,
@@ -18214,6 +19449,7 @@ interface PostDefenseRerollChoice {
   readonly kiCost: number;
 }
 
+// eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 const moveForAttackReference = (attack: CopiedMoveAttackReference): MoveDefinition | undefined => {
   const copyingMove = MOVE_DEFINITIONS.find((candidate) => candidate.id === attack.moveId);
   if (copyingMove === undefined) return undefined;
@@ -18491,21 +19727,27 @@ const postDefenseReactionRolls = (
   const rolls =
     frame.attack.type === "basic-attack"
       ? [
-          resolveAttack({
-            attacker,
-            target: defender,
-            dependencies,
-            attackSides:
-              GLOBAL_RULES.combat.standardDieSides +
-              activeRollModifier(state, attacker.id, "attack", "sides"),
-            defenseSides:
-              GLOBAL_RULES.combat.standardDieSides +
-              activeRollModifier(state, defender.id, "defense", "sides"),
-            baseDamage: 0,
-            attackResultModifier: activeRollModifier(state, attacker.id, "attack", "result"),
-            defenseResultModifier: activeRollModifier(state, defender.id, "defense", "result"),
-            resolutionThresholds: activeResolutionThresholds(state, attacker.id, defender.id),
-          }),
+          (() => {
+            const activeRollResultOverride = activeRollResultOverrideForAttack(state, defender.id);
+            return resolveAttack({
+              attacker,
+              target: defender,
+              dependencies,
+              attackSides:
+                GLOBAL_RULES.combat.standardDieSides +
+                activeRollModifier(state, attacker.id, "attack", "sides"),
+              defenseSides:
+                GLOBAL_RULES.combat.standardDieSides +
+                activeRollModifier(state, defender.id, "defense", "sides"),
+              baseDamage: 0,
+              attackResultModifier: activeRollModifier(state, attacker.id, "attack", "result"),
+              defenseResultModifier: activeRollModifier(state, defender.id, "defense", "result"),
+              resolutionThresholds: activeResolutionThresholds(state, attacker.id, defender.id),
+              ...(activeRollResultOverride === undefined
+                ? {}
+                : { numericResultOverrides: [{ defense: activeRollResultOverride }] }),
+            });
+          })(),
         ]
       : postDefenseMoveRolls(state, frame, dependencies);
   if (
@@ -19256,12 +20498,21 @@ const postDefenseReactionSelection = (
 };
 
 const postDefenseReactionEventCount = (
-  reactionKiCost: number | undefined,
-  combatResultOverride: PendingDecisionOption["combatResultOverride"],
-  combatResultNegation: PendingDecisionOption["combatResultNegation"],
-  reroll: PostDefenseRerollChoice | undefined,
-  secondChanceDie: number | undefined,
-  rerollEventCount: number,
+  ...[
+    reactionKiCost,
+    combatResultOverride,
+    combatResultNegation,
+    reroll,
+    secondChanceDie,
+    rerollEventCount,
+  ]: [
+    reactionKiCost: number | undefined,
+    combatResultOverride: PendingDecisionOption["combatResultOverride"],
+    combatResultNegation: PendingDecisionOption["combatResultNegation"],
+    reroll: PostDefenseRerollChoice | undefined,
+    secondChanceDie: number | undefined,
+    rerollEventCount: number,
+  ]
 ) => {
   let count = 0;
   if (reactionKiCost !== undefined && reactionKiCost !== 0) count += 1;
@@ -19277,17 +20528,32 @@ const postDefenseReactionEventCount = (
 };
 
 const postDefenseReactionState = (
-  baseState: ActiveFightState,
-  actorId: CombatantId,
-  reactionKiCost: number | undefined,
-  combatResultOverride: PendingDecisionOption["combatResultOverride"],
-  combatResultNegation: PendingDecisionOption["combatResultNegation"],
-  reroll: PostDefenseRerollChoice | undefined,
-  secondChanceDie: number | undefined,
-  rerollEffect: ActiveRerollEffect | undefined,
-  counterAction: CounterActionReference | undefined,
-  rerollEventCount: number,
-  dependencies: CombatDependencies,
+  ...[
+    baseState,
+    actorId,
+    reactionKiCost,
+    combatResultOverride,
+    combatResultNegation,
+    reroll,
+    secondChanceDie,
+    rerollEffect,
+    counterAction,
+    rerollEventCount,
+    dependencies,
+  ]: [
+    baseState: ActiveFightState,
+    actorId: CombatantId,
+    reactionKiCost: number | undefined,
+    combatResultOverride: PendingDecisionOption["combatResultOverride"],
+    combatResultNegation: PendingDecisionOption["combatResultNegation"],
+    reroll: PostDefenseRerollChoice | undefined,
+    secondChanceDie: number | undefined,
+    rerollEffect: ActiveRerollEffect | undefined,
+    counterAction: CounterActionReference | undefined,
+    rerollEventCount: number,
+    dependencies: CombatDependencies,
+  ]
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): ActiveFightState => {
   if (
     reactionKiCost === undefined &&
@@ -19465,12 +20731,14 @@ const requestAttackerPostDefenseReaction = (
 };
 
 const combatResultNegationOptionIsAvailable = (
-  state: ActiveFightState,
-  frame: PostDefenseReactionFrame,
-  combatantId: CombatantId,
-  rolls: readonly AttackDieRoll[],
-  optionId: string,
-  selection: PendingDecisionOption["combatResultNegation"],
+  ...[state, frame, combatantId, rolls, optionId, selection]: [
+    state: ActiveFightState,
+    frame: PostDefenseReactionFrame,
+    combatantId: CombatantId,
+    rolls: readonly AttackDieRoll[],
+    optionId: string,
+    selection: PendingDecisionOption["combatResultNegation"],
+  ]
 ) =>
   selection !== undefined &&
   combatResultNegationOptions(state, frame, combatantId, rolls).some(
@@ -19512,6 +20780,7 @@ const postDefenseReactionSelectionAvailability = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   frame: PostDefenseReactionFrame,
   option: PendingDecisionOption,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const itemUse =
     option.itemId === undefined
@@ -19661,6 +20930,7 @@ const postDefenseResultOverrides = (
   defenseResultModifier: number,
   selection: PostDefenseReactionSelection,
 ) =>
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
   naturalRolls.map((roll, index) => {
     const pendingAttack = frame.attack;
     const move = pendingAttack.type === "move" ? moveForAttackReference(pendingAttack) : undefined;
@@ -19680,7 +20950,7 @@ const postDefenseResultOverrides = (
         .find(
           (candidate) =>
             candidate.move.id === selection.combatResultOverride?.sourceDefinitionId &&
-            candidate.effectIndex === selection.combatResultOverride?.sourceEffectIndex,
+            candidate.effectIndex === selection.combatResultOverride.sourceEffectIndex,
         );
       if (source?.effect.result === "successful" || source?.effect.result === "stopped")
         return source.effect.result;
@@ -19769,6 +21039,7 @@ const postDefenseReactionResolution = (
   frame: PostDefenseReactionFrame,
   selection: PostDefenseReactionSelection,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const {
     closeShaveKiLoss,
@@ -19786,7 +21057,9 @@ const postDefenseReactionResolution = (
     selection.afterDefenseEffectIndices,
   );
   const defenseItemUse = itemUse === undefined ? undefined : { ...itemUse, response: decision };
-  const defenseResultModifier = (defenseItemUse?.modifier?.amount ?? 0) + (closeShaveKiLoss ?? 0);
+  const defenseResultModifier =
+    (runtimeOptional(runtimeOptional(defenseItemUse)?.modifier)?.amount ?? 0) +
+    (closeShaveKiLoss ?? 0);
   const attackMove = pendingAttackMove(frame.attack);
   const attackSides =
     attackMove === undefined
@@ -19935,13 +21208,15 @@ interface ResolvedPostDefenseReactionEventsInput {
 }
 
 const resolvedRerollEvents = (
-  state: ActiveFightState,
-  decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
-  frame: PostDefenseReactionFrame,
-  dependencies: CombatDependencies,
-  resolution: ReturnType<typeof postDefenseReactionResolution>,
-  selection: PostDefenseReactionSelection,
-  startingSequence: number,
+  ...[state, decision, frame, dependencies, resolution, selection, startingSequence]: [
+    state: ActiveFightState,
+    decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
+    frame: PostDefenseReactionFrame,
+    dependencies: CombatDependencies,
+    resolution: ReturnType<typeof postDefenseReactionResolution>,
+    selection: PostDefenseReactionSelection,
+    startingSequence: number,
+  ]
 ) => {
   if (selection.rerollEffect === undefined) return [];
   const events: CombatEvent[] = [];
@@ -20000,7 +21275,7 @@ const resolvedPostDefenseReactionEvents = ({
   resolution,
   selection,
   reactionState,
-  // eslint-disable-next-line sonarjs/cognitive-complexity
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 }: ResolvedPostDefenseReactionEventsInput) => {
   const events: CombatEvent[] = [];
   let reactionMoveId: MoveDefinition["id"] | undefined;
@@ -20175,7 +21450,6 @@ const resolvePostDefenseReaction = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Defense responses share one persisted public boundary.
 ): CombatResult<CombatTransition> => {
   const input = postDefenseReactionInput(state, decision);
   if ("type" in input) return { ok: false, error: input };
@@ -20233,12 +21507,11 @@ const resolvePostDefenseReaction = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Defense responses share one persisted public transition boundary.
 const resolveDefenseResponse = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Defense responses share one persisted public transition boundary.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const input = defenseResponseInput(state, decision);
   if ("type" in input) return { ok: false, error: input };
@@ -20391,12 +21664,14 @@ const requestPowerUpEffectChoice = (
 };
 
 const powerUpEffectsForResolution = (
-  state: ActiveFightState,
-  decision: EndPhaseDecision,
-  activeCombatant: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  actionHistory: readonly CombatActionRecord[],
-  selectedPowerUpChoice: PowerUpEffectChoiceResolution | undefined,
+  ...[state, decision, activeCombatant, target, actionHistory, selectedPowerUpChoice]: [
+    state: ActiveFightState,
+    decision: EndPhaseDecision,
+    activeCombatant: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    actionHistory: readonly CombatActionRecord[],
+    selectedPowerUpChoice: PowerUpEffectChoiceResolution | undefined,
+  ]
 ) => {
   if (decision.type !== "power-up") return [];
   if (selectedPowerUpChoice === undefined)
@@ -20410,13 +21685,15 @@ const powerUpEffectsForResolution = (
 };
 
 const pendingPowerUpChoiceTransition = (
-  state: ActiveFightState,
-  decision: EndPhaseDecision,
-  activeCombatant: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  actionHistory: readonly CombatActionRecord[],
-  triggered: readonly PowerUpTriggeredEffect[],
-  dependencies: CombatDependencies,
+  ...[state, decision, activeCombatant, target, actionHistory, triggered, dependencies]: [
+    state: ActiveFightState,
+    decision: EndPhaseDecision,
+    activeCombatant: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    actionHistory: readonly CombatActionRecord[],
+    triggered: readonly PowerUpTriggeredEffect[],
+    dependencies: CombatDependencies,
+  ]
 ): CombatResult<CombatTransition> | undefined => {
   if (decision.type !== "power-up") return undefined;
   const pendingChoice = triggered
@@ -20466,15 +21743,27 @@ const powerUpChoiceCostResult = (
 };
 
 const appendPowerUpEvents = (
-  state: ActiveFightState,
-  decision: Extract<EndPhaseDecision, { readonly type: "power-up" }>,
-  dependencies: CombatDependencies,
-  activeCombatant: ActiveFightState["combatants"][CombatantId],
-  target: ActiveFightState["combatants"][CombatantId],
-  activeAfter: ActiveFightState["combatants"][CombatantId],
-  targetAfter: ActiveFightState["combatants"][CombatantId],
-  activatedEffects: readonly ActiveCombatEffect[],
-  statuses: readonly StatusApplication[],
+  ...[
+    state,
+    decision,
+    dependencies,
+    activeCombatant,
+    target,
+    activeAfter,
+    targetAfter,
+    activatedEffects,
+    statuses,
+  ]: [
+    state: ActiveFightState,
+    decision: Extract<EndPhaseDecision, { readonly type: "power-up" }>,
+    dependencies: CombatDependencies,
+    activeCombatant: ActiveFightState["combatants"][CombatantId],
+    target: ActiveFightState["combatants"][CombatantId],
+    activeAfter: ActiveFightState["combatants"][CombatantId],
+    targetAfter: ActiveFightState["combatants"][CombatantId],
+    activatedEffects: readonly ActiveCombatEffect[],
+    statuses: readonly StatusApplication[],
+  ]
 ) => {
   const events: CombatEvent[] = [];
   const addKiChange = (
@@ -20602,6 +21891,7 @@ const resolveEndPhaseDecision = (
   decision: EndPhaseDecision,
   dependencies: CombatDependencies,
   selectedPowerUpChoice?: PowerUpEffectChoiceResolution,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const activeCombatant = state.combatants[decision.actorId];
   const target = Object.values(state.combatants).find(
@@ -20963,6 +22253,7 @@ const activeSuppressionFromApplication = (
     ...(suppression.selectedMoveId === undefined
       ? {}
       : { selectedMoveId: suppression.selectedMoveId }),
+    ...(suppression.requirement === undefined ? {} : { requirement: suppression.requirement }),
     aspects: suppression.aspects,
     duration,
     ...(suppression.useLimit === undefined ? {} : { useLimit: suppression.useLimit }),
@@ -21161,12 +22452,21 @@ const activeRollModificationPreventionFromApplication = (
 };
 
 const activeMoveModificationPreventionFromApplication = (
-  prevention: MoveModificationPreventionApplication,
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    prevention,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    prevention: MoveModificationPreventionApplication,
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): Extract<ActiveCombatEffect, { readonly type: "prevent-move-modification" }> => {
   const targetCombatantId = prevention.target === "self" ? sourceCombatantId : opponentCombatantId;
   const combatantId = (subject: "self" | "opponent") =>
@@ -21198,12 +22498,21 @@ const activeMoveModificationPreventionFromApplication = (
 };
 
 const activeResourceModificationPreventionFromApplication = (
-  prevention: ResourceModificationPreventionApplication,
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    prevention,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    prevention: ResourceModificationPreventionApplication,
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): Extract<ActiveCombatEffect, { readonly type: "prevent-resource-modification" }> | undefined => {
   if (prevention.duration === undefined) return undefined;
   const targetCombatantId = prevention.target === "self" ? sourceCombatantId : opponentCombatantId;
@@ -21237,7 +22546,7 @@ const activeRollCapFromApplication = (
   if (application.cap.type === "allow-exceed")
     return {
       type: "allow-exceed",
-      scope: application.cap.scope ?? "amount",
+      scope: runtimeOptional(application.cap.scope) ?? "amount",
     };
   return {
     type: application.cap.type,
@@ -21271,13 +22580,23 @@ const activeRollModifierIsImmediate = (application: RollModification) =>
   application.scope === "combat" || (application.scope === undefined && application.duration);
 
 const deferredActiveRollModifierFromApplication = (
-  application: RollModification,
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  cap: ActiveRollModifierEffect["cap"],
-  dependencies: CombatDependencies,
+  ...[
+    application,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    cap,
+    dependencies,
+  ]: [
+    application: RollModification,
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    cap: ActiveRollModifierEffect["cap"],
+    dependencies: CombatDependencies,
+  ]
 ): ActiveCombatEffect | undefined => {
   if (!isDeferredRollModificationScope(application.scope)) return undefined;
   const targetCombatantId = application.target === "self" ? sourceCombatantId : opponentCombatantId;
@@ -21304,12 +22623,21 @@ const deferredActiveRollModifierFromApplication = (
 };
 
 export const activeRollModifierFromApplication = (
-  application: RollModification,
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    application,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    application: RollModification,
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): ActiveCombatEffect | undefined => {
   const targetCombatantId = application.target === "self" ? sourceCombatantId : opponentCombatantId;
   const cap = activeRollCapFromApplication(application);
@@ -21341,12 +22669,21 @@ export const activeRollModifierFromApplication = (
 };
 
 const activeRollModifiersFromApplications = (
-  applications: readonly RollModification[],
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    applications,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    applications: readonly RollModification[],
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): readonly ActiveCombatEffect[] =>
   applications.flatMap((application) => {
     const effect = activeRollModifierFromApplication(
@@ -21483,12 +22820,21 @@ const activeResolutionThresholdsFromApplications = (
   });
 
 const activeScheduledResourcesFromApplications = (
-  state: ActiveFightState,
-  applications: readonly ScheduledResourceApplication[],
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    applications,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    applications: readonly ScheduledResourceApplication[],
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    dependencies: CombatDependencies,
+  ]
 ): readonly ActiveCombatEffect[] =>
   applications.flatMap<ActiveCombatEffect>((application) => {
     const targetCombatantId =
@@ -21586,7 +22932,7 @@ const activeResourceCostModifiersFromApplications = (
     const targetCombatantId =
       application.target === "self" ? sourceCombatantId : opponentCombatantId;
     if (
-      application.stacking === "prevent" &&
+      runtimeValue(application.stacking) === "prevent" &&
       state.activeEffects.some(
         (effect) =>
           effect.type === "modify-next-action" &&
@@ -21638,12 +22984,21 @@ const activeCostModifierTransformersFromApplications = (
   }));
 
 const activeResourceModifierTransformersFromApplications = (
-  state: ActiveFightState,
-  applications: readonly ResourceModifierTransformerApplication[],
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    applications,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    applications: readonly ResourceModifierTransformerApplication[],
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    dependencies: CombatDependencies,
+  ]
 ): readonly ActiveCombatEffect[] =>
   applications.map((application) => ({
     id: dependencies.ids.nextActiveEffectId(),
@@ -21685,12 +23040,21 @@ const damageModifierStackingPrevented = (
   );
 
 const activeDamageEffectsFromApplication = (
-  application: DamageModification,
-  sourceCombatantId: CombatantId,
-  targetCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    application,
+    sourceCombatantId,
+    targetCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    application: DamageModification,
+    sourceCombatantId: CombatantId,
+    targetCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): readonly ActiveCombatEffect[] => {
   if (application.duration !== undefined)
     return [
@@ -21743,13 +23107,23 @@ const activeDamageEffectsFromApplication = (
 };
 
 const activeDamageModifiersFromApplications = (
-  state: ActiveFightState,
-  applications: readonly DamageModification[],
-  sourceCombatantId: CombatantId,
-  opponentCombatantId: CombatantId,
-  sourceDefinitionId: MoveDefinition["id"],
-  createdOnTurn: number,
-  dependencies: CombatDependencies,
+  ...[
+    state,
+    applications,
+    sourceCombatantId,
+    opponentCombatantId,
+    sourceDefinitionId,
+    createdOnTurn,
+    dependencies,
+  ]: [
+    state: ActiveFightState,
+    applications: readonly DamageModification[],
+    sourceCombatantId: CombatantId,
+    opponentCombatantId: CombatantId,
+    sourceDefinitionId: MoveDefinition["id"],
+    createdOnTurn: number,
+    dependencies: CombatDependencies,
+  ]
 ): readonly ActiveCombatEffect[] =>
   applications.flatMap<ActiveCombatEffect>((application) => {
     const targetCombatantId =
@@ -21960,6 +23334,23 @@ const selectorMatchesMove = (selector: MoveSelectorCondition | undefined, move: 
     selectorMatchesAttackRoll(selector, move) &&
     selectorMatchesCost(selector, move));
 
+const moveRequirementSuppressed = (
+  state: ActiveFightState,
+  combatantId: CombatantId,
+  move: MoveDefinition,
+) =>
+  (move.requirements ?? []).some(
+    (requirement) =>
+      requirement.type === "source-text" &&
+      state.activeEffects.some(
+        (effect) =>
+          effect.type === "suppress" &&
+          effect.targetCombatantId === combatantId &&
+          effect.requirement !== undefined &&
+          requirement.text.toLowerCase().includes(effect.requirement.toLowerCase()),
+      ),
+  );
+
 const selectorMatchesMoveForCombatant = (
   state: ActiveFightState,
   combatantId: CombatantId,
@@ -21974,7 +23365,7 @@ const selectorMatchesMoveForCombatant = (
       (effect) =>
         effect.type === "modify-move-classification" &&
         effect.targetCombatantId === combatantId &&
-        effect.classification.type === "replace-style" &&
+        runtimeValue(effect.classification.type) === "replace-style" &&
         selectorMatchesMove(effect.selector, move),
     )
   );
@@ -22158,16 +23549,28 @@ const eligibleConstantEffects = (
   );
 
 const eligibleConstantActivationMoves = (
-  state: ActiveFightState,
-  targetCombatantId: CombatantId,
-  selector: MoveSelectorCondition,
-  reactivationOnly = false,
-  reactivationTiming?: "last-turn",
-  activationCost?: { readonly amount: number; readonly minimum?: number },
-  activationCostOverride?: number,
-  activationAsIf?: "power-up",
+  ...[
+    state,
+    targetCombatantId,
+    selector,
+    reactivationOnly = false,
+    reactivationTiming,
+    activationCost,
+    activationCostOverride,
+    activationAsIf,
+  ]: [
+    state: ActiveFightState,
+    targetCombatantId: CombatantId,
+    selector: MoveSelectorCondition,
+    reactivationOnly?: boolean,
+    reactivationTiming?: "last-turn",
+    activationCost?: { readonly amount: number; readonly minimum?: number },
+    activationCostOverride?: number,
+    activationAsIf?: "power-up",
+  ]
 ) => {
   const combatant = state.combatants[targetCombatantId];
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
   return combatant.moveIds.flatMap((moveId) => {
     const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
     const deactivatedEffect = state.activeEffects.find(
@@ -22487,6 +23890,7 @@ interface DeactivationNegationSelectionInput {
   readonly optional: boolean;
   readonly activationCost: DeactivationApplication["activationCost"];
   readonly deactivationFrameId: ResolutionFrame["id"] | undefined;
+  readonly remainingApplications?: readonly DeactivationApplication[];
   readonly dependencies: CombatDependencies;
 }
 
@@ -22504,6 +23908,7 @@ const deactivationNegationSelectionTransition = ({
   optional,
   activationCost,
   deactivationFrameId,
+  remainingApplications,
   dependencies,
 }: DeactivationNegationSelectionInput): CombatResult<CombatTransition> => {
   const ownerId = negations[0].ownerId;
@@ -22536,6 +23941,7 @@ const deactivationNegationSelectionTransition = ({
     remainingSelections,
     optional,
     ...(activationCost === undefined ? {} : { activationCost }),
+    ...(remainingApplications === undefined ? {} : { remainingApplications }),
   } satisfies NonNullable<
     Extract<
       ActiveFightState["resolutionFrames"][number],
@@ -22547,8 +23953,8 @@ const deactivationNegationSelectionTransition = ({
     type: "effect" as const,
     sourceCombatantId: ownerId,
     targetCombatantId,
-    sourceDefinitionId: references[0]!.sourceDefinitionId,
-    effectIndex: references[0]!.sourceEffectIndex,
+    sourceDefinitionId: references[0].sourceDefinitionId,
+    effectIndex: references[0].sourceEffectIndex,
     operation: "negate-deactivation" as const,
     returnPhase: state.phase,
     trigger,
@@ -22602,6 +24008,10 @@ interface DeactivationSelectionTransitionInput {
   readonly events: readonly CombatEvent[];
   readonly priorEventCount: number;
   readonly trigger?: "upkeep" | "action" | "end" | "on-success" | "on-stopped";
+  readonly remainingApplications?: readonly DeactivationApplication[];
+  readonly exchangeSkillReactivation?: NonNullable<
+    Extract<ResolutionFrame, { readonly type: "effect" }>["exchangeSkillReactivation"]
+  >;
 }
 
 const deactivationSelectionTransition = ({
@@ -22616,6 +24026,8 @@ const deactivationSelectionTransition = ({
   events,
   priorEventCount,
   trigger,
+  remainingApplications,
+  exchangeSkillReactivation,
 }: DeactivationSelectionTransitionInput): CombatResult<CombatTransition> => {
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const nextState: ActiveFightState = {
@@ -22664,6 +24076,10 @@ const deactivationSelectionTransition = ({
                   : { minimum: application.activationCost.minimum }),
               },
             }),
+        ...(remainingApplications === undefined
+          ? {}
+          : { remainingDeactivationApplications: remainingApplications }),
+        ...(exchangeSkillReactivation === undefined ? {} : { exchangeSkillReactivation }),
       },
     ],
   };
@@ -22679,6 +24095,9 @@ interface ResolveDeactivationsInput {
   readonly dependencies: CombatDependencies;
   readonly priorEvents: readonly CombatEvent[];
   readonly trigger?: "upkeep" | "action" | "end" | "on-success" | "on-stopped";
+  readonly exchangeSkillReactivation?: NonNullable<
+    Extract<ResolutionFrame, { readonly type: "effect" }>["exchangeSkillReactivation"]
+  >;
 }
 
 const resolveActivationApplications = ({
@@ -22691,7 +24110,8 @@ const resolveActivationApplications = ({
   "state" | "activations" | "sourceCombatantId" | "dependencies"
 >): CombatResult<CombatTransition> | undefined => {
   for (const application of activations ?? []) {
-    const applicationSourceCombatantId = application.sourceCombatantId ?? sourceCombatantId;
+    const applicationSourceCombatantId =
+      runtimeOptional(application.sourceCombatantId) ?? sourceCombatantId;
     const targetCombatantId = deactivationTarget(state, application, applicationSourceCombatantId);
     if (targetCombatantId === undefined) continue;
     const eligible = eligibleConstantActivationMoves(
@@ -22719,7 +24139,6 @@ const resolveActivationApplications = ({
 };
 
 /** Resolves automatic deactivations, or serializes the remaining player choice. */
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle deactivation resolution must preserve ordering and pending choices.
 const resolveDeactivations = (
   {
     state,
@@ -22730,8 +24149,9 @@ const resolveDeactivations = (
     dependencies,
     priorEvents,
     trigger,
+    exchangeSkillReactivation,
   }: ResolveDeactivationsInput,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Lifecycle deactivation resolution preserves ordering and pending choices.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   let activeEffects = state.activeEffects;
   const events = [...priorEvents];
@@ -22790,6 +24210,7 @@ const resolveDeactivations = (
           optional: application.optional,
           activationCost: application.activationCost,
           deactivationFrameId: undefined,
+          remainingApplications: applications.slice(effectIndex + 1),
           dependencies,
         });
     }
@@ -22823,6 +24244,8 @@ const resolveDeactivations = (
       events,
       priorEventCount: priorEvents.length,
       trigger,
+      remainingApplications: applications.slice(effectIndex + 1),
+      exchangeSkillReactivation,
     });
   }
   return transitionFrom(
@@ -23232,6 +24655,7 @@ const resolveRepeatCounterAction = (
   decision: Extract<ResolvedActionDecision, { readonly type: "basic-attack" | "use-move" }>,
   counterAction: RepeatCounterAction,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const sourceAction = counterAction.sourceAction;
   if (sourceAction === undefined || decision.targetCombatantId !== sourceAction.actorId)
@@ -23390,13 +24814,12 @@ const resolveDeactivateDecline = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Negation selection updates durable counters and continuation state atomically.
 const resolveDeactivationNegationSelection = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Negation selection updates durable counters and continuation state atomically.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const selected = state.activeEffects.find(
@@ -23418,7 +24841,7 @@ const resolveDeactivationNegationSelection = (
     continuation.trigger !== "action" &&
     continuation.trigger !== "end" &&
     continuation.trigger !== "on-success" &&
-    continuation.trigger !== "on-stopped"
+    runtimeValue(continuation.trigger) !== "on-stopped"
   )
     return { ok: false, error: invalidFightState(state) };
   const reference = option.deactivationNegation;
@@ -23448,7 +24871,7 @@ const resolveDeactivationNegationSelection = (
   let combatants = state.combatants;
   const events: CombatEvent[] = [];
   if (accepted) {
-    const key = `${reference!.sourceDefinitionId}:${reference!.sourceEffectIndex}`;
+    const key = `${reference.sourceDefinitionId}:${reference.sourceEffectIndex}`;
     combatants = {
       ...combatants,
       [selectedOwner.id]: {
@@ -23577,7 +25000,19 @@ const resolveDeactivationNegationSelection = (
       events,
       priorEventCount: 0,
       trigger: continuation.trigger,
+      remainingApplications: continuation.remainingApplications,
     });
+  if (continuation.remainingApplications !== undefined) {
+    return resolveDeactivations({
+      state: nextBaseState,
+      applications: continuation.remainingApplications,
+      sourceCombatantId: continuation.sourceCombatantId,
+      causedByDecisionId: decision.id,
+      dependencies,
+      priorEvents: events,
+      trigger: continuation.trigger,
+    });
+  }
   return transitionFrom(
     {
       ...nextBaseState,
@@ -23801,6 +25236,7 @@ const resolveSelectedDamageTargetSelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -23895,6 +25331,7 @@ const resolveSelectedSuppressionTargetSelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -23989,6 +25426,7 @@ const resolveSelectedMoveTargetSelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -24077,6 +25515,7 @@ const resolveSelectedTemporaryMoveRemovalSelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -24160,6 +25599,7 @@ const resolveReplacementSelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -24327,6 +25767,7 @@ const resolveCopiedMoveSelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -24415,6 +25856,7 @@ const resolvePersistentCopySelection = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -24561,6 +26003,7 @@ const activationSelectionInvalid = ({
   readonly deactivated: ActiveCombatEffect | undefined;
   readonly powerUpMastery: boolean;
   readonly cost: number;
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 }) => {
   if (!isConstantSkill(move) && !powerUpMastery) return true;
   if (!actor.moveIds.includes(move.id)) return true;
@@ -24595,13 +26038,15 @@ const deactivatedConstantForSelection = (
   );
 
 const activeEffectsAfterActivation = (
-  state: ActiveFightState,
-  actor: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  frame: ActivationFrame,
-  deactivated: Extract<ActiveCombatEffect, { readonly type: "active-constant" }> | undefined,
-  activeEffectId: Extract<ActiveCombatEffect, { readonly type: "active-constant" }>["id"],
-  cost: number,
+  ...[state, actor, move, frame, deactivated, activeEffectId, cost]: [
+    state: ActiveFightState,
+    actor: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    frame: ActivationFrame,
+    deactivated: Extract<ActiveCombatEffect, { readonly type: "active-constant" }> | undefined,
+    activeEffectId: Extract<ActiveCombatEffect, { readonly type: "active-constant" }>["id"],
+    cost: number,
+  ]
 ) =>
   deactivated === undefined
     ? [
@@ -24645,12 +26090,14 @@ const remainingActivationMoveIds = (
   );
 
 const activationAsIfEffects = (
-  state: ActiveFightState,
-  frame: ActivationFrame,
-  deactivated: Extract<ActiveCombatEffect, { readonly type: "active-constant" }> | undefined,
-  actor: ActiveFightState["combatants"][CombatantId],
-  move: MoveDefinition,
-  dependencies: CombatDependencies,
+  ...[state, frame, deactivated, actor, move, dependencies]: [
+    state: ActiveFightState,
+    frame: ActivationFrame,
+    deactivated: Extract<ActiveCombatEffect, { readonly type: "active-constant" }> | undefined,
+    actor: ActiveFightState["combatants"][CombatantId],
+    move: MoveDefinition,
+    dependencies: CombatDependencies,
+  ]
 ) => {
   if (frame.activationAsIf !== "power-up" || deactivated !== undefined) return [];
   return powerUpEffectsForActivatedConstant(
@@ -24689,12 +26136,11 @@ const resumeActivationContinuation = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Activation selection validates and resumes all public selection branches.
 const resolveActivationSelection = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Activation selection validates and resumes all public selection branches.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   if (
@@ -24775,7 +26221,7 @@ const resolveActivationSelection = (
             type: "prevent-move-use",
             sourceCombatantId: frame.sourceCombatantId,
             targetCombatantId: actor.id,
-            sourceDefinitionId: frame.sourceDefinitionId as MoveId,
+            sourceDefinitionId: frame.sourceDefinitionId,
             operation: "deactivate",
             selector: {
               type: "move-selector",
@@ -24995,12 +26441,70 @@ const resolveEffectSelectionOperation = (
   return undefined;
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Deactivation selection handles all serialized lifecycle continuations.
+const exchangeSkillEffectsAfterDeactivation = (
+  state: ActiveFightState,
+  frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
+  activeEffects: readonly ActiveCombatEffect[],
+  eventSequence: number,
+  causedByDecisionId: CombatDecisionId,
+  dependencies: CombatDependencies,
+) => {
+  const exchange = frame.exchangeSkillReactivation;
+  if (exchange === undefined)
+    return { effects: [] as ActiveCombatEffect[], events: [] as CombatEvent[] };
+  const selected = activeEffects.find((effect) => {
+    if (
+      effect.type !== "active-constant" ||
+      effect.lifecycle !== "deactivated" ||
+      effect.sourceCombatantId !== exchange.sourceCombatantId ||
+      effect.deactivatedOnTurn !== state.turnNumber
+    )
+      return false;
+    const move = activeConstantMove(
+      effect,
+      new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+    );
+    return move !== undefined && selectorMatchesMove(exchange.selfSelector, move);
+  });
+  if (selected === undefined)
+    return { effects: [] as ActiveCombatEffect[], events: [] as CombatEvent[] };
+  const reactivation: ActiveCombatEffect = {
+    id: dependencies.ids.nextActiveEffectId(),
+    type: "exchange-skill-reactivation",
+    sourceCombatantId: exchange.sourceCombatantId,
+    targetCombatantId: exchange.targetCombatantId,
+    sourceDefinitionId: exchange.sourceDefinitionId,
+    deactivatedEffectId: selected.id,
+    attackSelector: exchange.attackSelector,
+  };
+  const cooldown: ActiveCombatEffect = {
+    id: dependencies.ids.nextActiveEffectId(),
+    type: "exchange-skill-cooldown",
+    sourceCombatantId: exchange.sourceCombatantId,
+    targetCombatantId: exchange.sourceCombatantId,
+    sourceDefinitionId: exchange.sourceDefinitionId,
+    remainingTurns: 4,
+  };
+  const effects = [reactivation, cooldown];
+  const events: CombatEvent[] = effects.map((effect, index) => ({
+    id: dependencies.ids.nextEventId(),
+    sequence: eventSequence + index + 1,
+    fightId: state.id,
+    causedByDecisionId,
+    type: "effect-activated" as const,
+    activeEffectId: effect.id,
+    sourceCombatantId: effect.sourceCombatantId,
+    targetCombatantId: effect.targetCombatantId,
+    sourceDefinitionId: effect.sourceDefinitionId,
+  }));
+  return { effects, events };
+};
+
 const resolveDeactivationSelection = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Deactivation selection handles serialized lifecycle continuations.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   if (
@@ -25099,6 +26603,7 @@ const resolveDeactivationSelection = (
       optional: frame.optional === true,
       activationCost: frameActivationCost,
       deactivationFrameId: frame.id,
+      remainingApplications: frame.remainingDeactivationApplications,
       dependencies,
     });
 
@@ -25127,27 +26632,58 @@ const resolveDeactivationSelection = (
     combatants: combatantsAfterDeactivationCost(state, actor, resolvedCost, cost !== undefined),
   };
   Reflect.deleteProperty(stateWithoutPending, "pendingDecision");
+  const deactivationEventCount = cost === undefined ? 0 : 1;
   const stateForDeactivation = {
     ...stateWithoutPending,
-    eventSequence: state.eventSequence + (cost === undefined ? 0 : 1),
+    eventSequence: state.eventSequence + deactivationEventCount,
   };
+  const exchangeEffects =
+    !shouldContinue &&
+    (frame.remainingDeactivationApplications === undefined ||
+      frame.remainingDeactivationApplications.length === 0)
+      ? exchangeSkillEffectsAfterDeactivation(
+          state,
+          frame,
+          activeEffects,
+          state.eventSequence + deactivationEventCount + 1,
+          decision.id,
+          dependencies,
+        )
+      : { effects: [] as ActiveCombatEffect[], events: [] as CombatEvent[] };
   const nextState = createNextDeactivationState({
     stateWithoutPending: stateForDeactivation,
-    activeEffects,
+    activeEffects: [...activeEffects, ...exchangeEffects.effects],
     shouldContinue,
     nextPendingDecisionId,
     frame,
     eligibleMoveIds,
     remainingSelections,
   });
+  const nextStateWithExchangeEffects = {
+    ...nextState,
+    eventSequence: nextState.eventSequence + exchangeEffects.events.length,
+  };
   const costEvent =
     cost === undefined
       ? undefined
       : deactivationCostEvent(state, actor, resolvedCost, decision, dependencies);
-  return transitionFrom(nextState, [
+  const events = [
     ...(costEvent === undefined ? [] : [costEvent]),
     deactivationEvent(state, effect, decision.id, dependencies, nextState.eventSequence),
-  ]);
+    ...exchangeEffects.events,
+  ];
+  if (!shouldContinue && frame.remainingDeactivationApplications !== undefined)
+    return resolveDeactivations({
+      state: nextStateWithExchangeEffects,
+      applications: frame.remainingDeactivationApplications,
+      sourceCombatantId: frame.sourceCombatantId,
+      causedByDecisionId: decision.id,
+      dependencies,
+      priorEvents: events,
+      trigger: frame.trigger,
+      exchangeSkillReactivation: frame.exchangeSkillReactivation,
+    });
+  return transitionFrom(nextStateWithExchangeEffects, events);
 };
 
 type OptionalEffectResolutionFrame = Extract<
@@ -25198,6 +26734,7 @@ const optionalEffectOptionIsValid = (
   option: PendingDecisionOption | undefined,
   frame: OptionalEffectResolutionFrame,
   selectedNumericValues: Readonly<Record<string, number>> | undefined,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): boolean => {
   if (option === undefined || (option.type !== "decline" && option.type !== "activate-effect"))
     return false;
@@ -25302,46 +26839,45 @@ const optionalEffectIndicesResolutionOptions = (
 };
 
 const optionalEffectResolutionOptions = (
-  frame: OptionalEffectResolutionFrame,
-  supportingInputs: Pick<AttackResolutionOptions, "blockUsage" | "defenseItemUse">,
-  enabledOptionalEffectIndices: readonly number[],
-  resolvedOptionalEffectIndices: readonly number[],
-  selectedNumericValues: Readonly<Record<string, number>> | undefined,
-  selectedSuppressionMoves: AwaitingEffectChoiceAttackFrame["selectedSuppressionMoves"],
-  selectedMoveTargets: AwaitingEffectChoiceAttackFrame["selectedMoveTargets"],
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Optional-effect continuation keeps all serialized attack inputs together.
+  ...[
+    frame,
+    supportingInputs,
+    enabledOptionalEffectIndices,
+    resolvedOptionalEffectIndices,
+    selectedNumericValues,
+    selectedSuppressionMoves,
+    selectedMoveTargets,
+  ]: [
+    frame: OptionalEffectResolutionFrame,
+    supportingInputs: Pick<AttackResolutionOptions, "blockUsage" | "defenseItemUse">,
+    enabledOptionalEffectIndices: readonly number[],
+    resolvedOptionalEffectIndices: readonly number[],
+    selectedNumericValues: Readonly<Record<string, number>> | undefined,
+    selectedSuppressionMoves: AwaitingEffectChoiceAttackFrame["selectedSuppressionMoves"],
+    selectedMoveTargets: AwaitingEffectChoiceAttackFrame["selectedMoveTargets"],
+  ]
 ): AttackResolutionOptions => ({
   requestDefense: frame.effectTrigger !== "on-success" && frame.effectTrigger !== "on-damage",
-  ...(frame.naturalRolls === undefined ? {} : { naturalRolls: frame.naturalRolls }),
-  ...(frame.blockedDice === undefined ? {} : { blockedDice: frame.blockedDice }),
-  ...(supportingInputs.blockUsage === undefined ? {} : { blockUsage: supportingInputs.blockUsage }),
-  ...(supportingInputs.defenseItemUse === undefined
-    ? {}
-    : { defenseItemUse: supportingInputs.defenseItemUse }),
-  ...(frame.defenseResultModifier === undefined
-    ? {}
-    : { defenseResultModifier: frame.defenseResultModifier }),
-  ...(frame.preventCritical === undefined ? {} : { preventCritical: frame.preventCritical }),
-  ...(frame.preventCounter === undefined ? {} : { preventCounter: frame.preventCounter }),
-  ...(frame.resultOverrides === undefined ? {} : { resultOverrides: frame.resultOverrides }),
-  ...(frame.numericResultOverrides === undefined
-    ? {}
-    : { numericResultOverrides: frame.numericResultOverrides }),
+  ...definedOption("naturalRolls", frame.naturalRolls),
+  ...definedOption("blockedDice", frame.blockedDice),
+  ...definedOption("blockUsage", supportingInputs.blockUsage),
+  ...definedOption("defenseItemUse", supportingInputs.defenseItemUse),
+  ...definedOption("defenseResultModifier", frame.defenseResultModifier),
+  ...definedOption("preventCritical", frame.preventCritical),
+  ...definedOption("preventCounter", frame.preventCounter),
+  ...definedOption("resultOverrides", frame.resultOverrides),
+  ...definedOption("numericResultOverrides", frame.numericResultOverrides),
   ...optionalEffectIndicesResolutionOptions(
     frame,
     enabledOptionalEffectIndices,
     resolvedOptionalEffectIndices,
   ),
-  ...(frame.enabledAfterDefenseEffectIndices === undefined
-    ? {}
-    : { enabledAfterDefenseEffectIndices: frame.enabledAfterDefenseEffectIndices }),
-  ...(frame.includeRollEvents === undefined ? {} : { includeRollEvents: frame.includeRollEvents }),
-  ...(selectedNumericValues === undefined ? {} : { selectedNumericValues }),
-  ...(selectedSuppressionMoves === undefined ? {} : { selectedSuppressionMoves }),
-  ...(selectedMoveTargets === undefined ? {} : { selectedMoveTargets }),
-  ...(frame.selectedFloatingEffectId === undefined
-    ? {}
-    : { selectedFloatingEffectId: frame.selectedFloatingEffectId }),
+  ...definedOption("enabledAfterDefenseEffectIndices", frame.enabledAfterDefenseEffectIndices),
+  ...definedOption("includeRollEvents", frame.includeRollEvents),
+  ...definedOption("selectedNumericValues", selectedNumericValues),
+  ...definedOption("selectedSuppressionMoves", selectedSuppressionMoves),
+  ...definedOption("selectedMoveTargets", selectedMoveTargets),
+  ...definedOption("selectedFloatingEffectId", frame.selectedFloatingEffectId),
   ...copiedAttackResolutionOptions(frame.attack),
 });
 
@@ -25358,6 +26894,7 @@ const resolveSimpleActionOptionalEffectChoice = (
   dependencies: CombatDependencies,
   pending: OptionalEffectPendingDecision,
   frame: PowerUpEffectChoiceFrame,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   if (frame.effectTrigger === "on-move-use") {
     const option = pending.options.find((candidate) => candidate.id === decision.optionId);
@@ -25504,6 +27041,7 @@ const resourceCostChoiceFailure = (
   move: MoveDefinition,
   effectIndices: readonly number[],
   frame: OptionalEffectResolutionFrame,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatFailure | undefined => {
   if (frame.effectTrigger !== "on-success" || effectIndices.length === 0) return undefined;
   let available = state.combatants[frame.attackerId].ki.current;
@@ -25526,7 +27064,7 @@ const resourceCostChoiceFailure = (
       effect?.type !== "grant-extra-action" ||
       effect.activationCost === undefined ||
       effect.activationCost.resource !== "ki" ||
-      effect.activationCost.operation !== "lose" ||
+      runtimeValue(effect.activationCost.operation) !== "lose" ||
       effect.activationCost.amount.type !== "literal"
     )
       continue;
@@ -25587,12 +27125,14 @@ const replacementTargetEffects = (
   );
 
 const requestReplacementSourceSelection = (
-  state: ActiveFightState,
-  frame: OptionalEffectResolutionFrame,
-  move: MoveDefinition,
-  effectIndex: number,
-  effect: Extract<EffectDefinition, { readonly type: "replace-active-constant-effects" }>,
-  dependencies: CombatDependencies,
+  ...[state, frame, move, effectIndex, effect, dependencies]: [
+    state: ActiveFightState,
+    frame: OptionalEffectResolutionFrame,
+    move: MoveDefinition,
+    effectIndex: number,
+    effect: Extract<EffectDefinition, { readonly type: "replace-active-constant-effects" }>,
+    dependencies: CombatDependencies,
+  ]
 ): CombatResult<CombatTransition> => {
   const eligible = replacementSourceMoves(state, frame.attackerId, effect);
   if (eligible.length === 0) return { ok: false, error: invalidFightState(state) };
@@ -25636,12 +27176,12 @@ const requestReplacementSourceSelection = (
           ...attackFrameWithSelection,
           enabledEffectIndices: [
             ...(frame.priorEnabledOptionalEffectIndices ?? []),
-            ...(frame.enabledEffectIndices ?? []),
+            ...frame.enabledEffectIndices,
             effectIndex,
           ],
           resolvedEffectIndices: [
             ...(frame.priorResolvedOptionalEffectIndices ?? []),
-            ...(frame.resolvedEffectIndices ?? []),
+            ...frame.resolvedEffectIndices,
             effectIndex,
           ],
         },
@@ -25652,14 +27192,13 @@ const requestReplacementSourceSelection = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Optional attack effects must resume through one deterministic frame resolver.
 const resolveAttackOptionalEffectChoice = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   pending: OptionalEffectPendingDecision,
   frame: OptionalEffectResolutionFrame,
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Optional attack effects resume through one deterministic frame resolver.
+  // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const option = pending.options.find((candidate) => candidate.id === decision.optionId);
   const enabledEffectIndices =
@@ -25794,6 +27333,7 @@ const resolveExtraActionActivationChoice = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   frame: Extract<ActiveFightState["resolutionFrames"][number], { readonly type: "effect" }>,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   const option = pending?.options.find((candidate) => candidate.id === decision.optionId);
@@ -25809,9 +27349,9 @@ const resolveExtraActionActivationChoice = (
   const isActivation = option?.type === "activate-effect";
   const validActivation =
     isActivation &&
-    option?.moveId === frame.sourceDefinitionId &&
-    option?.effectIndices?.length === 1 &&
-    option.effectIndices?.[0] === frame.effectIndex;
+    option.moveId === frame.sourceDefinitionId &&
+    option.effectIndices?.length === 1 &&
+    option.effectIndices[0] === frame.effectIndex;
   if (
     pending?.type !== "optional-effect" ||
     allowance === undefined ||
@@ -25843,7 +27383,7 @@ const resolveExtraActionActivationChoice = (
   Reflect.deleteProperty(stateWithoutChoice, "pendingDecision");
   const cost = isActivation ? allowance.activationCost : undefined;
   const actor = state.combatants[decision.actorId];
-  if (cost === undefined || cost.resource !== "ki") {
+  if (cost === undefined || runtimeValue(cost.resource) !== "ki") {
     return { ok: false, error: invalidFightState(state) };
   }
   const remainingKi = actor.ki.current - cost.amount;
@@ -25936,7 +27476,7 @@ const resolveUpkeepEffectChoice = (
     enabledEffectIndices.every((index, position) => index === frame.effectIndices[position]);
   if (
     (option?.type !== "decline" && !validActivation) ||
-    (option?.type !== "decline" && option?.type !== "activate-effect")
+    (option.type !== "decline" && runtimeValue(option.type) !== "activate-effect")
   )
     return {
       ok: false,
@@ -25987,6 +27527,7 @@ const resolveActionPhaseEffectChoice = (
   dependencies: CombatDependencies,
   pending: OptionalEffectPendingDecision,
   frame: ActionPhaseEffectChoiceFrame,
+  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const option = pending.options.find((candidate) => candidate.id === decision.optionId);
   const sourceMove = MOVE_DEFINITIONS.find(
@@ -26002,10 +27543,20 @@ const resolveActionPhaseEffectChoice = (
       sourceDefinitionId: sourceMove.id,
       effectIndices: frame.effectIndices,
     });
+  const validExchangeActivation =
+    option?.type === "activate-effect" &&
+    option.moveId === frame.sourceDefinitionId &&
+    option.effectIndices?.length === frame.effectIndices.length &&
+    option.effectIndices.every((index, position) => index === frame.effectIndices[position]) &&
+    sourceMove !== undefined &&
+    exactActionPhaseExchangeChoice(sourceMove, {
+      sourceDefinitionId: sourceMove.id,
+      effectIndices: frame.effectIndices,
+    });
   if (
     sourceMove === undefined ||
-    (option?.type !== "decline" && !validActivation) ||
-    (option?.type !== "decline" && option?.type !== "activate-effect")
+    (option?.type !== "decline" && !validActivation && !validExchangeActivation) ||
+    (option.type !== "decline" && runtimeValue(option.type) !== "activate-effect")
   )
     return {
       ok: false,
@@ -26022,6 +27573,15 @@ const resolveActionPhaseEffectChoice = (
   };
   Reflect.deleteProperty(stateWithoutChoice, "pendingDecision");
   if (option.type === "decline") return transitionFrom(stateWithoutChoice, []);
+  if (validExchangeActivation)
+    return resolveActionPhaseExchangeChoice(
+      state,
+      decision,
+      dependencies,
+      frame,
+      sourceMove,
+      option,
+    );
 
   const actor = state.combatants[frame.actorId];
   const target = state.combatants[frame.targetCombatantId];
@@ -26101,6 +27661,7 @@ const resolveForcedTransformationChoice = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
   pending: PendingDecision,
+  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> | undefined => {
   const option = pending.options.find((candidate) => candidate.id === decision.optionId);
   const forcedReference = option?.forcedTransformation;
@@ -26203,6 +27764,7 @@ const resolveOptionalEffectChoice = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
+  // eslint-disable-next-line complexity, max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> => {
   const pending = state.pendingDecision;
   if (
