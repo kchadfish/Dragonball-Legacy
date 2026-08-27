@@ -3,9 +3,8 @@ import type {
   MoveSelectorCondition,
   NumericExpression,
 } from "@dragonball-resurgence/game-data";
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
-
 import type { ActiveCombatEffect, CombatActionRecord, CombatantState } from "./contracts.js";
+import { matchesMoveSelector as sharedMatchesMoveSelector } from "./selector-matching.js";
 
 /**
  * The state available to source-transcribed numeric expressions. Values that
@@ -496,104 +495,7 @@ export const evaluateDurableNumericExpression = (
   context: NumericExpressionContext,
 ) => durableExpressionHandlers[expression.type]?.(expression, context);
 
-const matchesBaseKiCost = (
-  move: MoveDefinition,
-  selector: NonNullable<MoveSelectorCondition["baseKiCost"]>,
-) => {
-  const cost = move.mechanics.kiCost;
-  if (cost?.type !== "literal" || selector.value.type !== "literal") return false;
-  switch (selector.comparison) {
-    case "at-least":
-      return cost.value >= selector.value.value;
-    case "at-most":
-      return cost.value <= selector.value.value;
-    case "exactly":
-      return cost.value === selector.value.value;
-  }
-};
-
-const matchesMoveIdentity = (move: MoveDefinition, selector: MoveSelectorCondition) => {
-  if (selector.ids !== undefined && !selector.ids.includes(move.id)) return false;
-  if (selector.styleId !== undefined && move.styleId !== selector.styleId) return false;
-  return selector.styleIdExcludes === undefined || move.styleId !== selector.styleIdExcludes;
-};
-
-const matchesMoveCategory = (move: MoveDefinition, selector: MoveSelectorCondition) =>
-  (selector.category === undefined || move.category === selector.category) &&
-  (selector.categories === undefined || selector.categories.includes(move.category)) &&
-  !selector.categoryExcludes?.includes(move.category);
-
-const matchesMoveTags = (move: MoveDefinition, selector: MoveSelectorCondition) =>
-  selector.tags === undefined ||
-  selector.tags.every((tag) => move.tags.includes(tag as (typeof move.tags)[number]));
-
-const matchesMoveClassification = (move: MoveDefinition, selector: MoveSelectorCondition) => {
-  if (selector.custom !== undefined && (move.styleId === undefined) !== selector.custom)
-    return false;
-  if (
-    selector.restriction !== undefined &&
-    (move.mechanics.restrictedUses !== undefined) !== (selector.restriction === "restricted")
-  )
-    return false;
-  return (
-    selector.constant === undefined ||
-    move.effectClauses.some((clause) => clause.text === "Constant.") === selector.constant
-  );
-};
-
-const matchesMoveEffectText = (move: MoveDefinition, selector: MoveSelectorCondition) =>
-  (selector.effectTextIncludes === undefined ||
-    move.effectText.includes(selector.effectTextIncludes)) &&
-  (selector.effectTextIncludesAny === undefined ||
-    selector.effectTextIncludesAny.some((text) => move.effectText.includes(text))) &&
-  (selector.effectTextExcludes === undefined ||
-    !move.effectText.includes(selector.effectTextExcludes));
-
-const matchesMoveRequirements = (move: MoveDefinition, selector: MoveSelectorCondition) => {
-  const requirements = move.requirements ?? [];
-  if (
-    selector.requirementIncludes !== undefined &&
-    !selector.requirementIncludes.every((required) =>
-      requirements.some(
-        (requirement) => requirement.type === "source-text" && requirement.text === required,
-      ),
-    )
-  )
-    return false;
-  return (
-    selector.requirementExcludes === undefined ||
-    selector.requirementExcludes.every(
-      (excluded) =>
-        !requirements.some(
-          (requirement) => requirement.type === "source-text" && requirement.text === excluded,
-        ),
-    )
-  );
-};
-
-const matchesMoveAttackRoll = (move: MoveDefinition, selector: MoveSelectorCondition) => {
-  const requested = selector.attackRoll;
-  if (requested === undefined) return true;
-  if (move.mechanics.attack === undefined) return false;
-  const actual = move.mechanics.attack.attackRoll;
-  const dice = actual?.dice ?? 1;
-  const sides = actual?.sides ?? GLOBAL_RULES.combat.standardDieSides;
-  return (
-    (requested.dice === undefined || dice === requested.dice) &&
-    (requested.minimumDice === undefined || dice >= requested.minimumDice) &&
-    (requested.sides === undefined || sides === requested.sides) &&
-    (requested.maximumSides === undefined || sides <= requested.maximumSides)
-  );
-};
-
 /** Matches the declarative, move-local portions of a converted selector. */
 export const matchesMoveSelector = (move: MoveDefinition, selector: MoveSelectorCondition) => {
-  if (!matchesMoveIdentity(move, selector) || !matchesMoveCategory(move, selector)) return false;
-  if (!matchesMoveTags(move, selector) || !matchesMoveClassification(move, selector)) return false;
-  if (!matchesMoveEffectText(move, selector) || !matchesMoveAttackRoll(move, selector))
-    return false;
-  if (!matchesMoveRequirements(move, selector)) return false;
-  if (selector.baseKiCost !== undefined && !matchesBaseKiCost(move, selector.baseKiCost))
-    return false;
-  return true;
+  return sharedMatchesMoveSelector(move, selector);
 };

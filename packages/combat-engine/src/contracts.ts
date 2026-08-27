@@ -19,6 +19,7 @@ import type {
   PendingDecisionId,
   ResolutionFrameId,
 } from "./ids.js";
+import type { CandidateReference } from "./candidate-resolution.js";
 
 export type CombatMode = "spar" | "battle";
 
@@ -228,6 +229,8 @@ export interface PendingDecisionOption {
     | "roll-defense"
     | "select-combatant"
     | "select-move"
+    | "select-source-action"
+    | "select-source-effect"
     | "use-block";
   readonly combatantId?: CombatantId;
   readonly itemId?: ItemId;
@@ -273,6 +276,8 @@ export interface PendingDecisionOption {
   readonly selection?: EffectSelection;
   readonly optional?: boolean;
   readonly costTiming?: EffectCostTiming;
+  /** Exact candidate represented by this option for generic selections. */
+  readonly candidate?: CandidateReference;
 }
 
 export interface PendingDecision {
@@ -284,8 +289,14 @@ export interface PendingDecision {
     | "post-defense-roll"
     | "optional-effect"
     | "select-combatant"
-    | "select-move";
+    | "select-move"
+    | "select-source-action"
+    | "select-source-effect";
   readonly options: readonly PendingDecisionOption[];
+  /** Persisted candidate set; omitted only for legacy specialized choices. */
+  readonly candidates?: readonly CandidateReference[];
+  readonly selection?: EffectSelection;
+  readonly optional?: boolean;
 }
 
 export interface AdvancedAttackCostSelector {
@@ -1764,6 +1775,8 @@ export interface RespondToPendingDecision {
   readonly expectedStateVersion: number;
   readonly pendingDecisionId: PendingDecisionId;
   readonly optionId: string;
+  /** Additional option IDs for a generic up-to/all selection. */
+  readonly optionIds?: readonly string[];
 }
 
 export type CombatDecision =

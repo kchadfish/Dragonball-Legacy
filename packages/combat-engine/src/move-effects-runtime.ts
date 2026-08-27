@@ -12,6 +12,7 @@ import { evaluateDurableNumericExpression, matchesMoveSelector } from "./declara
 import { compileEffectPlan, executeCompiledEffect } from "./effect-executors.js";
 import { staticSelectionLimit } from "./effect-selection.js";
 import { conflictPolicyType, legacyStackingFor } from "./conflict-policy.js";
+import { missingConditionContextFacts, type ConditionContextFact } from "./condition-executors.js";
 
 import type {
   ActiveCombatEffect,
@@ -105,9 +106,73 @@ export interface MoveEffectRuntimeContext {
   readonly selectedMoveIds?: Readonly<Record<number, MoveDefinition["id"]>>;
   /** Successful effects are gated until every die in the current attack succeeds. */
   readonly successfulEffectsRequireAllDice?: boolean;
+  /** Unified dispatch treats absent required phase-local facts as invariant failures. */
+  readonly requireConditionContext?: boolean;
   /** Target retained by the floating effect whose nested effects are dispatching. */
   readonly floatingEffectTargetCombatantId?: CombatantId;
 }
+
+/** Immutable fight facts available independently of one resolution stage. */
+export type DurableFightConditionContext = Pick<
+  MoveEffectRuntimeContext,
+  | "self"
+  | "opponent"
+  | "turnNumber"
+  | "completedTurnCount"
+  | "moves"
+  | "moveActivationCounts"
+  | "actionHistory"
+  | "activeEffects"
+  | "mode"
+>;
+
+/** Values owned by the attack, defense, damage, or listener currently resolving. */
+export type ResolutionLocalConditionContext = Pick<
+  MoveEffectRuntimeContext,
+  | "successfulHitCount"
+  | "currentAction"
+  | "rolls"
+  | "rollModification"
+  | "paidKiCost"
+  | "paidActivationCost"
+  | "incomingDamage"
+  | "currentDamage"
+  | "blockedAttackDamage"
+  | "defenseResponse"
+  | "triggeringMove"
+  | "triggeringMoveOwner"
+  | "resourceChange"
+  | "combatOutcome"
+  | "combatOutcomeActor"
+  | "previousResourceState"
+>;
+
+/** Persisted selections and suspension metadata reused without reconstruction. */
+export type StoredConditionContext = Pick<
+  MoveEffectRuntimeContext,
+  | "selectedNumericValues"
+  | "enabledOptionalEffectIndices"
+  | "resolvedOptionalEffectIndices"
+  | "activationUnavailableSelectors"
+  | "selectedSuppressionMoveIds"
+  | "selectedMoveIds"
+  | "floatingEffectTargetCombatantId"
+>;
+
+export interface ConditionContextViews {
+  readonly durable: DurableFightConditionContext;
+  readonly resolutionLocal: ResolutionLocalConditionContext;
+  readonly stored: StoredConditionContext;
+}
+
+/** Typed views retain the existing frame-specific storage as the sole authority. */
+export const conditionContextViews = (
+  context: MoveEffectRuntimeContext,
+): ConditionContextViews => ({
+  durable: context,
+  resolutionLocal: context,
+  stored: context,
+});
 
 export interface PendingEffectChoice {
   readonly sourceDefinitionId: MoveDefinition["id"];
@@ -1213,6 +1278,21 @@ const stoppedHitFractionMatches = (
   return stoppedCount * 2 > rolls.length;
 };
 
+const attackRollResolutionMatches = (
+  condition: Extract<RuntimeCondition, { readonly type: "attack-roll-resolution" }>,
+  context: MoveEffectRuntimeContext,
+) => {
+  const rolls = context.rolls;
+  if (rolls === undefined || rolls.length === 0) return false;
+  const currentActor = context.triggeringMoveOwner ?? "self";
+  if (condition.actor !== currentActor) return false;
+  return condition.anyOf.some((resolution) =>
+    resolution === "single-die-stopped"
+      ? rolls.length === 1 && rolls[0]?.outcome === "stopped"
+      : rolls.every((roll) => roll.outcome === "stopped"),
+  );
+};
+
 const currentAttackAction = (context: MoveEffectRuntimeContext) =>
   context.currentAction ??
   [...(context.actionHistory ?? [])]
@@ -1765,7 +1845,7 @@ const combatTurnHandler: RuntimeConditionHandler = (condition, context) => {
   return runtimeValue(typed.comparison) === "exactly" && context.turnNumber === typed.value;
 };
 
-const runtimeConditionHandlers: Partial<Record<RuntimeConditionType, RuntimeConditionHandler>> = {
+const runtimeConditionHandlers = {
   "combat-result": combatResultHandler,
   "defense-response": (condition, context) =>
     defenseResponseMatches(
@@ -1778,6 +1858,11 @@ const runtimeConditionHandlers: Partial<Record<RuntimeConditionType, RuntimeCond
   "stopped-hit-fraction": (condition, context) =>
     stoppedHitFractionMatches(
       condition as Extract<RuntimeCondition, { readonly type: "stopped-hit-fraction" }>,
+      context,
+    ),
+  "attack-roll-resolution": (condition, context) =>
+    attackRollResolutionMatches(
+      condition as Extract<RuntimeCondition, { readonly type: "attack-roll-resolution" }>,
       context,
     ),
   "roll-threshold": rollThresholdHandler,
@@ -1940,10 +2025,70 @@ const runtimeConditionHandlers: Partial<Record<RuntimeConditionType, RuntimeCond
       condition as Extract<RuntimeCondition, { readonly type: "stored-move-selection" }>,
       context,
     ),
+} satisfies Record<RuntimeConditionType, RuntimeConditionHandler>;
+
+const availableConditionContextFacts = (
+  context: MoveEffectRuntimeContext,
+): ReadonlySet<ConditionContextFact> => {
+  const facts = new Set<ConditionContextFact>(["durable-fight"]);
+  if (context.triggeringMove !== undefined || context.currentAction !== undefined)
+    facts.add("current-move");
+  if (context.rolls !== undefined) facts.add("rolls");
+  if (context.paidKiCost !== undefined || context.paidActivationCost !== undefined)
+    facts.add("paid-cost");
+  if (context.incomingDamage !== undefined) facts.add("incoming-damage");
+  if (context.defenseResponse !== undefined) facts.add("defense-response");
+  if (context.resourceChange !== undefined) facts.add("resource-change");
+  if (context.combatOutcome !== undefined) facts.add("combat-outcome");
+  if (context.rollModification !== undefined) facts.add("roll-modification");
+  facts.add("stored-rolls");
+  facts.add("stored-selections");
+  return facts;
 };
 
-const conditionMatches = (condition: RuntimeCondition, context: MoveEffectRuntimeContext) =>
-  runtimeConditionHandlers[condition.type]?.(condition, context) ?? false;
+const conditionMatches = (condition: RuntimeCondition, context: MoveEffectRuntimeContext) => {
+  const missingFacts = missingConditionContextFacts(
+    condition,
+    availableConditionContextFacts(context),
+  );
+  if (missingFacts.length > 0 && context.requireConditionContext === true)
+    throw new Error(
+      `Condition ${condition.type} requires unavailable context: ${missingFacts.join(", ")}.`,
+    );
+  return runtimeConditionHandlers[condition.type](condition, context);
+};
+
+const conditionContextIsAvailable = (
+  conditions: EffectDefinition["conditions"],
+  context: MoveEffectRuntimeContext,
+) => {
+  const availableFacts = availableConditionContextFacts(context);
+  return (conditions ?? []).every(
+    (condition) => missingConditionContextFacts(condition, availableFacts).length === 0,
+  );
+};
+
+const conditionsEvaluatedForEffect = (effect: EffectDefinition): EffectDefinition["conditions"] => {
+  if (effect.type === "deactivate")
+    return (effect.conditions ?? []).filter((condition) => condition.type !== "move-selector");
+  if (
+    effect.type === "reroll" &&
+    effect.trigger === "on-success" &&
+    (effect.scope?.type === "next-action" ||
+      effect.scope?.type === "next-roll" ||
+      effect.scope?.type === "next-rolls")
+  )
+    return (effect.conditions ?? []).filter((condition) => condition.type !== "roll-threshold");
+  if (
+    effect.type === "set-combat-result" &&
+    effect.scope?.type === "next-action" &&
+    effect.resultScope === "matching-die"
+  )
+    return (effect.conditions ?? []).filter(
+      (condition) => condition.type !== "move-selector" && condition.type !== "combat-result",
+    );
+  return effect.conditions;
+};
 
 const requirementsMatch = (effect: EffectDefinition, context: MoveEffectRuntimeContext) =>
   (effect.requirements ?? []).every(
@@ -2053,37 +2198,7 @@ export const effectConditionsMatch = (
 const effectConditionsMatchForEvaluation = (
   effect: EffectDefinition,
   context: MoveEffectRuntimeContext,
-  // eslint-disable-next-line complexity -- Effect translation intentionally keeps related declarative branches together.
-) => {
-  if (effect.type === "deactivate") {
-    return (effect.conditions ?? [])
-      .filter((condition) => condition.type !== "move-selector")
-      .every((condition) => conditionMatches(condition, context));
-  }
-  if (
-    effect.type === "reroll" &&
-    effect.trigger === "on-success" &&
-    (effect.scope?.type === "next-action" ||
-      effect.scope?.type === "next-roll" ||
-      effect.scope?.type === "next-rolls")
-  ) {
-    return (effect.conditions ?? [])
-      .filter((condition) => condition.type !== "roll-threshold")
-      .every((condition) => conditionMatches(condition, context));
-  }
-  if (
-    effect.type === "set-combat-result" &&
-    effect.scope?.type === "next-action" &&
-    effect.resultScope === "matching-die"
-  ) {
-    return (effect.conditions ?? [])
-      .filter(
-        (condition) => condition.type !== "move-selector" && condition.type !== "combat-result",
-      )
-      .every((condition) => conditionMatches(condition, context));
-  }
-  return effectConditionsMatch(effect.conditions, context);
-};
+) => effectConditionsMatch(conditionsEvaluatedForEffect(effect), context);
 
 const effectMatches = (effect: EffectDefinition, context: MoveEffectRuntimeContext) =>
   requirementsMatch(effect, context) &&
@@ -6139,6 +6254,7 @@ const triggeredEffectChanges = (
             }) &&
             resourceThresholdMatches(condition, context),
         ))) ||
+    !conditionContextIsAvailable(conditionsEvaluatedForEffect(effect), context) ||
     !effectMatches(effect, context)
   ) {
     return emptyEffectChanges();
@@ -7155,7 +7271,15 @@ const moveEffectsForTriggerInternal = (
           ? effectIndices.map((effectIndex) => [effectIndex])
           : [effectIndices];
       for (const alternative of alternatives) {
-        if (!alternative.some((effectIndex) => effectMatches(move.effects![effectIndex], context)))
+        if (
+          !alternative.some(
+            (effectIndex) =>
+              conditionContextIsAvailable(
+                conditionsEvaluatedForEffect(move.effects![effectIndex]),
+                context,
+              ) && effectMatches(move.effects![effectIndex], context),
+          )
+        )
           continue;
         if (alternative.some((effectIndex) => resolvedEffectIndices.has(effectIndex))) continue;
         const plans = alternative.map((effectIndex) =>
@@ -7258,6 +7382,7 @@ const moveEffectsForTriggerInternal = (
         collectActionPhaseExchangeChoice,
     });
     if (!compiled.ok) continue;
+    if (!conditionContextIsAvailable(conditionsEvaluatedForEffect(effect), context)) continue;
     for (const target of effectTargets(compiled.value.definition)) {
       const resolved = executeCompiledEffect(compiled.value, { move, target });
       if (

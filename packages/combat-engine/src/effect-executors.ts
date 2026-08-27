@@ -10,6 +10,11 @@ import {
 import { isCombatResultCountNextActionsDamageModifier } from "./damage-modifier-capabilities.js";
 import { staticSelectionLimit } from "./effect-selection.js";
 import { conflictPolicyType } from "./conflict-policy.js";
+import {
+  combatTriggers,
+  conditionExecutorCapabilities,
+  conditionIsAvailableAtTrigger,
+} from "./condition-executors.js";
 
 // Validators inspect runtime-shaped effect data independently of its narrowed type.
 const runtimeValue = (value: unknown): unknown => value;
@@ -158,29 +163,7 @@ export type EffectCompilationResult =
   | { readonly ok: true; readonly value: CompiledEffect }
   | { readonly ok: false; readonly issues: readonly EffectCompilationIssue[] };
 
-const supportedTriggers = new Set([
-  "action-phase",
-  "after-defense-roll",
-  "before-attack-roll",
-  "before-defense-roll",
-  "passive",
-  "on-stopped",
-  "on-success",
-  "on-damage",
-  "on-deactivated",
-  "on-combat-result",
-  "on-move-use",
-  "on-cost-modified",
-  "on-power-up",
-  "on-resource-gain",
-  "on-resource-drain",
-  "on-resource-threshold",
-  "on-roll-modified",
-  "on-roll-result",
-  "start-combat",
-  "turn-end",
-  "upkeep-phase",
-]);
+const supportedTriggers = new Set(combatTriggers);
 
 const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
   "apply-status",
@@ -303,50 +286,6 @@ const conflictPolicyIssues = (
     ];
   return [];
 };
-
-const supportedConditions = new Set<EffectCondition["type"]>([
-  "combat-result",
-  "combat-outcome",
-  "defense-response",
-  "successful-hit-count",
-  "roll-threshold",
-  "roll-comparison",
-  "paid-ki-cost",
-  "stat-comparison",
-  "resource-threshold",
-  "resource-comparison",
-  "move-selector",
-  "prior-action",
-  "no-prior-action",
-  "action-sequence",
-  "incoming-damage",
-  "combat-context",
-  "combat-state",
-  "status",
-  "perfect-roll",
-  "roll-die-result",
-  "roll-die-threshold",
-  "resource-change",
-  "move-effect-active",
-  "move-effect-inactive",
-  "activation-unavailable",
-  "target-relation",
-  "move-modification",
-  "active-move-count",
-  "moveset-move-count",
-  "move-use-count",
-  "level-comparison",
-  "location",
-  "transformation-mastery",
-  "prior-turn-restriction",
-  "combat-turn",
-  "moveset",
-  "stored-roll-threshold",
-  "stored-roll-match",
-  "stored-move-selection",
-  "roll-modification",
-  "stopped-hit-fraction",
-]);
 
 const supportedNumericExpressions = new Set<NumericExpression["type"]>([
   "literal",
@@ -516,10 +455,8 @@ const conditionIssues = (
   const issues: EffectCompilationIssue[] = [];
   for (const condition of effect.conditions ?? []) {
     if (
-      !supportedConditions.has(condition.type) ||
-      (condition.type === "combat-outcome" &&
-        effect.trigger !== "passive" &&
-        effect.trigger !== "on-combat-result")
+      conditionExecutorCapabilities[condition.type] === undefined ||
+      !conditionIsAvailableAtTrigger(condition, effect.trigger)
     )
       issues.push(
         issue(
@@ -603,7 +540,7 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
   // eslint-disable-next-line complexity -- Effect validation intentionally enumerates supported declarative variants.
 ): EffectCompilationIssue[] => {
   const issues: EffectCompilationIssue[] = [];
-  if (!supportedTriggers.has(effect.trigger))
+  if (!supportedTriggers.has(effect.trigger as (typeof combatTriggers)[number]))
     issues.push(
       issue(
         "unsupported-trigger",

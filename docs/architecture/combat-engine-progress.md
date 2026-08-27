@@ -51,6 +51,43 @@ occurrences require an explicit audited exclusion.
 
 ## Implemented foundations
 
+## Phase 3 completion record
+
+CE-300 routes production fight creation and progression through the internal
+`dispatchCombatTrigger` boundary. Its exhaustive descriptor registry accounts
+for every supported move-effect trigger, records source eligibility, actor
+perspective, local payload, pending-choice, and recursion policy, and preserves
+the non-recursive resource-listener rule. Compatibility move-effect helpers
+remain available for focused callers and tests.
+
+CE-310 through CE-330 define durable, resolution-local, and stored condition
+context views over the existing authoritative combat state. Existing stored
+rolls, selected moves and numeric values, active effects, action history, and
+resolution-frame snapshots remain authoritative; the dispatcher does not add a
+second snapshot model. Existing invariant checks continue validating referenced
+move IDs, stored roll sides/results and array alignment, pending option identity,
+frame/pending-decision compatibility, and finite persisted values.
+
+CE-340 replaces the separate compiler condition allowlist and partial runtime
+map with one exhaustive condition-capability registry plus an exhaustive runtime
+handler registry. Compiler validation and runtime availability checks now use
+that shared registry. The missing `attack-roll-resolution` evaluator implements
+actor-aware single-die-stopped and all-dice-stopped semantics, including the
+condition form retained by active-effect durations.
+
+Focused evidence includes condition and trigger registry accounting, invalid
+trigger/condition rejection, missing-context distinction, dispatcher ordering
+and deduplication, resource non-recursion metadata, attack-roll-resolution
+boundaries, the public creation/progression regressions, and capability-matrix
+validation. The regenerated matrix remains at 975 `supported-generic`, 0
+`supported-named`, 0 `unsupported-in-scope`, and 145
+`audited-out-of-scope` occurrences.
+
+**Immediate resume point: Phase 4 / CE-400.** Add common structured candidate
+resolution without silently selecting player-owned targets, then continue with
+shared selector matching (CE-410), generic pending selection (CE-420), and
+deterministic effect resume (CE-430).
+
 ## Phase 2 completion record
 
 CE-200 adds the shared `one`, `up-to`, and `all` selection contract, preserving
@@ -5039,3 +5076,29 @@ unsupported value selection. Existing public combat-flow suites remain green;
 `npm run test:coverage` passed with 45 files and 902 tests. The final quality
 gate passed, including duplication detection and the production dependency
 audit.
+
+## 2026-08-27 Phase 4 candidate and selection foundation
+
+Added the shared candidate-resolution layer for combatants, moves, active
+effects, source effects, and completed source actions. Candidate discovery is
+deterministic and returns structured candidates with provenance; it does not
+silently choose a player-owned target. Move-local selector matching now has one
+implementation shared by declarative runtime evaluation and combat-flow
+selection, including structured effect-kind and requirement matching.
+
+Pending decisions now optionally persist their exact candidate references,
+selection cardinality, optionality, and candidate-bearing options. Responses
+can carry additional option IDs for multi-selection, and the engine validates
+generic responses against the persisted candidate set before entering the
+existing serialized continuation. Candidate references and pending options are
+also checked by fight-state invariants. Selected move-target, suppression,
+damage-target, move-removal, and constant-replacement flows have been migrated
+to the persisted candidate contract while retaining their existing deterministic
+continuations and option IDs.
+
+Focused coverage is in `candidate-resolution.test.ts` plus the existing public
+attack and progress-flow suites. Catalog counts are unchanged because this
+slice adds shared execution infrastructure and does not reclassify an effect
+occurrence without a complete runtime proof. The remaining Phase 4 work is to
+migrate the remaining specialized choice producers and route multi-candidate
+responses through their typed continuations.

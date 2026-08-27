@@ -29,8 +29,15 @@ import {
   isSignatureTurnAvailable,
 } from "./combat-mechanics.js";
 import { defaultMoveAttackRoll, resolveMoveAttack } from "./move-attacks.js";
-import { evaluateDurableNumericExpression, matchesMoveSelector } from "./declarative-runtime.js";
+import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
+import { validatePendingSelection } from "./candidate-resolution.js";
+import { matchesMoveSelector } from "./selector-matching.js";
 import { compileEffectPlan } from "./effect-executors.js";
+import {
+  dispatchCombatTrigger as moveEffectsForTrigger,
+  dispatchStoppedCombatTrigger as stoppedMoveEffects,
+  dispatchSuccessfulCombatTrigger as successfulMoveEffects,
+} from "./combat-trigger-dispatch.js";
 import { staticSelectionLimit } from "./effect-selection.js";
 import {
   isCombatResultCountNextActionsDamageModifier,
@@ -45,11 +52,8 @@ import {
 import {
   classifyCurrentActionMove,
   effectConditionsMatch,
-  moveEffectsForTrigger,
   rerollEffectsAfterDefense,
   rerollEffectsOnRollResult,
-  stoppedMoveEffects,
-  successfulMoveEffects,
   type ResourceChange,
   type ResourceActionModifierApplication,
   type ResourceCostModifierApplication,
@@ -7561,10 +7565,17 @@ const requestSelectedDamageTarget = (
     stateVersion: nextState.version + 1,
     combatantId: attacker.id,
     type: "select-move" as const,
+    candidates: selection.eligibleMoveIds.map((moveId) => ({
+      type: "move" as const,
+      id: moveId,
+      ownerCombatantId: target.id,
+    })),
+    selection: { type: "one" as const },
     options: selection.eligibleMoveIds.map((moveId) => ({
       id: `select-damage-target:${moveId}`,
       type: "select-move" as const,
       moveId,
+      candidate: { type: "move" as const, id: moveId, ownerCombatantId: target.id },
     })),
   };
   return transitionFrom(
@@ -7639,10 +7650,17 @@ const requestSelectedTemporaryMoveRemoval = (
     stateVersion: nextState.version + 1,
     combatantId: attacker.id,
     type: "select-move" as const,
+    candidates: selection.eligibleMoveIds.map((moveId) => ({
+      type: "move" as const,
+      id: moveId,
+      ownerCombatantId: target.id,
+    })),
+    selection: { type: "one" as const },
     options: selection.eligibleMoveIds.map((moveId) => ({
       id: `select-move-removal:${moveId}`,
       type: "select-move" as const,
       moveId,
+      candidate: { type: "move" as const, id: moveId, ownerCombatantId: target.id },
     })),
   };
   return transitionFrom(
@@ -23331,73 +23349,8 @@ const numericSelectorComparison = (
   return left === right;
 };
 
-const selectorMatchesIdentity = (selector: MoveSelectorCondition, move: MoveDefinition) =>
-  (selector.ids === undefined || selector.ids.includes(move.id)) &&
-  (selector.styleId === undefined || selector.styleId === move.styleId) &&
-  (selector.styleIdExcludes === undefined || selector.styleIdExcludes !== move.styleId) &&
-  (selector.category === undefined || selector.category === move.category) &&
-  (selector.categories === undefined || selector.categories.includes(move.category)) &&
-  !selector.categoryExcludes?.includes(move.category);
-
-const selectorMatchesText = (selector: MoveSelectorCondition, move: MoveDefinition) =>
-  (selector.tags === undefined ||
-    selector.tags.every((tag) => move.tags.includes(tag as (typeof move.tags)[number]))) &&
-  (selector.constant === undefined || selector.constant === isConstantSkill(move)) &&
-  (selector.effectTextIncludes === undefined ||
-    move.effectText.includes(selector.effectTextIncludes)) &&
-  (selector.effectTextIncludesAny === undefined ||
-    selector.effectTextIncludesAny.some((text) => move.effectText.includes(text))) &&
-  (selector.effectTextExcludes === undefined ||
-    !move.effectText.includes(selector.effectTextExcludes)) &&
-  (selector.requirementIncludes === undefined ||
-    selector.requirementIncludes.every((required) =>
-      move.requirements?.some(
-        (requirement) =>
-          requirement.type === "source-text" &&
-          requirement.text.toLowerCase().includes(required.toLowerCase()),
-      ),
-    )) &&
-  (selector.requirementExcludes === undefined ||
-    selector.requirementExcludes.every(
-      (excluded) =>
-        !move.requirements?.some(
-          (requirement) =>
-            requirement.type === "source-text" &&
-            requirement.text.toLowerCase().includes(excluded.toLowerCase()),
-        ),
-    ));
-
-const selectorMatchesAttackRoll = (selector: MoveSelectorCondition, move: MoveDefinition) => {
-  if (selector.attackRoll === undefined) return true;
-  if (move.mechanics.attack === undefined) return false;
-  const attackRoll = move.mechanics.attack.attackRoll;
-  const dice = attackRoll?.dice ?? 1;
-  const sides = attackRoll?.sides ?? GLOBAL_RULES.combat.standardDieSides;
-  return (
-    (selector.attackRoll.dice === undefined || dice === selector.attackRoll.dice) &&
-    (selector.attackRoll.minimumDice === undefined || dice >= selector.attackRoll.minimumDice) &&
-    (selector.attackRoll.sides === undefined || sides === selector.attackRoll.sides) &&
-    (selector.attackRoll.maximumSides === undefined || sides <= selector.attackRoll.maximumSides)
-  );
-};
-
-const selectorMatchesCost = (selector: MoveSelectorCondition, move: MoveDefinition) => {
-  if (selector.baseKiCost === undefined) return true;
-  const cost = move.mechanics.kiCost;
-  const value = selector.baseKiCost.value;
-  return (
-    cost?.type === "literal" &&
-    value.type === "literal" &&
-    numericSelectorComparison(cost.value, selector.baseKiCost.comparison, value.value)
-  );
-};
-
 const selectorMatchesMove = (selector: MoveSelectorCondition | undefined, move: MoveDefinition) =>
-  selector === undefined ||
-  (selectorMatchesIdentity(selector, move) &&
-    selectorMatchesText(selector, move) &&
-    selectorMatchesAttackRoll(selector, move) &&
-    selectorMatchesCost(selector, move));
+  selector === undefined || matchesMoveSelector(move, selector);
 
 const moveRequirementSuppressed = (
   state: ActiveFightState,
@@ -25201,10 +25154,17 @@ const requestSelectedSuppressionTarget = (
     stateVersion: state.version + 1,
     combatantId: attackFrame.attackerId,
     type: "select-move" as const,
+    candidates: eligibleMoveIds.map((moveId) => ({
+      type: "move" as const,
+      id: moveId,
+      ownerCombatantId: targetCombatantId,
+    })),
+    selection: effect.selectionSpec ?? { type: "one" as const },
     options: eligibleMoveIds.map((moveId) => ({
       id: `select-suppression-target:${effectIndex}:${moveId}`,
       type: "select-move" as const,
       moveId,
+      candidate: { type: "move" as const, id: moveId, ownerCombatantId: targetCombatantId },
       ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
     })),
   };
@@ -25262,10 +25222,21 @@ const requestSelectedMoveTarget = (
     stateVersion: state.version + 1,
     combatantId: attackFrame.attackerId,
     type: "select-move" as const,
+    candidates: eligibleMoveIds.map((moveId) => ({
+      type: "move" as const,
+      id: moveId,
+      ownerCombatantId: attackFrame.attackerId,
+    })),
+    selection: effect.selectionSpec ?? { type: "one" as const },
     options: eligibleMoveIds.map((moveId) => ({
       id: `select-move-target:${effectIndex}:${moveId}`,
       type: "select-move" as const,
       moveId,
+      candidate: {
+        type: "move" as const,
+        id: moveId,
+        ownerCombatantId: attackFrame.attackerId,
+      },
       ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
     })),
   };
@@ -25723,11 +25694,17 @@ const resolveReplacementSelection = (
         stateVersion: state.version + 1,
         combatantId: frame.sourceCombatantId,
         type: "select-move",
+        candidates: targets.map((candidate) => ({
+          type: "active-effect" as const,
+          id: candidate.id,
+        })),
+        selection: { type: "one" as const },
         options: targets.map((candidate) => ({
           id: `replace-target:${candidate.id}`,
           type: "select-move" as const,
           moveId: candidate.sourceDefinitionId,
           activeEffectId: candidate.id,
+          candidate: { type: "active-effect" as const, id: candidate.id },
         })),
       },
       resolutionFrames: state.resolutionFrames.map((candidate) => {
@@ -27214,6 +27191,13 @@ const requestReplacementSourceSelection = (
 ): CombatResult<CombatTransition> => {
   const eligible = replacementSourceMoves(state, frame.attackerId, effect);
   if (eligible.length === 0) return { ok: false, error: invalidFightState(state) };
+  const sourceOwner = Object.values(state.combatants).find(
+    (combatant) =>
+      combatant.id !== frame.attackerId &&
+      combatant.status === "active" &&
+      eligible.some((candidate) => combatant.moveIds.includes(candidate.id)),
+  );
+  if (sourceOwner === undefined) return { ok: false, error: invalidFightState(state) };
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const selectionFrame: ResolutionFrame = {
     id: dependencies.ids.nextResolutionFrameId(),
@@ -27242,11 +27226,22 @@ const requestReplacementSourceSelection = (
         stateVersion: state.version + 1,
         combatantId: frame.attackerId,
         type: "select-move",
+        candidates: eligible.map((candidate) => ({
+          type: "move" as const,
+          id: candidate.id,
+          ownerCombatantId: sourceOwner.id,
+        })),
+        selection: { type: "one" as const },
         options: eligible.map((candidate) => ({
           id: `replace-source:${candidate.id}`,
           type: "select-move" as const,
           moveId: candidate.id,
           sourceMoveSnapshot: candidate,
+          candidate: {
+            type: "move" as const,
+            id: candidate.id,
+            ownerCombatantId: sourceOwner.id,
+          },
         })),
       },
       resolutionFrames: [
@@ -27951,6 +27946,19 @@ const resolvePendingCombatDecision = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
 ): CombatResult<CombatTransition> => {
+  if (state.pendingDecision?.candidates !== undefined) {
+    const selection = validatePendingSelection(state.pendingDecision, decision);
+    if (!selection.ok) {
+      return {
+        ok: false,
+        error: {
+          type: "invalid-pending-decision-option",
+          pendingDecisionId: decision.pendingDecisionId,
+          optionId: decision.optionId,
+        },
+      };
+    }
+  }
   if (state.pendingDecision?.type === "defense-response") {
     return resolveDefenseResponse(state, decision, dependencies);
   }

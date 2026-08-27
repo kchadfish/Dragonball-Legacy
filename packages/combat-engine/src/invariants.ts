@@ -26,6 +26,7 @@ import type {
 } from "./contracts.js";
 import { matchesMoveSelector } from "./declarative-runtime.js";
 import { conflictKeyFor, conflictMatchKeyFor, conflictPolicyFor } from "./conflict-policy.js";
+import { candidateReferenceId } from "./candidate-resolution.js";
 
 // Invariants validate serializable runtime data even when the in-memory union
 // type has already narrowed a discriminant to one literal value.
@@ -1642,6 +1643,12 @@ const validRequiredIndexList = (indices: readonly number[]) =>
   indices.every((index) => Number.isInteger(index) && index >= 0) &&
   new Set(indices).size === indices.length;
 
+const validFiniteNumericRecord = (values: Readonly<Record<string, number>> | undefined) =>
+  values === undefined ||
+  Object.entries(values).every(
+    ([key, value]) => storedRollKeyPattern.test(key) && Number.isFinite(value),
+  );
+
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
   if (attack.type !== "move") return true;
@@ -1810,7 +1817,7 @@ const validSelectedSuppressionMoves = (
         selection.effectIndex >= 0 &&
         frame.enabledEffectIndices.includes(selection.effectIndex) &&
         typeof selection.moveId === "string" &&
-        selection.moveId.length > 0,
+        MOVE_DEFINITIONS.some((move) => move.id === selection.moveId),
     ));
 
 const validSelectedMoveTargets = (
@@ -1830,7 +1837,7 @@ const validSelectedMoveTargets = (
         selection.effectIndex >= 0 &&
         frame.enabledEffectIndices.includes(selection.effectIndex) &&
         typeof selection.moveId === "string" &&
-        selection.moveId.length > 0,
+        MOVE_DEFINITIONS.some((move) => move.id === selection.moveId),
     ));
 
 const validAttackPendingBoundary = (
@@ -1985,6 +1992,7 @@ const validAttackResolutionFrame = (
     validIndexList(frame.priorEnabledOptionalEffectIndices) &&
     validIndexList(frame.priorResolvedOptionalEffectIndices) &&
     validIndexList(frame.enabledAfterDefenseEffectIndices) &&
+    validFiniteNumericRecord(frame.selectedNumericValues) &&
     overrideValuesValid &&
     serializedReactionReferencesValid &&
     selectedSuppressionMovesValid &&
@@ -2649,6 +2657,7 @@ const validPendingDecision = (state: ActiveFightState) => {
     (option) =>
       option.id.length > 0 &&
       validChoiceMetadata(option.selection, option.optional, option.costTiming) &&
+      (option.selectedNumericValue === undefined || Number.isFinite(option.selectedNumericValue)) &&
       (option.combatantId === undefined || isActiveCombatant(state, option.combatantId)) &&
       (option.itemId === undefined ||
         state.combatants[pendingDecision.combatantId].itemIds?.includes(option.itemId)) &&
@@ -2660,6 +2669,39 @@ const validPendingDecision = (state: ActiveFightState) => {
           ? selectableMoveIsEligible(option.moveId)
           : state.combatants[pendingDecision.combatantId].moveIds.includes(option.moveId))),
   );
+  const validCandidates =
+    pendingDecision.candidates === undefined ||
+    (pendingDecision.candidates.length > 0 &&
+      new Set(pendingDecision.candidates.map(candidateReferenceId)).size ===
+        pendingDecision.candidates.length &&
+      pendingDecision.candidates.every((candidate) => {
+        if (candidate.type === "combatant") return isActiveCombatant(state, candidate.id);
+        if (candidate.type === "active-effect")
+          return state.activeEffects.some((effect) => effect.id === candidate.id);
+        if (candidate.type === "source-action")
+          return state.actionHistory.some(
+            (action) => action.type !== "turn-skipped" && action.decisionId === candidate.id,
+          );
+        if (candidate.type === "move") {
+          const owner = state.combatants[candidate.ownerCombatantId];
+          return owner?.moveIds.includes(candidate.id) === true;
+        }
+        const separator = candidate.id.lastIndexOf(":");
+        if (separator <= 0) return false;
+        const sourceMove = MOVE_DEFINITIONS.find(
+          (move) => move.id === candidate.id.slice(0, separator),
+        );
+        const effectIndex = Number(candidate.id.slice(separator + 1));
+        return sourceMove?.effects?.[effectIndex] !== undefined;
+      }) &&
+      pendingDecision.options
+        .filter((option) => option.candidate !== undefined)
+        .every((option) =>
+          pendingDecision.candidates!.some(
+            (candidate) =>
+              candidateReferenceId(candidate) === candidateReferenceId(option.candidate!),
+          ),
+        ));
   return (
     pendingDecisionIdSchema.safeParse(pendingDecision.id).success &&
     pendingDecision.stateVersion === state.version &&
@@ -2668,6 +2710,7 @@ const validPendingDecision = (state: ActiveFightState) => {
     new Set(pendingDecision.options.map((option) => option.id)).size ===
       pendingDecision.options.length &&
     validOptions &&
+    validCandidates &&
     (pendingDecision.type !== "select-move" ||
       (() => {
         const frame = state.resolutionFrames.find(

@@ -22,7 +22,7 @@ import type { CombatDependencies } from "./dependencies.js";
 import type { CombatantId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
 import { applyCombatItemPassives } from "./item-effects-runtime.js";
-import { moveEffectsForTrigger } from "./move-effects-runtime.js";
+import { dispatchCombatTrigger as moveEffectsForTrigger } from "./combat-trigger-dispatch.js";
 import {
   activeRollModifierFromApplication,
   startCombatCopySelectionFor,
