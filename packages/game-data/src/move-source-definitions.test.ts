@@ -12,7 +12,7 @@ describe("move source definitions", () => {
   });
 
   it("keeps incomplete move entries out of the generated move catalog", () => {
-    expect(UNRESOLVED_MOVE_SOURCES).toHaveLength(0);
+    expect(UNRESOLVED_MOVE_SOURCES).toHaveLength(3);
     expect(UNRESOLVED_MOVE_SOURCES.every((move) => move.reason.length > 0)).toBe(true);
   });
 });

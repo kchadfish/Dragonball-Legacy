@@ -23,6 +23,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -30,6 +31,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -51,6 +53,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           percent: 20,
         },
         sourceText: "Gain (20% Total HP) HP",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -84,12 +87,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
         sourceText: "Use when you lose a battle.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -102,6 +107,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "allow-use-after-combat-loss",
         sourceText: "Use when you lose a battle.",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "on-move-use",
@@ -117,6 +123,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           percent: 30,
         },
         sourceText: "Gain (30% Total HP) HP",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -155,6 +162,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -162,12 +170,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
         sourceText: "Use when you lose a battle.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -180,6 +190,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "allow-use-after-combat-loss",
         sourceText: "Use when you lose a battle.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "on-move-use",
@@ -195,6 +206,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           percent: 50,
         },
         sourceText: "gain (50% Total HP) HP",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -234,6 +246,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -241,12 +254,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
         sourceText: "Use when you lose a battle.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -259,6 +274,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "allow-use-after-combat-loss",
         sourceText: "Use when you lose a battle.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "on-move-use",
@@ -274,6 +290,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           percent: 100,
         },
         sourceText: "gain (100% Total HP) HP",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -318,6 +335,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -325,18 +343,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x3.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
         sourceText: "Use when you lose a battle.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "You do not die and you gain (100% Total HP) HP.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -349,6 +370,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "allow-use-after-combat-loss",
         sourceText: "Use when you lose a battle.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "on-move-use",
@@ -364,6 +386,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           percent: 100,
         },
         sourceText: "gain (100% Total HP) HP",
+        sourceClauseOrder: 3,
       },
       {
         trigger: "passive",
@@ -375,6 +398,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "Notes: Only one healing item may be used per Battle or Spar.",
+        sourceClauseOrder: 4,
       },
     ],
     inventorySlots: 1,
@@ -410,12 +434,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "weekly",
         timing: "combat-action",
         executable: true,
         sourceText: "USEx1 Your RECOVER rate increases by 5% for 5 days.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -435,6 +461,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 5,
         },
         sourceText: "USEx1 Your RECOVER rate increases by 5% for 5 days.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -470,12 +497,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "weekly",
         timing: "combat-action",
         executable: true,
         sourceText: "USEx1 Your RECOVER rate increases by 10% for 5 days.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -495,6 +524,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 5,
         },
         sourceText: "USEx1 Your RECOVER rate increases by 10% for 5 days.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -529,6 +559,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -536,6 +567,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -554,6 +586,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           unit: "combat",
         },
         sourceText: "Your attack dice gain +2 sides",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -588,6 +621,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -595,6 +629,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -612,6 +647,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "Your dice gain +2 sides for the remainder of combat.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -646,6 +682,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -653,6 +690,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -670,6 +708,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "Your dice gain +4 sides for the remainder of combat.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -709,6 +748,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -716,12 +756,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Gain 3 KI Points.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -741,6 +783,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 3,
         },
         sourceText: "Gain 3 KI Points",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -780,6 +823,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -787,12 +831,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Gain 5 KI Points.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -812,6 +858,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 5,
         },
         sourceText: "Gain 5 KI Points",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -851,6 +898,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -858,12 +906,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Gain 10 KI Points.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -883,6 +933,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 10,
         },
         sourceText: "Gain 10 KI Points",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -923,6 +974,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -930,6 +982,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "weekly",
         timing: "weekly",
         executable: true,
@@ -937,6 +990,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "When you update your stats, state that you wish to use this item. +5% Power for the next week.",
       },
       {
+        sourceClauseOrder: 3,
         family: "weekly",
         timing: "combat-action",
         executable: true,
@@ -954,6 +1008,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "+5% Power",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -961,6 +1016,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "limit-consecutive-stat-boost-weeks",
         amount: 1,
         sourceText: "You may not use Stat-Boosting items two weeks in a row.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -1001,6 +1057,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -1008,6 +1065,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "weekly",
         timing: "weekly",
         executable: true,
@@ -1015,6 +1073,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "When you update your stats, state that you wish to use this item. +10% Power for the next week.",
       },
       {
+        sourceClauseOrder: 3,
         family: "weekly",
         timing: "combat-action",
         executable: true,
@@ -1032,6 +1091,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "+10% Power",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -1039,6 +1099,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "limit-consecutive-stat-boost-weeks",
         amount: 1,
         sourceText: "You may not use Stat-Boosting items two weeks in a row.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -1079,6 +1140,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -1086,6 +1148,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "weekly",
         timing: "weekly",
         executable: true,
@@ -1093,6 +1156,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "When you update your stats, state that you wish to use this item. +15% Power for the next week.",
       },
       {
+        sourceClauseOrder: 3,
         family: "weekly",
         timing: "combat-action",
         executable: true,
@@ -1110,6 +1174,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "+15% Power",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -1117,6 +1182,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "limit-consecutive-stat-boost-weeks",
         amount: 1,
         sourceText: "You may not use Stat-Boosting items two weeks in a row.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -1157,6 +1223,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -1164,12 +1231,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Gain 2ki points and 5% Total HP.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1188,6 +1257,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 2,
         },
         sourceText: "Gain 2ki points",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -1196,6 +1266,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 2,
         conditionText: "race:majin",
         sourceText: "Majins may eat up to two cookies per match.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -1241,6 +1312,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -1248,18 +1320,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE X1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "No one may interfere in this fight.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "If used by a Makyan, gain 3 ki.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -1273,6 +1348,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "prevent-interference",
         sourceText: "No one may interfere in this fight.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -1281,6 +1357,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 3,
         conditionText: "race:makyan;resource:ki",
         sourceText: "If used by a Makyan, gain 3 ki.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -1351,18 +1428,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "(Having this item in your inventory takes up 1 Skill slot.) RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Your next three attacks do +(10% Power) Damage.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -1370,6 +1450,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Your Dexterity bonus gains +3 for the next 6 turns.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -1378,6 +1459,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Your Dexterity is considered higher than your opponent’s for the next 6 turns.",
       },
       {
+        sourceClauseOrder: 5,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -1385,6 +1467,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You must pay the cost of this Item in order to use it.",
       },
       {
+        sourceClauseOrder: 6,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -1392,6 +1475,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "The cost of this Item cannot be modified.",
       },
       {
+        sourceClauseOrder: 7,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -1399,6 +1483,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "This does not take up your turn.",
       },
       {
+        sourceClauseOrder: 8,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -1406,6 +1491,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You cannot have Yema Fruit in the same moveset as Kaio-Ken.",
       },
       {
+        sourceClauseOrder: 9,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1419,6 +1505,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "modify-skill-slot-capacity",
         amount: -1,
         sourceText: "(Having this item in your inventory takes up 1 Skill slot.) RESTRICTEDx1.",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1426,13 +1513,20 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "10% Power",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "combat-action",
         type: "item-modify-damage",
         target: "self",
         percent: 10,
+        attackCount: 3,
+        duration: {
+          unit: "combat",
+          value: 3,
+        },
         sourceText: "Your next three attacks do +(10% Power) Damage",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -1440,6 +1534,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "pay-activation-ki",
         amount: 2,
         sourceText: "Costs 2 KI Points.",
+        sourceClauseOrder: 9,
       },
     ],
     inventorySlots: 0,
@@ -1470,6 +1565,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1483,6 +1579,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1490,6 +1587,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: " 5% Dex",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1519,6 +1617,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1532,6 +1631,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 7,
         sourceText: "+7% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1539,6 +1639,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: " 5% Dex",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1578,18 +1679,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "10% HP. 5% Dex.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "RESTRICTEDx1 Use after your defensive roll.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1603,6 +1707,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "10% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1610,12 +1715,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: " 5% Dex",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "activate-after-defense-roll",
         sourceText: "RESTRICTEDx1 Use after your defensive roll.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -1623,6 +1730,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "heal-current-hp",
         amount: 5,
         sourceText: "HEAL (5% Current HP).",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -1652,6 +1760,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1665,6 +1774,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1672,6 +1782,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1701,6 +1812,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1714,6 +1826,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 7,
         sourceText: "+7% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1721,6 +1834,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1751,6 +1865,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
@@ -1765,6 +1880,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1772,6 +1888,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: " 5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1779,13 +1896,20 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "combat-action",
         type: "item-modify-damage",
         target: "self",
         percent: 5,
+        attackCount: 1,
+        duration: {
+          unit: "combat",
+          value: 1,
+        },
         sourceText: " your next attack does +(5% Power) damage",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1814,6 +1938,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -1827,6 +1952,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1834,6 +1960,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: " 5% Dex",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1863,6 +1990,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -1876,6 +2004,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 7,
         sourceText: "+7% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1883,6 +2012,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: " 5% Dex",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -1918,12 +2048,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+10% Power. 5% Dex.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1938,6 +2070,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1945,6 +2078,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: " 5% Dex",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -1954,6 +2088,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         conditionText: "successful-energy-attack",
         sourceText:
           "When taking damage from a SUCCESSFUL energy attack, your opponent loses (5% Attack's Damage) HP.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -1983,6 +2118,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -1996,6 +2132,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2003,6 +2140,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: " 5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2032,6 +2170,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2045,6 +2184,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 7,
         sourceText: "+7% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2052,6 +2192,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: " 5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2092,18 +2233,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "10% HP. 5% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "RESTRICTEDx1 Activate when performing an Advanced Attack.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2117,6 +2261,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "10% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2124,12 +2269,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: " 5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "activate-on-advanced-attack",
         sourceText: "RESTRICTEDx1 Activate when performing an Advanced Attack.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -2137,6 +2284,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "make-advanced-attack-unblockable",
         amount: 1,
         sourceText: "You may pay 1 Ki Point to make that attack UNBLOCKABLE.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -2166,6 +2314,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -2179,6 +2328,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2186,6 +2336,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: " 5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2214,6 +2365,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -2227,6 +2379,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 7,
         sourceText: "+7% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2234,6 +2387,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: " 5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2273,12 +2427,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+10% Dexterity. 5% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -2286,6 +2442,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
@@ -2300,6 +2457,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 10,
         sourceText: "+10% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2307,6 +2465,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: " 5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2314,6 +2473,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "grant-extra-basic-weapon-action",
         sourceText:
           "You may perform a basic Weapon attack during your ACTION PHASE without taking up your turn.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -2342,6 +2502,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2355,6 +2516,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dex",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2362,6 +2524,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: " 5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2391,6 +2554,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2404,6 +2568,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 7,
         sourceText: "7% Dex",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2411,6 +2576,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: " 5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2446,12 +2612,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "10% Dex. 5% HP.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "equipped-passive",
         executable: true,
@@ -2466,6 +2634,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 10,
         sourceText: "10% Dex",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2473,6 +2642,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: " 5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2481,6 +2651,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 9,
         sourceText:
           "While equipped any dice roll results of 9 or less from an attack requiring a Firearm are automatically STOPPED.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -2518,12 +2689,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "12% Dex.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "combat-trigger",
         executable: false,
@@ -2531,6 +2704,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1 Use when you use an item.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -2545,6 +2719,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 12,
         sourceText: "12% Dex",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2586,12 +2761,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "12% HP.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2599,6 +2776,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Once per combat you may pay 1 Ki Point to add +2 to the results of a defensive roll.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2612,6 +2790,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 12,
         sourceText: "12% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "combat-action",
@@ -2621,12 +2800,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         modifier: "result",
         amount: 2,
         sourceText: "add +2 to the results of a defensive roll",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "declare-after-roll",
         sourceText: "You may declare this after rolling.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -2667,12 +2848,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "12% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2680,6 +2863,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Once per combat you may pay (5% Total HP) to add +2 to an Advanced Attack roll.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2693,6 +2877,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 12,
         sourceText: "12% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2701,12 +2886,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 5,
         sourceText:
           "Once per combat you may pay (5% Total HP) to add +2 to an Advanced Attack roll.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "declare-after-defense-roll",
         sourceText: "You may declare this after your opponent rolls their defense roll.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -2736,6 +2923,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2749,6 +2937,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2756,6 +2945,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2785,6 +2975,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2798,6 +2989,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 7,
         sourceText: "+7% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2805,6 +2997,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2834,6 +3027,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2847,6 +3041,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2854,6 +3049,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2883,6 +3079,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2896,6 +3093,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2903,6 +3101,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2932,6 +3131,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2945,6 +3145,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -2952,6 +3153,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 7,
         sourceText: "+7% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -2981,6 +3183,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -2994,6 +3197,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3001,6 +3205,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3030,6 +3235,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3043,6 +3249,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3050,6 +3257,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3079,6 +3287,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3092,6 +3301,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3099,6 +3309,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 7,
         sourceText: "+7% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3128,6 +3339,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3141,6 +3353,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3148,6 +3361,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 10,
         sourceText: "+10% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3177,6 +3391,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -3190,6 +3405,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3197,6 +3413,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3226,6 +3443,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -3239,6 +3457,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 7,
         sourceText: "+7% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3246,6 +3465,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3275,6 +3495,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -3288,6 +3509,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3295,6 +3517,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3324,6 +3547,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -3337,6 +3561,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 12,
         sourceText: "+12% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3366,6 +3591,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -3379,6 +3605,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 12,
         sourceText: "+12% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3408,6 +3635,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3421,6 +3649,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 12,
         sourceText: "+12% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3461,6 +3690,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -3468,6 +3698,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "WEIGHTED POTENTIAL.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -3475,6 +3706,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You can equip up to 10 Training Weights at Maximum with this item.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3490,6 +3722,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 5,
         sourceText:
           "You may give up your bonus EXP from this item for the Spar or Battle to gain 3 Ki and (5% Total Health).",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -3518,6 +3751,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3531,6 +3765,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 15,
         sourceText: "+15% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3538,6 +3773,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+ 5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3567,6 +3803,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3580,6 +3817,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 20,
         sourceText: "+20% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3587,6 +3825,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+ 5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3627,12 +3866,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+20% HP. +10% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -3640,6 +3881,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTED X 1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3654,6 +3896,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 20,
         sourceText: "+20% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3661,6 +3904,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3668,6 +3912,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "5% Power",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -3698,6 +3943,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3711,6 +3957,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3718,6 +3965,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3747,6 +3995,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3760,6 +4009,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 15,
         sourceText: "+15% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3767,6 +4017,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3812,12 +4063,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+20% Power. +10% HP.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -3825,12 +4078,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "You may add +3 to the result of you attack roll.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -3844,6 +4099,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 20,
         sourceText: "+20% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3851,18 +4107,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "modify-selected-roll",
         sourceText: "You may add +3 to the result of you attack roll.",
+        sourceClauseOrder: 3,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "declare-after-defense-roll",
         sourceText: "You may declare this effect after your opponent's defensive roll.",
+        sourceClauseOrder: 4,
       },
     ],
     inventorySlots: 1,
@@ -3898,12 +4157,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+5% Dexterity.",
       },
       {
+        sourceClauseOrder: 2,
         family: "marketplace",
         timing: "marketplace",
         executable: true,
@@ -3917,6 +4178,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -3924,6 +4186,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "discount",
         percent: 10,
         sourceText: "Items purchased from the marketplace cost 10% less",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -3953,6 +4216,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -3966,6 +4230,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "all-stats",
         percent: 7,
         sourceText: "+7% All Stats",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -3995,6 +4260,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -4008,6 +4274,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "all-stats",
         percent: 8,
         sourceText: "+8% All Stats",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4042,12 +4309,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+10% All Stats.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -4062,6 +4331,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "all-stats",
         percent: 10,
         sourceText: "+10% All Stats",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4091,6 +4361,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -4104,6 +4375,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 15,
         sourceText: "+15% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4111,6 +4383,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4140,6 +4413,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -4153,6 +4427,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 15,
         sourceText: "+15% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4160,6 +4435,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4195,12 +4471,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+20% Dexterity. +10% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -4214,6 +4492,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 20,
         sourceText: "+20% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4221,6 +4500,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4228,6 +4508,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "5% Power",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -4257,6 +4538,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -4270,6 +4552,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% Health",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4277,6 +4560,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 15,
         sourceText: "+15% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4306,6 +4590,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -4319,6 +4604,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% Health",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4326,6 +4612,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 15,
         sourceText: "+15% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4371,12 +4658,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+10% Health. +20% Dexterity.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -4384,12 +4673,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "You may add +3 to the result of your defense roll.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -4403,6 +4694,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% Health",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4410,6 +4702,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 20,
         sourceText: "+20% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "combat-action",
@@ -4419,12 +4712,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         modifier: "result",
         amount: 3,
         sourceText: "add +3 to the result of your defense roll",
+        sourceClauseOrder: 3,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "declare-before-roll",
         sourceText: "You must declare this effect before your roll.",
+        sourceClauseOrder: 4,
       },
     ],
     inventorySlots: 1,
@@ -4466,12 +4761,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+15% Power, +15% Health.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -4479,6 +4776,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -4493,6 +4791,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 15,
         sourceText: "+15% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4500,6 +4799,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 15,
         sourceText: "+15% Health",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4507,6 +4807,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "modify-selected-roll",
         sourceText:
           "You may add +2 dice sides to an Advanced Attack that requires Bukujutsu or to a defensive roll.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -4548,12 +4849,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+15% Power, +15% Dexterity.",
       },
       {
+        sourceClauseOrder: 2,
         family: "quest",
         timing: "saga",
         executable: true,
@@ -4561,6 +4864,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Once per Saga, you may deny a challenge that was not initiated through planet destruction rules, a quest, or an item such as a Dragon Radar.",
       },
       {
+        sourceClauseOrder: 3,
         family: "weekly",
         timing: "inventory-passive",
         executable: true,
@@ -4574,6 +4878,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 15,
         sourceText: "+15% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4581,6 +4886,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 15,
         sourceText: "+15% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4588,6 +4894,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "deny-challenge",
         sourceText:
           "Once per Saga, you may deny a challenge that was not initiated through planet destruction rules, a quest, or an item such as a Dragon Radar.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -4598,6 +4905,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "The denied challenger cannot challenge you for the rest of the week.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -4633,12 +4941,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+15% HP. +15% Dexterity.",
       },
       {
+        sourceClauseOrder: 2,
         family: "weekly",
         timing: "inventory-passive",
         executable: true,
@@ -4652,6 +4962,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 15,
         sourceText: "+15% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4659,6 +4970,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 15,
         sourceText: "+15% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4667,6 +4979,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         conditionText: "minimum 1",
         sourceText: "Once per month, it takes -1 training day to learn a move, to a minimum of 1.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -4702,12 +5015,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "weekly",
         timing: "inventory-passive",
         executable: true,
         sourceText: "It takes you -1 day to find a Dragonball to a minimum of 2 days.",
       },
       {
+        sourceClauseOrder: 2,
         family: "marketplace",
         timing: "marketplace",
         executable: true,
@@ -4724,6 +5039,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         minimum: 2,
         unit: "days",
         sourceText: "takes you -1 day to find a Dragonball to a minimum of 2 days",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -4732,6 +5048,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 3,
         sourceText:
           "When you purchase this item, choose one: Your opponent’s escape rolls gain -3 to the combined result or your escape roll results gain +3.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -4761,6 +5078,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -4776,6 +5094,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 10,
         sourceText:
           "Whenever you use an item to regain HP other than RECOVER value, Gain (10% Total) HP.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4819,6 +5138,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -4826,6 +5146,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -4833,12 +5154,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Activate after your opponent's defense roll against a single dice UNRESTRICTED Physical attack.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Your attack roll result changes to 11.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -4853,6 +5176,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "require-unrestricted-single-physical-attack",
         sourceText:
           "Activate after your opponent's defense roll against a single dice UNRESTRICTED Physical attack.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -4860,6 +5184,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "set-attack-roll-result",
         amount: 11,
         sourceText: "Your attack roll result changes to 11.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -4895,12 +5220,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "WEIGHTED POTENTIAL. +2% EXP while Sparring or Battling (Round nearest).",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "equipped-passive",
         executable: false,
@@ -4916,6 +5243,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         percent: 2,
         rounding: "nearest",
         sourceText: "+2% EXP while Sparring",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -4951,12 +5279,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "WEIGHTED POTENTIAL. +2% EXP while Sparring or Battling (Round nearest).",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "equipped-passive",
         executable: false,
@@ -4972,6 +5302,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         percent: 2,
         rounding: "nearest",
         sourceText: "+2% EXP while Sparring",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5022,12 +5353,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "(You may equip this without it taking up an ACCESSORY slot).",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5036,18 +5369,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "You may have 1 Upper Body, 1 Lower Body (or 1 Full Body instead) and 2 Accessory Items in your Inventory take up 0 Inventory Slots.",
       },
       {
+        sourceClauseOrder: 3,
         family: "weekly",
         timing: "equipped-passive",
         executable: true,
         sourceText: "When Henshin Watch is equipped, you may change your equipment once mid-week.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "You may not change your equipment during a Battle or Spar.",
       },
       {
+        sourceClauseOrder: 5,
         family: "marketplace",
         timing: "marketplace",
         executable: true,
@@ -5061,6 +5397,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "permit-accessory-slot-overflow",
         amount: 1,
         sourceText: "(You may equip this without it taking up an ACCESSORY slot).",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5072,18 +5409,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "When Henshin Watch is equipped, you may change your equipment once mid-week.",
+        sourceClauseOrder: 3,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "prevent-equipment-change-during-combat",
         sourceText: "You may not change your equipment during a Battle or Spar.",
+        sourceClauseOrder: 4,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "restrict-use-in-purchase-week",
         sourceText: "You may not use this item on the week it is purchased.",
+        sourceClauseOrder: 5,
       },
     ],
     inventorySlots: 1,
@@ -5113,6 +5453,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -5126,6 +5467,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5133,6 +5475,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5163,6 +5506,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "equipped-passive",
         executable: true,
@@ -5177,6 +5521,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5207,6 +5552,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "equipped-passive",
         executable: true,
@@ -5221,6 +5567,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 9,
         sourceText: "+9% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5251,6 +5598,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "equipped-passive",
         executable: true,
@@ -5265,6 +5613,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 12,
         sourceText: "+12% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5294,6 +5643,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -5307,6 +5657,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: -5,
         sourceText: "-5% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5315,6 +5666,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         percent: 3,
         rounding: "nearest",
         sourceText: "+3% EXP while Sparring",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5344,6 +5696,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -5357,6 +5710,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5364,6 +5718,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5393,6 +5748,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -5406,6 +5762,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5413,6 +5770,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5452,12 +5810,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "5% Dexterity.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5465,6 +5825,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You may now equip a second weapon.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5479,6 +5840,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5514,6 +5876,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5521,6 +5884,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "+8% to one stat of your choice.",
       },
       {
+        sourceClauseOrder: 2,
         family: "marketplace",
         timing: "marketplace",
         executable: true,
@@ -5535,6 +5899,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "select-persistent-stat",
         sourceText:
           "The Stat affected by this item is chosen when purchased, and can be changed every other week when posting your Weekly Character Updates.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -5564,6 +5929,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -5577,6 +5943,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5606,6 +5973,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -5619,6 +5987,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 15,
         sourceText: "+15% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5626,6 +5995,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: -5,
         sourceText: "-5% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5671,6 +6041,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5678,18 +6049,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Stop an UNRESTRICTED attack with a result of 10 or less.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "You may use this after your defensive roll.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5704,12 +6078,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "stop-low-roll-unrestricted-attack",
         amount: 10,
         sourceText: "Stop an UNRESTRICTED attack with a result of 10 or less.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "declare-after-defense-roll",
         sourceText: "You may use this after your defensive roll.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -5756,6 +6132,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5763,18 +6140,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Stop an UNRESTRICTED attack with a result of 15 or less.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "You may use this after your defensive roll.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -5789,12 +6169,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "stop-low-roll-unrestricted-attack",
         amount: 15,
         sourceText: "Stop an UNRESTRICTED attack with a result of 15 or less.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "declare-after-defense-roll",
         sourceText: "You may use this after your defensive roll.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -5825,6 +6207,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -5838,6 +6221,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "grant-zenni-on-npc-kill",
         amount: 100,
         sourceText: "After killing an NPC, gain +100z.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -5873,12 +6257,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Majin only. +5% Dexterity.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -5892,6 +6278,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 5,
         sourceText: "+5% Dexterity",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5899,6 +6286,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "modify-transformation-roll-result",
         amount: 3,
         sourceText: "Once per battle, add +3 to any transformation roll result after your roll.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -5934,12 +6322,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Majin only. +5% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -5953,6 +6343,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -5960,6 +6351,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "modify-transformation-roll-result",
         amount: 3,
         sourceText: "Once per battle, add +3 to any transformation roll result after your roll.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -5995,12 +6387,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Majin only. +5% HP.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6014,6 +6408,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -6021,6 +6416,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "modify-transformation-roll-result",
         amount: 3,
         sourceText: "Once per battle, add +3 to any transformation roll result after your roll.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -6061,12 +6457,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+5% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6074,6 +6472,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "WEIGHTED POTENTIAL.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6088,6 +6487,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6117,6 +6517,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -6130,6 +6531,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6159,6 +6561,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -6172,6 +6575,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 10,
         sourceText: "+10% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6201,6 +6605,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6214,6 +6619,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 10,
         sourceText: "+10% HP",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6244,6 +6650,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6258,6 +6665,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6288,6 +6696,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6302,6 +6711,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 10,
         sourceText: "+10% Power",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6337,6 +6747,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -6344,6 +6755,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "The first time you use an attack to drain an opponent's KI Points, remove an additional 1 Point.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6358,12 +6770,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         sourceText:
           "The first time you use an attack to drain an opponent's KI Points, remove an additional 1 Point.",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "exclude-multi-die-attacks",
         sourceText: "This effect does not apply to multi-dice attacks.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -6409,12 +6823,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+5% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6422,6 +6838,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "WEIGHTED POTENTIAL.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6429,6 +6846,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You can equip up to 5 Training Weights at Maximum with this item.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6442,6 +6860,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -6450,6 +6869,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         conditionText: "tag:punch",
         sourceText: "Your punch-type attacks cost +1 KI Point to perform.",
+        sourceClauseOrder: 4,
       },
     ],
     inventorySlots: 1,
@@ -6495,12 +6915,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "+5% Power.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6508,6 +6930,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "WEIGHTED POTENTIAL.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6515,6 +6938,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You can equip up to 7 Training Weights at Maximum with this item.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6528,6 +6952,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "+5% Power",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -6536,6 +6961,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         conditionText: "tag:kick",
         sourceText: "Your kick-type attacks cost +1 KI Point to perform.",
+        sourceClauseOrder: 4,
       },
     ],
     inventorySlots: 1,
@@ -6576,6 +7002,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6583,12 +7010,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Activate when using a block.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6601,6 +7030,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "activate-on-block",
         sourceText: "Activate when using a block.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -6609,6 +7039,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: -2,
         conditionText: "minimum:1",
         sourceText: "That block costs -2 KI Points to a minimum of 1.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -6639,6 +7070,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -6652,6 +7084,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "dexterity",
         percent: 10,
         sourceText: "+10% Dexterity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6692,12 +7125,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Namekians Only. +5% HP.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -6705,6 +7140,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "RESTRICTEDx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6719,6 +7155,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "hp",
         percent: 5,
         sourceText: "+5% HP",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -6730,6 +7167,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         },
         sourceText:
           "For the next 4 turns, you do not lose Meditative Preparation for any reason and you cannot be prevented from Powering Up or gaining Ki Points.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -6766,12 +7204,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "RESTRICTED X1: You may reroll your defensive dice.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -6784,12 +7224,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "reroll-defense-dice",
         sourceText: "RESTRICTED X1: You may reroll your defensive dice.",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "forbid-defense-reroll-after-restricted-attack",
         sourceText: "You cannot use this if your opponent used a RESTRICTED attack.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -6819,6 +7261,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -6832,6 +7275,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "grant-ki-per-combat",
         amount: 2,
         sourceText: "Once per combat, during your attack phase, you may gain 2 ki.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,
@@ -6866,6 +7310,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "equipped-passive",
         executable: false,
@@ -6874,6 +7319,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Equip to an article of clothing with 'WEIGHTED POTENTIAL', you gain +1% EXP (Round nearest) while Sparring or Battling for each Training Weight equipped.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "equipped-passive",
         executable: false,
@@ -6911,6 +7357,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -6923,6 +7370,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 2,
@@ -6958,6 +7406,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -6970,6 +7419,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 2,
@@ -7007,6 +7457,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7019,6 +7470,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 3,
@@ -7057,6 +7509,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7069,6 +7522,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 3,
@@ -7109,6 +7563,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7121,6 +7576,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 2,
@@ -7156,6 +7612,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7168,6 +7625,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 3,
@@ -7203,6 +7661,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7215,6 +7674,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-grant-travel-permission",
         destination: "another-planet",
         sourceText: "Allows inter-galactic travel.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 3,
@@ -7255,6 +7715,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7297,6 +7758,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7304,6 +7766,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any non-Space Pod spacecraft. +5% EXP when Sparring.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -7317,6 +7780,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "grant-transformation-roll-sides",
         amount: 5,
         sourceText: "You gain +5 dice sides to your transformation roll when Sparring.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -7346,6 +7810,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7360,6 +7825,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         unit: "days",
         sourceText: "-1 day to Travel Time",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -7387,6 +7853,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -7399,6 +7866,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-ship-capacity",
         capacity: 2,
         sourceText: "+2 Max Capacity",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -7437,12 +7905,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Add-on to any non-Space Pod spacecraft. +3 Inventory Slots.",
       },
       {
+        sourceClauseOrder: 2,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7450,6 +7920,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Anything in storage when a ship is successfully raided is automatically given to the invaders.",
       },
       {
+        sourceClauseOrder: 3,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7462,6 +7933,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-inventory-capacity",
         slots: 3,
         sourceText: "+3 Inventory Slots",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -7469,12 +7941,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "transfer-stored-items-on-raid",
         sourceText:
           "Anything in storage when a ship is successfully raided is automatically given to the invaders.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "grant-ship-storage-access",
         sourceText: "While on ship, other occupants on the ship can put things into storage.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 0,
@@ -7515,12 +7989,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Add-on to any non-Space Pod spacecraft. +6 Inventory Slots.",
       },
       {
+        sourceClauseOrder: 2,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7528,6 +8004,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Anything in storage when a ship is successfully raided is automatically given to the invaders.",
       },
       {
+        sourceClauseOrder: 3,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7540,6 +8017,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-inventory-capacity",
         slots: 6,
         sourceText: "+6 Inventory Slots",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -7547,12 +8025,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "transfer-stored-items-on-raid",
         sourceText:
           "Anything in storage when a ship is successfully raided is automatically given to the invaders.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "grant-ship-storage-access",
         sourceText: "While on ship, other occupants on the ship can put things into storage.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 0,
@@ -7593,12 +8073,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Add-on to any non-Space Pod spacecraft. +10 Inventory Slots.",
       },
       {
+        sourceClauseOrder: 2,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7606,6 +8088,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Anything in storage when a ship is successfully raided is automatically given to the invaders.",
       },
       {
+        sourceClauseOrder: 3,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7618,6 +8101,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-inventory-capacity",
         slots: 10,
         sourceText: "+10 Inventory Slots",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -7625,12 +8109,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "transfer-stored-items-on-raid",
         sourceText:
           "Anything in storage when a ship is successfully raided is automatically given to the invaders.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "grant-ship-storage-access",
         sourceText: "While on ship, other occupants on the ship can put things into storage.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 0,
@@ -7660,6 +8146,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7706,12 +8193,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "You heal +(5% Total HP) extra per day.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -7719,6 +8208,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You cannot spar while you use this.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -7734,6 +8224,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "heal-total-hp-per-day",
         amount: 5,
         sourceText: "You heal +(5% Total HP) extra per day.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -7768,12 +8259,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "You heal an additional +(10% Total HP) per day.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -7788,6 +8281,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "heal-total-hp-per-day",
         amount: 10,
         sourceText: "You heal an additional +(10% Total HP) per day.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -7827,6 +8321,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7834,6 +8329,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any non-Space Pod spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7841,6 +8337,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Choose a planet.",
       },
       {
+        sourceClauseOrder: 3,
         family: "marketplace",
         timing: "marketplace",
         executable: true,
@@ -7853,6 +8350,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "grant-marketplace-access",
         sourceText: "You may access that planet’s marketplace from your ship.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 0,
@@ -7889,6 +8387,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7896,6 +8395,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "You may make a 1 day//100 WPD post to add 1 day onto the travel time of another spaceship currently in transit.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7912,6 +8412,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         conditionText: "post:1-day/100-wpd",
         sourceText:
           "You may make a 1 day//100 WPD post to add 1 day onto the travel time of another spaceship currently in transit.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -7945,6 +8446,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -7952,6 +8454,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -7964,6 +8467,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "waive-ship-pilot-requirement",
         sourceText: "No longer require one person to pilot the ship.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -7992,6 +8496,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -8007,6 +8512,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 2,
         unit: "days",
         sourceText: "-2 days to Travel Time",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -8035,6 +8541,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "quest",
         timing: "quest",
         executable: true,
@@ -8049,6 +8556,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: -100,
         conditionText: "minimum:100",
         sourceText: "Your space quests take -100 WPD to a minimum of 100.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -8082,6 +8590,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8089,6 +8598,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft with a Hyperdrive.",
       },
       {
+        sourceClauseOrder: 2,
         family: "escape",
         timing: "inventory-passive",
         executable: true,
@@ -8102,6 +8612,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         role: "either",
         operation: "grant-escape-roll-before-combat",
         sourceText: "You may roll an Escape roll before Space Combat begins.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8135,6 +8646,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8142,6 +8654,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -8157,6 +8670,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "roll-defense-twice-use-lower",
         sourceText:
           "When challenging a person in space, your opponent rolls defense twice against your first advanced attack and uses the lower result.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8196,6 +8710,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8203,12 +8718,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "When challenging a person in space, roll 1d30 at the start of combat.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8222,6 +8739,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "roll-space-combat-dice",
         amount: 1,
         sourceText: "When challenging a person in space, roll 1d30 at the start of combat.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -8229,12 +8747,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "roll-self-destruct-die",
         amount: 30,
         sourceText: "When challenging a person in space, roll 1d30 at the start of combat.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
         type: "item-state-rule",
         operation: "set-space-combat-starting-hp",
         sourceText: "If the result is 10 or higher, your opponent starts at -10% Total HP.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 0,
@@ -8269,6 +8789,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8276,6 +8797,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8292,6 +8814,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         sourceText:
           'When challenging a person in space, this gains "RESTRICTED X 1- You may perform a basic attack or Basic Weapon Attack without taking up your turn".',
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8327,6 +8850,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8334,6 +8858,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -8350,6 +8875,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         sourceText:
           "When challenging a person in space, you may ignore one of your opponent's ship's defenses.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8399,6 +8925,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8406,12 +8933,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "When challenging a person in space, roll 3d30 before the start of combat.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8419,6 +8948,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "For every result over 15, choose one of your opponent’s items.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -8426,6 +8956,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "They cannot use any USE or RESTRICTED effect of that item this match.",
       },
       {
+        sourceClauseOrder: 5,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8440,6 +8971,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "roll-space-combat-dice",
         amount: 3,
         sourceText: "When challenging a person in space, roll 3d30 before the start of combat.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -8447,6 +8979,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "disable-selected-item-copies",
         sourceText:
           "Selecting an item with this ability blocks all of your opponent's copies of that item.",
+        sourceClauseOrder: 5,
       },
     ],
     inventorySlots: 0,
@@ -8482,6 +9015,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8489,6 +9023,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "When challenging someone in space, you may reroll a single dice Advanced Attack before your opponent rolls their defense roll.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8503,6 +9038,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "reroll-single-die-advanced-attack",
         sourceText:
           "When challenging someone in space, you may reroll a single dice Advanced Attack before your opponent rolls their defense roll.",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -8510,13 +9046,20 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         stat: "power",
         percent: 5,
         sourceText: "5% Power",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "combat-action",
         type: "item-modify-damage",
         target: "self",
         percent: 5,
+        attackCount: 1,
+        duration: {
+          unit: "combat",
+          value: 1,
+        },
         sourceText: " that attack does + (5% Power) damage",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8557,6 +9100,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8564,6 +9108,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8571,6 +9116,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "When challenging a person in space, you act first in combat and gain +2 to the result(s) of your first attack.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8586,6 +9132,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "act-first",
         sourceText:
           "When challenging a person in space, you act first in combat and gain +2 to the result(s) of your first attack.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -8595,6 +9142,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 2,
         sourceText:
           "When challenging a person in space, you act first in combat and gain +2 to the result(s) of your first attack.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8630,6 +9178,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8637,6 +9186,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8651,6 +9201,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "gain-starting-ki",
         amount: 2,
         sourceText: "When being challenged in space, you start combat with + 2 Ki.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8686,6 +9237,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8693,6 +9245,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "ship",
         timing: "travel",
         executable: true,
@@ -8709,6 +9262,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 1,
         sourceText:
           "When being challenged in space, you may ignore one ship weapon on your opponent's ship.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8744,6 +9298,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8751,6 +9306,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -8765,6 +9321,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "roll-first-advanced-attack-twice-lower",
         sourceText:
           "When being challenged in space, your opponent rolls twice on their first advanced attack and uses the lower result.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8800,6 +9357,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8807,6 +9365,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8823,6 +9382,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 2,
         sourceText:
           "When being challenged in space, your opponent's first attack costs +2 Ki Points.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8858,6 +9418,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8865,6 +9426,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -8881,6 +9443,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         threshold: 17,
         sourceText:
           "When being challenged in space, your opponent’s first attack roll result(s) must be 17 or higher to be SUCCESSFUL.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 0,
@@ -8921,6 +9484,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -8928,12 +9492,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Add-on to any spacecraft.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "When being challenged in space, you start combat at 100% Total HP.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "before-combat",
         executable: true,
@@ -8947,6 +9513,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "set-space-combat-starting-hp",
         sourceText: "When being challenged in space, you start combat at 100% Total HP.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "passive",
@@ -8954,6 +9521,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "cap-hp-at-precombat-value",
         sourceText:
           "If you end combat with more HP than you had before combat, you lower your HP to your previous amount.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 0,
@@ -8984,6 +9552,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "combat",
         timing: "combat-trigger",
         executable: true,
@@ -8999,6 +9568,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         amount: 2,
         sourceText:
           "When you are being challenged in space, you may use either two KI gain items or 2 HP gain items.",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -9039,18 +9609,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "weekly",
         timing: "inventory-passive",
         executable: true,
         sourceText: "It takes -3 days to find a Dragon Ball, to a minimum of 2 days.",
       },
       {
+        sourceClauseOrder: 2,
         family: "weekly",
         timing: "weekly",
         executable: true,
         sourceText: "Once per week, you may challenge someone carrying a Dragon Ball.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "combat-trigger",
         executable: false,
@@ -9068,6 +9641,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         minimum: 2,
         unit: "days",
         sourceText: "takes -3 days to find a Dragon Ball, to a minimum of 2 days",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "passive",
@@ -9079,6 +9653,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           value: 1,
         },
         sourceText: "Once per week, you may challenge someone carrying a Dragon Ball.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -9117,6 +9692,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9124,6 +9700,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Android Only.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9131,6 +9708,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USEx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -9143,6 +9721,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-prevent-combat-outcome",
         outcomes: ["break", "sever"],
         sourceText: "Negate a BREAK or SEVER.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -9203,6 +9782,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9210,6 +9790,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Android and Bio-Android Only.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9217,12 +9798,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USEx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "Use only if your HP is at (50% Total HP) HP or less.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9230,12 +9813,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Choose an opponent.",
       },
       {
+        sourceClauseOrder: 5,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Roll 1d30.",
       },
       {
+        sourceClauseOrder: 6,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
@@ -9243,6 +9828,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "If your dice roll is 14 or higher, that opponent loses (25% your total HP) HP and you automatically die.",
       },
       {
+        sourceClauseOrder: 7,
         family: "combat",
         timing: "combat-action",
         executable: true,
@@ -9257,6 +9843,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "require-hp-threshold",
         amount: 50,
         sourceText: "Use only if your HP is at (50% Total HP) HP or less.",
+        sourceClauseOrder: 3,
       },
       {
         trigger: "passive",
@@ -9264,6 +9851,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "roll-self-destruct-die",
         amount: 30,
         sourceText: "Roll 1d30.",
+        sourceClauseOrder: 5,
       },
       {
         trigger: "passive",
@@ -9271,6 +9859,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "resolve-self-destruct",
         sourceText:
           "If your dice roll is 14 or higher, that opponent loses (25% your total HP) HP and you automatically die.",
+        sourceClauseOrder: 6,
       },
       {
         trigger: "passive",
@@ -9278,6 +9867,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "resolve-self-destruct",
         sourceText:
           "If the dice roll is 13 or below, this item malfunctions and cannot be used again this match.",
+        sourceClauseOrder: 7,
       },
     ],
     inventorySlots: 1,
@@ -9317,6 +9907,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9324,6 +9915,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Non-Androids Only.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9331,6 +9923,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USEx1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -9343,6 +9936,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-prevent-combat-outcome",
         outcomes: ["break", "sever"],
         sourceText: "Negate a BREAK or SEVER.",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -9372,6 +9966,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -9384,6 +9979,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-inventory-capacity",
         slots: 1,
         sourceText: "+1 Inventory Slots",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -9412,6 +10008,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -9424,6 +10021,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-inventory-capacity",
         slots: 2,
         sourceText: "+2 Inventory Slots",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -9452,6 +10050,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: true,
@@ -9464,6 +10063,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-modify-inventory-capacity",
         slots: 3,
         sourceText: "+3 Inventory Slots",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 0,
@@ -9513,6 +10113,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9520,6 +10121,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "You are considered to have Bukujutsu for all effects and purposes.",
       },
       {
+        sourceClauseOrder: 2,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9528,18 +10130,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "You may have an Ally be considered to have Bukujutsu for all effects and purposes.",
       },
       {
+        sourceClauseOrder: 3,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "An opponent may choose to perform an energy attack against the Magic Carpet.",
       },
       {
+        sourceClauseOrder: 4,
         family: "combat",
         timing: "inventory-passive",
         executable: true,
         sourceText: "If the attack roll is 28 or higher, The Magic Carpet is destroyed.",
       },
       {
+        sourceClauseOrder: 5,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9553,6 +10158,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "allow-target-item-attack",
         sourceText: "An opponent may choose to perform an energy attack against the Magic Carpet.",
+        sourceClauseOrder: 3,
       },
       {
         trigger: "passive",
@@ -9560,6 +10166,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         operation: "destroy-item-on-roll-threshold",
         amount: 28,
         sourceText: "If the attack roll is 28 or higher, The Magic Carpet is destroyed.",
+        sourceClauseOrder: 4,
       },
     ],
     inventorySlots: 1,
@@ -9599,6 +10206,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "quest",
         timing: "quest",
         executable: true,
@@ -9606,12 +10214,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           "Use when performing a quest that requires 3 or more days and does not require a quest battle.",
       },
       {
+        sourceClauseOrder: 2,
         family: "quest",
         timing: "quest",
         executable: true,
         sourceText: "That quest takes -2 days to perform to a minimum of 1.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "saga",
         executable: false,
@@ -9627,6 +10237,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         conditionText: "minimum-days:3",
         sourceText:
           "Use when performing a quest that requires 3 or more days and does not require a quest battle.",
+        sourceClauseOrder: 1,
       },
       {
         trigger: "on-quest-start",
@@ -9640,6 +10251,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           count: 1,
         },
         sourceText: "quest takes -2 days to perform to a minimum of 1",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -9684,6 +10296,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9691,18 +10304,21 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "Use immediately after a Spar or Battle.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: true,
         sourceText: "Gain +20 dice sides to any level transformation dice.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9716,6 +10332,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "grant-post-combat-reward",
         sourceText: "Use immediately after a Spar or Battle.",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "after-spar-or-battle",
@@ -9725,6 +10342,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         modifier: "sides",
         amount: 20,
         sourceText: "Gain +20 dice sides to any level transformation dice",
+        sourceClauseOrder: 3,
       },
     ],
     inventorySlots: 1,
@@ -9770,6 +10388,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9777,12 +10396,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "USE x1.",
       },
       {
+        sourceClauseOrder: 2,
         family: "combat",
         timing: "combat-action",
         executable: true,
         sourceText: "Use immediately after a Spar or Battle.",
       },
       {
+        sourceClauseOrder: 3,
         family: "other",
         timing: "inventory-passive",
         executable: false,
@@ -9790,6 +10411,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         sourceText: "Gain 1.0x Base EXP Gain.",
       },
       {
+        sourceClauseOrder: 4,
         family: "other",
         timing: "combat-action",
         executable: false,
@@ -9803,6 +10425,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         type: "item-state-rule",
         operation: "grant-post-combat-reward",
         sourceText: "Use immediately after a Spar or Battle.",
+        sourceClauseOrder: 2,
       },
     ],
     inventorySlots: 1,
@@ -9833,6 +10456,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
     ],
     rules: [
       {
+        sourceClauseOrder: 1,
         family: "quest",
         timing: "weekly",
         executable: true,
@@ -9853,6 +10477,7 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
           count: 1,
         },
         sourceText: "Quest take -200 wpd to a minimum of 200 wpd",
+        sourceClauseOrder: 1,
       },
     ],
     inventorySlots: 1,

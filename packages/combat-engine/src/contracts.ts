@@ -1,6 +1,8 @@
 import { GLOBAL_RULES, type RulesVersion } from "@dragonball-resurgence/game-config";
 import type {
+  EffectCostTiming,
   EffectDefinition,
+  EffectSelection,
   MoveDefinition,
   MoveSelectorCondition,
   NumericExpression,
@@ -267,6 +269,10 @@ export interface PendingDecisionOption {
     readonly outcome: "stun" | "critical" | "counter";
   };
   readonly selectedNumericValue?: number;
+  /** Normalized selection semantics retained for a resumable effect choice. */
+  readonly selection?: EffectSelection;
+  readonly optional?: boolean;
+  readonly costTiming?: EffectCostTiming;
 }
 
 export interface PendingDecision {
@@ -978,6 +984,8 @@ export interface ActiveExtraActionEffect {
   readonly expiresAfterTurn: number;
   /** A future upkeep allowance that has not yet been paid for or activated. */
   readonly activationCost?: {
+    /** Optional only for pre-CE-220 snapshots. */
+    readonly timing?: EffectCostTiming;
     readonly resource: "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -1299,6 +1307,8 @@ export interface CounterActionReference {
   readonly stopsTriggeringAttack: boolean;
   readonly ignoreRequirements: boolean;
   readonly activationCost?: {
+    /** Optional only for pre-CE-220 snapshots. */
+    readonly timing?: EffectCostTiming;
     readonly resource: "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -1393,6 +1403,12 @@ export type ResolutionFrame =
       readonly pendingDecisionId: PendingDecisionId;
       readonly attack: CopiedMoveAttackReference;
       readonly effectIndices: readonly number[];
+      /** Normalized selection semantics retained for a resumable attack choice. */
+      readonly selection?: EffectSelection;
+      /** Whether this serialized attack choice may be declined. */
+      readonly optional?: boolean;
+      /** Activation-cost timing retained across the suspended attack. */
+      readonly costTiming?: EffectCostTiming;
       /** Alternative effect-index sets for an exclusive activation group. */
       readonly effectAlternatives?: readonly (readonly number[])[];
       readonly resolvedEffectIndices: readonly number[];
@@ -1514,6 +1530,8 @@ export type ResolutionFrame =
       /** Prior completed source actions offered by a selected-prior copy effect. */
       readonly eligibleSourceActionIds?: readonly CombatDecisionId[];
       readonly remainingSelections?: number;
+      /** Normalized declarative selection retained across a resumed frame. */
+      readonly selection?: EffectSelection;
       /** Whether this serialized selection may be declined by its acting combatant. */
       readonly optional?: boolean;
       /** Whether activation choices must reuse constants in the deactivated lifecycle. */
@@ -1524,10 +1542,14 @@ export type ResolutionFrame =
       readonly deactivationProtectionTurns?: number;
       /** Resolved declarative KI activation cost retained across the pending choice. */
       readonly activationCost?: {
+        /** Optional for pre-CE-220 snapshots; new frames always persist it. */
+        readonly timing?: EffectCostTiming;
         readonly amount: number;
         readonly minimum?: number;
         readonly resource?: "hp" | "ki";
       };
+      /** Cost timing is optional only when reading a pre-CE-220 snapshot. */
+      readonly costTiming?: EffectCostTiming;
       /** Absolute KI activation cost retained across a paired current-cost set effect. */
       readonly activationCostOverride?: number;
       /** The durable allowance being resolved by an extra-action activation choice. */
@@ -1561,6 +1583,7 @@ export type ResolutionFrame =
         readonly remainingSelections: number;
         readonly optional: boolean;
         readonly activationCost?: {
+          readonly timing?: EffectCostTiming;
           readonly amount: number;
           readonly minimum?: number;
           readonly resource?: "hp" | "ki";
@@ -1574,6 +1597,7 @@ export type ResolutionFrame =
           readonly selector?: MoveSelectorCondition;
           readonly count?: number;
           readonly activationCost?: {
+            readonly timing?: EffectCostTiming;
             readonly resource: "hp" | "ki";
             readonly amount: number;
             readonly minimum?: number;
@@ -1591,6 +1615,7 @@ export type ResolutionFrame =
         readonly selector?: MoveSelectorCondition;
         readonly count?: number;
         readonly activationCost?: {
+          readonly timing?: EffectCostTiming;
           readonly resource: "hp" | "ki";
           readonly amount: number;
           readonly minimum?: number;

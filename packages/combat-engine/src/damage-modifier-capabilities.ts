@@ -1,5 +1,7 @@
 import type { EffectDefinition } from "@dragonball-resurgence/game-data";
 
+import { conflictPolicyType } from "./conflict-policy.js";
+
 type DamageModifierEffect = Extract<EffectDefinition, { readonly type: "modify-damage" }>;
 
 const isLiteral = (value: unknown, expected: number) =>
@@ -34,7 +36,7 @@ export const isCombatResultCountNextActionsDamageModifier = (effect: DamageModif
   effect.duration === undefined &&
   effect.cap === undefined &&
   effect.useLimit === undefined &&
-  effect.stacking === undefined &&
+  conflictPolicyType(effect) === undefined &&
   effect.optional !== true &&
   effect.activationGroup === undefined &&
   effect.exclusiveActivationGroup === undefined &&
@@ -58,7 +60,7 @@ export const isSelectedMoveUntilAttackThresholdDamageModifier = (effect: DamageM
   effect.activationCost === undefined &&
   effect.cap === undefined &&
   effect.useLimit === undefined &&
-  effect.stacking === "prevent" &&
+  conflictPolicyType(effect) === "prevent-duplicate" &&
   effect.optional !== true &&
   effect.activationGroup === undefined &&
   effect.exclusiveActivationGroup === undefined &&

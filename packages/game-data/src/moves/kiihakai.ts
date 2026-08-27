@@ -491,7 +491,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           turns: { type: "literal", value: 3 },
           sourceText: "for the next 3 turns",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "stat-comparison",
@@ -1281,7 +1281,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           ],
           sourceText: "until they roll a 25 or higher on a SUCCESSFUL single dice attack roll",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your opponent loses (10% Power) Damage each time they Power Up until they roll a 25 or higher on a SUCCESSFUL single dice attack roll. This effect does not stack with itself",
       },
@@ -1302,7 +1302,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           constant: true,
           sourceText: "choose two of your Skills with a 'CONSTANT' effect",
         },
-        selectionLimit: 2,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 2 } },
         conditions: [
           {
             type: "roll-threshold",
@@ -1694,6 +1694,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "your next Advanced Attack or Signature Technique",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -1720,6 +1721,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "your next Advanced Attack or Signature Technique",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 3 },

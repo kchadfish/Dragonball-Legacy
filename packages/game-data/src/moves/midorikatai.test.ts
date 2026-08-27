@@ -231,6 +231,7 @@ describe("MIDORIKATAI_MOVES", () => {
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
+          timing: "activation",
         },
       }),
     ]);
@@ -269,7 +270,10 @@ describe("MIDORIKATAI_MOVES", () => {
   it("records Ankle Buster's hit-scaled kick lock and energy penalty", () => {
     expect(MIDORIKATAI_MOVES.find((move) => move.name === "Ankle Buster")?.effects).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: "lock", stacking: "prevent" }),
+        expect.objectContaining({
+          type: "lock",
+          conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
+        }),
         expect.objectContaining({
           type: "modify-damage",
           percent: { type: "damage-percent", subject: "current-action", percent: -10 },
@@ -412,7 +416,7 @@ describe("MIDORIKATAI_MOVES", () => {
       expect.objectContaining({
         type: "reactivate-deactivated-constant-skill",
         deactivatedTiming: "combat",
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
       }),
     ]);
   });
@@ -454,7 +458,7 @@ describe("MIDORIKATAI_MOVES", () => {
           type: "modify-roll",
           roll: "transformation",
           amount: { type: "stopped-hit-count", perHit: -3 },
-          stacking: "allow",
+          conflictPolicy: { type: "allow", sourceText: "canonical conflict rule" },
         }),
         expect.objectContaining({
           type: "require-transformation-roll",
@@ -508,7 +512,7 @@ describe("MIDORIKATAI_MOVES", () => {
     ).toEqual([
       expect.objectContaining({
         type: "create-floating-effect",
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
         effects: expect.arrayContaining([
           expect.objectContaining({ type: "remove-move-from-combat" }),
           expect.objectContaining({

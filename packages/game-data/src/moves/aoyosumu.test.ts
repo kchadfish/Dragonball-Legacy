@@ -92,7 +92,7 @@ describe("AOYOSUMU_MOVES", () => {
         type: "lock",
         affectedType: "attack",
         duration: expect.objectContaining({ type: "until-roll-threshold" }),
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
       }),
     ]);
     expect(AOYOSUMU_MOVES.find((move) => move.name === "Weeping Willow")?.effects).toEqual(
@@ -324,6 +324,7 @@ describe("AOYOSUMU_MOVES", () => {
             resource: "ki",
             operation: "lose",
             amount: { type: "literal", value: 1 },
+            timing: "activation",
           },
           useLimit: { scope: "combat", count: 2, sourceText: "Twice per combat" },
         }),
@@ -373,7 +374,7 @@ describe("AOYOSUMU_MOVES", () => {
       expect.objectContaining({
         type: "modify-cost",
         amount: { type: "literal", value: 1 },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
       }),
     ]);
     expect(AOYOSUMU_MOVES.find((move) => move.name === "Super Arm Bar Takedown")?.effects).toEqual(
@@ -424,6 +425,7 @@ describe("AOYOSUMU_MOVES", () => {
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
+          timing: "activation",
         },
       }),
     ]);

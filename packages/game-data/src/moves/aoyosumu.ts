@@ -61,7 +61,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         modifier: "result",
         amount: { type: "literal", value: 4 },
         scope: { type: "next-roll", roll: "defense", sourceText: "your next defensive roll" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText: "When you Power Up, your next defensive roll gains +4 to the results.",
       },
     ],
@@ -586,7 +586,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText:
             "until they perform a SUCCESSFUL attack roll result of 25 or higher with a single dice attack",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - You may choose one of your opponent's Signature Techniques. LOCK that attack until they perform a SUCCESSFUL attack roll result of 25 or higher with a single dice attack. You cannot use this effect against more than one Signature Technique at a time.",
       },
@@ -634,7 +634,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
           target: "source",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your opponent takes (35% Power) Damage at the beginning of their second turn following this attack. Your opponent can NEGATE this damage by performing a SUCCESSFUL physical attack. If your opponent performs a SUCCESSFUL Physical attack against someone besides you during this time, they take the (35% Power) Damage. The duration of this effect cannot stack; it must expire before you can renew it.",
       },
@@ -1335,6 +1335,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         stopsTriggeringAttack: true,
         action: "choose-attack",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1424,6 +1425,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         cap: { type: "allow-exceed", sourceText: "You can exceed the normal cap with this effect" },
         useLimit: { scope: "combat", count: 2, sourceText: "RESTRICTEDx2" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1462,6 +1464,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "Your next 2 Aoyosumu attacks",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -1493,7 +1496,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           value: { type: "literal", value: 25 },
           sourceText: "until your opponent rolls a 25 or higher on a single dice attack",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Choose one of your opponent's Advanced Attacks. The base damage of that attack is changed to (0% Power) until your opponent rolls a 25 or higher on a single dice attack. You may not use this effect on more than one attack at a time",
       },
@@ -1522,7 +1525,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           turns: { type: "literal", value: 6 },
           sourceText: "next 6 turns",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - For the next 6 turns, if you roll a defensive roll result of 25 or higher, COUNTER. If your defensive dice roll result was lower than your opponent's attack roll result, their attack is still SUCCESSFUL. The duration of this effect cannot stack; it must expire before you can renew it",
       },
@@ -1559,7 +1562,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           value: { type: "literal", value: 25 },
           sourceText: "until they roll a 25 or higher on a single dice attack",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - If you stopped your opponent's last attack, your opponent's base cost 2 or lower attacks cost +1 KI until they roll a 25 or higher on a single dice attack. This effect cannot stack with itself",
       },
@@ -1670,7 +1673,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         modifier: "result",
         amount: { type: "literal", value: 2 },
         scope: { type: "next-roll", roll: "defense", sourceText: "Your next defensive roll" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your next defensive roll and next attack roll during your COUNTER phase gains +2 to the result. This effect cannot stack with itself",
       },
@@ -1717,6 +1720,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         modifier: "result",
         amount: { type: "literal", value: 5 },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },

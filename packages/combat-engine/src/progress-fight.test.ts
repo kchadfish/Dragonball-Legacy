@@ -3312,8 +3312,20 @@ describe("generic on-success pending effect choices", () => {
     );
 
     expect(pending.pendingDecision?.options).toEqual([
-      { id: "activate-effect:2", type: "activate-effect", effectIndices: [2] },
-      { id: "activate-effect:3", type: "activate-effect", effectIndices: [3] },
+      {
+        id: "activate-effect:2",
+        type: "activate-effect",
+        effectIndices: [2],
+        optional: true,
+        costTiming: "activation",
+      },
+      {
+        id: "activate-effect:3",
+        type: "activate-effect",
+        effectIndices: [3],
+        optional: true,
+        costTiming: "activation",
+      },
       { id: "decline", type: "decline" },
     ]);
 
@@ -5915,8 +5927,8 @@ describe("selected suppression pending choices", () => {
         pendingDecisionIds: Array.from({ length: 8 }, (_, index) =>
           pendingDecisionIdSchema.parse(`pending-decision:breaking-cycle-${index + 1}`),
         ),
-        resolutionFrameIds: Array.from({ length: 8 }, (_, index) =>
-          resolutionFrameIdSchema.parse(`resolution-frame:breaking-cycle-${index + 1}`),
+        resolutionFrameIds: Array.from({ length: 12 }, (_, index) =>
+          resolutionFrameIdSchema.parse(`resolution-frame:breaking-cycle-${index + 100}`),
         ),
         activeEffectIds: Array.from({ length: 8 }, (_, index) =>
           activeEffectIdSchema.parse(`active-effect:breaking-cycle-${index + 1}`),
@@ -12919,7 +12931,7 @@ describe("initial turn progression", () => {
           type: "extra-action",
           sourceDefinitionId: "move-kurokonwaku-launching-kick",
           phase: "upkeep",
-          activationCost: { resource: "ki", amount: 1 },
+          activationCost: { resource: "ki", amount: 1, timing: "activation" },
         }),
       ]),
     );

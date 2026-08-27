@@ -571,7 +571,7 @@ describe("AFTERLIFE_MOVES", () => {
         expect.objectContaining({
           type: "set-roll-result",
           roll: "defense",
-          stacking: "prevent",
+          conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
           scope: expect.objectContaining({ type: "next-roll" }),
         }),
         expect.objectContaining({

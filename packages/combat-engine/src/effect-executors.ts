@@ -8,6 +8,8 @@ import {
   type NumericExpression,
 } from "@dragonball-resurgence/game-data";
 import { isCombatResultCountNextActionsDamageModifier } from "./damage-modifier-capabilities.js";
+import { staticSelectionLimit } from "./effect-selection.js";
+import { conflictPolicyType } from "./conflict-policy.js";
 
 // Validators inspect runtime-shaped effect data independently of its narrowed type.
 const runtimeValue = (value: unknown): unknown => value;
@@ -207,6 +209,67 @@ const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
 
 const supportedTargets = new Set(["self", "opponent", "participants"]);
 
+const supportedCostTimings = new Set([
+  "declaration",
+  "activation",
+  "pre-roll",
+  "post-resolution",
+  "per-selected-target",
+]);
+
+const effectSemanticIssues = (
+  effect: EffectDefinition,
+  sourceDefinitionId: string,
+  effectIndex: number,
+): readonly EffectCompilationIssue[] => {
+  const issues: EffectCompilationIssue[] = [];
+  const selection = effect.selectionSpec;
+  if (selection?.type === "up-to") {
+    if (
+      selection.limit.type === "literal" &&
+      (!Number.isInteger(selection.limit.value) || selection.limit.value < 1)
+    )
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Up-to effect selections require a positive integer limit.",
+        ),
+      );
+  }
+  if (selection?.type !== "up-to" && selection !== undefined && "limit" in selection)
+    issues.push(
+      issue(
+        "unsupported-variant",
+        sourceDefinitionId,
+        effectIndex,
+        "Only up-to effect selections may define a limit.",
+      ),
+    );
+  if (effect.activationCost !== undefined) {
+    if (!supportedCostTimings.has(effect.activationCost.timing))
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Activation costs require one of the declared cost timing values.",
+        ),
+      );
+    if (effect.activationCost.timing === "per-selected-target" && selection === undefined)
+      issues.push(
+        issue(
+          "unsupported-variant",
+          sourceDefinitionId,
+          effectIndex,
+          "Per-selected-target activation costs require an effect selection.",
+        ),
+      );
+  }
+  return issues;
+};
+
 const conflictPolicyIssues = (
   effect: EffectDefinition,
   sourceDefinitionId: string,
@@ -356,7 +419,7 @@ const isOnMoveUseCostChoice = <T extends RegisteredEffectDefinition>(effect: T) 
   effect.duration === undefined &&
   effect.useLimit === undefined &&
   effect.cooldown === undefined &&
-  effect.stacking === undefined &&
+  conflictPolicyType(effect) === undefined &&
   effect.activationCost !== undefined;
 
 const isSupportedLastTurnResourceActivation = <T extends RegisteredEffectDefinition>(effect: T) =>
@@ -418,7 +481,7 @@ const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(eff
     (effect.type === "deactivate" &&
       effect.target === "opponent" &&
       effect.affectedType === "skill" &&
-      effect.selection === "all" &&
+      effect.selectionSpec?.type === "all" &&
       effect.selector?.subject === "target" &&
       effect.selector.category === "skill" &&
       effect.selector.constant === true &&
@@ -624,6 +687,7 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
     );
   issues.push(...conditionIssues(effect, sourceDefinitionId, effectIndex));
   issues.push(...requirementIssues(effect, sourceDefinitionId, effectIndex));
+  issues.push(...effectSemanticIssues(effect, sourceDefinitionId, effectIndex));
   return issues;
 };
 
@@ -835,9 +899,9 @@ const persistentSelectedSelfCopyIssues = (
     effect.copies !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined
+    conflictPolicyType(effect) !== undefined
       ? ["Persistent selected copies do not add requirement, modifier, or lifecycle variants."]
       : []),
   ]);
@@ -931,9 +995,9 @@ const copyMoveLifecycleIssues = (
         ]
       : []),
     ...(effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined
+    conflictPolicyType(effect) !== undefined
       ? [
           "Copied attacks with lifecycle, activation, or selection modifiers require a distinct executor.",
         ]
@@ -1232,8 +1296,8 @@ const modifyCriticalThresholdIssues = (
     effect.activationCost !== undefined ||
     effect.useLimit !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined ||
-    effect.selectionLimit !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.exclusiveActivationGroup !== undefined
   )
     issues.push(
@@ -1636,7 +1700,7 @@ const modifyCostIssues = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.stacking === undefined;
+    conflictPolicyType(effect) === undefined;
   const amountIssue =
     effect.amount.type === "next-move-ki-cost"
       ? undefined
@@ -1930,8 +1994,8 @@ const resourceCostVariantIssues = (
     effect.duration === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined &&
-    effect.stacking === undefined;
+    staticSelectionLimit(effect) === undefined &&
+    conflictPolicyType(effect) === undefined;
   if (!effortlessVariant && (effect.trigger !== "on-success" || effect.target !== "self"))
     issues.push(
       unsupported("Resource-cost modifiers currently support only self on-success choices."),
@@ -1946,7 +2010,7 @@ const resourceCostVariantIssues = (
         "Next-action resource-cost modifiers require a source category selector with exactly the resource-loss effect kind.",
       ),
     );
-  if (!effortlessVariant && effect.stacking !== "prevent")
+  if (!effortlessVariant && conflictPolicyType(effect) !== "prevent-duplicate")
     issues.push(
       unsupported("Next-action resource-cost modifiers require non-stacking lifecycle semantics."),
     );
@@ -1954,7 +2018,7 @@ const resourceCostVariantIssues = (
     (!effortlessVariant && effect.duration !== undefined) ||
     effect.useLimit !== undefined ||
     effect.cooldown !== undefined ||
-    effect.selectionLimit !== undefined
+    staticSelectionLimit(effect) !== undefined
   )
     issues.push(
       unsupported(
@@ -2128,7 +2192,7 @@ const modifySlotCapacityIssues = (
     effect.activationCost !== undefined ||
     effect.useLimit !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined
+    conflictPolicyType(effect) !== undefined
   )
     issues.push(
       issue(
@@ -2276,8 +2340,8 @@ const requiresRollModifierChoice = (effect: ModifyRollModifier) =>
   effect.activationCost !== undefined ||
   effect.useLimit !== undefined ||
   effect.cooldown !== undefined ||
-  effect.stacking !== undefined ||
-  effect.selectionLimit !== undefined;
+  conflictPolicyType(effect) !== undefined ||
+  staticSelectionLimit(effect) !== undefined;
 
 const lockIssues = (
   effect: Extract<RegisteredEffectDefinition, { readonly type: "lock" }>,
@@ -2513,13 +2577,13 @@ const isSupportedSelectedSuppressChoice = (effect: SuppressDefinition) =>
   effect.aspects?.length === 1 &&
   effect.aspects[0] === "successful-effects" &&
   effect.duration?.type === "combat" &&
-  effect.selectionLimit === 1 &&
+  staticSelectionLimit(effect) === 1 &&
   effect.scope === undefined &&
   effect.conditions === undefined &&
   effect.activationCost === undefined &&
   effect.useLimit === undefined &&
   effect.cooldown === undefined &&
-  effect.stacking === undefined;
+  conflictPolicyType(effect) === undefined;
 
 const suppressChoiceIssues = (
   effect: SuppressDefinition,
@@ -2531,7 +2595,7 @@ const suppressChoiceIssues = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined
+    staticSelectionLimit(effect) === undefined
   )
     return [];
   return [
@@ -2586,9 +2650,9 @@ const successfulNegationIssues = (
     (effect.aspects === undefined || effect.aspects.length === 0) &&
     effect.scope === undefined &&
     effect.duration === undefined &&
-    effect.stacking === undefined &&
+    conflictPolicyType(effect) === undefined &&
     effect.activationCost === undefined &&
-    effect.selectionLimit === undefined &&
+    staticSelectionLimit(effect) === undefined &&
     effect.cooldown === undefined &&
     moveSelectorConditions.length === 1 &&
     moveSelectorConditions[0]?.subject === "target";
@@ -2635,9 +2699,9 @@ const onMoveUseNegationIssues = (
     effect.conditions === undefined,
     effect.scope === undefined,
     effect.duration === undefined,
-    effect.stacking === undefined,
+    conflictPolicyType(effect) === undefined,
     effect.useLimit === undefined,
-    effect.selectionLimit === undefined,
+    staticSelectionLimit(effect) === undefined,
     effect.cooldown === undefined,
     activationCost?.resource === "ki",
     activationCost?.operation === "lose",
@@ -2692,9 +2756,9 @@ const negateIssues = (
       effect.selector !== undefined ||
       effect.scope !== undefined ||
       effect.duration !== undefined ||
-      effect.stacking !== undefined ||
+      conflictPolicyType(effect) !== undefined ||
       effect.useLimit !== undefined ||
-      effect.selectionLimit !== undefined ||
+      staticSelectionLimit(effect) !== undefined ||
       effect.cooldown !== undefined ||
       effect.activationCost?.resource !== "ki" ||
       runtimeValue(effect.activationCost.operation) !== "lose" ||
@@ -2731,9 +2795,9 @@ const negateIssues = (
     effect.selector === undefined &&
     effect.scope === undefined &&
     effect.duration === undefined &&
-    effect.stacking === undefined &&
+    conflictPolicyType(effect) === undefined &&
     effect.useLimit === undefined &&
-    effect.selectionLimit === undefined &&
+    staticSelectionLimit(effect) === undefined &&
     effect.cooldown === undefined &&
     effect.activationCost === undefined &&
     effect.conditions?.length === 1 &&
@@ -2778,10 +2842,10 @@ const negateIssues = (
     effect.selector !== undefined ||
     effect.scope !== undefined ||
     effect.duration !== undefined ||
-    effect.stacking !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined
   )
     issues.push(
@@ -2826,9 +2890,9 @@ const negateDeactivationIssues = (
   if (
     effect.scope !== undefined ||
     effect.duration !== undefined ||
-    effect.stacking !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
     effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined
   )
     issues.push(
@@ -2972,7 +3036,7 @@ const replaceActiveConstantEffectsIssues = (
     effect.activationCost !== undefined ||
     effect.useLimit !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined
+    conflictPolicyType(effect) !== undefined
   )
     issues.push(
       issue(
@@ -3150,8 +3214,8 @@ const extraActionSchedulingIssues = (
   const issues: EffectCompilationIssue[] = [];
   if (
     effect.cooldown !== undefined ||
-    effect.selectionLimit !== undefined ||
-    effect.stacking !== undefined
+    staticSelectionLimit(effect) !== undefined ||
+    conflictPolicyType(effect) !== undefined
   )
     issues.push(
       issue(
@@ -3310,7 +3374,7 @@ const setRollResultIssues = (
     effect.conditions[0].comparison === "at-most" &&
     effect.conditions[0].value.type === "literal" &&
     effect.conditions[0].value.value === 10 &&
-    effect.stacking === "prevent";
+    conflictPolicyType(effect) === "prevent-duplicate";
   if (fourArmsVariant) return issues;
   if (effect.trigger === "on-roll-result")
     issues.push(
@@ -3532,9 +3596,9 @@ const setRollSelectionIssues = (
     effect.duration !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
     effect.optional === true ||
     effect.activationGroup !== undefined ||
     effect.exclusiveActivationGroup !== undefined
@@ -3960,7 +4024,7 @@ const deactivateIssues = (
         "Lifecycle deactivation currently supports CONSTANT skills only.",
       ),
     );
-  if (effect.selection !== undefined && effect.selection !== "one")
+  if (effect.selectionSpec !== undefined && effect.selectionSpec.type !== "one")
     lifecycleIssues.push(
       issue(
         "unsupported-variant",
@@ -4197,8 +4261,8 @@ const rerollIssues = (
     );
   if (
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined ||
-    effect.selectionLimit !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     (effect.exclusiveActivationGroup !== undefined && !storedRollMatchChoice)
   )
     issues.push(
@@ -4273,8 +4337,8 @@ const rollAndStoreIssues = (
     effect.duration !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.stacking !== undefined ||
-    effect.selectionLimit !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
     effect.exclusiveActivationGroup !== undefined
   )
@@ -4317,8 +4381,8 @@ const selectMoveByStoredRollIssues = (
     effect.duration !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.stacking !== undefined ||
-    effect.selectionLimit !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
     effect.exclusiveActivationGroup !== undefined
   )
@@ -4389,8 +4453,8 @@ const grantCombatOutcomeIssues = (
     effect.requireAllDiceSuccess !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.stacking !== undefined ||
-    effect.selectionLimit !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
     effect.exclusiveActivationGroup !== undefined
   )
@@ -4658,7 +4722,7 @@ const grantCounterActionIssues = (
       ),
     );
   if (
-    effect.stacking !== undefined &&
+    conflictPolicyType(effect) !== undefined &&
     !(sourceDefinitionId === "move-aoyosumu-straightjacket" && effectIndex === 0)
   )
     issues.push(
@@ -4997,7 +5061,7 @@ const removeMoveFromCombatIssues = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined;
+    staticSelectionLimit(effect) === undefined;
   const selectedPermanentTargetRemoval =
     effect.trigger === "action-phase" &&
     effect.target === "opponent" &&
@@ -5012,7 +5076,7 @@ const removeMoveFromCombatIssues = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined;
+    staticSelectionLimit(effect) === undefined;
   if (selectedPermanentTargetRemoval) {
     issues.push(
       issue(
@@ -5094,7 +5158,7 @@ const removeMoveFromCombatIssues = (
     effect.activationCost !== undefined ||
     effect.useLimit !== undefined ||
     effect.cooldown !== undefined ||
-    effect.selectionLimit !== undefined
+    staticSelectionLimit(effect) !== undefined
   )
     issues.push(
       issue(
@@ -5179,9 +5243,9 @@ const modifyMoveClassificationIssues = (
     effect.requirements !== undefined ||
     effect.useLimit !== undefined ||
     effect.activationCost !== undefined ||
-    effect.selectionLimit !== undefined ||
+    staticSelectionLimit(effect) !== undefined ||
     effect.cooldown !== undefined ||
-    effect.stacking !== undefined ||
+    conflictPolicyType(effect) !== undefined ||
     effect.exclusiveActivationGroup !== undefined
   )
     issues.push(
@@ -5482,7 +5546,7 @@ function createFloatingIssues(
   issues.push(...floatingDurationIssues(effect, sourceDefinitionId, effectIndex));
   issues.push(...floatingActivationCostIssues(effect, sourceDefinitionId, effectIndex));
   issues.push(...floatingUseLimitIssues(effect, sourceDefinitionId, effectIndex));
-  if (effect.cooldown !== undefined || effect.selectionLimit !== undefined)
+  if (effect.cooldown !== undefined || staticSelectionLimit(effect) !== undefined)
     issues.push(
       issue(
         "requires-pending-choice",

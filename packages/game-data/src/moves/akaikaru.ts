@@ -32,7 +32,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "self",
         type: "modify-move-classification",
         optional: true,
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
         setStyleId: "style-akaikaru",
         selector: {
           type: "move-selector",
@@ -135,6 +135,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "apply-status",
         statusId: "stun",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           amount: { type: "prior-move-ki-cost", actor: "opponent", addition: 1 },
           operation: "lose",
@@ -697,6 +698,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
         ],
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -899,7 +901,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           value: { type: "literal", value: 5 },
           sourceText: "until you roll an attack roll result of 5 or less",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Choose a Block. LOCK that Block for all participants until you roll an attack roll result of 5 or less. This effect may not affect more than one Block at a time",
       },
@@ -927,6 +929,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "RESTRICTEDxY, where Y is your Dexterity Bonus minus 2 to a minimum of 1",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1162,7 +1165,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
           target: "other-than-source",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your opponent loses (5% Power) HP during their UPKEEP phase until they activate a Skill. This effect cannot stack with itself",
       },
@@ -1355,6 +1358,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         phase: "action-phase",
         moveCategory: "advanced-attack",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1380,7 +1384,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           count: { type: "literal", value: 3 },
           sourceText: "For your next 3 ACTION phases",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "For your next 3 ACTION phases, your attack rolls gain +3 to the result(s). Your opponent loses (10% Power) HP when they perform a physical attack against you until they STOP one of your attacks. This Skill's effects cannot stack with itself",
       },
@@ -1704,6 +1708,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "this skill",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1940,7 +1945,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         roll: "defense",
         modifier: "result",
         amount: { type: "literal", value: -3 },
-        stacking: "allow",
+        conflictPolicy: { type: "allow", sourceText: "canonical conflict rule" },
         cap: {
           type: "minimum",
           value: { type: "literal", value: -6 },
@@ -2073,7 +2078,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         modifier: "result",
         amount: { type: "literal", value: -5 },
         scope: { type: "next-roll", roll: "escape", sourceText: "their next escape roll" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your opponent suffers -5 to their next escape roll. This does not stack with itself",
       },

@@ -47,6 +47,16 @@ export type EffectCondition =
   | LevelComparisonCondition
   | PaidKiCostCondition;
 
+/** Explicit cardinality for a declarative effect selection. */
+export type EffectSelection =
+  | { readonly type: "one" }
+  | { readonly type: "up-to"; readonly limit: NumericExpression }
+  | { readonly type: "all" };
+
+/** Explicit point at which an effect activation cost is charged. */
+export type EffectCostTiming =
+  "declaration" | "activation" | "pre-roll" | "post-resolution" | "per-selected-target";
+
 export interface LevelComparisonCondition {
   readonly type: "level-comparison";
   readonly left: "self" | "opponent";
@@ -561,6 +571,7 @@ export interface BaseEffectDefinition {
     readonly sourceText: string;
   };
   readonly activationCost?: {
+    readonly timing: EffectCostTiming;
     readonly resource: "hp" | "ki";
     readonly amount: NumericExpression;
     readonly operation: "lose";
@@ -569,8 +580,12 @@ export interface BaseEffectDefinition {
   readonly activationGroup?: string;
   readonly exclusiveActivationGroup?: string;
   readonly optional?: boolean;
+  readonly selectionSpec?: EffectSelection;
+  /** @deprecated Use selectionSpec. Retained only while loading legacy data. */
   readonly selectionLimit?: number;
   readonly cooldown?: number;
+  /** Order of the canonical source clause that produced this effect. */
+  readonly sourceClauseOrder?: number;
   readonly sourceText: string;
 }
 
@@ -939,9 +954,6 @@ export interface GrantCounterActionEffect extends BaseEffectDefinition {
 export interface DeactivateEffect extends BaseEffectDefinition {
   readonly type: "deactivate";
   readonly affectedType: "skill" | "transformation";
-  readonly optional?: boolean;
-  /** Whether this effect removes one eligible target or every eligible target. */
-  readonly selection?: "one" | "all";
   readonly count?: NumericExpression;
   readonly selector?: MoveSelectorCondition;
 }

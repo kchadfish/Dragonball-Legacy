@@ -8,6 +8,7 @@ import {
   isCombatResultCountNextActionsDamageModifier,
   isSelectedMoveUntilAttackThresholdDamageModifier,
 } from "../packages/combat-engine/src/damage-modifier-capabilities.js";
+import { staticSelectionLimit } from "../packages/combat-engine/src/effect-selection.js";
 
 // Capability audits inspect runtime-shaped effect data independently of its narrowed type.
 const runtimeValue = (value: unknown): unknown => value;
@@ -43,6 +44,12 @@ interface SourceEffect {
   readonly percent?: { readonly type?: unknown };
   readonly selector?: unknown;
   readonly conflictPolicy?: { readonly type?: unknown };
+  readonly selectionSpec?: {
+    readonly type?: unknown;
+    readonly limit?: { readonly type?: unknown; readonly value?: unknown };
+  };
+  readonly selectionLimit?: unknown;
+  readonly activationCost?: { readonly timing?: unknown };
   readonly activationGroup?: unknown;
   readonly optional?: unknown;
   readonly asIf?: unknown;
@@ -77,6 +84,8 @@ export interface CombatCapabilityMatrixRow {
   readonly executor: string | null;
   readonly focusedCoverage: string | null;
   readonly conflictPolicy: string | null;
+  readonly selection: string | null;
+  readonly costTiming: string | null;
   readonly reason: string;
   readonly prerequisite: string | null;
   readonly approvedExclusion: string | null;
@@ -444,6 +453,21 @@ const conflictPolicyFor = (effect: SourceEffect): string | null => {
   return ordinaryModifierEffectTypes.has(stringValue(effect.type) ?? "") ? "allow-default" : null;
 };
 
+const hasExplicitConflictPolicy = (effect: SourceEffect): boolean =>
+  effect.conflictPolicy !== undefined || effect.stacking !== undefined;
+
+const selectionFor = (effect: SourceEffect): string | null => {
+  const selection = effect.selectionSpec;
+  if (selection === undefined) {
+    return effect.selectionLimit === undefined ? null : `up-to:${String(effect.selectionLimit)}`;
+  }
+  if (selection.type === "up-to") {
+    const limit = selection.limit;
+    return limit?.type === "literal" ? `up-to:${String(limit.value)}` : "up-to:expression";
+  }
+  return stringValue(selection.type);
+};
+
 const variantFor = (effect: SourceEffect) =>
   [
     `trigger=${stringValue(effect.trigger) ?? "none"}`,
@@ -454,6 +478,8 @@ const variantFor = (effect: SourceEffect) =>
     `numeric=${stringValue(effect.percent?.type) ?? "none"}`,
     `cap=${effect.cap === undefined ? "none" : `${stringValue(effect.cap.type) ?? "unknown"}:${stringValue(effect.cap.scope) ?? "none"}`}`,
     `selector=${effect.selector === undefined ? "none" : "present"}`,
+    `selection=${selectionFor(effect) ?? "none"}`,
+    `costTiming=${stringValue(effect.activationCost?.timing) ?? "none"}`,
     `conditions=${(effect.conditions ?? []).map((condition) => stringValue(condition.type) ?? "unknown").join(",") || "none"}`,
     `policy=${conflictPolicyFor(effect) ?? "none"}`,
     ...(effect.relativeTo === undefined
@@ -673,8 +699,8 @@ const isSupportedExtraActionOccurrence = (occurrence: Occurrence) => {
         ((effect.phase === "action-phase" && effect.scope?.type === "current-action") ||
           (effect.phase === "upkeep-phase" && effect.scope?.type === "next-turn")))) &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined &&
-    effect.stacking === undefined
+    staticSelectionLimit(effect) === undefined &&
+    !hasExplicitConflictPolicy(effect)
   );
 };
 
@@ -731,8 +757,8 @@ const isSupportedCombatOutcomeOccurrence = (occurrence: Occurrence) => {
     effect.requireAllDiceSuccess === undefined &&
     effect.useLimit === undefined &&
     effect.activationCost === undefined &&
-    effect.stacking === undefined &&
-    effect.selectionLimit === undefined &&
+    !hasExplicitConflictPolicy(effect) &&
+    staticSelectionLimit(effect) === undefined &&
     effect.cooldown === undefined &&
     effect.exclusiveActivationGroup === undefined
   );
@@ -811,7 +837,7 @@ const isSupportedPendingChoiceOccurrence = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined;
+    staticSelectionLimit(effect) === undefined;
   const selectedPermanentTargetRemoval =
     effect.type === "remove-move-from-combat" &&
     effect.trigger === "action-phase" &&
@@ -827,7 +853,7 @@ const isSupportedPendingChoiceOccurrence = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined;
+    staticSelectionLimit(effect) === undefined;
   if (selectedPermanentTargetRemoval)
     return compileEffectPlan({
       sourceDefinitionId: occurrence.sourceDefinitionId,
@@ -908,8 +934,8 @@ const isSupportedPendingChoiceOccurrence = (
     effect.maximumActions === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined &&
-    effect.stacking === undefined;
+    staticSelectionLimit(effect) === undefined &&
+    !hasExplicitConflictPolicy(effect);
   if (multitaskingKickUpkeepAllowance)
     return compileEffectPlan({
       sourceDefinitionId: occurrence.sourceDefinitionId,
@@ -922,7 +948,7 @@ const isSupportedPendingChoiceOccurrence = (
     effect.trigger === "upkeep-phase" &&
     effect.target === "self" &&
     effect.optional === true &&
-    effect.selectionLimit === 1 &&
+    staticSelectionLimit(effect) === 1 &&
     effect.activationCost?.resource === "ki" &&
     effect.activationCost.operation === "lose" &&
     isRecord(effect.activationCost.amount) &&
@@ -1077,7 +1103,7 @@ const isSupportedPendingChoiceOccurrence = (
           (candidateEffect.selector.category === undefined &&
             candidateEffect.selector.categories !== undefined &&
             candidateEffect.selector.categories.length > 0)) &&
-        candidateEffect.stacking === "prevent" &&
+        conflictPolicyFor(candidateEffect) === "prevent-duplicate" &&
         candidateEffect.activationCost?.resource === "ki" &&
         candidateEffect.activationCost.operation === "lose" &&
         candidateEffect.activationCost.amount.type === "literal"
@@ -1094,13 +1120,13 @@ const isSupportedPendingChoiceOccurrence = (
           candidateEffect.aspects?.length === 1 &&
           candidateEffect.aspects[0] === "successful-effects" &&
           candidateEffect.duration?.type === "combat" &&
-          candidateEffect.selectionLimit === 1 &&
+          staticSelectionLimit(candidateEffect) === 1 &&
           candidateEffect.scope === undefined &&
           candidateEffect.conditions === undefined &&
           candidateEffect.activationCost === undefined &&
           candidateEffect.useLimit === undefined &&
           candidateEffect.cooldown === undefined &&
-          candidateEffect.stacking === undefined
+          !hasExplicitConflictPolicy(candidateEffect)
         );
       });
     const spinebreakerChoiceGroup =
@@ -1226,7 +1252,7 @@ const isSupportedPendingChoiceOccurrence = (
         candidateEffect.duration === undefined &&
         candidateEffect.useLimit === undefined &&
         candidateEffect.cooldown === undefined &&
-        candidateEffect.stacking === undefined &&
+        !hasExplicitConflictPolicy(candidateEffect) &&
         candidateEffect.activationCost !== undefined
       );
     });
@@ -1277,7 +1303,7 @@ const isSupportedPendingChoiceOccurrence = (
         candidateEffect.duration === undefined &&
         candidateEffect.useLimit === undefined &&
         candidateEffect.cooldown === undefined &&
-        candidateEffect.stacking === undefined
+        !hasExplicitConflictPolicy(candidateEffect)
       );
     });
     if (!costChoiceGroup) return false;
@@ -1499,8 +1525,8 @@ const isExactPendingChoiceVariant = (
     effect.activationCost === undefined &&
     effect.duration === undefined &&
     effect.cooldown === undefined &&
-    effect.selectionLimit === undefined &&
-    effect.stacking === undefined
+    staticSelectionLimit(effect) === undefined &&
+    !hasExplicitConflictPolicy(effect)
   )
     return true;
   const group = occurrences.filter(
@@ -1556,7 +1582,7 @@ const isExactPendingChoiceVariant = (
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.stacking === undefined;
+    !hasExplicitConflictPolicy(effect);
   if (exactActionPhaseSkip) return true;
   const exactStopAttackByDeactivation =
     effect.type === "stop-attack-by-deactivation" &&
@@ -2594,6 +2620,8 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
       scope: stringValue(occurrence.effect.scope?.type),
       duration: stringValue(occurrence.effect.duration?.type),
       conflictPolicy: conflictPolicyFor(occurrence.effect),
+      selection: selectionFor(occurrence.effect),
+      costTiming: stringValue(occurrence.effect.activationCost?.timing),
       ...classification,
     } satisfies CombatCapabilityMatrixRow;
   });
@@ -2690,12 +2718,12 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
     "",
     "## Occurrences",
     "",
-    "| Source definition | Origin | Effect index | Effect type | Variant | Conflict policy | Status | Capability | Executor | Coverage | Reason | Prerequisite | Approved exclusion |",
-    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Source definition | Origin | Effect index | Effect type | Variant | Selection | Cost timing | Conflict policy | Status | Capability | Executor | Coverage | Reason | Prerequisite | Approved exclusion |",
+    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of matrix.occurrences) {
     lines.push(
-      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
+      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.selection ?? "-"} | ${row.costTiming ?? "-"} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
     );
   }
   return `${lines.join("\n")}\n`;

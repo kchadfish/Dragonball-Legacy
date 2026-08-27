@@ -361,7 +361,7 @@ describe("HAOKIRU_MOVES", () => {
       expect.objectContaining({
         type: "create-floating-effect",
         floatingEffectId: "dragon-dust-hp-gain-retaliation",
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         useLimit: { scope: "turn", count: 1, sourceText: "only be used once per turn" },
       }),
     ]);

@@ -28,17 +28,18 @@ decision.
 
 **Phase 1 — Make work mechanically discoverable: complete.** The Phase 1
 accounting gate is satisfied for all 1,120 converted structured occurrences.
-The generated capability matrix records 945 `supported-generic`, 30
-`unsupported-in-scope`, and 145 `audited-out-of-scope` occurrences. Every
+The generated capability matrix records 975 `supported-generic`, 0
+`supported-named`, 0 `unsupported-in-scope`, and 145
+`audited-out-of-scope` occurrences. Every
 occurrence has a precise status, reason, prerequisite or approved exclusion;
 supported rows identify their compiler, executor, and focused coverage.
 
 This does **not** mean the combat engine is catalog-complete. Phase 1 permits
 explicitly tracked `unsupported-in-scope` work. Overall completion still
-requires closing the 30 remaining in-scope occurrences through the later
+requires closing any remaining in-scope occurrences through the later
 normalization, execution, lifecycle, scheduling, and catalog-closure phases.
-The next implementation priority is the highest-volume ready prerequisite
-identified in the latest dated entry below.
+Phase 2 normalization is now complete; Phase 3+ work remains separately
+tracked below and in the roadmap.
 
 The converted catalog is data-complete, but it is **not** equivalent to engine
 complete. The current inventory has 499 moves and 839 move effects across 46
@@ -49,6 +50,38 @@ each in-scope occurrence, not merely a parsed definition. Approved out-of-scope
 occurrences require an explicit audited exclusion.
 
 ## Implemented foundations
+
+## Phase 2 completion record
+
+CE-200 adds the shared `one`, `up-to`, and `all` selection contract, preserving
+explicit optionality in compiled plans, pending decisions, and resolution
+frames. Positive literal limits and incompatible selection metadata are
+validated; legacy limits are read only for compatibility.
+
+CE-210 removes executable dependence on `sourceText`. Item damage effects now
+carry typed attack counts and durations, while generated item rules retain
+source-clause order as direct provenance. Changing display/source text cannot
+change the typed runtime result. Source text remains available only for
+traceability, diagnostics, and source validation.
+
+CE-220 requires typed activation-cost timing and persists it with resumable
+effect choices and resolution frames. Current catalog costs normalize to
+`activation`; per-selected-target costs require a selection specification and
+legacy frames default omitted timing to activation during compatibility reads.
+
+CE-230 migrates production move effects to explicit conflict policies and routes
+durable additions through the shared resolver. The resolver preserves source,
+target, selector, scope, lifecycle, and source-effect identity; policy families
+retain explicit comparison/group validation. Legacy `stacking` is decoded only
+when loading older serialized application shapes, and status stacking remains
+separate from effect conflict policy.
+
+Focused evidence includes selection/compiler, move-effect runtime,
+effect-executor, item-definition and validation, conflict-policy,
+public progress-flow, and capability-matrix tests. The regenerated matrix
+reports 975 supported-generic, 0 supported-named, 0 unsupported-in-scope, and
+145 audited-out-of-scope occurrences. Phase 3+ work remains outside this
+completion record.
 
 The following behaviors are present in the worktree and have focused tests:
 

@@ -184,7 +184,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
           sourceText: "until they perform a SUCCESSFUL attack",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your opponent's Skills cost +2 KI to use or activate until they perform a SUCCESSFUL attack. This effect does not stack with itself",
       },
@@ -748,7 +748,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "Your next Midorikatai attack",
         },
         scope: { type: "next-action", sourceText: "Your next Midorikatai attack" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         useLimit: { scope: "combat", count: 2, sourceText: "RESTRICTEDx2" },
         sourceText:
           "Timing: UPKEEP phase. RESTRICTEDx2. Your next Midorikatai attack does +(15% Power) Damage. This effect cannot stack with itself",
@@ -1085,6 +1085,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "your next Midorikatai Advanced Attack",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -1184,7 +1185,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           turns: { type: "successful-hit-count" },
           sourceText: "for 1 turn per SUCCESSFUL hit",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - LOCK your opponent's Kick-type attacks for 1 turn per SUCCESSFUL hit. This effect does not stack with itself",
       },
@@ -1593,7 +1594,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         deactivatedTiming: "combat",
         optional: true,
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         sourceText:
           "RESTRICTEDx1. Block. Stop a physical attack. You may reactivate one of your CONSTANT Skills that has been DEACTIVATED this combat, including Energy Gorged",
@@ -1724,7 +1725,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           roll: "transformation",
           sourceText: "your opponent's next Transformation roll",
         },
-        stacking: "allow",
+        conflictPolicy: { type: "allow", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "successful-hit-count",
@@ -1824,6 +1825,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "create-floating-effect",
         floatingEffectId: "fall-7-times-next-low-cost-attack",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1907,12 +1909,13 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "create-floating-effect",
         floatingEffectId: "not-over-next-unrestricted-advanced-attack",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
         },
         optional: true,
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         scope: { type: "next-action", sourceText: "your next unrestricted Advanced Attack" },
         effects: [

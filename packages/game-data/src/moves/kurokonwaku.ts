@@ -21,7 +21,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           turns: { type: "literal", value: 2 },
           sourceText: "for their next 2 turns unless they roll a perfect roll",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         requirements: [
           {
             type: "moveset-excludes",
@@ -44,7 +44,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         modifier: "result",
         amount: { type: "literal", value: -3 },
         scope: { type: "next-action", sourceText: "their next attack" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         requirements: [
           {
             type: "moveset-excludes",
@@ -199,6 +199,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
         ],
         activationCost: {
+          timing: "activation" as const,
           resource: "ki",
           operation: "lose",
           amount: { type: "source-move-ki-cost" },
@@ -318,7 +319,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         target: "opponent",
         type: "deactivate",
         affectedType: "skill",
-        selection: "all",
+        selectionSpec: { type: "all" },
         selector: {
           type: "move-selector",
           subject: "target",
@@ -327,6 +328,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "an opponent uses or activates a CONSTANT Skill",
         },
         activationCost: {
+          timing: "activation" as const,
           resource: "ki",
           operation: "lose",
           amount: { type: "triggering-move-ki-cost", addition: -1 },
@@ -347,6 +349,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "your opponent uses a non-CONSTANT Skill",
         },
         activationCost: {
+          timing: "activation" as const,
           resource: "ki",
           operation: "lose",
           amount: { type: "triggering-move-ki-cost", addition: -1 },
@@ -368,6 +371,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
         ],
         activationCost: {
+          timing: "activation" as const,
           resource: "ki" as const,
           operation: "lose" as const,
           amount: { type: "triggering-move-ki-cost" as const, addition: -1 },
@@ -466,7 +470,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         aspects: ["successful-effects"],
         duration: { type: "combat", sourceText: "for the remainder of combat" },
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
         activationGroup: "breaking-the-cycle-paired-suppression",
         sourceText:
           "SUCCESSFUL - You may choose one of your UNRESTRICTED attacks with a SUCCESSFUL effect. You may have that attack lose all SUCCESSFUL effects for the remainder of combat",
@@ -484,7 +488,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         aspects: ["successful-effects"],
         duration: { type: "combat", sourceText: "for the remainder of combat" },
-        selectionLimit: 1,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
         activationGroup: "breaking-the-cycle-paired-suppression",
         sourceText:
           "If you do, choose one of your opponent's UNRESTRICTED attacks. That attack loses all SUCCESSFUL effects for the remainder of combat",
@@ -1240,6 +1244,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         constant: true,
         scope: { type: "next-turn", subject: "self", sourceText: "At the start of your next turn" },
         activationCost: {
+          timing: "activation" as const,
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1326,7 +1331,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "Your opponent's next Skill",
         },
         scope: { type: "next-action", sourceText: "Your opponent's next Skill" },
-        stacking: "allow",
+        conflictPolicy: { type: "allow", sourceText: "canonical conflict rule" },
         sourceText:
           "Your opponent's next Skill costs +1 KI to use or activate. If you DRAINED Ki in the last 2 turns, this amount increases to +2 KI. This effect stacks up to +4 KI",
       },
@@ -1394,7 +1399,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText:
             "until they roll an attack roll result of 23 or higher on a single dice attack",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - DRAIN 1 KI during your opponent's UPKEEP phase until they roll an attack roll result of 23 or higher on a single dice attack. This effect does not stack with itself",
       },

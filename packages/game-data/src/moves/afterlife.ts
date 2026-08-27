@@ -729,7 +729,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             sourceText: "perform a SUCCESSFUL attack roll of 20 or higher",
           },
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your opponent loses (5% Power) HP at the start of each of their turns until they perform a SUCCESSFUL attack roll of 20 or higher with a single dice attack. You cannot prevent your opponent from performing attacks while this effect is active. This attack's effect cannot stack with itself",
       },
@@ -787,6 +787,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         cap: { type: "allow-exceed", sourceText: "may exceed the standard dice result cap" },
         scope: { type: "current-action", sourceText: "your attack roll" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -811,6 +812,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         result: "critical",
         resultScope: "current-attack",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -1117,7 +1119,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "next energy attack",
         },
         scope: { type: "next-action", sourceText: "Your next energy attack" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText: "Your next energy attack gains +1 to the result",
       },
       {
@@ -1135,7 +1137,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "If that energy attack is a Signature Technique",
         },
         scope: { type: "next-action", sourceText: "Your next energy attack" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "Your next energy attack gains +1 to the result. If that energy attack is a Signature Technique, it gains +3 to the result instead. This effect does not stack with itself",
       },
@@ -2674,7 +2676,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             sourceText: "your defensive roll is 10 or less",
           },
         ],
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - The next time your defensive roll is 10 or less, double your defensive roll. This effect cannot be stacked",
       },
@@ -3034,6 +3036,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "forget this move",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "source-move-ki-cost" },

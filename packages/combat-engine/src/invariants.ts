@@ -20,6 +20,7 @@ import type {
   CounterActionReference,
   FightState,
   FightStateInvariantViolation,
+  PendingDecisionOption,
   ResourceChangeHistoryRecord,
   ResolutionFrame,
 } from "./contracts.js";
@@ -1698,7 +1699,8 @@ const validCounterActionReference = (reference: CounterActionReference) => {
     typeof reference.stopsTriggeringAttack === "boolean" &&
     typeof reference.ignoreRequirements === "boolean" &&
     (activationCost === undefined ||
-      (runtimeValue(activationCost.resource) === "ki" &&
+      (validCostTiming(activationCost.timing) &&
+        runtimeValue(activationCost.resource) === "ki" &&
         validNonnegativeNumber(activationCost.amount) &&
         (activationCost.minimum === undefined ||
           validNonnegativeNumber(activationCost.minimum)))) &&
@@ -1965,6 +1967,7 @@ const validAttackResolutionFrame = (
       (effectIndex) => effectIndex < (effectSourceMove.effects?.length ?? 0),
     );
   return (
+    validChoiceMetadata(frame.selection, frame.optional, frame.costTiming) &&
     validAttackPendingBoundary(
       state,
       frame,
@@ -1993,11 +1996,41 @@ const validActivationCostFrame = (
   activationCost: Extract<ResolutionFrame, { readonly type: "effect" }>["activationCost"],
 ) =>
   activationCost === undefined ||
-  ((activationCost.resource === undefined ||
-    activationCost.resource === "hp" ||
-    runtimeValue(activationCost.resource) === "ki") &&
+  (validCostTiming(activationCost.timing) &&
+    (activationCost.resource === undefined ||
+      activationCost.resource === "hp" ||
+      runtimeValue(activationCost.resource) === "ki") &&
     validNonnegativeNumber(activationCost.amount) &&
     (activationCost.minimum === undefined || validNonnegativeNumber(activationCost.minimum)));
+
+const validCostTiming = (timing: unknown) =>
+  timing === undefined ||
+  timing === "declaration" ||
+  timing === "activation" ||
+  timing === "pre-roll" ||
+  timing === "post-resolution" ||
+  timing === "per-selected-target";
+
+const validSelectionMetadata = (selection: unknown) => {
+  if (selection === undefined) return true;
+  if (selection === null || typeof selection !== "object") return false;
+  const record = selection as Record<string, unknown>;
+  if (record.type === "one" || record.type === "all") return !("limit" in record);
+  if (record.type !== "up-to" || record.limit === null || typeof record.limit !== "object")
+    return false;
+  const limit = record.limit as Record<string, unknown>;
+  if (typeof limit.type !== "string") return false;
+  return limit.type !== "literal" || (Number.isInteger(limit.value) && Number(limit.value) >= 1);
+};
+
+const validChoiceMetadata = (
+  selection: PendingDecisionOption["selection"] | undefined,
+  optional: PendingDecisionOption["optional"] | undefined,
+  costTiming: PendingDecisionOption["costTiming"] | undefined,
+) =>
+  validSelectionMetadata(selection) &&
+  (optional === undefined || typeof optional === "boolean") &&
+  validCostTiming(costTiming);
 
 const validActivationCostOverrideFrame = (
   activationCostOverride: Extract<
@@ -2192,7 +2225,9 @@ const validSelectedSuppressionTargetFrame = (
     effect.aspects?.length !== 1 ||
     effect.aspects[0] !== "successful-effects" ||
     effect.duration?.type !== "combat" ||
-    effect.selectionLimit !== 1 ||
+    effect.selectionSpec?.type !== "up-to" ||
+    effect.selectionSpec.limit.type !== "literal" ||
+    effect.selectionSpec.limit.value !== 1 ||
     effect.scope !== undefined ||
     effect.conditions !== undefined ||
     effect.activationCost !== undefined ||
@@ -2480,6 +2515,7 @@ const validEffectChoiceFrame = (
   );
 };
 
+/* eslint-disable sonarjs/cognitive-complexity -- Resolution-frame validation intentionally centralizes serialized-state checks. */
 const validateResolutionFrames = (
   state: FightState,
   violations: FightStateInvariantViolation[],
@@ -2493,12 +2529,17 @@ const validateResolutionFrames = (
     if (validCommon) {
       switch (frame.type) {
         case "attack":
-          validFrame = validAttackResolutionFrame(state, frame);
+          validFrame =
+            (frame.stage !== "awaiting-effect-choice" ||
+              validChoiceMetadata(frame.selection, frame.optional, frame.costTiming)) &&
+            validAttackResolutionFrame(state, frame);
           if (validFrame && frame.stage === "awaiting-effect-choice")
             validFrame = validEffectAlternatives(frame);
           break;
         case "effect":
-          validFrame = validEffectResolutionFrame(state, frame);
+          validFrame =
+            validChoiceMetadata(frame.selection, frame.optional, frame.costTiming) &&
+            validEffectResolutionFrame(state, frame);
           break;
         case "effect-choice":
           validFrame = validEffectChoiceFrame(state, frame);
@@ -2517,6 +2558,7 @@ const validateResolutionFrames = (
     frameIds.add(frame.id);
   }
 };
+/* eslint-enable sonarjs/cognitive-complexity */
 
 const validateFightMetadata = (
   state: FightState,
@@ -2606,6 +2648,7 @@ const validPendingDecision = (state: ActiveFightState) => {
   const validOptions = pendingDecision.options.every(
     (option) =>
       option.id.length > 0 &&
+      validChoiceMetadata(option.selection, option.optional, option.costTiming) &&
       (option.combatantId === undefined || isActiveCombatant(state, option.combatantId)) &&
       (option.itemId === undefined ||
         state.combatants[pendingDecision.combatantId].itemIds?.includes(option.itemId)) &&

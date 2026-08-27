@@ -35,6 +35,28 @@ export const normalizeConflictPolicy = (
   ) as ConflictPolicy;
 };
 
+/** Returns the normalized policy family, including legacy snapshot shorthand. */
+export const conflictPolicyType = (effect: {
+  readonly conflictPolicy?: { readonly type?: string };
+  readonly stacking?: "allow" | "prevent";
+}): string | undefined => {
+  if (effect.conflictPolicy?.type !== undefined) return effect.conflictPolicy.type;
+  if (effect.stacking === "prevent") return "prevent-duplicate";
+  if (effect.stacking === "allow") return "allow";
+  return undefined;
+};
+
+/** Compatibility projection for legacy in-memory application shapes. */
+export const legacyStackingFor = (effect: {
+  readonly conflictPolicy?: { readonly type?: string };
+  readonly stacking?: "allow" | "prevent";
+}): "allow" | "prevent" | undefined => {
+  const type = conflictPolicyType(effect);
+  if (type === "prevent-duplicate") return "prevent";
+  if (type === "allow") return "allow";
+  return undefined;
+};
+
 const ordinaryModifierTypes = new Set([
   "modify-damage",
   "modify-next-action",

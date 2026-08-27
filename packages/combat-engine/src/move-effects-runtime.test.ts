@@ -2,6 +2,7 @@ import { MOVE_DEFINITIONS } from "@dragonball-resurgence/game-data";
 import type { MoveDefinition } from "@dragonball-resurgence/game-data";
 import { describe, expect, it } from "vitest";
 
+import { isSelectedMoveUntilAttackThresholdDamageModifier } from "./damage-modifier-capabilities.js";
 import {
   adjustedMoveDamage,
   classifyCurrentActionMove,
@@ -35,6 +36,21 @@ const context = {
 };
 
 describe("converted move effects", () => {
+  it("keeps typed damage behavior independent from display source text", () => {
+    const move = moves.get("move-aoyosumu-lights-out-strike");
+    const effect = move?.effects?.find((candidate) => candidate.type === "modify-damage");
+    if (effect === undefined || effect.type !== "modify-damage")
+      throw new Error("Expected Lights Out Strike damage data.");
+
+    expect(isSelectedMoveUntilAttackThresholdDamageModifier(effect)).toBe(true);
+    expect(
+      isSelectedMoveUntilAttackThresholdDamageModifier({
+        ...effect,
+        sourceText: "display text changed without changing the rule",
+      }),
+    ).toBe(true);
+  });
+
   it("emits the exact modifier-transformer applications at their declared boundaries", () => {
     const hellzone = moves.get("move-afterlife-hellzone-grenade");
     const phoenix = moves.get("move-haokiru-phoenix-tackle");
@@ -233,7 +249,7 @@ describe("converted move effects", () => {
         sourceDefinitionId: mastery.id,
         sourceEffectIndex: 3,
         sourceCombatantId: self.id,
-        activationCost: { resource: "hp", amount: 5 },
+        activationCost: { resource: "hp", amount: 5, timing: "activation" },
       },
     ]);
   });
@@ -449,7 +465,7 @@ describe("converted move effects", () => {
       }).activations,
     ).toEqual([
       expect.objectContaining({
-        activationCost: { amount: 2 },
+        activationCost: { amount: 2, timing: "activation" },
         sourceDefinitionId: shadowStalker.id,
       }),
     ]);
@@ -723,6 +739,7 @@ describe("converted move effects", () => {
         sourceDefinitionId: healingRay.id,
         effectIndices: [1],
         activationGroup: "healing-ray-target",
+        optional: true,
       },
     ]);
 
@@ -1095,7 +1112,7 @@ describe("converted move effects", () => {
         resource: "hp",
         target: "self",
         amount: 10,
-        activationCost: { resource: "ki", amount: 1 },
+        activationCost: { resource: "ki", amount: 1, timing: "activation" },
       }),
     ]);
   });
@@ -1253,7 +1270,7 @@ describe("converted move effects", () => {
         target: "opponent",
         aspects: [],
         selector: expect.objectContaining({ category: "skill", constant: false }),
-        activationCost: { resource: "ki", amount: 1, minimum: 1 },
+        activationCost: { resource: "ki", amount: 1, minimum: 1, timing: "activation" },
       }),
     ]);
   });
@@ -1745,7 +1762,7 @@ describe("converted move effects", () => {
       expect.objectContaining({
         phase: "action",
         scope: "current-turn",
-        activationCost: { resource: "ki", amount: 1 },
+        activationCost: { resource: "ki", amount: 1, timing: "activation" },
       }),
     ]);
     expect(
@@ -1757,7 +1774,7 @@ describe("converted move effects", () => {
       expect.objectContaining({
         phase: "upkeep",
         scope: "next-turn",
-        activationCost: { resource: "ki", amount: 1 },
+        activationCost: { resource: "ki", amount: 1, timing: "activation" },
       }),
     ]);
   });
@@ -1949,7 +1966,7 @@ describe("converted move effects", () => {
       expect.objectContaining({
         sourceEffectIndex: 0,
         floatingEffectId: "hidden-power-level-zero-ki-recovery",
-        activationCost: { resource: "ki", amount: 2 },
+        activationCost: { resource: "ki", amount: 2, timing: "activation" },
         useLimit: { scope: "combat", count: 1 },
       }),
     ]);
@@ -2468,7 +2485,14 @@ describe("converted move effects", () => {
         ...responseContext,
         collectPendingChoices: true,
       }).pendingEffectChoices,
-    ).toEqual([{ effectIndices: [0], sourceDefinitionId: muscleInfusion.id }]);
+    ).toEqual([
+      {
+        effectIndices: [0],
+        sourceDefinitionId: muscleInfusion.id,
+        optional: true,
+        costTiming: "activation",
+      },
+    ]);
 
     expect(
       moveEffectsForTrigger(muscleInfusion, "on-damage", {
@@ -2483,7 +2507,7 @@ describe("converted move effects", () => {
         sourceCombatantId: opponent.id,
         sourceDefinitionId: muscleInfusion.id,
         useLimit: { scope: "combat", count: 2 },
-        activationCost: { resource: "ki", amount: 1 },
+        activationCost: { resource: "ki", amount: 1, timing: "activation" },
       }),
     ]);
   });
@@ -3622,6 +3646,7 @@ describe("converted move effects", () => {
       {
         sourceDefinitionId: powerBoost.id,
         effectIndices: [0],
+        optional: true,
       },
     ]);
     expect(

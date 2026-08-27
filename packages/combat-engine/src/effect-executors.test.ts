@@ -144,6 +144,7 @@ describe("declarative effect executor registry", () => {
         effect: {
           ...effect,
           activationCost: {
+            timing: "activation",
             resource: "hp",
             operation: "lose",
             amount: { type: "literal", value: 2 },
@@ -754,6 +755,7 @@ describe("declarative effect executor registry", () => {
     const unsupported = {
       ...effect,
       activationCost: {
+        timing: "activation" as const,
         resource: "ki" as const,
         operation: "lose" as const,
         amount: { type: "literal" as const, value: 1 },
@@ -1147,6 +1149,7 @@ describe("declarative effect executor registry", () => {
       compileVariant({
         ...supported.effect,
         activationCost: {
+          timing: "activation",
           resource: "ki",
           amount: { type: "literal", value: 1 },
           operation: "lose",

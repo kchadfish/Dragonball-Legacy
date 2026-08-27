@@ -458,6 +458,8 @@ export interface ItemEffectBase {
     | "before-roll"
     | "after-defense-roll";
   readonly sourceText: string;
+  /** Order of the canonical effect clause that produced this typed effect. */
+  readonly sourceClauseOrder?: number;
 }
 
 export interface ItemStatPercentEffect extends ItemEffectBase {
@@ -528,6 +530,8 @@ export interface ItemDamageModifierEffect extends ItemEffectBase {
   readonly type: "item-modify-damage";
   readonly target: "self" | "opponent";
   readonly percent: number;
+  /** Number of upcoming attacks affected when the canonical rule is attack-count based. */
+  readonly attackCount?: number;
   readonly selectorText?: string;
   readonly duration?: { readonly unit: "combat"; readonly value?: number };
 }
@@ -640,6 +644,8 @@ export interface ItemStateRuleEffect extends ItemEffectBase {
 }
 
 export interface ItemRuleDefinition {
+  /** Order of the canonical effect clause represented by this rule. */
+  readonly sourceClauseOrder: number;
   readonly family:
     | "combat"
     | "escape"

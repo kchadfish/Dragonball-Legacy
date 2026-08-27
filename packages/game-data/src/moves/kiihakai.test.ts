@@ -319,7 +319,7 @@ describe("KIIHAKAI_MOVES", () => {
     expect(KIIHAKAI_MOVES.find((move) => move.name === "Ki Jammer")?.effects).toEqual([
       expect.objectContaining({
         type: "create-floating-effect",
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         duration: expect.objectContaining({ type: "until-combat-result" }),
       }),
     ]);
@@ -330,7 +330,7 @@ describe("KIIHAKAI_MOVES", () => {
       expect.objectContaining({
         type: "prevent-move-use",
         operation: "deactivate",
-        selectionLimit: 2,
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 2 } },
         duration: expect.objectContaining({ type: "until-combat-result" }),
       }),
     ]);

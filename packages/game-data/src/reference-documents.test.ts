@@ -5,7 +5,7 @@ import { validateGameDataDocuments } from "./validation.js";
 
 describe("game-data reference catalog", () => {
   it("preserves every reference document in a valid static catalog", () => {
-    expect(GAME_DATA_DOCUMENTS).toHaveLength(102);
+    expect(GAME_DATA_DOCUMENTS).toHaveLength(104);
     expect(validateGameDataDocuments(GAME_DATA_DOCUMENTS)).toEqual([]);
   });
 

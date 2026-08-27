@@ -1,5 +1,7 @@
 import type {
+  EffectCostTiming,
   EffectDefinition,
+  EffectSelection,
   MoveDefinition,
   MoveId,
   MoveSelectorCondition,
@@ -8,6 +10,8 @@ import type {
 
 import { evaluateDurableNumericExpression, matchesMoveSelector } from "./declarative-runtime.js";
 import { compileEffectPlan, executeCompiledEffect } from "./effect-executors.js";
+import { staticSelectionLimit } from "./effect-selection.js";
+import { conflictPolicyType, legacyStackingFor } from "./conflict-policy.js";
 
 import type {
   ActiveCombatEffect,
@@ -109,6 +113,9 @@ export interface PendingEffectChoice {
   readonly sourceDefinitionId: MoveDefinition["id"];
   readonly effectIndices: readonly number[];
   readonly activationGroup?: string;
+  readonly selection?: EffectSelection;
+  readonly optional?: boolean;
+  readonly costTiming?: EffectCostTiming;
   readonly numericSelection?: {
     readonly key: string;
     readonly minimum: number;
@@ -149,6 +156,7 @@ export interface ResourceChange {
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
   readonly preventable?: boolean;
   readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
     readonly resource: "hp" | "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -179,6 +187,7 @@ export interface ResourceCostModifierApplication {
   readonly scope: "current-action" | "next-action";
   readonly stacking: "prevent";
   readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
     readonly resource: "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -332,6 +341,7 @@ export interface ExtraActionApplication {
   readonly maximumActions?: number;
   readonly scope: "current-turn" | "next-turn";
   readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
     readonly resource: "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -359,6 +369,7 @@ export interface CounterActionApplication {
   readonly stopsTriggeringAttack: boolean;
   readonly ignoreRequirements: boolean;
   readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
     readonly resource: "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -467,6 +478,7 @@ export interface DeactivationApplication {
   readonly selector?: MoveSelectorCondition;
   readonly count?: number;
   readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
     readonly resource: "hp" | "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -492,7 +504,11 @@ export interface ActivationApplication {
   /** Absolute activation cost supplied by a paired current-cost set effect. */
   readonly activationCostOverride?: number;
   /** Resolved declarative KI cost required by this activation path. */
-  readonly activationCost?: { readonly amount: number; readonly minimum?: number };
+  readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
+    readonly amount: number;
+    readonly minimum?: number;
+  };
   /** Retains the alternate activation context until the selection resolves. */
   readonly asIf?: "power-up";
   /** Links every selected constant to a later effect in the same declarative group. */
@@ -547,6 +563,7 @@ export interface FloatingEffectApplication {
       };
   readonly stacking?: "allow" | "prevent";
   readonly activationCost?: {
+    readonly timing?: EffectCostTiming;
     readonly resource: "hp" | "ki";
     readonly amount: number;
     readonly minimum?: number;
@@ -2276,6 +2293,7 @@ const damageModificationLifecycle = (
 
 type ActivationCostCarrier = {
   readonly activationCost?: {
+    readonly timing: EffectCostTiming;
     readonly resource: "hp" | "ki";
     readonly amount: NumericExpression;
     readonly minimum?: NumericExpression;
@@ -2293,6 +2311,7 @@ const activationCostFor = (effect: ActivationCostCarrier, context: MoveEffectRun
     (effect.activationCost.minimum !== undefined && minimum === undefined)
     ? undefined
     : {
+        timing: effect.activationCost.timing,
         resource: effect.activationCost.resource,
         amount,
         ...(minimum === undefined ? {} : { minimum }),
@@ -2349,7 +2368,9 @@ const damageModificationEffectChanges = (
         damageModifications: [
           {
             ...modification,
-            ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+            ...(conflictPolicyType(effect) === undefined
+              ? {}
+              : { stacking: legacyStackingFor(effect) }),
             ...(effect.useLimit?.scope === "combat"
               ? (() => {
                   const count =
@@ -2547,7 +2568,7 @@ const suppressionEffectChanges = (
   if (resolvedDuration === undefined) return emptyEffectChanges();
   if (effect.aspects === undefined || effect.aspects.length === 0) return emptyEffectChanges();
   if (
-    effect.selectionLimit !== undefined &&
+    staticSelectionLimit(effect) !== undefined &&
     context.selectedSuppressionMoveIds?.[effectIndex] === undefined
   )
     return emptyEffectChanges();
@@ -3032,6 +3053,7 @@ const floatingActivationCost = (
       : numeric(effect.activationCost.minimum, context);
   if (effect.activationCost.minimum !== undefined && minimum === undefined) return null;
   return {
+    timing: effect.activationCost.timing,
     resource: effect.activationCost.resource,
     amount,
     ...(minimum === undefined ? {} : { minimum }),
@@ -3138,11 +3160,14 @@ const floatingEffectChanges = (
         })),
         scope: effect.scope,
         ...(normalizedDuration === undefined ? {} : { duration: normalizedDuration }),
-        ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+        ...(conflictPolicyType(effect) === undefined
+          ? {}
+          : { stacking: legacyStackingFor(effect) }),
         ...(activationCost === undefined
           ? {}
           : {
               activationCost: {
+                timing: activationCost.timing,
                 resource: activationCost.resource,
                 amount: activationCost.amount,
                 ...(activationCost.minimum === undefined
@@ -3284,6 +3309,7 @@ const extraActionEffectChanges = (
           ? {}
           : {
               activationCost: {
+                timing: effect.activationCost?.timing ?? "activation",
                 resource: "ki" as const,
                 amount: activationAmount,
                 ...(activationMinimum === undefined ? {} : { minimum: activationMinimum }),
@@ -3374,7 +3400,9 @@ const scheduledResourceEffectChanges = (
         resource: effect.effect.resource,
         operation: effect.effect.operation,
         amount: effect.effect.amount,
-        ...(effect.stacking === "prevent" ? { stacking: "prevent" as const } : {}),
+        ...(conflictPolicyType(effect) === "prevent-duplicate"
+          ? { stacking: "prevent" as const }
+          : {}),
         ...(duration === undefined ? {} : { duration }),
         ...(cancellation === undefined ? {} : { cancellation }),
       },
@@ -3468,6 +3496,7 @@ const counterActionEffectChanges = (
           ? {}
           : {
               activationCost: {
+                timing: effect.activationCost?.timing ?? "activation",
                 resource: "ki" as const,
                 amount: activationAmount,
                 ...(activationMinimum === undefined ? {} : { minimum: activationMinimum }),
@@ -3488,7 +3517,9 @@ const counterActionEffectChanges = (
         ...(durationRemaining === undefined
           ? {}
           : { duration: { type: "turns" as const, remaining: durationRemaining } }),
-        ...(effect.stacking === "prevent" ? { stacking: "prevent" as const } : {}),
+        ...(conflictPolicyType(effect) === "prevent-duplicate"
+          ? { stacking: "prevent" as const }
+          : {}),
         ...(sourceAction === undefined ? {} : { sourceAction }),
         ...(sourceMove === undefined ? {} : { sourceMove }),
       },
@@ -3551,6 +3582,7 @@ const resourceActivationCost = (
     (effect.activationCost.minimum !== undefined && minimum === undefined)
     ? null
     : {
+        timing: effect.activationCost.timing,
         resource: effect.activationCost.resource,
         amount,
         ...(minimum === undefined ? {} : { minimum }),
@@ -3594,6 +3626,7 @@ const resourceChangeFromEffect = (
     ? {}
     : {
         activationCost: {
+          timing: activationCost.timing,
           resource: activationCost.resource,
           amount: activationCost.amount,
           ...(activationCost.minimum === undefined ? {} : { minimum: activationCost.minimum }),
@@ -3907,6 +3940,7 @@ const resolvedCostActivation = (
   )
     return undefined;
   return {
+    timing: effect.activationCost.timing,
     resource: effect.activationCost.resource,
     amount,
     ...(minimum === undefined ? {} : { minimum }),
@@ -4164,6 +4198,7 @@ const deactivationEffectChanges = (
     effect.activationCost === undefined
       ? undefined
       : {
+          timing: effect.activationCost.timing,
           resource: effect.activationCost.resource,
           amount: numeric(effect.activationCost.amount, context),
           minimum:
@@ -4183,7 +4218,7 @@ const deactivationEffectChanges = (
       {
         target,
         affectedType: effect.affectedType,
-        selection: effect.selection ?? "one",
+        selection: effect.selectionSpec?.type === "all" ? "all" : "one",
         optional: effect.optional === true,
         ...(effect.selector === undefined ? {} : { selector: effect.selector }),
         ...(count === undefined ? {} : { count }),
@@ -4191,6 +4226,7 @@ const deactivationEffectChanges = (
           ? {}
           : {
               activationCost: {
+                timing: activationCost.timing,
                 resource: activationCost.resource,
                 amount: activationCost.amount!,
                 ...(activationCost.minimum === undefined
@@ -4228,10 +4264,12 @@ const activationCostApplication = (
   activationCost: number | undefined,
   activationMinimum: number | undefined,
   selectedStartCombatCost: unknown,
+  timing: EffectCostTiming,
 ): ActivationApplication["activationCost"] => {
-  if (selectedStartCombatCost !== undefined) return { amount: 0 };
+  if (selectedStartCombatCost !== undefined) return { amount: 0, timing };
   if (activationCost === undefined) return undefined;
   return {
+    timing,
     amount: activationCost,
     ...(activationMinimum === undefined ? {} : { minimum: activationMinimum }),
   };
@@ -4336,6 +4374,7 @@ const activationEffectChanges = (
     activationCost,
     activationMinimum,
     selectedStartCombatCost,
+    effect.activationCost?.timing ?? "activation",
   );
   return {
     ...emptyEffectChanges(),
@@ -4530,7 +4569,9 @@ const moveUsePreventionEffectChanges = (
             target,
             operation: effect.operation ?? "use",
             ...(effect.selector === undefined ? {} : { selector: effect.selector }),
-            ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+            ...(conflictPolicyType(effect) === undefined
+              ? {}
+              : { stacking: legacyStackingFor(effect) }),
             duration,
           },
         ],
@@ -4891,7 +4932,9 @@ const rollResultEffectChanges = (
             sourceDefinitionId: move.id,
             sourceEffectIndex: effectIndex,
             ...(effect.scope?.type === "next-roll" ? { scope: "next-roll" as const } : {}),
-            ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+            ...(conflictPolicyType(effect) === undefined
+              ? {}
+              : { stacking: legacyStackingFor(effect) }),
           },
         ],
       };
@@ -5261,6 +5304,7 @@ const negateEffectChanges = (
             (effect.activationCost.minimum !== undefined && minimum === undefined)
             ? undefined
             : {
+                timing: effect.activationCost.timing,
                 resource: effect.activationCost.resource,
                 amount,
                 ...(minimum === undefined ? {} : { minimum }),
@@ -6640,7 +6684,7 @@ const moveEffectsForTriggerInternal = (
                 effect.type === "modify-resource-cost" &&
                 effect.target === "self" &&
                 effect.scope?.type === "next-action" &&
-                effect.stacking === "prevent" &&
+                conflictPolicyType(effect) === "prevent-duplicate" &&
                 effect.selector.subject === "source" &&
                 effect.selector.effectKinds?.length === 1 &&
                 effect.selector.effectKinds[0] === "resource-loss",
@@ -6656,13 +6700,13 @@ const moveEffectsForTriggerInternal = (
                 effect.aspects?.length === 1 &&
                 effect.aspects[0] === "successful-effects" &&
                 effect.duration?.type === "combat" &&
-                effect.selectionLimit === 1 &&
+                staticSelectionLimit(effect) === 1 &&
                 effect.scope === undefined &&
                 effect.conditions === undefined &&
                 effect.activationCost === undefined &&
                 effect.useLimit === undefined &&
                 effect.cooldown === undefined &&
-                effect.stacking === undefined,
+                conflictPolicyType(effect) === undefined,
             );
           const spinebreakerChoiceGroup =
             effects.length === 2 &&
@@ -6969,7 +7013,7 @@ const moveEffectsForTriggerInternal = (
             effect.duration === undefined &&
             effect.useLimit === undefined &&
             effect.cooldown === undefined &&
-            effect.stacking === undefined &&
+            conflictPolicyType(effect) === undefined &&
             effect.activationCost !== undefined
           );
         });
@@ -7012,9 +7056,9 @@ const moveEffectsForTriggerInternal = (
               effect.selector !== undefined &&
               effect.scope === undefined &&
               effect.duration === undefined &&
-              effect.stacking === undefined &&
+              conflictPolicyType(effect) === undefined &&
               effect.useLimit === undefined &&
-              effect.selectionLimit === undefined &&
+              staticSelectionLimit(effect) === undefined &&
               effect.cooldown === undefined &&
               effect.activationCost?.resource === "ki" &&
               runtimeValue(effect.activationCost.operation) === "lose"
@@ -7037,7 +7081,7 @@ const moveEffectsForTriggerInternal = (
             effect.duration === undefined &&
             effect.useLimit === undefined &&
             effect.cooldown === undefined &&
-            effect.stacking === undefined
+            conflictPolicyType(effect) === undefined
           );
         });
       if (!supportedOnCostModifiedChoice) continue;
@@ -7069,7 +7113,7 @@ const moveEffectsForTriggerInternal = (
             effect.type === "create-floating-effect" &&
             effect.target === "self" &&
             effect.optional === true &&
-            effect.selectionLimit === 1 &&
+            staticSelectionLimit(effect) === 1 &&
             effect.activationCost?.resource === "ki" &&
             runtimeValue(effect.activationCost.operation) === "lose" &&
             effect.activationCost.amount.type === "literal" &&
@@ -7136,6 +7180,21 @@ const moveEffectsForTriggerInternal = (
           sourceDefinitionId: move.id,
           effectIndices: alternative,
           ...(activationGroup === undefined ? {} : { activationGroup }),
+          ...(() => {
+            const selection = alternative
+              .map((effectIndex) => move.effects?.[effectIndex]?.selectionSpec)
+              .find((candidate) => candidate !== undefined);
+            return selection === undefined ? {} : { selection };
+          })(),
+          ...(alternative.some((effectIndex) => move.effects?.[effectIndex]?.optional === true)
+            ? { optional: true }
+            : {}),
+          ...(() => {
+            const costTiming = alternative
+              .map((effectIndex) => move.effects?.[effectIndex]?.activationCost?.timing)
+              .find((candidate) => candidate !== undefined);
+            return costTiming === undefined ? {} : { costTiming };
+          })(),
           ...(numericSelection === undefined ? {} : { numericSelection }),
         });
       }

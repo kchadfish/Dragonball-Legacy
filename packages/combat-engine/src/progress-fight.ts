@@ -31,11 +31,17 @@ import {
 import { defaultMoveAttackRoll, resolveMoveAttack } from "./move-attacks.js";
 import { evaluateDurableNumericExpression, matchesMoveSelector } from "./declarative-runtime.js";
 import { compileEffectPlan } from "./effect-executors.js";
+import { staticSelectionLimit } from "./effect-selection.js";
 import {
   isCombatResultCountNextActionsDamageModifier,
   isSelectedMoveUntilAttackThresholdDamageModifier,
 } from "./damage-modifier-capabilities.js";
-import { normalizeConflictPolicy, resolveActiveEffectConflicts } from "./conflict-policy.js";
+import {
+  conflictPolicyType,
+  legacyStackingFor,
+  normalizeConflictPolicy,
+  resolveActiveEffectConflicts,
+} from "./conflict-policy.js";
 import {
   classifyCurrentActionMove,
   effectConditionsMatch,
@@ -588,8 +594,8 @@ const isActionPhaseExtraActionEffect = (effect: MoveEffect) =>
   effect.activationCost === undefined &&
   effect.duration === undefined &&
   effect.cooldown === undefined &&
-  effect.selectionLimit === undefined &&
-  effect.stacking === undefined;
+  staticSelectionLimit(effect) === undefined &&
+  conflictPolicyType(effect) === undefined;
 
 const isAttackPreventionNegationEffect = (effect: MoveEffect) =>
   effect.type === "negate" &&
@@ -2033,6 +2039,7 @@ const actionRollModifier = (
   effect: SupportedRollActionModifier,
   context: ActionMoveModifierContext,
   numericContext: Parameters<typeof evaluateDurableNumericExpression>[1],
+  effectIndex: number,
   // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): ActiveCombatEffect[] => {
   if (effect.amount === undefined) return [];
@@ -2052,8 +2059,9 @@ const actionRollModifier = (
   return [
     {
       ...nextActionModifierBase(context),
+      sourceEffectIndex: effectIndex,
       ...(effect.selector === undefined ? {} : { selector: effect.selector }),
-      ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+      ...(conflictPolicyType(effect) === undefined ? {} : { stacking: legacyStackingFor(effect) }),
       ...(scope === undefined ? {} : { scope }),
       ...(countedScope === undefined ? {} : { remaining: countedScope }),
       modifier: {
@@ -2098,7 +2106,9 @@ const actionDamageModifier = (
       modifier: {
         type: "damage" as const,
         amount,
-        ...(effect.stacking === undefined ? {} : { stacking: effect.stacking }),
+        ...(conflictPolicyType(effect) === undefined
+          ? {}
+          : { stacking: legacyStackingFor(effect) }),
         ...(effect.operation === undefined || effect.operation === "add"
           ? {}
           : { operation: effect.operation }),
@@ -2138,7 +2148,7 @@ const actionMoveModifier = (
     return actionDamageModifier(effect, context, numericContext, effectIndex);
   }
   if (!isRollActionModifier(effect)) return [];
-  return actionRollModifier(effect, context, numericContext);
+  return actionRollModifier(effect, context, numericContext, effectIndex);
 };
 
 const actionMoveModifiers = (
@@ -2217,19 +2227,13 @@ const isCombatRollModifierItem = (item: (typeof ITEM_DEFINITIONS)[number]) =>
       effect.duration?.unit === "combat",
   ) ?? false;
 
-const itemDamageAttackCount = (sourceText: string) => {
-  if (/next\s+three\s+attacks?/i.test(sourceText)) return 3;
-  if (/next\s+two\s+attacks?/i.test(sourceText)) return 2;
-  return /next\s+attack/i.test(sourceText) ? 1 : undefined;
-};
-
 const isCombatDamageModifierItem = (item: (typeof ITEM_DEFINITIONS)[number]) =>
   item.effects?.some(
     (effect) =>
       effect.trigger === "combat-action" &&
       effect.type === "item-modify-damage" &&
       effect.target === "self" &&
-      itemDamageAttackCount(effect.sourceText) !== undefined,
+      effect.attackCount !== undefined,
   ) ?? false;
 
 const isCombatUsableItem = (item: (typeof ITEM_DEFINITIONS)[number]) =>
@@ -5193,9 +5197,39 @@ type AwaitingEffectChoiceAttackFrame = Extract<
 const returnPhaseFor = (state: ActiveFightState): "action" | "counter" =>
   state.phase === "counter" ? "counter" : "action";
 
+const nextAvailableResolutionFrameId = (
+  state: ActiveFightState,
+  dependencies: CombatDependencies,
+  reservedFrameIds: readonly ResolutionFrame["id"][] = [],
+) => {
+  let id = dependencies.ids.nextResolutionFrameId();
+  while (state.resolutionFrames.some((frame) => frame.id === id) || reservedFrameIds.includes(id))
+    id = dependencies.ids.nextResolutionFrameId();
+  return id;
+};
+
+const effectChoiceMetadataFor = (
+  move: MoveDefinition,
+  effectIndices: readonly number[],
+): Pick<PendingDecisionOption, "selection" | "optional" | "costTiming"> => {
+  const effects = effectIndices.flatMap((effectIndex) => {
+    const effect = move.effects?.[effectIndex];
+    return effect === undefined ? [] : [effect];
+  });
+  const selection = effects.find((effect) => effect.selectionSpec !== undefined)?.selectionSpec;
+  const costTiming = effects.find((effect) => effect.activationCost !== undefined)?.activationCost
+    ?.timing;
+  return {
+    ...(selection === undefined ? {} : { selection }),
+    ...(effects.some((effect) => effect.optional === true) ? { optional: true } : {}),
+    ...(costTiming === undefined ? {} : { costTiming }),
+  };
+};
+
 const pendingEffectChoiceOptions = (
   effectIndices: readonly number[],
   numericSelection: PendingEffectChoice["numericSelection"],
+  metadata: Pick<PendingDecisionOption, "selection" | "optional" | "costTiming"> = {},
 ): readonly PendingDecisionOption[] => [
   ...(numericSelection === undefined
     ? [
@@ -5203,6 +5237,7 @@ const pendingEffectChoiceOptions = (
           id: `activate-effect:${effectIndices.join(",")}`,
           type: "activate-effect" as const,
           effectIndices,
+          ...metadata,
         },
       ]
     : Array.from(
@@ -5214,6 +5249,7 @@ const pendingEffectChoiceOptions = (
             type: "activate-effect" as const,
             effectIndices,
             selectedNumericValue,
+            ...metadata,
           };
         },
       )),
@@ -5309,6 +5345,7 @@ const awaitingEffectChoiceAttackFrame = (
   pendingDecisionId,
   attack: { type: "move", moveId: input.move.id },
   effectIndices: input.effectIndices,
+  ...effectChoiceMetadataFor(input.move, input.effectIndices),
   ...(input.effectAlternatives === undefined
     ? {}
     : {
@@ -5345,6 +5382,7 @@ const requestAttackEffectChoice = (
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const nextVersion = state.version + 1;
   let pendingOptions: readonly PendingDecisionOption[];
+  const metadata = effectChoiceMetadataFor(input.move, effectIndices);
   if (input.floatingEffectIds !== undefined)
     pendingOptions = pendingEndFloatingEffectChoiceOptions(
       input.move,
@@ -5352,13 +5390,15 @@ const requestAttackEffectChoice = (
       input.floatingEffectIds,
     );
   else if (effectAlternatives === undefined)
-    pendingOptions = pendingEffectChoiceOptions(effectIndices, numericSelection);
+    pendingOptions = pendingEffectChoiceOptions(effectIndices, numericSelection, metadata);
   else
     pendingOptions = [
       ...effectAlternatives.flatMap((alternative) =>
-        pendingEffectChoiceOptions(alternative.effectIndices, alternative.numericSelection).filter(
-          (option) => option.type !== "decline",
-        ),
+        pendingEffectChoiceOptions(
+          alternative.effectIndices,
+          alternative.numericSelection,
+          effectChoiceMetadataFor(input.move, alternative.effectIndices),
+        ).filter((option) => option.type !== "decline"),
       ),
       { id: "decline", type: "decline" },
     ];
@@ -7552,7 +7592,7 @@ const selectedTemporaryMoveRemovalFor = (move: MoveDefinition, target: Combatant
       effect.activationCost === undefined &&
       effect.useLimit === undefined &&
       effect.cooldown === undefined &&
-      effect.selectionLimit === undefined,
+      effect.selectionSpec === undefined,
   );
   if (candidate === undefined) return undefined;
   const [effectIndex, effect] = candidate;
@@ -11251,7 +11291,18 @@ const activeEffectWithDefinitionPolicy = (
 const activeEffectsAfterAdditions = (
   existing: readonly ActiveCombatEffect[],
   additions: readonly ActiveCombatEffect[],
-) => resolveActiveEffectConflicts(existing, additions).effects;
+) =>
+  resolveActiveEffectConflicts(
+    existing,
+    additions.map((effect) => {
+      const sourceMove = MOVE_DEFINITIONS.find(
+        (candidate) => candidate.id === effect.sourceDefinitionId,
+      );
+      return sourceMove === undefined
+        ? effect
+        : activeEffectWithDefinitionPolicy(effect, sourceMove);
+    }),
+  ).effects;
 
 const startCombatTriggeredEffects = (
   state: ActiveFightState,
@@ -11598,6 +11649,8 @@ const requestUpkeepEffectChoice = (
     sourceCombatantId: entry.actor.id,
     effectIndices: choice.effectIndices,
     effectTrigger,
+    ...(choice.selection === undefined ? {} : { selection: choice.selection }),
+    ...(choice.costTiming === undefined ? {} : { costTiming: choice.costTiming }),
     resolved: false,
   };
   return transitionFrom(
@@ -11615,6 +11668,9 @@ const requestUpkeepEffectChoice = (
             type: "activate-effect",
             moveId: entry.sourceMove.id,
             effectIndices: choice.effectIndices,
+            ...(choice.selection === undefined ? {} : { selection: choice.selection }),
+            ...(choice.optional === undefined ? {} : { optional: choice.optional }),
+            ...(choice.costTiming === undefined ? {} : { costTiming: choice.costTiming }),
           },
           { id: "decline", type: "decline" },
         ],
@@ -13540,13 +13596,15 @@ const selectedSuppressionEffect = (effect: EffectDefinition | undefined) =>
   effect.aspects?.length === 1 &&
   effect.aspects[0] === "successful-effects" &&
   effect.duration?.type === "combat" &&
-  effect.selectionLimit === 1 &&
+  effect.selectionSpec?.type === "up-to" &&
+  effect.selectionSpec.limit.type === "literal" &&
+  effect.selectionSpec.limit.value === 1 &&
   effect.scope === undefined &&
   effect.conditions === undefined &&
   effect.activationCost === undefined &&
   effect.useLimit === undefined &&
   effect.cooldown === undefined &&
-  effect.stacking === undefined;
+  conflictPolicyType(effect) === undefined;
 
 const selectedSuppressionEffectIndices = (move: MoveDefinition, effectIndices: readonly number[]) =>
   effectIndices.filter((effectIndex) => selectedSuppressionEffect(move.effects?.[effectIndex]));
@@ -16228,6 +16286,9 @@ const extraActionActivationAtUpkeep = (
             type: "activate-effect",
             moveId: allowance.sourceDefinitionId,
             effectIndices: [allowance.sourceEffectIndex],
+            ...(allowance.activationCost === undefined
+              ? {}
+              : { costTiming: allowance.activationCost.timing ?? "activation" }),
           },
           { id: "decline", type: "decline" },
         ],
@@ -16247,6 +16308,9 @@ const extraActionActivationAtUpkeep = (
           pendingDecisionId,
           activeEffectId: allowance.id,
           activationCost: allowance.activationCost,
+          ...(allowance.activationCost === undefined
+            ? {}
+            : { costTiming: allowance.activationCost.timing ?? "activation" }),
           optional: true,
         },
       ],
@@ -16393,7 +16457,7 @@ const exactActionPhaseSkipChoice = (move: MoveDefinition, choice: PendingEffectC
     effect.activationCost === undefined &&
     effect.useLimit === undefined &&
     effect.cooldown === undefined &&
-    effect.stacking === undefined
+    conflictPolicyType(effect) === undefined
   );
 };
 
@@ -16524,6 +16588,7 @@ const requestActionPhaseEffectChoice = (
           type: "activate-effect",
           moveId: entry.sourceMove.id,
           effectIndices: entry.pendingChoice.effectIndices,
+          ...effectChoiceMetadataFor(entry.sourceMove, entry.pendingChoice.effectIndices),
         },
         ...("noTurnCostAvailable" in entry && entry.noTurnCostAvailable === true
           ? [
@@ -16533,6 +16598,7 @@ const requestActionPhaseEffectChoice = (
                 moveId: entry.sourceMove.id,
                 effectIndices: entry.pendingChoice.effectIndices,
                 selectedNumericValue: 1,
+                ...effectChoiceMetadataFor(entry.sourceMove, entry.pendingChoice.effectIndices),
               },
             ]
           : []),
@@ -16552,6 +16618,7 @@ const requestActionPhaseEffectChoice = (
         sourceDefinitionId: entry.sourceMove.id,
         effectIndices: entry.pendingChoice.effectIndices,
         effectTrigger: "action-phase",
+        ...effectChoiceMetadataFor(entry.sourceMove, entry.pendingChoice.effectIndices),
       },
     ],
     eventSequence: state.eventSequence + priorEvents.length + 1,
@@ -18841,6 +18908,7 @@ const resolveBlockedBasicAttack = (
                 type: "activate-effect",
                 moveId: block.id,
                 effectIndices: pendingBlockChoice.effectIndices,
+                ...effectChoiceMetadataFor(block, pendingBlockChoice.effectIndices),
               },
               { id: "decline", type: "decline" },
             ],
@@ -18859,6 +18927,9 @@ const resolveBlockedBasicAttack = (
               pendingDecisionId,
               activeEffectId: allowance.id,
               activationCost: allowance.activationCost,
+              ...(allowance.activationCost === undefined
+                ? {}
+                : { costTiming: allowance.activationCost.timing ?? "activation" }),
               optional: true,
             },
           ],
@@ -20109,6 +20180,9 @@ const counterActionOptionsForCombatant = (
           moveId: sourceMove.id,
           effectIndices: [application.effectIndex],
           counterAction: counterActionReferenceFor(application),
+          ...(application.activationCost === undefined
+            ? {}
+            : { costTiming: application.activationCost.timing ?? "activation" }),
         },
       ];
     });
@@ -24488,7 +24562,7 @@ const activatedItemEffects = (
     ) {
       return [];
     }
-    const remainingAttacks = itemDamageAttackCount(effect.sourceText);
+    const remainingAttacks = effect.attackCount;
     return remainingAttacks === undefined
       ? []
       : [
@@ -24962,6 +25036,7 @@ const resolveDeactivationNegationSelection = (
     continuation.activationCost === undefined
       ? undefined
       : {
+          timing: continuation.activationCost.timing ?? "activation",
           resource: continuation.activationCost.resource!,
           amount: continuation.activationCost.amount,
           ...(continuation.activationCost.minimum === undefined
@@ -25130,10 +25205,11 @@ const requestSelectedSuppressionTarget = (
       id: `select-suppression-target:${effectIndex}:${moveId}`,
       type: "select-move" as const,
       moveId,
+      ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
     })),
   };
   const selectionFrame = {
-    id: dependencies.ids.nextResolutionFrameId(),
+    id: nextAvailableResolutionFrameId(state, dependencies, [attackFrame.id]),
     type: "effect" as const,
     decisionId: attackFrame.decisionId,
     sourceCombatantId: attackFrame.attackerId,
@@ -25146,6 +25222,8 @@ const requestSelectedSuppressionTarget = (
     pendingDecisionId,
     eligibleMoveIds,
     remainingSelections: 1,
+    ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
+    ...(effect.activationCost === undefined ? {} : { costTiming: effect.activationCost.timing }),
   };
   const attackFrameWithSelection = {
     ...attackFrame,
@@ -25188,10 +25266,11 @@ const requestSelectedMoveTarget = (
       id: `select-move-target:${effectIndex}:${moveId}`,
       type: "select-move" as const,
       moveId,
+      ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
     })),
   };
   const selectionFrame: ResolutionFrame = {
-    id: dependencies.ids.nextResolutionFrameId(),
+    id: nextAvailableResolutionFrameId(state, dependencies, [attackFrame.id]),
     type: "effect",
     decisionId: attackFrame.decisionId,
     sourceCombatantId: attackFrame.attackerId,
@@ -25205,6 +25284,8 @@ const requestSelectedMoveTarget = (
     eligibleMoveIds,
     remainingSelections: 1,
     optional: false,
+    ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
+    ...(effect.activationCost === undefined ? {} : { costTiming: effect.activationCost.timing }),
   };
   return transitionFrom(
     {
@@ -25390,6 +25471,7 @@ const resolveSelectedSuppressionTargetSelection = (
     id: `activate-effect:${updatedAttackFrame.effectIndices.join(",")}`,
     type: "activate-effect" as const,
     effectIndices: updatedAttackFrame.effectIndices,
+    ...effectChoiceMetadataFor(sourceMove, updatedAttackFrame.effectIndices),
   };
   const resumePending = {
     id: updatedAttackFrame.pendingDecisionId,
@@ -25481,6 +25563,7 @@ const resolveSelectedMoveTargetSelection = (
     id: `activate-effect:${updatedAttackFrame.effectIndices.join(",")}`,
     type: "activate-effect" as const,
     effectIndices: updatedAttackFrame.effectIndices,
+    ...effectChoiceMetadataFor(sourceMove, updatedAttackFrame.effectIndices),
   };
   const resumePending = {
     id: updatedAttackFrame.pendingDecisionId,

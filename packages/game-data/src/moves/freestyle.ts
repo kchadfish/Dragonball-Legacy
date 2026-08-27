@@ -13,6 +13,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "create-floating-effect",
         floatingEffectId: "hidden-power-level-zero-ki-recovery",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -206,7 +207,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         roll: "attack",
         modifier: "result",
         amount: { type: "literal", value: -4 },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         duration: {
           type: "until-combat-result",
           actor: "opponent",
@@ -1067,7 +1068,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "one of your opponent's Skills",
         },
         scope: { type: "next-action", sourceText: "the next time they use it" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "roll-threshold",
@@ -1116,6 +1117,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         ],
         useLimit: { scope: "combat", count: 2, sourceText: "RESTRICTEDx2" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1151,6 +1153,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         ],
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 2 },
@@ -1213,7 +1216,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "one of your opponent's Skills",
         },
         scope: { type: "next-action", sourceText: "the next time they use it" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "roll-threshold",
@@ -1248,7 +1251,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           count: { type: "literal", value: 2 },
           sourceText: "next 2 skills",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "successful-hit-count",
@@ -1492,6 +1495,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1510,6 +1514,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         type: "apply-status",
         statusId: "stun",
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -1935,7 +1940,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           count: { type: "literal", value: 2 },
           sourceText: "next 2 skills",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "successful-hit-count",

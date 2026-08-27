@@ -294,8 +294,14 @@ const itemFieldValue = (sourceText: string, field: string): string | undefined =
   new RegExp(`^${field}:\\s*(.+)$`, "mu").exec(sourceText)?.[1]?.trim();
 
 const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] => {
-  const effects: Record<string, unknown>[] = [];
+  const generatedEffects: Record<string, unknown>[] = [];
+  let currentClauseOrder = 0;
+  const effects = {
+    push: (effect: Record<string, unknown>) =>
+      generatedEffects.push({ ...effect, sourceClauseOrder: currentClauseOrder }),
+  };
   for (const clause of clausesFor(effectText)) {
+    currentClauseOrder = clause.order;
     for (const match of clause.text.matchAll(
       /([+-]?\s*\d+)%\s*(Power|HP|Health|Dexterity|Dex|All Stats)\b/giu,
     )) {
@@ -496,14 +502,31 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
     for (const match of clause.text.matchAll(
       /(next\s+)?(?:[\w\s-]+\s+)?attacks?\s+(?:do|does|gain)\s+\+?\s*\((\d+)%\s+Power\)\s+damage/giu,
     )) {
+      const attackCountMatch = /\bnext\s+(?:(\d+|one|two|three)\s+)?attacks?/iu.exec(match[0]);
+      const attackCountText = attackCountMatch?.[1]?.toLowerCase();
+      const attackCount =
+        attackCountMatch === undefined
+          ? undefined
+          : attackCountText === undefined || attackCountText === "one"
+            ? 1
+            : attackCountText === "two"
+              ? 2
+              : attackCountText === "three"
+                ? 3
+                : attackCountText === undefined
+                  ? undefined
+                  : Number(attackCountText);
       effects.push({
         trigger: "combat-action",
         type: "item-modify-damage",
         target: "self",
         percent: Number(match[2]),
-        ...(match[0].toLocaleLowerCase().startsWith("next ")
-          ? { duration: { unit: "combat", value: 1 } }
-          : {}),
+        ...(attackCount === undefined || !Number.isSafeInteger(attackCount) || attackCount < 1
+          ? {}
+          : {
+              attackCount,
+              duration: { unit: "combat", value: attackCount },
+            }),
         sourceText: match[0],
       });
     }
@@ -936,11 +959,11 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
       spaceCombatEffect("either", "grant-escape-roll-before-combat");
     }
   }
-  return effects;
+  return generatedEffects;
 };
 
 const itemRulesFor = (effectText: string, effects: readonly Record<string, unknown>[]) =>
-  clausesFor(effectText).map(({ text }) => {
+  clausesFor(effectText).map(({ order, text }) => {
     const family = /marketplace|sell|purchase/iu.test(text)
       ? "marketplace"
       : /quest/iu.test(text)
@@ -975,11 +998,9 @@ const itemRulesFor = (effectText: string, effects: readonly Record<string, unkno
                     : /equipped|wear/iu.test(text)
                       ? "equipped-passive"
                       : "inventory-passive";
-    const executable = effects.some((effect) => {
-      const sourceText = typeof effect.sourceText === "string" ? effect.sourceText : "";
-      return text.includes(sourceText) || sourceText.includes(text);
-    });
+    const executable = effects.some((effect) => effect.sourceClauseOrder === order);
     return {
+      sourceClauseOrder: order,
       family,
       timing,
       executable,

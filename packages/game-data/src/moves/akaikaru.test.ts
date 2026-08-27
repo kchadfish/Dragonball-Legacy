@@ -41,7 +41,7 @@ describe("AKAIKARU_MOVES", () => {
         expect.objectContaining({
           type: "modify-move-classification",
           optional: true,
-          selectionLimit: 1,
+          selectionSpec: { type: "up-to", limit: { type: "literal", value: 1 } },
           setStyleId: "style-akaikaru",
         }),
         expect.objectContaining({ type: "prevent-resolution", prevention: "block" }),
@@ -209,7 +209,7 @@ describe("AKAIKARU_MOVES", () => {
         type: "lock",
         affectedType: "block",
         target: "participants",
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
       }),
     ]);
   });
@@ -255,7 +255,7 @@ describe("AKAIKARU_MOVES", () => {
       expect.objectContaining({
         type: "schedule-effect",
         repeat: "each-turn",
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
       }),
     ]);
     expect(AKAIKARU_MOVES.find((move) => move.name === "Buckshot")?.effects).toEqual([
@@ -296,7 +296,7 @@ describe("AKAIKARU_MOVES", () => {
       expect.objectContaining({
         type: "modify-roll",
         scope: expect.objectContaining({ type: "next-actions" }),
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
       }),
     ]);
     expect(AKAIKARU_MOVES.find((move) => move.name === "Sonic Boom")?.effects).toEqual(
@@ -514,7 +514,7 @@ describe("AKAIKARU_MOVES", () => {
         expect.objectContaining({
           type: "modify-roll",
           roll: "escape",
-          stacking: "prevent",
+          conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         }),
       ]),
     );

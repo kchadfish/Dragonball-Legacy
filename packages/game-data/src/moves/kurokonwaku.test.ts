@@ -373,7 +373,7 @@ describe("KUROKONWAKU_MOVES", () => {
         type: "modify-roll",
         trigger: "on-resource-drain",
         duration: expect.objectContaining({ type: "turns-or-until-perfect-roll" }),
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
       }),
     ]);
     expect(KUROKONWAKU_MOVES.find((move) => move.name === "Killer Gaze")?.effects).toEqual(

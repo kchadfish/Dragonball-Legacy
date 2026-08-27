@@ -36,6 +36,17 @@ describe("item definitions", () => {
           item.rules.every((rule) => item.effectText.includes(rule.sourceText)),
       ),
     ).toBe(true);
+    expect(
+      ITEM_DEFINITIONS.every((item) =>
+        item.rules
+          .filter((rule) => rule.executable)
+          .every((rule) =>
+            (item.effects ?? []).some(
+              (effect) => effect.sourceClauseOrder === rule.sourceClauseOrder,
+            ),
+          ),
+      ),
+    ).toBe(true);
   });
 
   it("preserves item economy, availability, equipment, and ship metadata", () => {
@@ -51,6 +62,9 @@ describe("item definitions", () => {
     const generalVest = ITEM_DEFINITIONS.find((item) => item.id === "item-equipment-general-vest");
     const dragonRadar = ITEM_DEFINITIONS.find((item) => item.id === "item-technology-dragon-radar");
     const spareParts = ITEM_DEFINITIONS.find((item) => item.id === "item-technology-spare-parts");
+    const enhancedFightingJacket = ITEM_DEFINITIONS.find(
+      (item) => item.id === "item-equipment-enhanced-capsule-corp-fighting-jacket",
+    );
 
     expect(vitalityX).toMatchObject({
       category: "consumable",
@@ -126,6 +140,15 @@ describe("item definitions", () => {
         expect.objectContaining({
           type: "item-prevent-combat-outcome",
           outcomes: ["break", "sever"],
+        }),
+      ]),
+    );
+    expect(enhancedFightingJacket?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item-modify-damage",
+          attackCount: 1,
+          duration: { unit: "combat", value: 1 },
         }),
       ]),
     );

@@ -88,7 +88,95 @@ const validateMoveEffects = (move: MoveDefinition, errors: string[]) => {
     ) {
       errors.push(`Effect duration source is not in effect text: ${move.id}`);
     }
+    validateEffectSemantics(effect, `${move.id}:${effect.sourceText}`, errors);
   }
+};
+
+const costTimings = new Set([
+  "declaration",
+  "activation",
+  "pre-roll",
+  "post-resolution",
+  "per-selected-target",
+]);
+
+type EffectSemanticShape = {
+  readonly type?: unknown;
+  readonly selectionSpec?: { readonly type?: unknown; readonly limit?: unknown };
+  readonly selectionLimit?: number;
+  readonly activationCost?: { readonly timing?: unknown };
+  readonly stacking?: unknown;
+  readonly conflictPolicy?: { readonly type?: unknown; readonly group?: unknown };
+};
+
+const validateSelectionSemantics = (
+  effect: Pick<EffectSemanticShape, "selectionSpec" | "selectionLimit">,
+  context: string,
+  errors: string[],
+) => {
+  if (effect.selectionLimit !== undefined)
+    errors.push(`Legacy selectionLimit is not allowed in new effect definitions: ${context}`);
+  const selection = effect.selectionSpec;
+  if (selection === undefined) return;
+  const selectionType = selection.type;
+  if (!new Set(["one", "up-to", "all"]).has(String(selectionType))) {
+    errors.push(`Malformed effect selection: ${context}`);
+    return;
+  }
+  if (selectionType !== "up-to") {
+    if ("limit" in selection) errors.push(`Only up-to selections may define a limit: ${context}`);
+    return;
+  }
+  const limit = selection.limit;
+  if (limit === undefined || typeof limit !== "object" || limit === null || !("type" in limit)) {
+    errors.push(`Up-to selection requires a numeric limit: ${context}`);
+    return;
+  }
+  const limitRecord = limit as { readonly type?: unknown; readonly value?: unknown };
+  if (
+    limitRecord.type === "literal" &&
+    (!Number.isInteger(limitRecord.value) || Number(limitRecord.value) < 1)
+  )
+    errors.push(`Up-to selection limit must be positive: ${context}`);
+};
+
+const validateActivationCostSemantics = (
+  effect: Pick<EffectSemanticShape, "activationCost" | "selectionSpec">,
+  context: string,
+  errors: string[],
+) => {
+  const cost = effect.activationCost;
+  if (cost === undefined) return;
+  if (!costTimings.has(String(cost.timing)))
+    errors.push(`Activation cost timing is missing or invalid: ${context}`);
+  if (cost.timing === "per-selected-target" && effect.selectionSpec === undefined)
+    errors.push(`Per-selected-target cost requires an effect selection: ${context}`);
+};
+
+const validateConflictSemantics = (
+  effect: Pick<EffectSemanticShape, "stacking" | "conflictPolicy">,
+  context: string,
+  errors: string[],
+) => {
+  if (effect.stacking !== undefined)
+    errors.push(`Legacy effect stacking is not allowed in new definitions: ${context}`);
+  const policy = effect.conflictPolicy;
+  if (policy === undefined) return;
+  if (
+    (policy.type === "unique-group" || policy.type === "mutually-exclusive-group") &&
+    (typeof policy.group !== "string" || !idPattern.test(policy.group))
+  )
+    errors.push(`Conflict policy groups must be lowercase, hyphenated IDs: ${context}`);
+};
+
+const validateEffectSemantics = (
+  effect: EffectSemanticShape,
+  context: string,
+  errors: string[],
+) => {
+  validateSelectionSemantics(effect, context, errors);
+  validateActivationCostSemantics(effect, context, errors);
+  validateConflictSemantics(effect, context, errors);
 };
 
 const validateMove = (move: MoveDefinition, errors: string[]) => {
@@ -144,11 +232,7 @@ const validateItemRules = (item: ItemDefinition, errors: string[]) => {
     }
     if (
       rule.executable &&
-      !(item.effects ?? []).some(
-        (effect) =>
-          rule.sourceText.includes(effect.sourceText) ||
-          effect.sourceText.includes(rule.sourceText),
-      )
+      !(item.effects ?? []).some((effect) => effect.sourceClauseOrder === rule.sourceClauseOrder)
     ) {
       errors.push(`Executable item rule is not structured: ${item.id}:${rule.sourceText}`);
     }
@@ -157,6 +241,7 @@ const validateItemRules = (item: ItemDefinition, errors: string[]) => {
     if (!item.effectText.includes(effect.sourceText)) {
       errors.push(`Item effect source is not in effect text: ${item.id}`);
     }
+    validateEffectSemantics(effect, `${item.id}:${effect.sourceText}`, errors);
   }
 };
 

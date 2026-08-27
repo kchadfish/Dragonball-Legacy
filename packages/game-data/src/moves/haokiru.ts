@@ -119,7 +119,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "next-action",
           sourceText: "Your opponent's next SUCCESSFUL Advanced Attack",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         conditions: [
           {
             type: "resource-comparison",
@@ -340,6 +340,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         useLimit: { scope: "turn", count: 1, sourceText: "once per turn" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -372,6 +373,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         ],
         useLimit: { scope: "combat", count: 1, sourceText: "RESTRICTEDx1" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -636,6 +638,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         ],
         useLimit: { scope: "combat", count: 2, sourceText: "RESTRICTEDx2" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -672,6 +675,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           },
         ],
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
@@ -861,7 +865,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         operation: "add",
         percent: { type: "successful-hit-count", perHit: -5 },
         scope: { type: "next-action", sourceText: "your opponent's next attack" },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Prevent X% damage from your opponent's next attack. X = The number of SUCCESSFUL hits x5. This effect does not stack with itself",
       },
@@ -1097,7 +1101,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "Your Signature Techniques",
         },
         duration: { type: "combat", sourceText: "for the remainder of the match" },
-        stacking: "allow",
+        conflictPolicy: { type: "allow", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - Your Signature Techniques cost -1 KI for the remainder of the match, to a minimum of 3. This effect stacks with itself",
       },
@@ -1831,7 +1835,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           value: { type: "literal", value: 23 },
           sourceText: "until they roll an attack roll result of 23 or higher",
         },
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         useLimit: { scope: "turn", count: 1, sourceText: "only be used once per turn" },
         sourceText:
           "SUCCESSFUL - Your opponent loses (10% Power) HP every time you use an effect to gain HP until they roll an attack roll result of 23 or higher. This effect cannot stack with itself. This effect can only be used once per turn",
@@ -1849,6 +1853,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         percent: { type: "literal", value: 10 },
         scope: { type: "current-action", sourceText: "the attack" },
         activationCost: {
+          timing: "activation",
           resource: "hp",
           operation: "lose",
           amount: {
@@ -1877,6 +1882,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         prevention: "block",
         scope: { type: "current-action", sourceText: "the attack" },
         activationCost: {
+          timing: "activation",
           resource: "hp",
           operation: "lose",
           amount: {
@@ -1933,6 +1939,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "When you perform a Signature Technique",
         },
         activationCost: {
+          timing: "activation",
           resource: "hp",
           operation: "lose",
           amount: {
@@ -2392,13 +2399,14 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           sourceText: "the next Advanced Attack, Mastery, or Skill you use",
         },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
         },
         activationGroup: "tornado-uppercut-hp-loss-choice",
         optional: true,
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - You may pay 1 KI. If you do, the next Advanced Attack, Mastery, or Skill you use that requires you to lose HP to gain an effect, you do not have to lose HP to gain the effect. You may use this reduce the required HP loss by half on Signature Techniques instead; this effect does not stack",
       },
@@ -2418,13 +2426,14 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         },
         scope: { type: "next-action", sourceText: "on Signature Techniques instead" },
         activationCost: {
+          timing: "activation",
           resource: "ki",
           operation: "lose",
           amount: { type: "literal", value: 1 },
         },
         activationGroup: "tornado-uppercut-hp-loss-choice",
         optional: true,
-        stacking: "prevent",
+        conflictPolicy: { type: "prevent-duplicate", sourceText: "canonical conflict rule" },
         sourceText:
           "SUCCESSFUL - You may pay 1 KI. If you do, the next Advanced Attack, Mastery, or Skill you use that requires you to lose HP to gain an effect, you do not have to lose HP to gain the effect. You may use this reduce the required HP loss by half on Signature Techniques instead; this effect does not stack",
       },
