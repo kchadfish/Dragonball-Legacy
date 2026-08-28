@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CreateFightInput, FightState } from "./index.js";
-import { createFight } from "./index.js";
+import { advanceFight, createFight } from "./index.js";
 import {
   activeEffectIdSchema,
   combatantIdSchema,
@@ -44,6 +44,17 @@ const createDependencies = () =>
   });
 
 describe("createFight", () => {
+  it("normalizes a legacy snapshot without a schema marker at the public boundary", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const legacyState = { ...createdFight.value.state };
+    Reflect.deleteProperty(legacyState, "schemaVersion");
+    const result = advanceFight(legacyState, createDependencies());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.state.schemaVersion).toBe(1);
+  });
+
   it("creates a deterministic, valid initial 1v1 state without mutating setup input", () => {
     const originalInput = structuredClone(input);
     const result = createFight(input, createDependencies());
@@ -53,6 +64,7 @@ describe("createFight", () => {
       value: {
         state: {
           id: fightIdSchema.parse("fight:opening-spar"),
+          schemaVersion: 1,
           version: 0,
           rulesVersion: { value: "legacy-reference-2026-08", sourcePath: "reference/rules.md" },
           mode: "spar",
@@ -407,6 +419,29 @@ describe("validateFightState", () => {
     );
   });
 
+  it("rejects active effects with invalid shared identity metadata", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const invalidState = {
+      ...createdFight.value.state,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:invalid-identity"),
+          type: "action-restriction",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "",
+          sourceEffectIndex: -1,
+          remainingTurns: 1,
+          availableFromTurn: 1,
+        },
+      ],
+    } as FightState;
+    expect(validateFightState(invalidState)).toContainEqual(
+      expect.objectContaining({ type: "invalid-active-effect" }),
+    );
+  });
+
   it("identifies broken state counters, resources, and active combatant ownership", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
@@ -432,6 +467,18 @@ describe("validateFightState", () => {
         expect.objectContaining({ type: "invalid-active-combatant", subject: firstCombatantId }),
       ]),
     );
+  });
+
+  it("rejects an unknown fight-state schema version", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+
+    expect(
+      validateFightState({
+        ...createdFight.value.state,
+        schemaVersion: 2,
+      } as unknown as FightState),
+    ).toContainEqual(expect.objectContaining({ type: "invalid-schema-version" }));
   });
 
   it("identifies malformed pending decisions and completed-fight winners", () => {

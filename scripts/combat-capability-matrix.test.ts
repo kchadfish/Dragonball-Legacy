@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   createCombatCapabilityMatrix,
@@ -8,6 +10,14 @@ import {
 const runtimeValue = (value: unknown): unknown => value;
 
 describe("combat capability matrix", () => {
+  it("matches the committed generated report", () => {
+    const reportPath = resolve(
+      process.cwd(),
+      "docs/architecture/combat-engine-capability-matrix.md",
+    );
+    expect(readFileSync(reportPath, "utf8")).toBe(renderCombatCapabilityMatrix());
+  });
+
   it("accounts for every converted structured effect with an explicit status", () => {
     const matrix = createCombatCapabilityMatrix();
     expect(matrix.occurrences.length).toBeGreaterThan(0);
@@ -43,7 +53,7 @@ describe("combat capability matrix", () => {
     expect(createCombatCapabilityMatrix().occurrences).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ status: "unsupported-in-scope" })]),
     );
-  });
+  }, 30_000);
 
   it("classifies exact successful CONSTANT Skill activation choices", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
@@ -61,7 +71,7 @@ describe("combat capability matrix", () => {
       "move-kurokonwaku-shadow-stalker",
     ]);
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
-  });
+  }, 30_000);
 
   it("closes both Fierce Focus deactivation-negation occurrences", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(

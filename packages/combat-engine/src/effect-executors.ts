@@ -1895,12 +1895,12 @@ const hasSupportedResourceCostSelector = (selector: MoveSelectorCondition) =>
     selector.styleProvenance,
     selector.restriction,
     selector.constant,
-    selector.effectTextIncludes,
-    selector.effectTextIncludesAny,
-    selector.effectTextExcludes,
     selector.selectionKey,
-    selector.requirementExcludes,
-    selector.requirementIncludes,
+    selector.titleTags,
+    selector.effectRuleTokens,
+    selector.effectRuleTokensAny,
+    selector.requirementTagsExclude,
+    selector.requirementTagsInclude,
     selector.baseKiCost,
     selector.costModification,
     selector.attackRoll,
@@ -1925,7 +1925,7 @@ const resourceCostVariantIssues = (
     effect.percent.type === "literal" &&
     effect.percent.value === -5 &&
     effect.selector.subject === "source" &&
-    effect.selector.effectTextIncludes === "Straining" &&
+    effect.selector.titleTags?.includes("straining") === true &&
     effect.selector.effectKinds === undefined &&
     effect.activationCost === undefined &&
     effect.duration === undefined &&
@@ -2946,9 +2946,11 @@ const replaceActiveConstantEffectsIssues = (
     selector.custom === undefined &&
     selector.restriction === undefined &&
     selector.effectKinds === undefined &&
-    selector.effectTextIncludes === undefined &&
-    selector.effectTextIncludesAny === undefined &&
-    selector.effectTextExcludes === undefined;
+    selector.titleTags === undefined &&
+    selector.effectRuleTokens === undefined &&
+    selector.effectRuleTokensAny === undefined &&
+    selector.requirementTagsExclude === undefined &&
+    selector.requirementTagsInclude === undefined;
   if (
     effect.trigger !== "on-success" ||
     effect.target !== "self" ||

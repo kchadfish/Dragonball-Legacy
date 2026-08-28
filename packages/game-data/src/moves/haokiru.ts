@@ -314,7 +314,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           {
             type: "move-selector",
             subject: "target",
-            effectTextIncludes: "Halo",
+            requirementTagsInclude: ["halo"],
             sourceText: "If battling with a Halo",
           },
         ],
@@ -812,7 +812,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "Power Up",
+          effectRuleTokens: ["power-up"],
           sourceText: "moves with the word 'Power Up' in the effect",
         },
         scope: { type: "next-turn", subject: "opponent", sourceText: "for their next turn" },
@@ -884,7 +884,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "target",
           category: "advanced-attack",
-          effectTextIncludes: "Sonic Kick",
+          ids: ["move-haokiru-sonic-kick"],
           sourceText: "the next time you use Sonic Kick",
         },
         scope: { type: "next-action", sourceText: "the next time you use Sonic Kick" },

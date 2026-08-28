@@ -23,6 +23,28 @@ const combatant = (id: typeof selfId, power: number, dexterityBonus: number): Co
 const moveMap = new Map(MOVE_DEFINITIONS.map((move) => [move.id, move]));
 
 describe("declarative move runtime", () => {
+  it("does not use legacy effect prose as executable selector authority", () => {
+    const move = MOVE_DEFINITIONS.find(
+      (candidate) => candidate.id === "move-freestyle-expert-swordplay",
+    );
+    expect(move).toBeDefined();
+    expect(
+      matchesMoveSelector(move!, {
+        type: "move-selector",
+        subject: "source",
+        effectTextIncludes: "Swordplay",
+        sourceText: "legacy prose selector",
+      }),
+    ).toBe(false);
+    expect(
+      matchesMoveSelector(move!, {
+        type: "move-selector",
+        subject: "source",
+        titleTags: ["swordplay"],
+        sourceText: "typed title selector",
+      }),
+    ).toBe(true);
+  });
   it("evaluates durable numeric expressions from authoritative fight state", () => {
     const self = combatant(selfId, 35, 3);
     const opponent = combatant(opponentId, 20, -1);
@@ -238,7 +260,7 @@ describe("declarative move runtime", () => {
           subject: "self",
           category: "skill",
           constant: true,
-          effectTextIncludes: "Swordplay",
+          titleTag: "swordplay",
           perMove: 2,
         },
         context,

@@ -406,7 +406,6 @@ describe("converted move effects", () => {
       moveEffectsForTrigger(halcyon, "on-success", {
         ...context,
         actionHistory: [],
-        collectPendingChoices: true,
       }).activations,
     ).toEqual([]);
   });
@@ -1002,6 +1001,11 @@ describe("converted move effects", () => {
     expect(
       successfulMoveEffects(dragonFire, {
         ...context,
+        sourceEffectIndex: 0,
+        successfulHitCount: 1,
+        enabledOptionalEffectIndices: [0],
+        resolvedOptionalEffectIndices: [0],
+        collectPendingChoices: true,
         rolls: [
           { attackNaturalResult: 21, attackResult: 21, outcome: "successful" },
           { attackNaturalResult: 25, attackResult: 25, outcome: "successful" },
@@ -3215,6 +3219,36 @@ describe("converted move effects", () => {
         target: "self",
         statusId: "stun",
         duration: { type: "turns", remaining: 6 },
+      }),
+    ]);
+  });
+
+  it("preserves Shaolin Focused Beam's typed multi-selection metadata", () => {
+    const focusedBeam = moves.get("move-kiihakai-shaolin-focused-beam");
+    if (focusedBeam === undefined) throw new Error("Expected Shaolin Focused Beam data.");
+
+    expect(
+      successfulMoveEffects(focusedBeam, {
+        ...context,
+        sourceEffectIndex: 0,
+        collectPendingChoices: false,
+        enabledOptionalEffectIndices: [0],
+        resolvedOptionalEffectIndices: [0],
+        rolls: [
+          {
+            attackNaturalResult: 20,
+            attackResult: 20,
+            defenseNaturalResult: 1,
+            defenseResult: 1,
+            outcome: "successful",
+          },
+        ],
+      }).moveUsePreventions,
+    ).toEqual([
+      expect.objectContaining({
+        sourceEffectIndex: 0,
+        operation: "deactivate",
+        selectionSpec: { type: "up-to", limit: { type: "literal", value: 2 } },
       }),
     ]);
   });

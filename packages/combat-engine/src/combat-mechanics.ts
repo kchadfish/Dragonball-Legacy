@@ -1,4 +1,5 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
+import { isUseAvailable } from "./availability.js";
 
 export interface AttackRollQualificationInput {
   readonly attackerDexterity: number;
@@ -61,7 +62,7 @@ export const resolveMultiDieOutcomes = (
 };
 
 export const isRestrictedUseAvailable = (used: number, limit: number | undefined) =>
-  limit === undefined || used < limit;
+  isUseAvailable(used, limit);
 
 export const isSignatureTurnAvailable = (turnNumber: number) =>
   turnNumber >= GLOBAL_RULES.combat.signatureTechniqueMinimumTurn;

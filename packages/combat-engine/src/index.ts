@@ -1,5 +1,6 @@
 export * from "./contracts.js";
 export * from "./attack-rolls.js";
+export * from "./availability.js";
 export * from "./candidate-resolution.js";
 export * from "./block-mechanics.js";
 export * from "./combat-mechanics.js";
@@ -7,6 +8,7 @@ export * from "./conflict-policy.js";
 export * from "./create-fight.js";
 export * from "./dependencies.js";
 export * from "./declarative-runtime.js";
+export * from "./effect-lifecycle.js";
 export * from "./effect-executors.js";
 export * from "./ids.js";
 export * from "./item-effects-runtime.js";

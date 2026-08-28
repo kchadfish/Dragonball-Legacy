@@ -19,6 +19,7 @@ import {
   type ResolutionThresholdRule,
 } from "./attack-rolls.js";
 import { calculateConvertedBlockCost, evaluateBlockEligibility } from "./block-mechanics.js";
+import { consumeUse, hasRemainingUses } from "./availability.js";
 import {
   calculateAttackDamage,
   calculateKiCost,
@@ -30,13 +31,16 @@ import {
 } from "./combat-mechanics.js";
 import { defaultMoveAttackRoll, resolveMoveAttack } from "./move-attacks.js";
 import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
-import { validatePendingSelection } from "./candidate-resolution.js";
-import { matchesMoveSelector } from "./selector-matching.js";
+import { pendingOptionIdsFor, validatePendingSelection } from "./candidate-resolution.js";
+import { hasLegacyProseSelector, matchesMoveSelector } from "./selector-matching.js";
 import { compileEffectPlan } from "./effect-executors.js";
 import {
   dispatchCombatTrigger as moveEffectsForTrigger,
+  dispatchCombatTriggerSourceResults,
   dispatchStoppedCombatTrigger as stoppedMoveEffects,
   dispatchSuccessfulCombatTrigger as successfulMoveEffects,
+  discoverCombatTriggerSources,
+  type CombatTriggerSource,
 } from "./combat-trigger-dispatch.js";
 import { staticSelectionLimit } from "./effect-selection.js";
 import {
@@ -45,10 +49,19 @@ import {
 } from "./damage-modifier-capabilities.js";
 import {
   conflictPolicyType,
+  conflictKeyFor,
   legacyStackingFor,
   normalizeConflictPolicy,
   resolveActiveEffectConflicts,
 } from "./conflict-policy.js";
+import {
+  isEffectActive,
+  isEffectDeactivated,
+  lifecycleRecordForEffect,
+  normalizeEffectLifecycle,
+  normalizeEffectsLifecycle,
+  transitionEffectLifecycle,
+} from "./effect-lifecycle.js";
 import {
   classifyCurrentActionMove,
   effectConditionsMatch,
@@ -129,6 +142,7 @@ import type {
   BasicAttackType,
   CombatActionRecord,
   CombatDecision,
+  CombatDecisionInput,
   CombatEvent,
   CombatFailure,
   CombatResult,
@@ -288,11 +302,55 @@ const transitionFrom = (
   state: FightState,
   events: readonly CombatEvent[],
 ): CombatResult<CombatTransition> => {
-  const violations = validateFightState(state);
+  // Normalize legacy snapshots at the deterministic transition boundary. The
+  // optional contract field keeps historical snapshots readable while every
+  // newly returned state carries the current schema marker.
+  const normalizedState: FightState = { ...state, schemaVersion: 1 };
+  const violations = validateFightState(normalizedState);
   if (violations.length > 0)
     return { ok: false, error: { type: "invalid-fight-state", violations } };
 
-  return { ok: true, value: { state, events } };
+  return { ok: true, value: { state: normalizedState, events } };
+};
+
+/**
+ * Migrates historical snapshots exactly once at a public entry point. New
+ * schema-versioned states already carry their canonical lifecycle payload and
+ * must remain byte-stable for deterministic replay.
+ */
+const normalizeLegacyFightState = (state: CombatTransition["state"]): CombatTransition["state"] => {
+  const activeEffects = normalizeEffectsLifecycle(state.activeEffects);
+  const effectsChanged = activeEffects.some(
+    (effect, index) => effect !== state.activeEffects[index],
+  );
+  if (state.schemaVersion === 1 && !effectsChanged) return state;
+  return {
+    ...state,
+    schemaVersion: 1,
+    activeEffects,
+  };
+};
+
+/** Build the canonical lifecycle payload for a CONSTANT effect while retaining
+ * its activation metadata across deactivation/reactivation. Legacy snapshots
+ * are accepted by lifecycleRecordForEffect and are upgraded on first use. */
+const constantLifecycleWithState = (
+  effect: Extract<ActiveCombatEffect, { readonly type: "active-constant" }>,
+  state: "active" | "deactivated",
+  eventSequence?: number,
+) => {
+  const current = lifecycleRecordForEffect(effect);
+  return {
+    ...(current ?? { state: "active" as const }),
+    state,
+    ...(current?.activationTurn === undefined ? { activationTurn: effect.activatedOnTurn } : {}),
+    ...(eventSequence === undefined || current?.activationEventSequence !== undefined
+      ? {}
+      : { activationEventSequence: eventSequence }),
+    ...(current?.activationBoundary === undefined
+      ? { activationBoundary: "matching-action" as const }
+      : {}),
+  };
 };
 
 const currentStateFailure = (state: CombatTransition["state"]): CombatFailure | undefined => {
@@ -793,10 +851,21 @@ export const startCombatCopySelectionFor = (
           stateVersion: state.version,
           combatantId: actor.id,
           type: "select-move" as const,
+          candidates: eligibleMoves.map((eligibleMove) => ({
+            type: "move" as const,
+            id: eligibleMove.id,
+            ownerCombatantId: actor.id,
+          })),
+          selection: { type: "one" as const },
           options: eligibleMoveIds.map((eligibleMoveId) => ({
             id: `copy-start:${eligibleMoveId}`,
             type: "select-move" as const,
             moveId: eligibleMoveId,
+            candidate: {
+              type: "move" as const,
+              id: eligibleMoveId,
+              ownerCombatantId: actor.id,
+            },
           })),
         },
         frame,
@@ -1127,6 +1196,9 @@ const copyMoveSelectionTransition = ({
   readonly dependencies: CombatDependencies;
 }): CombatResult<CombatTransition> => {
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
+  const copiedMoveOwnerId =
+    Object.values(state.combatants).find((combatant) => combatant.id !== decision.actorId)?.id ??
+    decision.actorId;
   return transitionFrom(
     {
       ...state,
@@ -1135,11 +1207,29 @@ const copyMoveSelectionTransition = ({
         stateVersion: state.version,
         combatantId: decision.actorId,
         type: "select-move",
+        candidates: candidates.map((candidate) =>
+          candidate.sourceActionId === undefined
+            ? {
+                type: "move" as const,
+                id: candidate.move.id,
+                ownerCombatantId: copiedMoveOwnerId,
+              }
+            : { type: "source-action" as const, id: candidate.sourceActionId },
+        ),
+        selection: { type: "one" as const },
         options: candidates.map((candidate) => ({
           id: `copy-move:${candidate.sourceActionId ?? candidate.move.id}`,
           type: "select-move" as const,
           moveId: candidate.move.id,
           sourceMoveSnapshot: candidate.move,
+          candidate:
+            candidate.sourceActionId === undefined
+              ? {
+                  type: "move" as const,
+                  id: candidate.move.id,
+                  ownerCombatantId: copiedMoveOwnerId,
+                }
+              : { type: "source-action" as const, id: candidate.sourceActionId },
           ...(candidate.sourceActionId === undefined
             ? {}
             : {
@@ -1248,7 +1338,7 @@ const isSimpleActionMove = (move: MoveDefinition) => {
 };
 
 const isConstantSkill = (move: MoveDefinition) =>
-  move.category === "skill" && move.effectClauses.some((clause) => clause.text === "Constant.");
+  move.category === "skill" && move.mechanics.activationClassification === "constant";
 
 const activeConstantMove = (
   effect: Extract<ActiveCombatEffect, { readonly type: "active-constant" }>,
@@ -1263,7 +1353,7 @@ const hasActiveConstant = (
   state.activeEffects.some(
     (effect) =>
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === combatantId &&
       effect.sourceDefinitionId === moveId,
@@ -1503,28 +1593,36 @@ type NegatableCombatOutcome = "stun" | "critical" | "counter";
 
 const combatResultSources = (state: ActiveFightState, ownerId: CombatantId) => {
   const owner = state.combatants[ownerId];
-  const activeConstantIds = new Set(
-    state.activeEffects.flatMap((activeEffect) =>
+  const activeConstantIds = new Set<string>();
+  const sources: CombatTriggerSource[] = owner.moveIds.flatMap((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
+  for (const activeEffect of state.activeEffects) {
+    if (
       activeEffect.type === "active-constant" &&
-      activeEffect.lifecycle !== "deactivated" &&
+      isEffectActive(activeEffect) &&
       activeEffect.sourceCombatantId === ownerId &&
       !activeEffectSuppressed(state, activeEffect)
-        ? [activeEffect.sourceDefinitionId]
-        : [],
-    ),
-  );
-  const sourceIds = new Set([...owner.moveIds, ...activeConstantIds]);
-  return [...sourceIds].flatMap((sourceId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === sourceId);
-    if (move === undefined) return [];
+    ) {
+      const move = MOVE_DEFINITIONS.find(
+        (candidate) => candidate.id === activeEffect.sourceDefinitionId,
+      );
+      if (move !== undefined) {
+        activeConstantIds.add(move.id);
+        sources.push({ kind: "active-constant", move, owner: "self" });
+      }
+    }
+  }
+  return discoverCombatTriggerSources("after-defense-roll", sources).flatMap(({ move }) => {
     return (move.effects ?? []).flatMap((effect, effectIndex) => {
       if (effect.trigger !== "after-defense-roll" || effect.type !== "set-combat-result") return [];
       const hasReactionAccounting =
         effect.activationCost !== undefined || effect.useLimit !== undefined;
-      if (!activeConstantIds.has(sourceId) && move.category !== "mastery" && !hasReactionAccounting)
+      if (!activeConstantIds.has(move.id) && move.category !== "mastery" && !hasReactionAccounting)
         return [];
       return [
-        { ownerId, move, effectIndex, effect, activeConstant: activeConstantIds.has(sourceId) },
+        { ownerId, move, effectIndex, effect, activeConstant: activeConstantIds.has(move.id) },
       ];
     });
   });
@@ -1532,25 +1630,36 @@ const combatResultSources = (state: ActiveFightState, ownerId: CombatantId) => {
 
 const combatResultNegationSources = (state: ActiveFightState, ownerId: CombatantId) => {
   const owner = state.combatants[ownerId];
-  const activeConstantIds = new Set(
-    state.activeEffects.flatMap((activeEffect) =>
+  const activeConstantIds = new Set<string>();
+  const sources: CombatTriggerSource[] = owner.moveIds.flatMap((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
+  for (const activeEffect of state.activeEffects) {
+    if (
       activeEffect.type === "active-constant" &&
-      activeEffect.lifecycle !== "deactivated" &&
+      isEffectActive(activeEffect) &&
       activeEffect.sourceCombatantId === ownerId &&
       !activeEffectSuppressed(state, activeEffect)
-        ? [activeEffect.sourceDefinitionId]
-        : [],
-    ),
-  );
-  const sourceIds = new Set([...owner.moveIds, ...activeConstantIds]);
-  return [...sourceIds].flatMap<CombatResultNegationSource>((sourceId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === sourceId);
-    if (move === undefined) return [];
+    ) {
+      const move = MOVE_DEFINITIONS.find(
+        (candidate) => candidate.id === activeEffect.sourceDefinitionId,
+      );
+      if (move !== undefined) {
+        activeConstantIds.add(move.id);
+        sources.push({ kind: "active-constant", move, owner: "self" });
+      }
+    }
+  }
+  return discoverCombatTriggerSources(
+    "on-combat-result",
+    sources,
+  ).flatMap<CombatResultNegationSource>(({ move }) => {
     return (move.effects ?? []).flatMap((effect, effectIndex) => {
       if (effect.trigger !== "on-combat-result" || effect.type !== "negate") return [];
-      if (!activeConstantIds.has(sourceId) && move.category !== "mastery") return [];
+      if (!activeConstantIds.has(move.id) && move.category !== "mastery") return [];
       return [
-        { ownerId, move, effectIndex, effect, activeConstant: activeConstantIds.has(sourceId) },
+        { ownerId, move, effectIndex, effect, activeConstant: activeConstantIds.has(move.id) },
       ];
     });
   });
@@ -2278,7 +2387,7 @@ const passiveRollModificationPrevented = ({
   return state.activeEffects.some((activeEffect) => {
     if (
       activeEffect.type !== "active-constant" ||
-      activeEffect.lifecycle === "deactivated" ||
+      isEffectDeactivated(activeEffect) ||
       activeEffect.sourceCombatantId !== combatantId
     )
       return false;
@@ -2425,7 +2534,7 @@ const activeMoveModificationPrevented = ({
   return state.activeEffects.some(
     (constant) =>
       constant.type === "active-constant" &&
-      constant.lifecycle !== "deactivated" &&
+      isEffectActive(constant) &&
       !activeEffectSuppressed(state, constant) &&
       (() => {
         const sourceMove = activeConstantMove(constant, moves);
@@ -2471,6 +2580,7 @@ const suppressionMatchesMove = (
   effectMatchesMoveSelector(suppression.selector, move);
 
 const selectorMatchesAnyMove = (selector: MoveSelectorCondition) => {
+  if (hasLegacyProseSelector(selector)) return false;
   const moveSpecificKeys = [
     "ids",
     "styleId",
@@ -2483,12 +2593,7 @@ const selectorMatchesAnyMove = (selector: MoveSelectorCondition) => {
     "styleProvenance",
     "effectKinds",
     "constant",
-    "effectTextIncludes",
-    "effectTextIncludesAny",
-    "effectTextExcludes",
     "selectionKey",
-    "requirementExcludes",
-    "requirementIncludes",
     "baseKiCost",
     "costModification",
     "attackRoll",
@@ -2952,7 +3057,7 @@ const activeConstantDamageModifications = (
   return state.activeEffects.flatMap((effect) => {
     if (
       effect.type !== "active-constant" ||
-      effect.lifecycle === "deactivated" ||
+      isEffectDeactivated(effect) ||
       (effect.sourceCombatantId !== attackerId && effect.sourceCombatantId !== defenderId)
     )
       return [];
@@ -3005,7 +3110,7 @@ const damageModifierMultiplierForAttack = (
     ...state.activeEffects.flatMap((effect) => {
       if (
         effect.type !== "active-constant" ||
-        effect.lifecycle === "deactivated" ||
+        isEffectDeactivated(effect) ||
         effect.sourceCombatantId !== attacker.id ||
         activeEffectSuppressed(state, effect)
       )
@@ -3055,7 +3160,7 @@ const activeConstantRollModifications = (
   return state.activeEffects.flatMap((effect) => {
     if (
       effect.type !== "active-constant" ||
-      effect.lifecycle === "deactivated" ||
+      isEffectDeactivated(effect) ||
       activeEffectSuppressed(state, effect) ||
       (effect.sourceCombatantId !== attackerId && effect.sourceCombatantId !== defenderId)
     )
@@ -3443,6 +3548,17 @@ const damageAfterStatusPenalties = (
 /** A turn-limited status remains active through its owner's full turn, then expires. */
 const statusesAfterOwnerTurn = (combatant: ActiveFightState["combatants"][CombatantId]) =>
   combatant.activeStatuses.flatMap((status) => {
+    const normalizedStatus = normalizeEffectLifecycle(status);
+    if (normalizedStatus.lifecycle !== undefined) {
+      const lifecycle = transitionEffectLifecycle(
+        `status:${status.statusId}:${status.sourceDefinitionId}:${status.sourceCombatantId}`,
+        normalizedStatus.lifecycle,
+        "owner-turn",
+      );
+      return lifecycle.lifecycle.state === "expired"
+        ? []
+        : [{ ...normalizedStatus, lifecycle: lifecycle.lifecycle }];
+    }
     if (status.duration.type !== "turns" || status.duration.ownerCombatantId !== combatant.id)
       return [status];
     if (status.duration.remaining <= 1) return [];
@@ -3459,9 +3575,14 @@ const actionRestrictionAfterOwnerTurn = (
   if (effect.targetCombatantId !== combatantId || turnNumber < effect.availableFromTurn)
     return [effect];
   if (effect.duration !== undefined) return [effect];
-  return effect.remainingTurns <= 1
+  const transition = transitionEffectLifecycle(
+    effect.id,
+    { state: "active", duration: { boundary: "owner-turn", remaining: effect.remainingTurns } },
+    "owner-turn",
+  );
+  return transition.lifecycle.state === "expired"
     ? []
-    : [{ ...effect, remainingTurns: effect.remainingTurns - 1 }];
+    : [effectWithLifecycleCounterMirror(effect, transition.lifecycle)];
 };
 
 const simpleEffectAfterOwnerTurn = (
@@ -3483,15 +3604,47 @@ const simpleEffectAfterOwnerTurn = (
       : [effect];
   if (effect.type === "exchange-skill-cooldown") {
     if (effect.targetCombatantId !== combatantId) return [effect];
-    if (effect.remainingTurns <= 1) return [];
-    return [{ ...effect, remainingTurns: effect.remainingTurns - 1 }];
+    const transition = transitionEffectLifecycle(
+      effect.id,
+      { state: "active", duration: { boundary: "owner-turn", remaining: effect.remainingTurns } },
+      "owner-turn",
+    );
+    return transition.lifecycle.state === "expired"
+      ? []
+      : [effectWithLifecycleCounterMirror(effect, transition.lifecycle)];
   }
   return undefined;
+};
+
+const effectWithLifecycleCounterMirror = (
+  effect: ActiveCombatEffect,
+  lifecycle: NonNullable<ReturnType<typeof lifecycleRecordForEffect>>,
+): ActiveCombatEffect => {
+  const next = { ...effect, lifecycle };
+  if (
+    ("remainingTurns" in effect || "remainingActions" in effect || "remainingTriggers" in effect) &&
+    lifecycle.duration?.remaining !== undefined
+  ) {
+    if ("remainingTurns" in effect)
+      return { ...next, remainingTurns: lifecycle.duration.remaining } as ActiveCombatEffect;
+    if ("remainingActions" in effect)
+      return { ...next, remainingActions: lifecycle.duration.remaining } as ActiveCombatEffect;
+    return { ...next, remainingTriggers: lifecycle.duration.remaining } as ActiveCombatEffect;
+  }
+  return next;
 };
 
 const effectsAfterOwnerTurn = (state: ActiveFightState, combatantId: CombatantId) =>
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
   state.activeEffects.flatMap<ActiveCombatEffect>((effect) => {
+    if (typeof effect.lifecycle === "object") {
+      const lifecycle = lifecycleRecordForEffect(effect);
+      if (lifecycle === undefined) return [];
+      const transition = transitionEffectLifecycle(effect.id, lifecycle, "owner-turn");
+      return transition.lifecycle.state === "expired"
+        ? []
+        : [effectWithLifecycleCounterMirror(effect, transition.lifecycle)];
+    }
     const simpleEffect = simpleEffectAfterOwnerTurn(effect, combatantId, state.turnNumber);
     if (simpleEffect !== undefined) return simpleEffect;
     if (effect.type === "modify-next-action") return [effect];
@@ -3554,8 +3707,25 @@ const effectsAfterTurnStartChecks = (
   // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   const events: CombatEvent[] = [];
-  // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Boundary processing intentionally keeps threshold and lifecycle ordering together.
   const effects = state.activeEffects.flatMap<ActiveCombatEffect>((effect) => {
+    if (typeof effect.lifecycle === "object") {
+      const lifecycle = lifecycleRecordForEffect(effect);
+      if (lifecycle === undefined) return [];
+      const transition = transitionEffectLifecycle(effect.id, lifecycle, "turn-start-roll");
+      if (transition.lifecycle.state === "expired") {
+        events.push({
+          id: dependencies.ids.nextEventId(),
+          sequence: state.eventSequence + events.length + 1,
+          fightId: state.id,
+          type: "effect-expired",
+          activeEffectId: effect.id,
+          targetCombatantId: effect.targetCombatantId,
+        });
+        return [];
+      }
+      return [{ ...effect, lifecycle: transition.lifecycle }];
+    }
     if (
       effect.type === "action-restriction" &&
       effect.duration?.type === "until-turn-start-roll-threshold" &&
@@ -4089,12 +4259,27 @@ const scheduledResourceBoundaryEffect = (
   effect: ActiveScheduledResource,
   dependencies: CombatDependencies,
 ): ScheduledResourceBoundaryEffectResult => {
-  if (effect.remainingBoundaries > 1)
+  if (effect.remainingBoundaries > 1) {
+    const lifecycle = lifecycleRecordForEffect(effect) ?? {
+      state: "active" as const,
+      duration: { boundary: "scheduled-resource" as const, remaining: effect.remainingBoundaries },
+    };
+    const transition = transitionEffectLifecycle(effect.id, lifecycle, "scheduled-resource");
+    const next = {
+      ...effect,
+      remainingBoundaries:
+        transition.lifecycle.duration?.remaining ?? effect.remainingBoundaries - 1,
+      lifecycle: transition.lifecycle,
+    };
     return {
       combatants: state.combatants,
       events: [],
-      activeEffect: { ...effect, remainingBoundaries: effect.remainingBoundaries - 1 },
+      activeEffect: {
+        ...next,
+        ...(next.conflictPolicy === undefined ? {} : { conflictKey: conflictKeyFor(next) }),
+      },
     };
+  }
 
   const application = applyScheduledResource(state, effect, dependencies);
   if (application.winnerCombatantId !== undefined)
@@ -4107,6 +4292,11 @@ const scheduledResourceBoundaryEffect = (
 
   const duration = effect.duration;
   const durationExpired = duration?.type === "turns" && duration.remaining <= 1;
+  const lifecycle = lifecycleRecordForEffect(effect) ?? {
+    state: "active" as const,
+    duration: { boundary: "scheduled-resource" as const, remaining: 1 },
+  };
+  const transition = transitionEffectLifecycle(effect.id, lifecycle, "scheduled-resource");
   if (effect.repeat === "once" || durationExpired)
     return {
       combatants: { ...state.combatants, [application.target.id]: application.target },
@@ -4116,7 +4306,7 @@ const scheduledResourceBoundaryEffect = (
           id: dependencies.ids.nextEventId(),
           sequence: state.eventSequence + application.events.length + 1,
           fightId: state.id,
-          type: "effect-expired",
+          type: "effect-expired" as const,
           activeEffectId: effect.id,
           targetCombatantId: effect.targetCombatantId,
         },
@@ -4129,6 +4319,11 @@ const scheduledResourceBoundaryEffect = (
     activeEffect: {
       ...effect,
       remainingBoundaries: 1,
+      lifecycle: {
+        ...transition.lifecycle,
+        state: "active" as const,
+        duration: { boundary: "scheduled-resource" as const, remaining: 1 },
+      },
       ...(duration?.type === "turns"
         ? { duration: { ...duration, remaining: duration.remaining - 1 } }
         : {}),
@@ -4199,6 +4394,7 @@ const scheduledSelectorMatchesAttack = (
 ) => {
   if (context.move !== undefined) return selectorMatchesMove(selector, context.move);
   if (context.basicAttack === undefined) return false;
+  if (hasLegacyProseSelector(selector)) return false;
   const details = basicAttackDetails(context.basicAttack);
   const tags = new Set<string>([details.attackType, ...details.tags]);
   const hasMoveOnlyConstraint =
@@ -4212,12 +4408,7 @@ const scheduledSelectorMatchesAttack = (
     selector.styleProvenance !== undefined ||
     selector.effectKinds !== undefined ||
     selector.constant !== undefined ||
-    selector.effectTextIncludes !== undefined ||
-    selector.effectTextIncludesAny !== undefined ||
-    selector.effectTextExcludes !== undefined ||
     selector.selectionKey !== undefined ||
-    selector.requirementExcludes !== undefined ||
-    selector.requirementIncludes !== undefined ||
     selector.baseKiCost !== undefined ||
     selector.costModification !== undefined;
   return (
@@ -4764,9 +4955,17 @@ const effectAfterNonFloatingAttackResolution = (
   if (effect.type === "modify-ki-cost")
     return costModifierAppliesToMove(effect, context) ? [] : [effect];
   if (isConsumedItemAttackDamage(effect, context.attackerId)) {
-    return effect.remainingAttacks === 1
+    const transition = transitionEffectLifecycle(
+      effect.id,
+      {
+        state: "active",
+        duration: { boundary: "matching-action", remaining: effect.remainingAttacks },
+      },
+      "matching-action",
+    );
+    return transition.lifecycle.state === "expired"
       ? []
-      : [{ ...effect, remainingAttacks: effect.remainingAttacks - 1 }];
+      : [effectWithLifecycleCounterMirror(effect, transition.lifecycle)];
   }
   if (isAttackResolutionPreventionEffect(effect)) {
     return preventionAfterAttack(effect, context);
@@ -4824,9 +5023,18 @@ const effectsAfterAttackResolution = (
   state: ActiveFightState,
   context: AttackEffectResolutionContext,
 ) =>
-  state.activeEffects.flatMap<ActiveCombatEffect>((effect) =>
-    effectAfterAttackResolution(effect, context),
-  );
+  state.activeEffects.flatMap<ActiveCombatEffect>((effect) => {
+    if (activeEffectSuppressed(state, effect)) return [effect];
+    if (typeof effect.lifecycle === "object") {
+      const lifecycle = lifecycleRecordForEffect(effect);
+      if (lifecycle === undefined) return [];
+      const transition = transitionEffectLifecycle(effect.id, lifecycle, "combat-result");
+      return transition.lifecycle.state === "expired"
+        ? []
+        : [{ ...effect, lifecycle: transition.lifecycle }];
+    }
+    return effectAfterAttackResolution(effect, context);
+  });
 
 const adjustedAttackRoll = (
   state: ActiveFightState,
@@ -4934,7 +5142,11 @@ const availablePostRollDefenseItems = (combatant: ActiveFightState["combatants"]
     const afterRoll = item.effects?.some(
       (effect) => effect.type === "item-state-rule" && effect.operation === "declare-after-roll",
     );
-    const kiCost = /pay 1 Ki Point/i.test(item.effectText) ? 1 : undefined;
+    const kiCost = item.effects?.flatMap((effect) =>
+      effect.type === "item-state-rule" && effect.operation === "pay-activation-ki"
+        ? [effect.amount ?? 0]
+        : [],
+    )[0];
     return modifier === undefined ||
       !afterRoll ||
       kiCost === undefined ||
@@ -7759,14 +7971,18 @@ const exchangeSkillReactivationAfterAttack = (
           (effect) =>
             effect.type === "active-constant" &&
             effect.id === waiting.deactivatedEffectId &&
-            effect.lifecycle === "deactivated",
+            isEffectDeactivated(effect),
         )
       : undefined;
   const activeEffects = state.activeEffects
     .filter((effect) => effect.id !== waiting.id)
     .map((effect) =>
-      reactivated !== undefined && effect.id === reactivated.id
-        ? { ...effect, lifecycle: "active" as const, deactivatedOnTurn: undefined }
+      reactivated !== undefined && effect.type === "active-constant" && effect.id === reactivated.id
+        ? {
+            ...effect,
+            lifecycle: constantLifecycleWithState(effect, "active", state.eventSequence),
+            deactivatedOnTurn: undefined,
+          }
         : effect,
     );
   const events: CombatEvent[] = [
@@ -8004,7 +8220,7 @@ const resolveDeferredMoveDeclaration = (
       [actor.id]: {
         ...actor,
         ki: { ...actor.ki, current: actor.ki.current - cost },
-        moveUses: { ...actor.moveUses, [move.id]: (actor.moveUses[move.id] ?? 0) + 1 },
+        moveUses: { ...actor.moveUses, [move.id]: consumeUse(actor.moveUses[move.id] ?? 0) },
       },
     },
     activeEffects,
@@ -8196,7 +8412,7 @@ const passiveCostPreventionSources = (
   for (const effect of state.activeEffects) {
     if (
       effect.type !== "active-constant" ||
-      effect.lifecycle === "deactivated" ||
+      isEffectDeactivated(effect) ||
       effect.sourceCombatantId !== combatantId
     )
       continue;
@@ -8328,7 +8544,7 @@ const currentActionCostModifiersFor = (
   for (const effect of state.activeEffects) {
     if (
       effect.type !== "active-constant" ||
-      effect.lifecycle === "deactivated" ||
+      isEffectDeactivated(effect) ||
       activeEffectSuppressed(state, effect)
     )
       continue;
@@ -8562,7 +8778,7 @@ const passiveAfterDefenseEffects = (
     ...state.activeEffects.flatMap((effect) => {
       if (
         effect.type !== "active-constant" ||
-        effect.lifecycle === "deactivated" ||
+        isEffectDeactivated(effect) ||
         effect.sourceCombatantId !== attacker.id
       ) {
         return [];
@@ -8695,7 +8911,7 @@ const defensiveOnDamageEffectSets = (
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === defender.id
     )
@@ -8870,7 +9086,7 @@ const pendingDefensiveOnDamageChoice = (
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === defender.id
     )
@@ -9153,7 +9369,7 @@ const activeConstantOnRollResultExtraActions = (
   state.activeEffects.flatMap((activeEffect) => {
     if (
       activeEffect.type !== "active-constant" ||
-      activeEffect.lifecycle === "deactivated" ||
+      isEffectDeactivated(activeEffect) ||
       activeEffect.sourceCombatantId !== attacker.id ||
       activeEffectSuppressed(state, activeEffect)
     )
@@ -9180,7 +9396,7 @@ const activeConstantOnRollResultActivations = (
   state.activeEffects.flatMap((activeEffect) => {
     if (
       activeEffect.type !== "active-constant" ||
-      activeEffect.lifecycle === "deactivated" ||
+      isEffectDeactivated(activeEffect) ||
       activeEffect.sourceCombatantId !== attacker.id ||
       activeEffectSuppressed(state, activeEffect)
     )
@@ -9563,6 +9779,13 @@ const activeExtraActionFromApplication = (
   sourceMoveOnly: application.sourceMoveOnly,
   ...(application.constant === undefined ? {} : { constant: application.constant }),
   remainingActions: application.maximumActions ?? 1,
+  lifecycle: {
+    state: "active" as const,
+    duration: {
+      boundary: "matching-action" as const,
+      remaining: application.maximumActions ?? 1,
+    },
+  },
   availableFromTurn: application.scope === "next-turn" ? createdOnTurn + 1 : createdOnTurn,
   // turnNumber advances once per combatant turn; a next-turn allowance must
   // remain valid through the owner's following action after the opponent's turn.
@@ -9803,7 +10026,7 @@ const criticalThresholdsForMove = (
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === attacker.id
     )
@@ -11242,14 +11465,19 @@ const powerUpTriggeredEffects = (
   } = {},
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
-  const sourceDefinitionIds = new Set(actor.moveIds);
+  const sourceCandidates: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
+    const move = moves.get(moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       effect.sourceCombatantId === actor.id
     ) {
-      sourceDefinitionIds.add(effect.sourceDefinitionId);
+      const sourceMove = moves.get(effect.sourceDefinitionId);
+      if (sourceMove !== undefined)
+        sourceCandidates.push({ kind: "active-constant", move: sourceMove, owner: "self" });
     }
   }
   const context = {
@@ -11265,23 +11493,17 @@ const powerUpTriggeredEffects = (
     mode: state.mode,
     ...(options.collectPendingChoices === true ? { collectPendingChoices: true } : {}),
   };
-  return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-    const sourceMove = moves.get(sourceDefinitionId);
-    return sourceMove === undefined
-      ? []
-      : [
-          {
-            sourceMove,
-            effects: moveEffectsForTrigger(sourceMove, "on-power-up", {
-              ...context,
-              ...(options.selectedSourceDefinitionId === sourceDefinitionId &&
-              options.enabledOptionalEffectIndices !== undefined
-                ? { enabledOptionalEffectIndices: options.enabledOptionalEffectIndices }
-                : {}),
-            }),
-          },
-        ];
-  });
+  return dispatchCombatTriggerSourceResults(
+    "on-power-up",
+    sourceCandidates,
+    ({ move: sourceMove }) => ({
+      ...context,
+      ...(options.selectedSourceDefinitionId === sourceMove.id &&
+      options.enabledOptionalEffectIndices !== undefined
+        ? { enabledOptionalEffectIndices: options.enabledOptionalEffectIndices }
+        : {}),
+    }),
+  ).map(({ source, effects }) => ({ sourceMove: source.move, effects }));
 };
 
 interface StartCombatTriggeredEffects {
@@ -11344,12 +11566,13 @@ const startCombatTriggeredEffects = (
       mode: state.mode,
       collectPendingChoices: true,
     };
-    // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
-    return actor.moveIds.flatMap((sourceDefinitionId) => {
-      const sourceMove = moves.get(sourceDefinitionId);
-      if (sourceMove === undefined) return [];
-      const choiceFrame = upkeepEffectChoiceFrameFor(state, actor.id, sourceMove.id);
-      const effects = moveEffectsForTrigger(sourceMove, "start-combat", {
+    const sources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
+      const move = moves.get(moveId);
+      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+    });
+    return dispatchCombatTriggerSourceResults("start-combat", sources, (source) => {
+      const choiceFrame = upkeepEffectChoiceFrameFor(state, actor.id, source.move.id);
+      return {
         ...context,
         ...(choiceFrame?.effectTrigger === "start-combat"
           ? {
@@ -11357,7 +11580,10 @@ const startCombatTriggeredEffects = (
               resolvedOptionalEffectIndices: choiceFrame.effectIndices,
             }
           : {}),
-      });
+      };
+    }).flatMap(({ source, effects }) => {
+      const sourceMove = source.move;
+      const choiceFrame = upkeepEffectChoiceFrameFor(state, actor.id, sourceMove.id);
       const pendingChoice =
         choiceFrame?.effectTrigger === "start-combat" ? undefined : effects.pendingEffectChoices[0];
       return effects.resources.length === 0 &&
@@ -11489,37 +11715,40 @@ const turnEndTriggeredEffects = (
       (candidate) => candidate.id !== actor.id && candidate.status === "active",
     );
     if (target === undefined) return [];
-    const sourceDefinitionIds = new Set(actor.moveIds);
+    const triggerSources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
+      const move = moves.get(moveId);
+      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+    });
     for (const effect of state.activeEffects) {
       if (
         effect.type === "active-constant" &&
-        effect.lifecycle !== "deactivated" &&
+        isEffectActive(effect) &&
         !activeEffectSuppressed(state, effect) &&
         effect.sourceCombatantId === actor.id
-      )
-        sourceDefinitionIds.add(effect.sourceDefinitionId);
+      ) {
+        const move = moves.get(effect.sourceDefinitionId);
+        if (move !== undefined)
+          triggerSources.push({ kind: "active-constant", move, owner: "self" });
+      }
     }
-    return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-      const sourceMove = moves.get(sourceDefinitionId);
-      if (sourceMove === undefined) return [];
-      const effects = moveEffectsForTrigger(sourceMove, "turn-end", {
-        self: actor,
-        opponent: target,
-        turnNumber: state.turnNumber,
-        completedTurnCount: state.turnNumber - 1,
-        moves,
-        moveActivationCounts: moveActivationCounts(state),
-        successfulHitCount: 0,
-        actionHistory: state.actionHistory,
-        activeEffects: state.activeEffects,
-        mode: state.mode,
-      });
+    return dispatchCombatTriggerSourceResults("turn-end", triggerSources, () => ({
+      self: actor,
+      opponent: target,
+      turnNumber: state.turnNumber,
+      completedTurnCount: state.turnNumber - 1,
+      moves,
+      moveActivationCounts: moveActivationCounts(state),
+      successfulHitCount: 0,
+      actionHistory: state.actionHistory,
+      activeEffects: state.activeEffects,
+      mode: state.mode,
+    })).flatMap(({ source, effects }) => {
       return effects.resources.length === 0 &&
         effects.statuses.length === 0 &&
         effects.actionRestrictions.length === 0 &&
         effects.locks.length === 0
         ? []
-        : [{ sourceMove, actor, target, effects }];
+        : [{ sourceMove: source.move, actor, target, effects }];
     });
   });
 };
@@ -11605,21 +11834,25 @@ const upkeepTriggeredEffects = (
       activeEffects: state.activeEffects,
       mode: state.mode,
     };
-    const sourceDefinitionIds = new Set(actor.moveIds);
+    const triggerSources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
+      const move = moves.get(moveId);
+      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+    });
     for (const effect of state.activeEffects) {
       if (
         effect.type === "active-constant" &&
-        effect.lifecycle !== "deactivated" &&
+        isEffectActive(effect) &&
         !activeEffectSuppressed(state, effect) &&
         effect.sourceCombatantId === actor.id
-      )
-        sourceDefinitionIds.add(effect.sourceDefinitionId);
+      ) {
+        const move = moves.get(effect.sourceDefinitionId);
+        if (move !== undefined)
+          triggerSources.push({ kind: "active-constant", move, owner: "self" });
+      }
     }
-    return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-      const sourceMove = moves.get(sourceDefinitionId);
-      if (sourceMove === undefined) return [];
-      const choiceFrame = upkeepEffectChoiceFrameFor(state, actor.id, sourceMove.id);
-      const triggeredEffects = moveEffectsForTrigger(sourceMove, "upkeep-phase", {
+    return dispatchCombatTriggerSourceResults("upkeep-phase", triggerSources, (source) => {
+      const choiceFrame = upkeepEffectChoiceFrameFor(state, actor.id, source.move.id);
+      return {
         ...context,
         collectPendingChoices: true,
         ...(choiceFrame === undefined
@@ -11628,13 +11861,14 @@ const upkeepTriggeredEffects = (
               enabledOptionalEffectIndices: choiceFrame.selectedEffectIndices ?? [],
               resolvedOptionalEffectIndices: choiceFrame.effectIndices,
             }),
-      });
+      };
+    }).flatMap(({ source, effects: dispatchedEffects }) => {
+      const sourceMove = source.move;
       const effects =
         actor.id === activeCombatantId
-          ? triggeredEffects
-          : effectsForUpkeepTarget(triggeredEffects, "opponent");
-      const pendingChoice =
-        choiceFrame === undefined ? triggeredEffects.pendingEffectChoices[0] : undefined;
+          ? dispatchedEffects
+          : effectsForUpkeepTarget(dispatchedEffects, "opponent");
+      const pendingChoice = dispatchedEffects.pendingEffectChoices.at(0);
       return Object.values(effects).some(
         (entries) => Array.isArray(entries) && entries.length > 0,
       ) || pendingChoice !== undefined
@@ -11872,15 +12106,19 @@ const moveUseTriggeredEffects = (
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
   return [actor, target].flatMap((listener) => {
     const opponent = listener.id === actor.id ? target : actor;
-    const sourceDefinitionIds = new Set(listener.id === actor.id ? [move.id] : []);
+    const sources: CombatTriggerSource[] =
+      listener.id === actor.id ? [{ kind: "action-move", move, owner: "self" }] : [];
     for (const effect of state.activeEffects) {
       if (
         effect.type === "active-constant" &&
-        effect.lifecycle !== "deactivated" &&
+        isEffectActive(effect) &&
         !activeEffectSuppressed(state, effect) &&
         effect.sourceCombatantId === listener.id
-      )
-        sourceDefinitionIds.add(effect.sourceDefinitionId);
+      ) {
+        const sourceMove = moves.get(effect.sourceDefinitionId);
+        if (sourceMove !== undefined)
+          sources.push({ kind: "active-constant", move: sourceMove, owner: "self" });
+      }
     }
     const context = {
       self: listener,
@@ -11903,19 +12141,14 @@ const moveUseTriggeredEffects = (
         ? {}
         : { resolvedOptionalEffectIndices: options.resolvedOptionalEffectIndices }),
     };
-    return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-      const sourceMove = moves.get(sourceDefinitionId);
-      return sourceMove === undefined
-        ? []
-        : [
-            {
-              sourceMove,
-              owner: listener,
-              target: opponent,
-              effects: moveEffectsForTrigger(sourceMove, "on-move-use", context),
-            },
-          ];
-    });
+    return dispatchCombatTriggerSourceResults("on-move-use", sources, () => context).map(
+      ({ source, effects }) => ({
+        sourceMove: source.move,
+        owner: listener,
+        target: opponent,
+        effects,
+      }),
+    );
   });
 };
 
@@ -11929,39 +12162,42 @@ const successfulEffectTriggeredEffects = (
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
   return [actor, target].flatMap((listener) => {
     const opponent = listener.id === actor.id ? target : actor;
-    const sourceDefinitionIds = new Set(listener.moveIds);
+    const sources: CombatTriggerSource[] = listener.moveIds.flatMap((moveId) => {
+      const sourceMove = moves.get(moveId);
+      return sourceMove === undefined ||
+        sourceMove.id === move.id ||
+        !moveHasSuccessfulListenerEffect(sourceMove)
+        ? []
+        : [{ kind: "carried-skill", move: sourceMove, owner: "self" }];
+    });
     for (const effect of state.activeEffects) {
       if (
         effect.type === "active-constant" &&
-        effect.lifecycle !== "deactivated" &&
+        isEffectActive(effect) &&
         !activeEffectSuppressed(state, effect) &&
         effect.sourceCombatantId === listener.id
-      )
-        sourceDefinitionIds.add(effect.sourceDefinitionId);
+      ) {
+        const sourceMove = moves.get(effect.sourceDefinitionId);
+        if (
+          sourceMove !== undefined &&
+          sourceMove.id !== move.id &&
+          moveHasSuccessfulListenerEffect(sourceMove)
+        )
+          sources.push({ kind: "active-constant", move: sourceMove, owner: "self" });
+      }
     }
-    return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-      const sourceMove = moves.get(sourceDefinitionId);
-      if (
-        sourceMove === undefined ||
-        sourceMove.id === move.id ||
-        !moveHasSuccessfulListenerEffect(sourceMove)
-      )
-        return [];
-      return [
-        {
-          sourceMove,
-          owner: listener,
-          target: opponent,
-          effects: moveEffectsForTrigger(sourceMove, "on-success", {
-            ...context,
-            self: listener,
-            opponent,
-            triggeringMove: move,
-            triggeringMoveOwner: listener.id === actor.id ? "self" : "opponent",
-          }),
-        },
-      ];
-    });
+    return dispatchCombatTriggerSourceResults("on-success", sources, () => ({
+      ...context,
+      self: listener,
+      opponent,
+      triggeringMove: move,
+      triggeringMoveOwner: listener.id === actor.id ? "self" : "opponent",
+    })).map(({ source, effects }) => ({
+      sourceMove: source.move,
+      owner: listener,
+      target: opponent,
+      effects,
+    }));
   });
 };
 
@@ -12097,20 +12333,23 @@ const moveUseListenerMoves = (
   move: MoveDefinition,
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
-  const sourceDefinitionIds = new Set<MoveId>([move.id]);
+  const sources: CombatTriggerSource[] = [{ kind: "action-move", move, owner: "self" }];
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === actor.id
-    )
-      sourceDefinitionIds.add(effect.sourceDefinitionId);
+    ) {
+      const sourceMove = moves.get(effect.sourceDefinitionId);
+      if (sourceMove !== undefined)
+        sources.push({ kind: "active-constant", move: sourceMove, owner: "self" });
+    }
   }
-  return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-    const sourceMove = moves.get(sourceDefinitionId);
-    return sourceMove === undefined ? [] : [{ sourceMove, moves }];
-  });
+  return discoverCombatTriggerSources("on-move-use", sources).map(({ move: sourceMove }) => ({
+    sourceMove,
+    moves,
+  }));
 };
 
 const moveUseListenerMovesForCombatant = (
@@ -12118,20 +12357,23 @@ const moveUseListenerMovesForCombatant = (
   owner: ActiveFightState["combatants"][CombatantId],
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
-  const sourceDefinitionIds = new Set<MoveId>();
+  const sources: CombatTriggerSource[] = [];
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === owner.id
-    )
-      sourceDefinitionIds.add(effect.sourceDefinitionId);
+    ) {
+      const sourceMove = moves.get(effect.sourceDefinitionId);
+      if (sourceMove !== undefined)
+        sources.push({ kind: "active-constant", move: sourceMove, owner: "self" });
+    }
   }
-  return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-    const sourceMove = moves.get(sourceDefinitionId);
-    return sourceMove === undefined ? [] : [{ sourceMove, moves }];
-  });
+  return discoverCombatTriggerSources("on-move-use", sources).map(({ move: sourceMove }) => ({
+    sourceMove,
+    moves,
+  }));
 };
 
 type CostEffectTrigger = "on-move-use" | "on-cost-modified";
@@ -12381,9 +12623,10 @@ const consumedActiveEffectIdsForResourceEvent = (
     .filter(
       (effect) =>
         effect.type === "move-effect-replacement" &&
+        isEffectActive(effect) &&
         effect.sourceCombatantId === listener.id &&
         effect.targetMoveId === sourceMove.id &&
-        effect.remainingTriggers > 0 &&
+        hasRemainingUses(effect.remainingTriggers) &&
         effects.resources.some(
           (resource) => resource.sourceEffectIndex === effect.sourceEffectIndex,
         ),
@@ -12408,15 +12651,22 @@ const resourceEventTriggeredEffects = (
     const affectedCombatantId = change.target === "self" ? actor.id : target.id;
     return listeners.flatMap((listener) => {
       const opponent = listener.id === actor.id ? target : actor;
-      const sourceDefinitionIds = new Set(listener.moveIds);
+      const triggerSources: CombatTriggerSource[] = listener.moveIds.flatMap(
+        (sourceDefinitionId) => {
+          const move = moves.get(sourceDefinitionId);
+          return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+        },
+      );
       for (const effect of state.activeEffects) {
         if (
           effect.type === "active-constant" &&
-          effect.lifecycle !== "deactivated" &&
+          isEffectActive(effect) &&
           !activeEffectSuppressed(state, effect) &&
           effect.sourceCombatantId === listener.id
         ) {
-          sourceDefinitionIds.add(effect.sourceDefinitionId);
+          const move = moves.get(effect.sourceDefinitionId);
+          if (move !== undefined)
+            triggerSources.push({ kind: "active-constant", move, owner: "self" });
         }
       }
       const resourceChange: ResourceChangeEvent = {
@@ -12427,34 +12677,30 @@ const resourceEventTriggeredEffects = (
         ...(change.cause === undefined ? {} : { cause: change.cause }),
         ...(change.sourceStyleId === undefined ? {} : { sourceStyleId: change.sourceStyleId }),
       };
-      return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-        const sourceMove = moves.get(sourceDefinitionId);
-        if (sourceMove === undefined) return [];
-        const trigger = operation === "gain" ? "on-resource-gain" : "on-resource-drain";
-        const context = {
-          self: listener,
-          opponent,
-          turnNumber: state.turnNumber,
-          completedTurnCount: state.turnNumber - 1,
-          moves,
-          moveActivationCounts: moveActivationCountMap,
-          successfulHitCount: 0,
-          actionHistory,
-          activeEffects: state.activeEffects,
-          mode: state.mode,
-          resourceChange,
-          sourceDefinitionId,
-        };
-        const effects = moveEffectsForTrigger(sourceMove, trigger, context);
+      const trigger = operation === "gain" ? "on-resource-gain" : "on-resource-drain";
+      return dispatchCombatTriggerSourceResults(trigger, triggerSources, (source) => ({
+        self: listener,
+        opponent,
+        turnNumber: state.turnNumber,
+        completedTurnCount: state.turnNumber - 1,
+        moves,
+        moveActivationCounts: moveActivationCountMap,
+        successfulHitCount: 0,
+        actionHistory,
+        activeEffects: state.activeEffects,
+        mode: state.mode,
+        resourceChange,
+        sourceDefinitionId: source.move.id,
+      })).flatMap(({ source, effects }) => {
         const consumedActiveEffectIds = consumedActiveEffectIdsForResourceEvent(
           state.activeEffects,
           listener,
-          sourceMove,
+          source.move,
           effects,
         );
         return [
           {
-            sourceMove,
+            sourceMove: source.move,
             owner: listener,
             target: opponent,
             effects,
@@ -12713,7 +12959,7 @@ const activeConstantForSource = (
   state.activeEffects.find(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       effect.sourceCombatantId === combatantId &&
       effect.sourceDefinitionId === sourceDefinitionId,
   );
@@ -12750,21 +12996,24 @@ const thresholdEffectsForListener = (
   const opponentState = listenerIsActor ? nextTarget : nextActor;
   const previousListenerState = listenerIsActor ? previousActor : previousTarget;
   const previousOpponentState = listenerIsActor ? previousTarget : previousActor;
-  const sourceDefinitionIds = new Set(listener.moveIds);
+  const sources: CombatTriggerSource[] = listener.moveIds.flatMap((moveId) => {
+    const move = moves.get(moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       effect.sourceCombatantId === listener.id
-    )
-      sourceDefinitionIds.add(effect.sourceDefinitionId);
+    ) {
+      const move = moves.get(effect.sourceDefinitionId);
+      if (move !== undefined) sources.push({ kind: "active-constant", move, owner: "self" });
+    }
   }
   const resourceChange = thresholdResourceChangeEvent(change);
-  return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-    const sourceMove = moves.get(sourceDefinitionId);
-    if (sourceMove === undefined) return [];
-    const activeConstant = activeConstantForSource(state, listener.id, sourceDefinitionId);
-    const effects = moveEffectsForTrigger(sourceMove, "on-resource-threshold", {
+  return dispatchCombatTriggerSourceResults("on-resource-threshold", sources, (source) => {
+    const activeConstant = activeConstantForSource(state, listener.id, source.move.id);
+    return {
       self: listenerState,
       opponent: opponentState,
       previousResourceState: {
@@ -12781,10 +13030,11 @@ const thresholdEffectsForListener = (
       paidActivationCost: activeConstant?.paidActivationCost,
       mode: state.mode,
       ...(resourceChange === undefined ? {} : { resourceChange }),
-    });
+    };
+  }).flatMap(({ source, effects }) => {
     return [
       {
-        sourceMove,
+        sourceMove: source.move,
         owner: listener,
         target: listenerIsActor ? target : actor,
         effects,
@@ -13181,7 +13431,7 @@ const lifecycleDeactivationTargetIsEligible = (
   state.activeEffects.some((effect) => {
     if (
       effect.type !== "active-constant" ||
-      effect.lifecycle === "deactivated" ||
+      isEffectDeactivated(effect) ||
       effect.sourceCombatantId !== combatantId
     )
       return false;
@@ -13270,19 +13520,22 @@ const lifecycleDeactivationApplication = (
   );
   if (target === undefined) return undefined;
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
-  const sourceDefinitionIds = new Set(actor.moveIds);
+  const sources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
+    const move = moves.get(moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === actor.id
-    )
-      sourceDefinitionIds.add(effect.sourceDefinitionId);
+    ) {
+      const move = moves.get(effect.sourceDefinitionId);
+      if (move !== undefined) sources.push({ kind: "active-constant", move, owner: "self" });
+    }
   }
-  for (const sourceDefinitionId of sourceDefinitionIds) {
-    const sourceMove = moves.get(sourceDefinitionId);
-    if (sourceMove === undefined) continue;
+  for (const { move: sourceMove } of discoverCombatTriggerSources(trigger, sources)) {
     const candidate = lifecycleDeactivationForMove({
       state,
       actor,
@@ -13663,11 +13916,20 @@ const selectedSuppressionChoiceAvailable = (
 
 const selectedMoveTargetEffect = (
   effect: EffectDefinition | undefined,
-): effect is Extract<EffectDefinition, { readonly type: "modify-remaining-uses" }> =>
-  effect?.type === "modify-remaining-uses" &&
-  effect.target === "self" &&
-  effect.selector.subject === "source" &&
-  effect.selector.restriction === "restricted";
+): effect is Extract<
+  EffectDefinition,
+  { readonly type: "modify-remaining-uses" | "prevent-move-use" }
+> =>
+  (effect?.type === "modify-remaining-uses" &&
+    effect.target === "self" &&
+    effect.selector.subject === "source" &&
+    effect.selector.restriction === "restricted") ||
+  (effect?.type === "prevent-move-use" &&
+    effect.target === "self" &&
+    effect.operation === "deactivate" &&
+    effect.selectionSpec?.type === "up-to" &&
+    effect.selector !== undefined &&
+    effect.selector?.subject === "source");
 
 const selectedMoveTargetEffectIndices = (move: MoveDefinition, effectIndices: readonly number[]) =>
   effectIndices.filter((effectIndex) => selectedMoveTargetEffect(move.effects?.[effectIndex]));
@@ -13680,9 +13942,11 @@ const selectedMoveTargetCandidates = (
 ) => {
   const effect = move.effects?.[effectIndex];
   if (!selectedMoveTargetEffect(effect)) return [];
+  if (effect.selector === undefined) return [];
+  const selector = effect.selector;
   return state.combatants[frame.attackerId].moveIds.filter((moveId) => {
     const candidate = MOVE_DEFINITIONS.find((definition) => definition.id === moveId);
-    return candidate !== undefined && matchesMoveSelector(candidate, effect.selector);
+    return candidate !== undefined && matchesMoveSelector(candidate, selector);
   });
 };
 
@@ -13793,42 +14057,55 @@ const convertedAttackEffectContextForAction = (
   effectContext: ConvertedAttackEffectContext,
   input: CompleteConvertedAttackInput,
   move: MoveDefinition,
-): ConvertedAttackEffectContext & Pick<MoveEffectRuntimeContext, "currentAction"> => ({
-  ...effectContext,
-  currentAction: {
-    type: "use-move",
-    decisionId: input.decision.id,
-    actorId: input.decision.actorId,
-    targetCombatantId: input.decision.targetCombatantId,
-    moveId: move.id,
-    turnNumber: input.state.turnNumber,
-    phase: input.state.phase === "counter" ? "counter" : "action",
-  },
-  ...(input.selectedNumericValues === undefined
-    ? {}
-    : { selectedNumericValues: input.selectedNumericValues }),
-  ...(input.enabledOptionalEffectIndices === undefined
-    ? {}
-    : { enabledOptionalEffectIndices: input.enabledOptionalEffectIndices }),
-  ...(input.resolvedOptionalEffectIndices === undefined
-    ? {}
-    : { resolvedOptionalEffectIndices: input.resolvedOptionalEffectIndices }),
-  ...(input.selectedSuppressionMoves === undefined
-    ? {}
-    : {
-        selectedSuppressionMoveIds: Object.fromEntries(
-          input.selectedSuppressionMoves.map(({ effectIndex, moveId }) => [effectIndex, moveId]),
-        ),
-      }),
-  ...(input.selectedMoveTargets === undefined
-    ? {}
-    : {
-        selectedMoveIds: Object.fromEntries(
-          input.selectedMoveTargets.map(({ effectIndex, moveId }) => [effectIndex, moveId]),
-        ),
-      }),
-  ...(input.defenseResponse === undefined ? {} : { defenseResponse: input.defenseResponse }),
-});
+): ConvertedAttackEffectContext & Pick<MoveEffectRuntimeContext, "currentAction"> => {
+  const selectedMoveTargets = input.selectedMoveTargets ?? [];
+  return {
+    ...effectContext,
+    currentAction: {
+      type: "use-move",
+      decisionId: input.decision.id,
+      actorId: input.decision.actorId,
+      targetCombatantId: input.decision.targetCombatantId,
+      moveId: move.id,
+      turnNumber: input.state.turnNumber,
+      phase: input.state.phase === "counter" ? "counter" : "action",
+    },
+    ...(input.selectedNumericValues === undefined
+      ? {}
+      : { selectedNumericValues: input.selectedNumericValues }),
+    ...(input.enabledOptionalEffectIndices === undefined
+      ? {}
+      : { enabledOptionalEffectIndices: input.enabledOptionalEffectIndices }),
+    ...(input.resolvedOptionalEffectIndices === undefined
+      ? {}
+      : { resolvedOptionalEffectIndices: input.resolvedOptionalEffectIndices }),
+    ...(input.selectedSuppressionMoves === undefined
+      ? {}
+      : {
+          selectedSuppressionMoveIds: Object.fromEntries(
+            input.selectedSuppressionMoves.map(({ effectIndex, moveId }) => [effectIndex, moveId]),
+          ),
+        }),
+    ...(selectedMoveTargets.length === 0
+      ? {}
+      : {
+          selectedMoveIds: Object.fromEntries(
+            selectedMoveTargets.map(({ effectIndex, moveId }) => [effectIndex, moveId]),
+          ),
+          selectedMoveIdGroups: Object.fromEntries(
+            [...new Set(selectedMoveTargets.map(({ effectIndex }) => effectIndex))].map(
+              (effectIndex) => [
+                effectIndex,
+                selectedMoveTargets
+                  .filter((selection) => selection.effectIndex === effectIndex)
+                  .map((selection) => selection.moveId),
+              ],
+            ),
+          ),
+        }),
+    ...(input.defenseResponse === undefined ? {} : { defenseResponse: input.defenseResponse }),
+  };
+};
 
 const convertedAttackCostForInput = (
   ...[input, state, attacker, move, baseCost, beforeAttackEffects]: [
@@ -15920,9 +16197,10 @@ const availableExtraActionsFor = (state: ActiveFightState, combatantId: Combatan
   state.activeEffects.filter(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "extra-action" }> =>
       effect.type === "extra-action" &&
+      isEffectActive(effect) &&
       effect.targetCombatantId === combatantId &&
       effect.phase === (state.phase === "upkeep" ? "upkeep" : "action") &&
-      effect.remainingActions > 0 &&
+      hasRemainingUses(effect.remainingActions) &&
       effect.activationCost === undefined &&
       state.turnNumber >= effect.availableFromTurn &&
       state.turnNumber <= effect.expiresAfterTurn,
@@ -15957,9 +16235,17 @@ const consumeExtraActionForDecision = (
   return state.activeEffects.flatMap((effect) => {
     if (effect.id !== allowance.id) return [effect];
     if (effect.type !== "extra-action") return [effect];
-    return effect.remainingActions <= 1
+    const transition = transitionEffectLifecycle(
+      effect.id,
+      {
+        state: "active",
+        duration: { boundary: "matching-action", remaining: effect.remainingActions },
+      },
+      "matching-action",
+    );
+    return transition.lifecycle.state === "expired"
       ? []
-      : [{ ...effect, remainingActions: effect.remainingActions - 1 }];
+      : [effectWithLifecycleCounterMirror(effect, transition.lifecycle)];
   });
 };
 
@@ -16128,6 +16414,8 @@ export const enumerateLegalDecisions = (
   state: CombatTransition["state"],
   combatantId: CombatantId,
 ): readonly LegalDecision[] => {
+  if (state.schemaVersion === undefined)
+    return enumerateLegalDecisions(normalizeLegacyFightState(state), combatantId);
   if (
     state.status !== "active" ||
     (state.phase !== "action" && state.phase !== "counter" && state.phase !== "upkeep") ||
@@ -16279,10 +16567,11 @@ const extraActionActivationAtUpkeep = (
   const allowance = state.activeEffects.find(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "extra-action" }> =>
       effect.type === "extra-action" &&
+      isEffectActive(effect) &&
       effect.targetCombatantId === combatantId &&
       effect.phase === "upkeep" &&
       effect.activationCost !== undefined &&
-      effect.remainingActions > 0 &&
+      hasRemainingUses(effect.remainingActions) &&
       state.turnNumber >= effect.availableFromTurn &&
       state.turnNumber <= effect.expiresAfterTurn,
   );
@@ -16507,7 +16796,7 @@ const activeActionPhaseExchange = (
   for (const activeEffect of state.activeEffects) {
     if (
       activeEffect.type !== "active-constant" ||
-      activeEffect.lifecycle === "deactivated" ||
+      isEffectDeactivated(activeEffect) ||
       activeEffect.sourceCombatantId !== actor.id ||
       activeEffectSuppressed(state, activeEffect)
     )
@@ -17156,11 +17445,23 @@ const advanceEndFight = (
         stateVersion: state.version + 1,
         combatantId: scheduledActivation.sourceCombatantId,
         type: "select-move",
+        candidates: (scheduledActivation.eligibleMoveIds ?? []).map((moveId) => ({
+          type: "move" as const,
+          id: moveId,
+          ownerCombatantId: scheduledActivation.sourceCombatantId,
+        })),
+        selection: { type: "one" as const },
+        optional: scheduledActivation.optional === true,
         options: [
           ...(scheduledActivation.eligibleMoveIds ?? []).map((moveId) => ({
             id: `activate:${moveId}`,
             type: "select-move" as const,
             moveId,
+            candidate: {
+              type: "move" as const,
+              id: moveId,
+              ownerCombatantId: scheduledActivation.sourceCombatantId,
+            },
           })),
           ...(scheduledActivation.optional === true
             ? [{ id: "decline", type: "decline" as const }]
@@ -17300,6 +17601,8 @@ export const advanceFight = (
   state: CombatTransition["state"],
   dependencies: CombatDependencies,
 ): CombatResult<CombatTransition> => {
+  if (state.schemaVersion === undefined)
+    return advanceFight(normalizeLegacyFightState(state), dependencies);
   const invalidState = currentStateFailure(state);
   if (invalidState !== undefined) return { ok: false, error: invalidState };
   if (state.status === "completed") {
@@ -17987,8 +18290,17 @@ const resolveSimpleActionMove = (
       (effect.type !== "floating-effect" ||
         !(effect.scope.type === "next-action" && effect.targetCombatantId === actor.id)),
   );
+  const transitionedActiveEffects = remainingActiveEffects.flatMap<ActiveCombatEffect>((effect) => {
+    if (typeof effect.lifecycle !== "object") return [effect];
+    const lifecycle = lifecycleRecordForEffect(effect);
+    if (lifecycle === undefined) return [];
+    const transition = transitionEffectLifecycle(effect.id, lifecycle, "matching-action");
+    return transition.lifecycle.state === "expired"
+      ? []
+      : [{ ...effect, lifecycle: transition.lifecycle }];
+  });
   const consumedExtraActionEffects = consumeExtraActionForDecision(state, decision);
-  const nextActiveEffects = activeEffectsAfterAdditions(remainingActiveEffects, [
+  const nextActiveEffects = activeEffectsAfterAdditions(transitionedActiveEffects, [
     ...modifiers,
     ...activatedEffects,
   ]).flatMap((effect) => {
@@ -18218,7 +18530,7 @@ const resolveConstantSkillActivation = (
   const deactivatedConstant = state.activeEffects.find(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
       effect.type === "active-constant" &&
-      effect.lifecycle === "deactivated" &&
+      isEffectDeactivated(effect) &&
       effect.sourceCombatantId === actor.id &&
       effect.sourceDefinitionId === move.id,
   );
@@ -18237,12 +18549,21 @@ const resolveConstantSkillActivation = (
             activatedOnTurn: state.turnNumber,
             duration: "combat" as const,
             paidActivationCost: effectiveCost,
-            lifecycle: "active" as const,
+            lifecycle: {
+              state: "active" as const,
+              activationBoundary: "matching-action" as const,
+              activationTurn: state.turnNumber,
+              activationEventSequence: state.eventSequence,
+            },
           },
         ]
       : state.activeEffects.map((effect) =>
-          effect.id === deactivatedConstant.id
-            ? { ...effect, lifecycle: "active" as const, deactivatedOnTurn: undefined }
+          effect.type === "active-constant" && effect.id === deactivatedConstant.id
+            ? {
+                ...effect,
+                lifecycle: constantLifecycleWithState(effect, "active", state.eventSequence),
+                deactivatedOnTurn: undefined,
+              }
             : effect,
         );
   const activeEffects = activeEffectsBeforeConsumption.flatMap((effect) => {
@@ -19196,14 +19517,14 @@ const preparedDefenseState = (
     const sacrificed = activeEffects.find(
       (effect): effect is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
         effect.type === "active-constant" &&
-        effect.lifecycle !== "deactivated" &&
+        isEffectActive(effect) &&
         effect.sourceCombatantId === frame.targetCombatantId &&
         effect.sourceDefinitionId === beforeDefenseChoice.sacrificedMoveId,
     );
     if (sacrificed === undefined) return { state: baseState, events };
     const deactivated = {
       ...sacrificed,
-      lifecycle: "deactivated" as const,
+      lifecycle: constantLifecycleWithState(sacrificed, "deactivated", state.eventSequence),
       deactivatedOnTurn: state.turnNumber,
     };
     const lock: Extract<ActiveCombatEffect, { readonly type: "action-lock" }> = {
@@ -20113,20 +20434,22 @@ const counterActionReferenceFor = (
 });
 
 const counterActionSourceMoves = (state: ActiveFightState, combatantId: CombatantId) => {
-  const sourceIds = new Set(state.combatants[combatantId].moveIds);
+  const sources: CombatTriggerSource[] = state.combatants[combatantId].moveIds.flatMap((moveId) => {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
-      effect.lifecycle !== "deactivated" &&
+      isEffectActive(effect) &&
       !activeEffectSuppressed(state, effect) &&
       effect.sourceCombatantId === combatantId
-    )
-      sourceIds.add(effect.sourceDefinitionId);
+    ) {
+      const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === effect.sourceDefinitionId);
+      if (move !== undefined) sources.push({ kind: "active-constant", move, owner: "self" });
+    }
   }
-  return [...sourceIds].flatMap((sourceId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === sourceId);
-    return move === undefined ? [] : [move];
-  });
+  return discoverCombatTriggerSources("after-defense-roll", sources).map(({ move }) => move);
 };
 
 const counterActionOptionId = (application: CounterActionApplication) =>
@@ -22250,8 +22573,7 @@ const activeConstantForcedActionFor = (
   opponent: CombatantState,
   constant: Extract<ActiveCombatEffect, { readonly type: "active-constant" }>,
 ): ForcedActionEffect | undefined => {
-  if (constant.lifecycle === "deactivated" || activeEffectSuppressed(state, constant))
-    return undefined;
+  if (isEffectDeactivated(constant) || activeEffectSuppressed(state, constant)) return undefined;
   const source = state.combatants[constant.sourceCombatantId];
   const sourceMove = activeConstantMove(
     constant,
@@ -22357,6 +22679,9 @@ const activeSuppressionFromApplication = (
       ? {}
       : { selectedMoveId: suppression.selectedMoveId }),
     ...(suppression.requirement === undefined ? {} : { requirement: suppression.requirement }),
+    ...(suppression.requirementType === undefined
+      ? {}
+      : { requirementType: suppression.requirementType }),
     aspects: suppression.aspects,
     duration,
     ...(suppression.useLimit === undefined ? {} : { useLimit: suppression.useLimit }),
@@ -22471,8 +22796,12 @@ const activeMoveUsePreventionFromApplication = (
     sourceCombatantId,
     targetCombatantId,
     sourceDefinitionId,
+    ...(prevention.sourceEffectIndex === undefined
+      ? {}
+      : { sourceEffectIndex: prevention.sourceEffectIndex }),
     operation: prevention.operation,
     ...(prevention.selector === undefined ? {} : { selector: prevention.selector }),
+    ...(prevention.selectionSpec === undefined ? {} : { selectionSpec: prevention.selectionSpec }),
     duration: persistedDuration,
   };
 };
@@ -23359,13 +23688,12 @@ const moveRequirementSuppressed = (
 ) =>
   (move.requirements ?? []).some(
     (requirement) =>
-      requirement.type === "source-text" &&
+      requirement.type !== "source-text" &&
       state.activeEffects.some(
         (effect) =>
           effect.type === "suppress" &&
           effect.targetCombatantId === combatantId &&
-          effect.requirement !== undefined &&
-          requirement.text.toLowerCase().includes(effect.requirement.toLowerCase()),
+          effect.requirementType === requirement.type,
       ),
   );
 
@@ -23475,21 +23803,24 @@ const deactivatedListenerTriggeredEffects = (
   );
   if (target === undefined || triggeringMove === undefined) return [];
   const moves = new Map(MOVE_DEFINITIONS.map((move) => [move.id, move]));
-  const sourceDefinitionIds = new Set(actor.moveIds);
+  const sources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
+    const move = moves.get(moveId);
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+  });
   for (const effect of activeEffects) {
-    if (effect.type === "active-constant" && effect.sourceCombatantId === actor.id)
-      sourceDefinitionIds.add(effect.sourceDefinitionId);
+    if (effect.type === "active-constant" && effect.sourceCombatantId === actor.id) {
+      const move = moves.get(effect.sourceDefinitionId);
+      if (move !== undefined) sources.push({ kind: "active-constant", move, owner: "self" });
+    }
   }
-  return [...sourceDefinitionIds].flatMap((sourceDefinitionId) => {
-    const sourceMove = moves.get(sourceDefinitionId);
-    if (sourceMove === undefined) return [];
-    const enabledOptionalEffectIndices = (sourceMove.effects ?? []).flatMap(
+  return dispatchCombatTriggerSourceResults("on-deactivated", sources, (source) => {
+    const enabledOptionalEffectIndices = (source.move.effects ?? []).flatMap(
       (effect, effectIndex) =>
         effect.trigger === "on-deactivated" && effect.type === "negate-deactivation"
           ? [effectIndex]
           : [],
     );
-    const effects = moveEffectsForTrigger(sourceMove, "on-deactivated", {
+    return {
       self: actor,
       opponent: target,
       turnNumber: state.turnNumber,
@@ -23503,9 +23834,8 @@ const deactivatedListenerTriggeredEffects = (
       triggeringMove,
       triggeringMoveOwner: "self",
       enabledOptionalEffectIndices,
-    });
-    return [{ sourceMove, actor, target, effects }];
-  });
+    };
+  }).map(({ source, effects }) => ({ sourceMove: source.move, actor, target, effects }));
 };
 
 const deactivatedListenerActiveEffects = (
@@ -23557,7 +23887,7 @@ const eligibleConstantEffects = (
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> => {
       if (
         effect.type !== "active-constant" ||
-        effect.lifecycle === "deactivated" ||
+        isEffectDeactivated(effect) ||
         effect.sourceCombatantId !== targetCombatantId
       )
         return false;
@@ -23594,7 +23924,7 @@ const eligibleConstantActivationMoves = (
     const deactivatedEffect = state.activeEffects.find(
       (effect) =>
         effect.type === "active-constant" &&
-        effect.lifecycle === "deactivated" &&
+        isEffectDeactivated(effect) &&
         effect.sourceCombatantId === targetCombatantId &&
         effect.sourceDefinitionId === moveId,
     );
@@ -23767,6 +24097,7 @@ const activationSelectionTransition = ({
     return transitionFrom(nextState, []);
   }
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
+  const selectionCount = activationSelectionCount(application, eligible.length);
   const nextState: ActiveFightState = {
     ...state,
     pendingDecision: {
@@ -23774,11 +24105,29 @@ const activationSelectionTransition = ({
       stateVersion: state.version,
       combatantId: sourceCombatantId,
       type: "select-move",
+      candidates: eligible.map((move) => ({
+        type: "move" as const,
+        id: move.id,
+        ownerCombatantId: sourceCombatantId,
+      })),
+      selection:
+        selectionCount === 1
+          ? { type: "one" as const }
+          : {
+              type: "up-to" as const,
+              limit: { type: "literal" as const, value: selectionCount },
+            },
+      optional: application.optional,
       options: [
         ...eligible.map((move) => ({
           id: `activate:${move.id}`,
           type: "select-move" as const,
           moveId: move.id,
+          candidate: {
+            type: "move" as const,
+            id: move.id,
+            ownerCombatantId: sourceCombatantId,
+          },
         })),
         ...(application.optional ? [{ id: "decline", type: "decline" as const }] : []),
       ],
@@ -23797,7 +24146,7 @@ const activationSelectionTransition = ({
         trigger: application.trigger,
         pendingDecisionId,
         eligibleMoveIds: eligible.map((move) => move.id),
-        remainingSelections: activationSelectionCount(application, eligible.length),
+        remainingSelections: selectionCount,
         optional: application.optional,
         ...(activationContinuation === undefined ? {} : { activationContinuation }),
         ...activationFrameFields(application),
@@ -23874,8 +24223,12 @@ const deactivateAllEligibleConstants = ({
   priorEventCount,
 }: DeactivateAllEligibleConstantsInput) => ({
   activeEffects: activeEffects.map((effect) =>
-    eligible.includes(effect as (typeof eligible)[number])
-      ? { ...effect, lifecycle: "deactivated" as const, deactivatedOnTurn: state.turnNumber }
+    effect.type === "active-constant" && eligible.includes(effect as (typeof eligible)[number])
+      ? {
+          ...effect,
+          lifecycle: constantLifecycleWithState(effect, "deactivated", state.eventSequence),
+          deactivatedOnTurn: state.turnNumber,
+        }
       : effect,
   ),
   deactivated: eligible,
@@ -23998,12 +24351,22 @@ const deactivationNegationSelectionTransition = ({
         stateVersion: state.version,
         combatantId: ownerId,
         type: "select-move",
+        candidates: references.map((reference) => ({
+          type: "source-effect" as const,
+          id: `${reference.sourceDefinitionId}:${reference.sourceEffectIndex}`,
+        })),
+        selection: { type: "one" as const },
+        optional: true,
         options: [
           ...references.map((reference) => ({
             id: `negate-deactivation:${selected.id}:${reference.sourceDefinitionId}:${reference.sourceEffectIndex}`,
             type: "select-move" as const,
             moveId: selected.sourceDefinitionId,
             deactivationNegation: reference,
+            candidate: {
+              type: "source-effect" as const,
+              id: `${reference.sourceDefinitionId}:${reference.sourceEffectIndex}`,
+            },
           })),
           { id: "decline", type: "decline" as const },
         ],
@@ -24057,11 +24420,21 @@ const deactivationSelectionTransition = ({
       stateVersion: state.version,
       combatantId: sourceCombatantId,
       type: "select-move",
+      candidates: eligible.map((effect) => ({ type: "active-effect" as const, id: effect.id })),
+      selection:
+        application.selection === "all"
+          ? { type: "all" as const }
+          : {
+              type: "up-to" as const,
+              limit: { type: "literal" as const, value: application.count ?? 1 },
+            },
+      optional: application.optional,
       options: [
         ...eligible.map((effect) => ({
           id: `deactivate:${effect.id}`,
           type: "select-move" as const,
           moveId: effect.sourceDefinitionId,
+          candidate: { type: "active-effect" as const, id: effect.id },
         })),
         ...(application.optional ? [{ id: "decline", type: "decline" as const }] : []),
       ],
@@ -24527,6 +24900,13 @@ const activatedItemEffects = (
             sourceDefinitionId: item.id,
             amount: Math.round((combatant.stats.power * effect.percent) / 100),
             remainingAttacks,
+            lifecycle: {
+              state: "active" as const,
+              activationBoundary: "matching-action" as const,
+              activationTurn: 0,
+              activationEventSequence: 0,
+              duration: { boundary: "matching-action" as const, remaining: remainingAttacks },
+            },
           },
         ];
   });
@@ -24915,8 +25295,12 @@ const resolveDeactivationNegationSelection = (
     const resolvedCost = resolveDeactivationCost(selectedOwner, continuation.activationCost);
     if (resolvedCost === undefined) return { ok: false, error: invalidFightState(state) };
     const deactivatedEffects = state.activeEffects.map((candidate) =>
-      candidate.id === selected.id
-        ? { ...candidate, lifecycle: "deactivated" as const, deactivatedOnTurn: state.turnNumber }
+      candidate.type === "active-constant" && candidate.id === selected.id
+        ? {
+            ...candidate,
+            lifecycle: constantLifecycleWithState(candidate, "deactivated", state.eventSequence),
+            deactivatedOnTurn: state.turnNumber,
+          }
         : candidate,
     );
     activeEffects = [
@@ -24957,7 +25341,7 @@ const resolveDeactivationNegationSelection = (
       activeEffects.some(
         (effect) =>
           effect.type === "active-constant" &&
-          effect.lifecycle !== "deactivated" &&
+          isEffectActive(effect) &&
           effect.sourceCombatantId === continuation.targetCombatantId &&
           effect.sourceDefinitionId === moveId,
       )
@@ -24967,7 +25351,7 @@ const resolveDeactivationNegationSelection = (
                 effect,
               ): effect is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
                 effect.type === "active-constant" &&
-                effect.lifecycle !== "deactivated" &&
+                isEffectActive(effect) &&
                 effect.sourceCombatantId === continuation.targetCombatantId &&
                 effect.sourceDefinitionId === moveId,
             )!,
@@ -25069,10 +25453,39 @@ const createNextDeactivationState = ({
         stateVersion: stateWithoutPending.version + 1,
         combatantId: frame.sourceCombatantId,
         type: "select-move" as const,
+        candidates: eligibleMoveIds.flatMap((moveId) => {
+          const effect = activeEffects.find(
+            (
+              candidate,
+            ): candidate is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
+              candidate.type === "active-constant" &&
+              candidate.sourceDefinitionId === moveId &&
+              candidate.sourceCombatantId === frame.targetCombatantId,
+          );
+          return effect === undefined ? [] : [{ type: "active-effect" as const, id: effect.id }];
+        }),
+        selection: {
+          type: "up-to",
+          limit: { type: "literal", value: remainingSelections },
+        } as const,
+        optional: frame.optional,
         options: eligibleMoveIds.map((moveId) => ({
           id: `deactivate:${moveId}`,
           type: "select-move" as const,
           moveId,
+          candidate: (() => {
+            const effect = activeEffects.find(
+              (
+                candidate,
+              ): candidate is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
+                candidate.type === "active-constant" &&
+                candidate.sourceDefinitionId === moveId &&
+                candidate.sourceCombatantId === frame.targetCombatantId,
+            );
+            return effect === undefined
+              ? undefined
+              : { type: "active-effect" as const, id: effect.id };
+          })(),
         })),
       }
     : undefined;
@@ -25112,7 +25525,7 @@ const remainingEligibleDeactivationMoveIds = (
       activeEffects.some(
         (candidate) =>
           candidate.type === "active-constant" &&
-          candidate.lifecycle !== "deactivated" &&
+          isEffectActive(candidate) &&
           candidate.sourceCombatantId === targetCombatantId &&
           candidate.sourceDefinitionId === moveId,
       ),
@@ -25214,7 +25627,15 @@ const requestSelectedMoveTarget = (
 ): CombatResult<CombatTransition> => {
   const effect = move.effects?.[effectIndex];
   if (!selectedMoveTargetEffect(effect)) return { ok: false, error: invalidFightState(state) };
-  const eligibleMoveIds = selectedMoveTargetCandidates(state, attackFrame, move, effectIndex);
+  const selectedMoveIds = (attackFrame.selectedMoveTargets ?? [])
+    .filter((selection) => selection.effectIndex === effectIndex)
+    .map((selection) => selection.moveId);
+  const eligibleMoveIds = selectedMoveTargetCandidates(
+    state,
+    attackFrame,
+    move,
+    effectIndex,
+  ).filter((moveId) => !selectedMoveIds.includes(moveId));
   if (eligibleMoveIds.length === 0) return { ok: false, error: invalidFightState(state) };
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const pendingDecision = {
@@ -25253,7 +25674,10 @@ const requestSelectedMoveTarget = (
     trigger: "on-success",
     pendingDecisionId,
     eligibleMoveIds,
-    remainingSelections: 1,
+    remainingSelections:
+      effect.selectionSpec?.type === "up-to" && effect.selectionSpec.limit.type === "literal"
+        ? effect.selectionSpec.limit.value
+        : 1,
     optional: false,
     ...(effect.selectionSpec === undefined ? {} : { selection: effect.selectionSpec }),
     ...(effect.activationCost === undefined ? {} : { costTiming: effect.activationCost.timing }),
@@ -25496,7 +25920,11 @@ const resolveSelectedMoveTargetSelection = (
   )
     return { ok: false, error: invalidFightState(state) };
   const selectedMove = MOVE_DEFINITIONS.find((candidate) => candidate.id === option.moveId);
-  if (selectedMove === undefined || !matchesMoveSelector(selectedMove, effect.selector))
+  if (
+    selectedMove === undefined ||
+    effect.selector === undefined ||
+    !matchesMoveSelector(selectedMove, effect.selector)
+  )
     return { ok: false, error: invalidFightState(state) };
   const selectedMoveTargets = [
     ...(attackFrame.selectedMoveTargets ?? []),
@@ -25509,10 +25937,18 @@ const resolveSelectedMoveTargetSelection = (
   const nextSelection = selectedMoveTargetEffectIndices(
     sourceMove,
     attackFrame.enabledEffectIndices,
-  ).find(
-    (effectIndex) =>
-      !selectedMoveTargets.some((selection) => selection.effectIndex === effectIndex),
-  );
+  ).find((effectIndex) => {
+    const selectionEffect = sourceMove.effects?.[effectIndex];
+    const selectedCount = selectedMoveTargets.filter(
+      (selection) => selection.effectIndex === effectIndex,
+    ).length;
+    const limit =
+      selectionEffect?.selectionSpec?.type === "up-to" &&
+      selectionEffect.selectionSpec.limit.type === "literal"
+        ? selectionEffect.selectionSpec.limit.value
+        : 1;
+    return selectedCount < limit;
+  });
   const framesWithoutSelection = state.resolutionFrames
     .filter((candidate) => candidate.id !== frame.id && candidate.id !== attackFrame.id)
     .concat(updatedAttackFrame);
@@ -25731,7 +26167,7 @@ const resolveReplacementSelection = (
       : MOVE_DEFINITIONS.find((candidate) => candidate.id === selected.sourceDefinitionId);
   if (
     selected === undefined ||
-    selected.lifecycle === "deactivated" ||
+    isEffectDeactivated(selected) ||
     selected.sourceCombatantId !== frame.sourceCombatantId ||
     option.moveId !== selected.sourceDefinitionId ||
     frame.eligibleMoveIds?.includes(selected.sourceDefinitionId) !== true ||
@@ -26083,7 +26519,7 @@ const deactivatedConstantForSelection = (
   state.activeEffects.find(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> =>
       effect.type === "active-constant" &&
-      effect.lifecycle === "deactivated" &&
+      isEffectDeactivated(effect) &&
       effect.sourceCombatantId === actor.id &&
       effect.sourceDefinitionId === move.id,
   );
@@ -26101,8 +26537,12 @@ const activeEffectsAfterActivation = (
 ) => {
   if (deactivated !== undefined)
     return state.activeEffects.map((effect) =>
-      effect.id === deactivated.id
-        ? { ...effect, lifecycle: "active" as const, deactivatedOnTurn: undefined }
+      effect.type === "active-constant" && effect.id === deactivated.id
+        ? {
+            ...effect,
+            lifecycle: constantLifecycleWithState(effect, "active", state.eventSequence),
+            deactivatedOnTurn: undefined,
+          }
         : effect,
     );
   const activated = {
@@ -26114,7 +26554,12 @@ const activeEffectsAfterActivation = (
     activatedOnTurn: state.turnNumber,
     duration: "combat" as const,
     paidActivationCost: cost,
-    lifecycle: "active" as const,
+    lifecycle: {
+      state: "active" as const,
+      activationBoundary: "matching-action" as const,
+      activationTurn: state.turnNumber,
+      activationEventSequence: state.eventSequence,
+    },
     ...(frame.selectionKey === undefined ? {} : { selectionKey: frame.selectionKey }),
   } satisfies Extract<ActiveCombatEffect, { readonly type: "active-constant" }>;
   return activeEffectsAfterAdditions(state.activeEffects, [
@@ -26135,7 +26580,7 @@ const remainingActivationMoveIds = (
         activeEffects.some(
           (effect) =>
             effect.type === "active-constant" &&
-            effect.lifecycle === "deactivated" &&
+            isEffectDeactivated(effect) &&
             effect.sourceCombatantId === actorId &&
             effect.sourceDefinitionId === moveId,
         )),
@@ -26510,7 +26955,7 @@ const exchangeSkillEffectsAfterDeactivation = (
   const selected = activeEffects.find((effect) => {
     if (
       effect.type !== "active-constant" ||
-      effect.lifecycle !== "deactivated" ||
+      isEffectActive(effect) ||
       effect.sourceCombatantId !== exchange.sourceCombatantId ||
       effect.deactivatedOnTurn !== state.turnNumber
     )
@@ -26539,6 +26984,13 @@ const exchangeSkillEffectsAfterDeactivation = (
     targetCombatantId: exchange.sourceCombatantId,
     sourceDefinitionId: exchange.sourceDefinitionId,
     remainingTurns: 4,
+    lifecycle: {
+      state: "active",
+      activationBoundary: "matching-action",
+      activationTurn: state.turnNumber,
+      activationEventSequence: eventSequence,
+      duration: { boundary: "owner-turn", remaining: 4 },
+    },
   };
   const effects = [reactivation, cooldown];
   const events: CombatEvent[] = effects.map((effect, index) => ({
@@ -26555,7 +27007,7 @@ const exchangeSkillEffectsAfterDeactivation = (
   return { effects, events };
 };
 
-const resolveDeactivationSelection = (
+const resolveDeactivationSelectionSingle = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
@@ -26663,8 +27115,12 @@ const resolveDeactivationSelection = (
     });
 
   const deactivatedActiveEffects = state.activeEffects.map((candidate) =>
-    candidate.id === effect.id
-      ? { ...candidate, lifecycle: "deactivated" as const, deactivatedOnTurn: state.turnNumber }
+    candidate.type === "active-constant" && candidate.id === effect.id
+      ? {
+          ...candidate,
+          lifecycle: constantLifecycleWithState(candidate, "deactivated", state.eventSequence),
+          deactivatedOnTurn: state.turnNumber,
+        }
       : candidate,
   );
   const activeEffects = [
@@ -26739,6 +27195,66 @@ const resolveDeactivationSelection = (
       exchangeSkillReactivation: frame.exchangeSkillReactivation,
     });
   return transitionFrom(nextStateWithExchangeEffects, events);
+};
+
+const resolveDeactivationSelection = (
+  state: ActiveFightState,
+  decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
+  dependencies: CombatDependencies,
+): CombatResult<CombatTransition> => {
+  const pending = state.pendingDecision;
+  if (
+    pending?.type !== "select-move" ||
+    (pending.selection?.type !== "all" && pending.selection?.type !== "up-to")
+  )
+    return resolveDeactivationSelectionSingle(state, decision, dependencies);
+
+  const optionIds = [...pendingOptionIdsFor(decision)].sort((left, right) => {
+    const leftIndex = pending.options.findIndex((option) => option.id === left);
+    const rightIndex = pending.options.findIndex((option) => option.id === right);
+    return (
+      (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex) -
+      (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex)
+    );
+  });
+  if (optionIds.length <= 1)
+    return resolveDeactivationSelectionSingle(state, decision, dependencies);
+
+  let currentState = state;
+  let result: CombatResult<CombatTransition> = {
+    ok: true,
+    value: { state, events: [] },
+  };
+  for (const [index, originalOptionId] of optionIds.entries()) {
+    const currentPending = currentState.pendingDecision;
+    if (currentPending === undefined) break;
+    const originalOption = pending.options.find((option) => option.id === originalOptionId);
+    const optionId =
+      index === 0
+        ? originalOptionId
+        : (currentPending.options.find(
+            (option) =>
+              option.candidate !== undefined &&
+              option.candidate.type === "active-effect" &&
+              originalOption?.candidate?.type === "active-effect" &&
+              option.candidate.id === originalOption.candidate.id,
+          )?.id ?? originalOptionId);
+    result = resolveDeactivationSelectionSingle(
+      currentState,
+      {
+        ...decision,
+        expectedStateVersion: currentState.version,
+        pendingDecisionId: currentPending.id,
+        optionId,
+        optionIds: undefined,
+        id: decision.id,
+      },
+      dependencies,
+    );
+    if (!result.ok) return result;
+    currentState = result.value.state as ActiveFightState;
+  }
+  return result;
 };
 
 type OptionalEffectResolutionFrame = Extract<
@@ -27170,7 +27686,7 @@ const replacementTargetEffects = (
     (candidate): candidate is Extract<ActiveCombatEffect, { readonly type: "active-constant" }> => {
       if (
         candidate.type !== "active-constant" ||
-        candidate.lifecycle === "deactivated" ||
+        isEffectDeactivated(candidate) ||
         candidate.sourceCombatantId !== actorId
       )
         return false;
@@ -27946,9 +28462,18 @@ const resolvePendingCombatDecision = (
   decision: Extract<CombatDecision, { readonly type: "respond-to-pending-decision" }>,
   dependencies: CombatDependencies,
 ): CombatResult<CombatTransition> => {
+  let normalizedDecision = decision;
   if (state.pendingDecision?.candidates !== undefined) {
     const selection = validatePendingSelection(state.pendingDecision, decision);
-    if (!selection.ok) {
+    const frameAllowsDecline =
+      decision.optionId === "decline" &&
+      state.resolutionFrames.some(
+        (frame) =>
+          frame.type === "effect" &&
+          frame.pendingDecisionId === state.pendingDecision?.id &&
+          frame.optional === true,
+      );
+    if (!selection.ok && !frameAllowsDecline) {
       return {
         ok: false,
         error: {
@@ -27958,18 +28483,32 @@ const resolvePendingCombatDecision = (
         },
       };
     }
+    if (selection.ok) {
+      const selectedOptionIds =
+        decision.selectedOptionIds ??
+        (decision.optionIds === undefined
+          ? [decision.optionId]
+          : [decision.optionId, ...decision.optionIds]);
+      const canonicalOptionIds = selection.options.map((option) => option.id);
+      normalizedDecision = {
+        ...decision,
+        optionId: canonicalOptionIds[0] ?? selectedOptionIds[0] ?? decision.optionId,
+        optionIds: canonicalOptionIds.slice(1),
+        selectedOptionIds: canonicalOptionIds,
+      };
+    }
   }
   if (state.pendingDecision?.type === "defense-response") {
-    return resolveDefenseResponse(state, decision, dependencies);
+    return resolveDefenseResponse(state, normalizedDecision, dependencies);
   }
   if (state.pendingDecision?.type === "post-defense-roll") {
-    return resolvePostDefenseReaction(state, decision, dependencies);
+    return resolvePostDefenseReaction(state, normalizedDecision, dependencies);
   }
   if (state.pendingDecision?.type === "select-move") {
-    return resolveDeactivationSelection(state, decision, dependencies);
+    return resolveDeactivationSelection(state, normalizedDecision, dependencies);
   }
   if (state.pendingDecision?.type === "optional-effect") {
-    return resolveOptionalEffectChoice(state, decision, dependencies);
+    return resolveOptionalEffectChoice(state, normalizedDecision, dependencies);
   }
   if (state.pendingDecision === undefined) {
     return {
@@ -27986,9 +28525,18 @@ const resolvePendingCombatDecision = (
 /** Applies an Action- or Counter-phase decision. */
 export const submitCombatDecision = (
   state: CombatTransition["state"],
-  decision: CombatDecision,
+  inputDecision: CombatDecisionInput,
   dependencies: CombatDependencies,
 ): CombatResult<CombatTransition> => {
+  const decision: CombatDecision =
+    inputDecision.type === "respond-to-pending-decision" && inputDecision.optionId === undefined
+      ? ({
+          ...inputDecision,
+          optionId: inputDecision.selectedOptionIds?.[0] ?? "",
+        } as CombatDecision)
+      : (inputDecision as CombatDecision);
+  if (state.schemaVersion === undefined)
+    return submitCombatDecision(normalizeLegacyFightState(state), decision, dependencies);
   const invalidState = currentStateFailure(state);
   if (invalidState !== undefined) return { ok: false, error: invalidState };
   if (decision.expectedStateVersion !== state.version) {

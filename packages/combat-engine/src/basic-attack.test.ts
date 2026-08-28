@@ -1578,7 +1578,7 @@ describe("basic attacks", () => {
           actorId: defenderId,
           expectedStateVersion: declared.state.version,
           pendingDecisionId: defense.id,
-          optionId: "roll-defense",
+          selectedOptionIds: ["roll-defense"],
         },
         dependencies,
       ),

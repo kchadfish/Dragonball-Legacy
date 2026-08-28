@@ -572,7 +572,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "source",
           tags: ["PHYSICAL"],
-          requirementExcludes: ["sword"],
+          requirementTagsExclude: ["sword"],
           sourceText: "Your Physical Attacks that do not require a sword",
         },
         sourceText:
@@ -1506,7 +1506,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "target",
           category: "advanced-attack",
-          effectTextIncludes: "Sword",
+          requirementTagsInclude: ["sword"],
           sourceText: 'next attack that requires a "sword"',
         },
         scope: { type: "next-action", sourceText: 'next attack that requires a "sword"' },

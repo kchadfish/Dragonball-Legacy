@@ -106,6 +106,31 @@ export const dispatchCombatTrigger = (
   });
 };
 
+/**
+ * Dispatches one trigger across an already ordered source list. Discovery,
+ * de-duplication, condition-context validation, and execution ordering all
+ * live behind this boundary; callers only provide the resolved runtime context.
+ */
+export const dispatchCombatTriggerSources = (
+  trigger: CombatTrigger,
+  sources: readonly CombatTriggerSource[],
+  runtimeForSource: (source: CombatTriggerSource) => MoveEffectRuntimeContext,
+) =>
+  dispatchCombatTriggerSourceResults(trigger, sources, runtimeForSource).flatMap(
+    ({ effects }) => effects,
+  );
+
+/** Same dispatch boundary, retaining source identity for lifecycle accounting. */
+export const dispatchCombatTriggerSourceResults = (
+  trigger: CombatTrigger,
+  sources: readonly CombatTriggerSource[],
+  runtimeForSource: (source: CombatTriggerSource) => MoveEffectRuntimeContext,
+) =>
+  discoverCombatTriggerSources(trigger, sources).map((source) => ({
+    source,
+    effects: dispatchCombatTrigger(source.move, trigger, runtimeForSource(source)),
+  }));
+
 export const dispatchSuccessfulCombatTrigger = (
   source: MoveDefinition,
   runtime: MoveEffectRuntimeContext,

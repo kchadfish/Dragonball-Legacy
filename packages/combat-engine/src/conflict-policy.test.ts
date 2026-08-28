@@ -37,6 +37,19 @@ describe("durable effect conflict policy", () => {
     );
   });
 
+  it("keeps conflict identity stable when lifecycle state changes", () => {
+    const active = effect("lifecycle", {
+      lifecycle: { state: "active", remainingUses: 2 },
+      conflictPolicy: { type: "prevent-duplicate" },
+    });
+    const deactivated = {
+      ...active,
+      lifecycle: { state: "deactivated" as const },
+    };
+
+    expect(conflictKeyFor(deactivated)).toBe(conflictKeyFor(active));
+  });
+
   it("prevents only the matching effect and leaves different scopes independent", () => {
     const first = effect("first", policy({ type: "prevent-duplicate" }));
     const duplicate = effect("duplicate", policy({ type: "prevent-duplicate" }));

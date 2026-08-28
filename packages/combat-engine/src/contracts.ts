@@ -6,6 +6,7 @@ import type {
   MoveDefinition,
   MoveSelectorCondition,
   NumericExpression,
+  Requirement,
 } from "@dragonball-resurgence/game-data";
 import type { ItemId, MoveId, StatusId, TransformationId } from "@dragonball-resurgence/game-data";
 import { z } from "zod";
@@ -20,6 +21,7 @@ import type {
   ResolutionFrameId,
 } from "./ids.js";
 import type { CandidateReference } from "./candidate-resolution.js";
+import type { EffectLifecycleBoundary, EffectLifecycleRecord } from "./effect-lifecycle.js";
 
 export type CombatMode = "spar" | "battle";
 
@@ -56,6 +58,8 @@ export interface ActiveStatus {
   readonly sourceDefinitionId: string;
   readonly selector?: MoveSelectorCondition;
   readonly stacks: number;
+  /** Canonical lifecycle metadata; legacy duration remains readable below. */
+  readonly lifecycle?: EffectLifecycleRecord;
   readonly duration:
     | { readonly type: "combat" }
     | {
@@ -327,11 +331,47 @@ export type ConflictPolicy =
   | { readonly type: "unique-group"; readonly group: string }
   | { readonly type: "mutually-exclusive-group"; readonly group: string };
 
+export type LegacyCompatibleLifecycle = EffectLifecycleRecord | "active" | "deactivated";
+
 export interface ActiveEffectConflictMetadata {
   /** Explicit policy compiled from source-backed game data. */
   readonly conflictPolicy?: ConflictPolicy;
   /** Canonical identity used by the shared conflict resolver. */
   readonly conflictKey?: string;
+  /** Canonical lifecycle payload; legacy effects may retain their string state. */
+  /** Legacy-compatible lifecycle payload; newly compiled effects should use
+   * the complete ActiveEffectBase lifecycle record. */
+  readonly lifecycle?: LegacyCompatibleLifecycle;
+}
+
+/** Common identity and lifecycle metadata for durable combat effects. */
+export interface ActiveEffectBase {
+  readonly id: ActiveEffectId;
+  readonly sourceCombatantId: CombatantId;
+  readonly targetCombatantId: CombatantId;
+  readonly sourceDefinitionId: string;
+  readonly sourceEffectIndex?: number;
+  readonly lifecycle: {
+    readonly state: "active" | "deactivated" | "cooldown" | "expired";
+    readonly activationBoundary: EffectLifecycleBoundary;
+    readonly activationTurn: number;
+    readonly activationEventSequence: number;
+    readonly scope?: string;
+    readonly duration?: {
+      readonly boundary: EffectLifecycleBoundary;
+      readonly remaining: number;
+      readonly ownerCombatantId?: CombatantId;
+    };
+    readonly remainingUses?: number;
+    readonly cooldown?: {
+      readonly boundary: EffectLifecycleBoundary;
+      readonly remaining: number;
+      readonly ownerCombatantId?: CombatantId;
+    };
+  };
+  readonly selector?: MoveSelectorCondition;
+  readonly activationCost?: EffectCostTiming;
+  readonly conflict?: ActiveEffectConflictMetadata;
 }
 
 /** A durable permission to bypass the standard dice-side/result limit. */
@@ -668,6 +708,8 @@ export interface ActiveSuppressionEffect {
   readonly selectedMoveId?: MoveId;
   /** A requirement suppressed on the target's future move uses. */
   readonly requirement?: string;
+  /** Typed requirement dimension; source text is retained only for display. */
+  readonly requirementType?: Requirement["type"];
   readonly aspects: readonly ("all-effects" | "successful-effects")[];
   readonly duration:
     | { readonly type: "combat" }
@@ -759,6 +801,8 @@ export interface ActiveActionRestrictionEffect {
   readonly blockedCategories?: readonly ("basic-attack" | "advanced-attack" | "signature")[];
   readonly availableFromTurn: number;
   readonly remainingTurns: number;
+  /** Canonical lifecycle for plain turn-count restrictions; legacy counters remain readable. */
+  readonly lifecycle?: LegacyCompatibleLifecycle;
   readonly duration?: {
     readonly type: "until-turn-start-roll-threshold";
     readonly combatantId: CombatantId;
@@ -825,8 +869,10 @@ export interface ActiveMoveUsePreventionEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex?: number;
   readonly operation: "use" | "activate" | "deactivate";
   readonly selector?: MoveSelectorCondition;
+  readonly selectionSpec?: EffectSelection;
   readonly duration: ActiveActionLockEffect["duration"];
 }
 
@@ -917,7 +963,7 @@ export interface ActiveConstantEffect {
   /** Selection identity retained for effects that refer to this activation group. */
   readonly selectionKey?: string;
   /** Omitted legacy values are active; deactivation remains durable for reactivation effects. */
-  readonly lifecycle?: "active" | "deactivated";
+  readonly lifecycle?: "active" | "deactivated" | EffectLifecycleRecord;
   readonly deactivatedOnTurn?: number;
   /** A temporary immutable replacement for this constant's effects. */
   readonly replacement?: {
@@ -1124,6 +1170,8 @@ export interface ActiveExchangeSkillCooldownEffect {
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
   readonly remainingTurns: number;
+  /** Canonical lifecycle record; remainingTurns remains readable for legacy snapshots. */
+  readonly lifecycle?: LegacyCompatibleLifecycle;
 }
 
 export type ActiveCombatEffect = (
@@ -1653,6 +1701,8 @@ export type ResolutionFrame =
 
 interface FightStateBase {
   readonly id: FightId;
+  /** Serialized fight-state contract version. Legacy snapshots may omit it. */
+  readonly schemaVersion?: 1;
   readonly version: number;
   readonly rulesVersion: RulesVersion;
   readonly mode: CombatMode;
@@ -1694,6 +1744,7 @@ export interface FightStateInvariantViolation {
     | "invalid-pending-decision"
     | "invalid-resource"
     | "invalid-rules-version"
+    | "invalid-schema-version"
     | "invalid-state-counter"
     | "invalid-stat"
     | "invalid-status"
@@ -1777,6 +1828,8 @@ export interface RespondToPendingDecision {
   readonly optionId: string;
   /** Additional option IDs for a generic up-to/all selection. */
   readonly optionIds?: readonly string[];
+  /** Normalized multi-selection payload. Legacy optionId/optionIds remain readable. */
+  readonly selectedOptionIds?: readonly string[];
 }
 
 export type CombatDecision =
@@ -1789,6 +1842,15 @@ export type CombatDecision =
   | ActivateTransformationDecision
   | UseItemDecision
   | RespondToPendingDecision;
+
+/** Public input contract; selected-only pending responses are normalized at the transition boundary. */
+export type CombatDecisionInput =
+  | Exclude<CombatDecision, RespondToPendingDecision>
+  | RespondToPendingDecision
+  | (Omit<RespondToPendingDecision, "optionId"> & {
+      readonly optionId?: string;
+      readonly selectedOptionIds: readonly string[];
+    });
 
 export type LegalDecision =
   | {

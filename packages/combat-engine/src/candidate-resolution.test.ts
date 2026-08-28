@@ -13,7 +13,12 @@ import {
   createPendingSelection,
   validatePendingSelection,
 } from "./index.js";
-import { combatantIdSchema, fightIdSchema, pendingDecisionIdSchema } from "./ids.js";
+import {
+  activeEffectIdSchema,
+  combatantIdSchema,
+  fightIdSchema,
+  pendingDecisionIdSchema,
+} from "./ids.js";
 
 const selfId = combatantIdSchema.parse("combatant:candidate-self");
 const opponentId = combatantIdSchema.parse("combatant:candidate-opponent");
@@ -107,6 +112,26 @@ describe("combat candidate resolution", () => {
     expect(resolveActiveEffectCandidates(fight, opponentId)).toEqual([]);
   });
 
+  it("excludes normalized deactivated constants unless explicitly requested", () => {
+    const effect = {
+      id: "active-effect:deactivated-candidate" as never,
+      type: "active-constant" as const,
+      sourceCombatantId: selfId,
+      targetCombatantId: selfId,
+      sourceDefinitionId: "move-akaikaru-firestorm" as const,
+      activatedOnTurn: 1,
+      duration: "combat" as const,
+      lifecycle: { state: "deactivated" as const },
+    };
+    const fight = { ...state(), activeEffects: [effect] } as unknown as FightState;
+
+    expect(
+      resolveMoveCandidates(fight, selfId, MOVE_DEFINITIONS, {
+        includeActiveConstants: true,
+      }).filter((candidate) => candidate.source === "active-constant"),
+    ).toEqual([]);
+  });
+
   it("validates a multi-selection against the persisted candidate set", () => {
     const firstMove = "move-akaikaru-firestorm" as const;
     const secondMove = "move-akaikaru-blown-fuse" as const;
@@ -133,6 +158,116 @@ describe("combat candidate resolution", () => {
       reason: "invalid-selection",
     });
     expect(validatePendingSelection(pending, { optionId: "first", optionIds: ["first"] })).toEqual({
+      ok: false,
+      reason: "invalid-selection",
+    });
+  });
+
+  it("prefers the normalized selectedOptionIds payload when present", () => {
+    const firstMove = "move-akaikaru-firestorm" as const;
+    const secondMove = "move-akaikaru-blown-fuse" as const;
+    const first = { type: "move" as const, id: firstMove, ownerCombatantId: selfId };
+    const second = { type: "move" as const, id: secondMove, ownerCombatantId: selfId };
+    const pending = {
+      id: pendingDecisionIdSchema.parse("pending-decision:normalized-selection"),
+      stateVersion: 0,
+      combatantId: selfId,
+      type: "select-move" as const,
+      selection: { type: "all" as const },
+      candidates: [first, second],
+      options: [
+        { id: "first", type: "select-move" as const, moveId: firstMove, candidate: first },
+        { id: "second", type: "select-move" as const, moveId: secondMove, candidate: second },
+      ],
+    };
+
+    expect(
+      validatePendingSelection(pending, {
+        optionId: "first",
+        optionIds: ["second"],
+        selectedOptionIds: ["second", "first"],
+      }),
+    ).toEqual({ ok: true, options: [pending.options[0], pending.options[1]] });
+  });
+
+  it("accepts an explicitly empty optional selection", () => {
+    const pending = {
+      id: pendingDecisionIdSchema.parse("pending-decision:optional-empty"),
+      stateVersion: 0,
+      combatantId: selfId,
+      type: "select-move" as const,
+      optional: true,
+      selection: { type: "up-to" as const, limit: { type: "literal" as const, value: 2 } },
+      candidates: [],
+      options: [],
+    };
+    expect(validatePendingSelection(pending, { selectedOptionIds: [] })).toEqual({
+      ok: true,
+      options: [],
+    });
+  });
+
+  it("accepts an empty selected array as decline for optional all-selection", () => {
+    const candidate = {
+      type: "active-effect" as const,
+      id: activeEffectIdSchema.parse("active-effect:constant"),
+    };
+    const pending = {
+      id: pendingDecisionIdSchema.parse("pending-decision:optional-all-empty"),
+      stateVersion: 0,
+      combatantId: selfId,
+      type: "select-move" as const,
+      optional: true,
+      selection: { type: "all" as const },
+      candidates: [candidate],
+      options: [
+        {
+          id: "constant",
+          type: "select-move" as const,
+          moveId: "move-akaikaru-firestorm",
+          candidate,
+        },
+      ],
+    };
+    expect(validatePendingSelection(pending, { selectedOptionIds: [] })).toEqual({
+      ok: true,
+      options: [],
+    });
+  });
+
+  it("rejects duplicate normalized selections", () => {
+    const move = { type: "move" as const, id: "move-akaikaru-firestorm", ownerCombatantId: selfId };
+    const pending = {
+      id: pendingDecisionIdSchema.parse("pending-decision:duplicate-selection"),
+      stateVersion: 0,
+      combatantId: selfId,
+      type: "select-move" as const,
+      selection: { type: "up-to" as const, limit: { type: "literal" as const, value: 2 } },
+      candidates: [move],
+      options: [{ id: "first", type: "select-move" as const, moveId: move.id, candidate: move }],
+    };
+    expect(validatePendingSelection(pending, { selectedOptionIds: ["first", "first"] })).toEqual({
+      ok: false,
+      reason: "invalid-selection",
+    });
+  });
+
+  it("rejects options backed by stale candidates", () => {
+    const stale = {
+      type: "move" as const,
+      id: "move-akaikaru-firestorm",
+      ownerCombatantId: selfId,
+    };
+    const pending = {
+      id: pendingDecisionIdSchema.parse("pending-decision:stale-candidate"),
+      stateVersion: 0,
+      combatantId: selfId,
+      type: "select-move" as const,
+      selection: { type: "one" as const },
+      candidates: [],
+      options: [{ id: "stale", type: "select-move" as const, moveId: stale.id, candidate: stale }],
+    };
+    expect(validatePendingSelection(pending, { selectedOptionIds: ["stale"] })).toEqual({
       ok: false,
       reason: "invalid-selection",
     });

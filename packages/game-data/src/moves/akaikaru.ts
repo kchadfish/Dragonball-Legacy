@@ -401,7 +401,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "target",
           category: "advanced-attack",
-          effectTextIncludes: "STUN",
+          effectRuleTokens: ["stun"],
           sourceText: "next Advanced Attack with STUN in the effect",
         },
         scope: { type: "next-action", sourceText: "next Advanced Attack with STUN in the effect" },
@@ -586,7 +586,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           category: "advanced-attack",
           restriction: "unrestricted",
           attackRoll: { dice: 1 },
-          effectTextIncludes: "STUN",
+          effectRuleTokens: ["stun"],
           sourceText:
             "next UNRESTRICTED single-dice Akaikaru Advanced Attack with 'STUN' in the effect",
         },
@@ -715,7 +715,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "STUN",
+          effectRuleTokens: ["stun"],
           sourceText: "Your attacks with STUN in the effect",
         },
         sourceText: "Your attacks with STUN in the effect do +(5% Power) damage",
@@ -731,7 +731,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "target",
           styleId: AKAIKARU_STYLE.id,
-          effectTextIncludes: "STUN",
+          effectRuleTokens: ["stun"],
           sourceText: "Your Akaikaru attacks with STUN in the effect",
         },
         sourceText:
@@ -998,7 +998,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "target",
           category: "advanced-attack",
-          effectTextIncludes: "STUN",
+          effectRuleTokens: ["stun"],
           sourceText: "next attack with a STUN effect",
         },
         scope: { type: "next-action", sourceText: "next attack with a STUN effect" },
@@ -1340,7 +1340,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "STUN",
+          effectRuleTokens: ["stun"],
           sourceText: 'Your next attack with "STUN" in the effect',
         },
         scope: { type: "next-action", sourceText: 'Your next attack with "STUN" in the effect' },
@@ -1522,7 +1522,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             selector: {
               type: "move-selector",
               subject: "source",
-              effectTextIncludes: "Dexterity",
+              effectRuleTokens: ["dexterity"],
               sourceText: "your next attack with the word 'Dexterity' in the effect",
             },
             sourceText:
@@ -1537,7 +1537,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
               {
                 type: "move-selector",
                 subject: "source",
-                effectTextIncludes: "Dexterity",
+                effectRuleTokens: ["dexterity"],
                 sourceText: "your next attack with the word 'Dexterity' in the effect",
               },
               {

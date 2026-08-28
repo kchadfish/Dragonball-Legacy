@@ -21,12 +21,19 @@ import type {
   FightState,
   FightStateInvariantViolation,
   PendingDecisionOption,
+  PendingDecision,
   ResourceChangeHistoryRecord,
   ResolutionFrame,
 } from "./contracts.js";
 import { matchesMoveSelector } from "./declarative-runtime.js";
 import { conflictKeyFor, conflictMatchKeyFor, conflictPolicyFor } from "./conflict-policy.js";
 import { candidateReferenceId } from "./candidate-resolution.js";
+import {
+  hasKnownLifecycleEncoding,
+  isEffectActive,
+  isValidEffectLifecycle,
+  lifecycleRecordForEffect,
+} from "./effect-lifecycle.js";
 
 // Invariants validate serializable runtime data even when the in-memory union
 // type has already narrowed a discriminant to one literal value.
@@ -924,13 +931,13 @@ const hasValidConstantEffectDetails = (
   (effect.lifecycle === undefined ||
     effect.lifecycle === "active" ||
     (runtimeValue(effect.lifecycle) === "deactivated" &&
-      validCounter(effect.deactivatedOnTurn ?? 0, 1))) &&
+      validCounter(effect.deactivatedOnTurn ?? 0, 1)) ||
+    (typeof runtimeValue(effect.lifecycle) === "object" &&
+      isValidEffectLifecycle(effect.lifecycle))) &&
   (effect.replacement === undefined ||
     (effect.replacement.sourceDefinitionId === effect.replacement.sourceMoveSnapshot.id &&
       effect.replacement.sourceMoveSnapshot.category === "skill" &&
-      effect.replacement.sourceMoveSnapshot.effectClauses.some(
-        (clause) => clause.text === "Constant.",
-      ) &&
+      effect.replacement.sourceMoveSnapshot.mechanics.activationClassification === "constant" &&
       runtimeValue(effect.replacement.duration.type) === "turns" &&
       effect.replacement.duration.ownerCombatantId === effect.targetCombatantId &&
       validCounter(effect.replacement.duration.remaining, 1)));
@@ -1171,7 +1178,17 @@ const hasValidActionLockEffectDetails = (
   return (
     validDuration &&
     typeof effect.sourceDefinitionId === "string" &&
-    effect.sourceDefinitionId.length > 0
+    effect.sourceDefinitionId.length > 0 &&
+    (effect.type !== "prevent-move-use" ||
+      effect.sourceEffectIndex === undefined ||
+      validCounter(effect.sourceEffectIndex, 0)) &&
+    (effect.type !== "prevent-move-use" ||
+      effect.selectionSpec === undefined ||
+      effect.selectionSpec.type === "one" ||
+      effect.selectionSpec.type === "all" ||
+      (effect.selectionSpec.type === "up-to" &&
+        effect.selectionSpec.limit.type === "literal" &&
+        validCounter(effect.selectionSpec.limit.value, 1)))
   );
 };
 
@@ -1334,6 +1351,22 @@ const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
   return hasValidNonFloatingEffectDetails(effect);
 };
 
+const hasValidTypedSelectorTokens = (effect: ActiveCombatEffect) => {
+  const selector = (effect as unknown as { readonly selector?: unknown }).selector;
+  if (selector === undefined || typeof selector !== "object" || selector === null) return true;
+  const value = selector as {
+    readonly effectRuleTokens?: readonly unknown[];
+    readonly effectRuleTokensAny?: readonly unknown[];
+  };
+  return [value.effectRuleTokens, value.effectRuleTokensAny].every(
+    (tokens) =>
+      tokens === undefined ||
+      (tokens.length > 0 &&
+        tokens.every((token) => typeof token === "string") &&
+        new Set(tokens).size === tokens.length),
+  );
+};
+
 const hasValidFloatingEffectReferences = (
   state: FightState,
   effect: Extract<ActiveCombatEffect, { readonly type: "floating-effect" }>,
@@ -1422,6 +1455,14 @@ const hasValidConflictMetadata = (effect: ActiveCombatEffect) =>
   hasValidConflictPolicy(effect) &&
   (effect.conflictKey === undefined || effect.conflictKey === conflictKeyFor(effect));
 
+/** Shared ActiveEffectBase identity checks applied before specialized rules. */
+const hasValidActiveEffectBaseIdentity = (effect: ActiveCombatEffect) =>
+  typeof effect.sourceDefinitionId === "string" &&
+  effect.sourceDefinitionId.length > 0 &&
+  (!("sourceEffectIndex" in effect) ||
+    effect.sourceEffectIndex === undefined ||
+    validCounter(effect.sourceEffectIndex, 0));
+
 const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
   const activeEffectIds = new Set<string>();
 
@@ -1429,12 +1470,19 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
     const validEffect =
       activeEffectIdSchema.safeParse(effect.id).success &&
       !activeEffectIds.has(effect.id) &&
+      hasValidActiveEffectBaseIdentity(effect) &&
       isActiveCombatant(state, effect.sourceCombatantId) &&
       isActiveCombatant(state, effect.targetCombatantId) &&
       (effect.type !== "floating-effect" ||
         effect.scope.type !== "next-turn" ||
         isActiveCombatant(state, effect.scope.combatantId)) &&
       hasValidActiveEffectReferences(state, effect) &&
+      hasValidTypedSelectorTokens(effect) &&
+      hasKnownLifecycleEncoding(effect) &&
+      (() => {
+        const lifecycle = lifecycleRecordForEffect(effect);
+        return lifecycle === undefined || isValidEffectLifecycle(lifecycle);
+      })() &&
       hasValidEffectDetails(effect) &&
       hasValidConflictMetadata(effect) &&
       !state.activeEffects.some((candidate, candidateIndex) => {
@@ -2040,6 +2088,25 @@ const validChoiceMetadata = (
   (optional === undefined || typeof optional === "boolean") &&
   validCostTiming(costTiming);
 
+const validPersistedSelectionShape = (pendingDecision: PendingDecision): boolean => {
+  if (pendingDecision.candidates === undefined || pendingDecision.selection === undefined)
+    return true;
+  const candidateOptions = pendingDecision.options.filter(
+    (option) => option.candidate !== undefined,
+  );
+  if (candidateOptions.length === 0) return false;
+  if (pendingDecision.selection.type === "one")
+    return candidateOptions.length <= pendingDecision.candidates.length;
+  if (pendingDecision.selection.type === "all")
+    return candidateOptions.length === pendingDecision.candidates.length;
+  if (candidateOptions.length !== pendingDecision.candidates.length) return false;
+  const limit =
+    pendingDecision.selection.limit.type === "literal"
+      ? pendingDecision.selection.limit.value
+      : pendingDecision.candidates.length;
+  return Number.isInteger(limit) && limit >= 1 && limit <= pendingDecision.candidates.length;
+};
+
 const validActivationCostOverrideFrame = (
   activationCostOverride: Extract<
     ResolutionFrame,
@@ -2318,8 +2385,7 @@ const validEffectSelectionOperation = (
       const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
       return (
         target.moveIds.includes(moveId) &&
-        ((move?.category === "skill" &&
-          move.effectClauses.some((clause) => clause.text === "Constant.")) ||
+        ((move?.category === "skill" && move.mechanics.activationClassification === "constant") ||
           (frame.activationAsIf === "power-up" &&
             move?.category === "mastery" &&
             move.effects?.some((effect) => effect.trigger === "on-power-up") === true))
@@ -2345,14 +2411,14 @@ const validEffectSelectionOperation = (
             return (
               opponent?.moveIds.includes(moveId) === true &&
               move?.category === "skill" &&
-              move.effectClauses.some((clause) => clause.text === "Constant.")
+              move.mechanics.activationClassification === "constant"
             );
           })
         : eligibleMoveIds.every((moveId) =>
             state.activeEffects.some(
               (candidate) =>
                 candidate.type === "active-constant" &&
-                candidate.lifecycle !== "deactivated" &&
+                isEffectActive(candidate) &&
                 candidate.sourceCombatantId === actor.id &&
                 candidate.sourceDefinitionId === moveId,
             ),
@@ -2573,6 +2639,13 @@ const validateFightMetadata = (
   combatantEntries: readonly [string, CombatantState][],
   violations: FightStateInvariantViolation[],
 ) => {
+  if (state.schemaVersion !== undefined && state.schemaVersion !== 1) {
+    addViolation(
+      violations,
+      "invalid-schema-version",
+      "Fight state schema version must be 1 when present.",
+    );
+  }
   if (!validCounter(state.version, 0)) {
     addViolation(
       violations,
@@ -2684,7 +2757,15 @@ const validPendingDecision = (state: ActiveFightState) => {
           );
         if (candidate.type === "move") {
           const owner = state.combatants[candidate.ownerCombatantId];
-          return owner?.moveIds.includes(candidate.id) === true;
+          return (
+            owner?.moveIds.includes(candidate.id) === true ||
+            state.activeEffects.some(
+              (effect) =>
+                effect.type === "remove-move-from-combat" &&
+                effect.targetCombatantId === candidate.ownerCombatantId &&
+                effect.moveId === candidate.id,
+            )
+          );
         }
         const separator = candidate.id.lastIndexOf(":");
         if (separator <= 0) return false;
@@ -2711,6 +2792,7 @@ const validPendingDecision = (state: ActiveFightState) => {
       pendingDecision.options.length &&
     validOptions &&
     validCandidates &&
+    validPersistedSelectionShape(pendingDecision) &&
     (pendingDecision.type !== "select-move" ||
       (() => {
         const frame = state.resolutionFrames.find(

@@ -67,6 +67,15 @@ export type EffectRuleToken =
   | "break"
   | "cooldown"
   | "counter"
+  | "sword"
+  | "gun"
+  | "dexterity"
+  | "bukujutsu"
+  | "channeled-chi-mastery"
+  | "halo"
+  | "power-up"
+  | "sonic-kick"
+  | "swordplay"
   | "critical"
   | "deactivate"
   | "lock"
@@ -233,7 +242,9 @@ export type NumericExpression =
       readonly subject: "self" | "opponent";
       readonly category: "skill";
       readonly constant: true;
-      readonly effectTextIncludes: string;
+      /** Typed title classification; legacy effectTextIncludes is read-only compatibility data. */
+      readonly titleTag?: string;
+      readonly effectTextIncludes?: string;
       readonly perMove: number;
     }
   | {
@@ -281,6 +292,13 @@ export type NumericExpression =
   | { readonly type: "source-expression"; readonly text: string };
 
 export interface MoveMechanics {
+  /** Typed activation classification used by runtime selectors. */
+  readonly activationClassification?: "constant";
+  /** Canonical requirement dimensions used by move selectors. */
+  readonly requirementTags?: readonly string[];
+  readonly effectRuleTokens?: readonly string[];
+  /** Canonical title classifications used by move selectors. */
+  readonly titleTags?: readonly string[];
   readonly kiCost?: NumericExpression;
   readonly restrictedUses?: NumericExpression;
   readonly timingText?: string;

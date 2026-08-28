@@ -393,7 +393,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           subject: "source",
           category: "skill",
           constant: true,
-          effectTextIncludes: "Swordplay",
+          titleTags: ["swordplay"],
           sourceText: "a CONSTANT Skill with 'Swordplay' in the title",
         },
         optional: true,
@@ -500,7 +500,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          requirementIncludes: ["blunt weapon"],
+          requirementTagsInclude: ["blunt weapon"],
           sourceText: "attacks that require a Blunt Weapon",
         },
         sourceText:
@@ -522,7 +522,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          requirementIncludes: ["blunt weapon"],
+          requirementTagsInclude: ["blunt weapon"],
           sourceText: 'attacks with "Requirement: Blunt Weapon"',
         },
         scope: { type: "current-action", sourceText: "Your attack roll" },
@@ -540,7 +540,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           {
             type: "move-selector",
             subject: "target",
-            requirementIncludes: ["weapon"],
+            requirementTagsInclude: ["weapon"],
             sourceText: "moves that require a Weapon",
           },
         ],
@@ -636,7 +636,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          effectTextIncludes: "Straining",
+          titleTags: ["straining"],
           sourceText: "an attack with 'Straining' in the title",
         },
         optional: true,
@@ -726,7 +726,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             selector: {
               type: "move-selector",
               subject: "source",
-              effectTextIncludesAny: ["STUN", "BREAK"],
+              effectRuleTokensAny: ["stun", "break"],
               sourceText: "your next attack with STUN or BREAK in the effect",
             },
             scope: { type: "current-action", sourceText: "your next attack" },
@@ -784,7 +784,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             selector: {
               type: "move-selector",
               subject: "source",
-              effectTextIncludesAny: ["STUN", "BREAK"],
+              effectRuleTokensAny: ["stun", "break"],
               sourceText: "your next attack with STUN or BREAK in the effect",
             },
             scope: { type: "current-action", sourceText: "your next attack" },
@@ -1010,7 +1010,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           subject: "self",
           category: "skill",
           constant: true,
-          effectTextIncludes: "Swordplay",
+          titleTag: "swordplay",
           perMove: 2,
         },
         scope: { type: "current-action", sourceText: "This attack" },
@@ -1336,7 +1336,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "Sword",
+          requirementTagsInclude: ["sword"],
           sourceText: "Your attacks that require a Sword",
         },
         sourceText: "Your attacks that require a Sword do +(5% Power) Damage",
@@ -1373,7 +1373,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          effectTextIncludes: "Gun",
+          requirementTagsInclude: ["gun"],
           sourceText: "Your attacks that require a Gun",
         },
         sourceText:
@@ -1388,7 +1388,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "source",
-          effectTextIncludes: "Gun",
+          requirementTagsInclude: ["gun"],
           sourceText: "Your attacks that require a Gun",
         },
         sourceText:
@@ -1656,7 +1656,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "target",
           category: "advanced-attack",
-          effectTextIncludes: "Sword",
+          requirementTagsInclude: ["sword"],
           sourceText: "Your next Advanced Attack that requires a Sword",
         },
         scope: {

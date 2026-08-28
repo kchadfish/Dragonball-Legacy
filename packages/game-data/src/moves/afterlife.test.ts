@@ -136,7 +136,7 @@ describe("AFTERLIFE_MOVES", () => {
       expect.objectContaining({
         type: "modify-move-requirements",
         addRequirements: ["Sword Weapon"],
-        selector: expect.objectContaining({ requirementExcludes: ["sword"] }),
+        selector: expect.objectContaining({ requirementTagsExclude: ["sword"] }),
       }),
     ]);
   });

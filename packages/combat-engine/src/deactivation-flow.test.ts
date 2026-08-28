@@ -219,7 +219,7 @@ describe("constant-skill deactivation decisions", () => {
     expect(active(resolved.state).activeEffects).toContainEqual(
       expect.objectContaining({
         sourceDefinitionId: "move-akaikaru-relentless",
-        lifecycle: "deactivated",
+        lifecycle: expect.objectContaining({ state: "deactivated" }),
       }),
     );
     expect(resolved.events).toEqual(
@@ -343,7 +343,7 @@ describe("constant-skill deactivation decisions", () => {
     expect(deactivated.activeEffects).toContainEqual(
       expect.objectContaining({
         sourceDefinitionId: "move-akaikaru-impulsive",
-        lifecycle: "deactivated",
+        lifecycle: expect.objectContaining({ state: "deactivated" }),
       }),
     );
     const resumed = active(value(advanceFight(deactivated, deps)).state);
@@ -414,7 +414,9 @@ describe("constant-skill deactivation decisions", () => {
     expect(active(resolved.state).pendingDecision).toBeUndefined();
     expect(active(resolved.state).activeEffects).toHaveLength(2);
     expect(active(resolved.state).activeEffects).toEqual(
-      expect.arrayContaining([expect.objectContaining({ lifecycle: "deactivated" })]),
+      expect.arrayContaining([
+        expect.objectContaining({ lifecycle: expect.objectContaining({ state: "deactivated" }) }),
+      ]),
     );
     expect(resolved.events).toEqual([expect.objectContaining({ type: "effect-deactivated" })]);
     expect(
@@ -745,7 +747,7 @@ describe("constant-skill deactivation decisions", () => {
           effect.type === "active-constant" &&
           effect.sourceDefinitionId === "move-aoyosumu-inner-peace",
       ),
-    ).toMatchObject({ lifecycle: "active" });
+    ).toMatchObject({ lifecycle: expect.objectContaining({ state: "active" }) });
   });
 
   it("offers recent-skill reactivation before resolving the attack that grants it", () => {
@@ -841,7 +843,7 @@ describe("constant-skill deactivation decisions", () => {
       expect.arrayContaining([
         expect.objectContaining({
           sourceDefinitionId: "move-aoyosumu-inner-peace",
-          lifecycle: "active",
+          lifecycle: expect.objectContaining({ state: "active" }),
         }),
       ]),
     );
@@ -940,7 +942,7 @@ describe("constant-skill deactivation decisions", () => {
         expect.objectContaining({
           type: "active-constant",
           sourceDefinitionId: "move-aoyosumu-inner-peace",
-          lifecycle: "active",
+          lifecycle: expect.objectContaining({ state: "active" }),
         }),
         expect.objectContaining({
           type: "prevent-move-use",
@@ -1035,7 +1037,7 @@ describe("constant-skill deactivation decisions", () => {
       expect.arrayContaining([
         expect.objectContaining({
           sourceDefinitionId: "move-aoyosumu-inner-peace",
-          lifecycle: "active",
+          lifecycle: expect.objectContaining({ state: "active" }),
         }),
       ]),
     );

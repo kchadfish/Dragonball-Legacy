@@ -1520,7 +1520,7 @@ const isExactPendingChoiceVariant = (
     effect.percent.type === "literal" &&
     effect.percent.value === -5 &&
     effect.selector.subject === "source" &&
-    effect.selector.effectTextIncludes === "Straining" &&
+    effect.selector.titleTags?.includes("straining") === true &&
     effect.optional === true &&
     effect.activationCost === undefined &&
     effect.duration === undefined &&
@@ -2013,7 +2013,7 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
     occurrence.effect.selector?.type === "move-selector" &&
     occurrence.effect.selector.subject === "source" &&
     occurrence.effect.selector.category === "advanced-attack" &&
-    occurrence.effect.selector.effectTextIncludes === "BREAK" &&
+    occurrence.effect.selector.effectRuleTokens?.includes("break") === true &&
     occurrence.effect.scope?.type === "next-action" &&
     occurrence.effect.duration?.type === "combat" &&
     compilation?.ok === true

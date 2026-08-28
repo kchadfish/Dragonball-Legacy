@@ -155,6 +155,19 @@ describe("item definitions", () => {
     expect(ITEM_DEFINITIONS.every((item) => item.effects !== undefined)).toBe(true);
   });
 
+  it("converts activation KI costs into typed item effects", () => {
+    const heroicTunic = ITEM_DEFINITIONS.find((item) => item.id === "item-equipment-heroic-tunic");
+    expect(heroicTunic?.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item-state-rule",
+          operation: "pay-activation-ki",
+          amount: 1,
+        }),
+      ]),
+    );
+  });
+
   it("rejects broken item data", () => {
     const item = ITEM_DEFINITIONS[0];
 

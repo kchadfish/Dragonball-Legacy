@@ -5,6 +5,7 @@ import type {
 } from "@dragonball-resurgence/game-data";
 import type { ActiveCombatEffect, CombatActionRecord, CombatantState } from "./contracts.js";
 import { matchesMoveSelector as sharedMatchesMoveSelector } from "./selector-matching.js";
+import { isEffectActive } from "./effect-lifecycle.js";
 
 /**
  * The state available to source-transcribed numeric expressions. Values that
@@ -75,7 +76,7 @@ const activeConstantMovesForCombatant = (
     if (
       effect.type !== "active-constant" ||
       effect.sourceCombatantId !== combatant.id ||
-      effect.lifecycle === "deactivated" ||
+      !isEffectActive(effect) ||
       seenMoveIds.has(effect.sourceDefinitionId)
     )
       return [];
@@ -205,8 +206,8 @@ const durableExpressionHandlers: Partial<
     ).filter(
       (move) =>
         move.category === expression.category &&
-        (move.effectText.includes(expression.effectTextIncludes) ||
-          move.name.includes(expression.effectTextIncludes)),
+        expression.titleTag !== undefined &&
+        (move.mechanics.titleTags ?? []).includes(expression.titleTag),
     ).length;
     return count * expression.perMove;
   },

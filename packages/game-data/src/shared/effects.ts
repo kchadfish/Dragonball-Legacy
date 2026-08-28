@@ -309,17 +309,23 @@ export interface MoveSelectorCondition {
     "advanced-attack" | "signature" | "block" | "skill" | "mastery"
   )[];
   readonly tags?: readonly string[];
+  readonly titleTags?: readonly string[];
   readonly custom?: boolean;
   readonly styleProvenance?: "effect";
   readonly effectKinds?: readonly ("resource-loss" | "roll-side-reduction")[];
   readonly restriction?: "restricted" | "unrestricted";
   readonly constant?: boolean;
+  /** Typed rule-token selector; source-text selectors remain legacy-read only. */
+  readonly effectRuleTokens?: readonly string[];
+  readonly effectRuleTokensAny?: readonly string[];
   readonly effectTextIncludes?: string;
   readonly effectTextIncludesAny?: readonly string[];
   readonly effectTextExcludes?: string;
   readonly selectionKey?: string;
   readonly requirementExcludes?: readonly string[];
   readonly requirementIncludes?: readonly string[];
+  readonly requirementTagsExclude?: readonly string[];
+  readonly requirementTagsInclude?: readonly string[];
   readonly baseKiCost?: {
     readonly comparison: "at-least" | "at-most" | "exactly";
     readonly value: NumericExpression;
@@ -1389,6 +1395,8 @@ export interface SuppressEffect extends BaseEffectDefinition {
 export interface SuppressRequirementEffect extends BaseEffectDefinition {
   readonly type: "suppress-requirement";
   readonly requirement: string;
+  /** Typed requirement dimension; source text remains provenance only. */
+  readonly requirementType?: Requirement["type"];
 }
 
 export interface TravelEffect extends BaseEffectDefinition {

@@ -100,7 +100,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
               type: "move-selector",
               subject: "target",
               category: "advanced-attack",
-              requirementIncludes: ["Bukujutsu"],
+              requirementTagsInclude: ["Bukujutsu"],
               sourceText: "your opponent's last Advanced Attack required Bukujutsu",
             },
             sourceText: "If your opponent's last Advanced Attack required Bukujutsu",
@@ -282,7 +282,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "BREAK",
+          effectRuleTokens: ["break"],
           sourceText: "an attack with 'BREAK' in the effect",
         },
         scope: { type: "next-turn", subject: "self", sourceText: "on your next turn" },
@@ -462,7 +462,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "BREAK!",
+          effectRuleTokens: ["break"],
           sourceText: "Your attacks with 'BREAK!' in the effect",
         },
         sourceText: "Your attacks with 'BREAK!' in the effect do +(10% Power) Damage",
@@ -1052,7 +1052,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "BREAK!",
+          effectRuleTokens: ["break"],
           sourceText: "Your attacks with 'BREAK!' in the effect",
         },
         duration: {
@@ -1806,7 +1806,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           type: "move-selector",
           subject: "source",
           category: "advanced-attack",
-          effectTextIncludes: "BREAK",
+          effectRuleTokens: ["break"],
           sourceText: "The next attack you perform that can cause BREAK",
         },
         scope: { type: "next-action", sourceText: "The next attack you perform" },

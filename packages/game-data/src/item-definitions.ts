@@ -2281,6 +2281,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
       {
         trigger: "passive",
         type: "item-state-rule",
+        operation: "pay-activation-ki",
+        amount: 1,
+        sourceText: "pay 1 Ki Point",
+        sourceClauseOrder: 3,
+      },
+      {
+        trigger: "passive",
+        type: "item-state-rule",
         operation: "make-advanced-attack-unblockable",
         amount: 1,
         sourceText: "You may pay 1 Ki Point to make that attack UNBLOCKABLE.",
@@ -2791,6 +2799,14 @@ export const ITEM_DEFINITIONS: readonly ItemDefinition[] = [
         percent: 12,
         sourceText: "12% HP",
         sourceClauseOrder: 1,
+      },
+      {
+        trigger: "passive",
+        type: "item-state-rule",
+        operation: "pay-activation-ki",
+        amount: 1,
+        sourceText: "pay 1 Ki Point",
+        sourceClauseOrder: 2,
       },
       {
         trigger: "combat-action",

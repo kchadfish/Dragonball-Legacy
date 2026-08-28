@@ -1074,7 +1074,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
           subject: "target",
           styleId: AOYOSUMU_STYLE.id,
           category: "advanced-attack",
-          effectTextIncludes: "Dexterity",
+          effectRuleTokens: ["dexterity"],
           sourceText: 'Aoyosumu attack with the word "Dexterity" in the effect',
         },
         scope: {

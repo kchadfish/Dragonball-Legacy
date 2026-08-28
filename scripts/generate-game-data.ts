@@ -127,6 +127,9 @@ const mechanicsFor = (effectText: string): Record<string, unknown> => {
   const cost = /Cost:\s*([^.]*)\s+KI\b/iu.exec(effectText)?.[1];
   const baseEffectText = effectText.replace(/^\s*(?:\([^)]*\)\s*)+/u, "");
   const restrictedUses = /RESTRICTEDx(\d+)/iu.exec(baseEffectText)?.[1];
+  const activationClassification = /(?:^|\.)\s*Constant\.?\s*(?:$|\()/iu.test(effectText)
+    ? "constant"
+    : undefined;
   const timingText = /Timing:\s*([^.]*)\./iu.exec(effectText)?.[1];
   const attackType = /\b(Physical|Energy) attack\./iu.exec(effectText)?.[1]?.toLowerCase();
   const damage = /Deal \(([^)]*)\) damage/iu.exec(effectText)?.[1];
@@ -177,6 +180,7 @@ const mechanicsFor = (effectText: string): Record<string, unknown> => {
         };
 
   return {
+    ...(activationClassification === undefined ? {} : { activationClassification }),
     ...(cost === undefined ? {} : { kiCost: numericExpression(cost) }),
     ...(restrictedUses === undefined ? {} : { restrictedUses: numericExpression(restrictedUses) }),
     ...(timingText === undefined ? {} : { timingText }),
@@ -302,6 +306,16 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
   };
   for (const clause of clausesFor(effectText)) {
     currentClauseOrder = clause.order;
+    const activationKiCost = /pay\s+(\d+)\s+ki\s+points?/iu.exec(clause.text);
+    if (activationKiCost !== null) {
+      effects.push({
+        trigger: "passive",
+        type: "item-state-rule",
+        operation: "pay-activation-ki",
+        amount: Number(activationKiCost[1]),
+        sourceText: activationKiCost[0],
+      });
+    }
     for (const match of clause.text.matchAll(
       /([+-]?\s*\d+)%\s*(Power|HP|Health|Dexterity|Dex|All Stats)\b/giu,
     )) {

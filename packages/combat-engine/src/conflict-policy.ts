@@ -106,7 +106,6 @@ const conflictIdentity = (effect: ActiveCombatEffect) => {
       : { sourceEffectIndex: runtime.sourceEffectIndex }),
     ...(runtime.selector === undefined ? {} : { selector: runtime.selector }),
     ...(runtime.scope === undefined ? {} : { scope: runtime.scope }),
-    ...(runtime.lifecycle === undefined ? {} : { lifecycle: runtime.lifecycle }),
   };
 };
 
@@ -129,7 +128,6 @@ export const conflictMatchKeyFor = (effect: ActiveCombatEffect, policy: Conflict
       targetCombatantId: identity.targetCombatantId,
       selector: identity.selector,
       scope: identity.scope,
-      lifecycle: identity.lifecycle,
       group: policy.group,
     });
   }

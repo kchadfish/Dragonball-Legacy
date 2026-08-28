@@ -37,7 +37,15 @@ export const createMovesForSource = ({
       description: sourceMove.description,
       effectText: sourceMove.effectText,
       effectClauses: sourceMove.effectClauses,
-      mechanics: sourceMove.mechanics,
+      mechanics: {
+        ...sourceMove.mechanics,
+        ...(sourceMove.name.toLowerCase().includes("straining")
+          ? { titleTags: ["straining"] }
+          : {}),
+        ...(sourceMove.effectText.trimStart().startsWith("Constant.")
+          ? { activationClassification: "constant" as const }
+          : {}),
+      },
       ...(sourceMove.requirementsText === "None"
         ? {}
         : {

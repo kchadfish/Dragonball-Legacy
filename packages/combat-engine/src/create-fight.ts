@@ -22,7 +22,11 @@ import type { CombatDependencies } from "./dependencies.js";
 import type { CombatantId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
 import { applyCombatItemPassives } from "./item-effects-runtime.js";
-import { dispatchCombatTrigger as moveEffectsForTrigger } from "./combat-trigger-dispatch.js";
+import {
+  dispatchCombatTrigger as moveEffectsForTrigger,
+  dispatchCombatTriggerSources,
+  type CombatTriggerSource,
+} from "./combat-trigger-dispatch.js";
 import {
   activeRollModifierFromApplication,
   startCombatCopySelectionFor,
@@ -91,19 +95,19 @@ const passiveSlotCapacityState = (
   readonly capacities: CombatSlotCapacities;
   readonly modifications: readonly SlotCapacityModification[];
 } => {
-  const modifications = source.moveIds.flatMap((moveId) => {
+  const triggerSources: CombatTriggerSource[] = source.moveIds.flatMap((moveId) => {
     const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
-    if (move === undefined) return [];
-    return moveEffectsForTrigger(move, "passive", {
-      self: source,
-      opponent,
-      turnNumber: 1,
-      completedTurnCount: 0,
-      moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
-      moveActivationCounts: new Map(),
-      successfulHitCount: 0,
-    }).slotCapacityModifications;
+    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
   });
+  const modifications = dispatchCombatTriggerSources("passive", triggerSources, () => ({
+    self: source,
+    opponent,
+    turnNumber: 1,
+    completedTurnCount: 0,
+    moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+    moveActivationCounts: new Map(),
+    successfulHitCount: 0,
+  })).flatMap((effects) => effects.slotCapacityModifications);
   const capacities = modifications.reduce(
     (current, modification) => ({
       ...current,
@@ -266,20 +270,23 @@ const startCombatRollState = (
     [firstCombatant, secondCombatant],
     [secondCombatant, firstCombatant],
   ] as const) {
-    for (const moveId of source.moveIds) {
+    const triggerSources: CombatTriggerSource[] = source.moveIds.flatMap((moveId) => {
       const move = moves.get(moveId);
-      if (move === undefined) continue;
-      const effects = moveEffectsForTrigger(move, "start-combat", {
-        self: source,
-        opponent,
-        turnNumber: 1,
-        completedTurnCount: 0,
-        moves,
-        moveActivationCounts: new Map(),
-        successfulHitCount: 0,
-        activeEffects,
-      });
-      for (const application of effects.rollModifications)
+      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
+    });
+    const effects = dispatchCombatTriggerSources("start-combat", triggerSources, () => ({
+      self: source,
+      opponent,
+      turnNumber: 1,
+      completedTurnCount: 0,
+      moves,
+      moveActivationCounts: new Map(),
+      successfulHitCount: 0,
+      activeEffects,
+    }));
+    for (const [index, effectResult] of effects.entries()) {
+      const move = triggerSources[index]!.move;
+      for (const application of effectResult.rollModifications)
         appendStartCombatRollModification(
           application,
           source,
@@ -383,6 +390,7 @@ export const createFight = (
   const activeCombatantId = initiative.activeCombatantId;
   const state: ActiveFightState = {
     id: fightId,
+    schemaVersion: 1,
     version: 0,
     rulesVersion: { ...RULES_VERSION },
     mode: parsedInput.data.mode,

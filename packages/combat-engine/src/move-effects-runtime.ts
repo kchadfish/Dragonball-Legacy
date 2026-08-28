@@ -6,6 +6,7 @@ import type {
   MoveId,
   MoveSelectorCondition,
   NumericExpression,
+  Requirement,
 } from "@dragonball-resurgence/game-data";
 
 import { evaluateDurableNumericExpression, matchesMoveSelector } from "./declarative-runtime.js";
@@ -13,6 +14,7 @@ import { compileEffectPlan, executeCompiledEffect } from "./effect-executors.js"
 import { staticSelectionLimit } from "./effect-selection.js";
 import { conflictPolicyType, legacyStackingFor } from "./conflict-policy.js";
 import { missingConditionContextFacts, type ConditionContextFact } from "./condition-executors.js";
+import { isEffectActive } from "./effect-lifecycle.js";
 
 import type {
   ActiveCombatEffect,
@@ -104,6 +106,7 @@ export interface MoveEffectRuntimeContext {
   readonly selectedSuppressionMoveIds?: Readonly<Record<number, MoveDefinition["id"]>>;
   /** Move IDs selected for grouped effects that target one move. */
   readonly selectedMoveIds?: Readonly<Record<number, MoveDefinition["id"]>>;
+  readonly selectedMoveIdGroups?: Readonly<Record<number, readonly MoveDefinition["id"][]>>;
   /** Successful effects are gated until every die in the current attack succeeds. */
   readonly successfulEffectsRequireAllDice?: boolean;
   /** Unified dispatch treats absent required phase-local facts as invariant failures. */
@@ -642,9 +645,12 @@ export interface EndFloatingEffectApplication {
 }
 
 export interface MoveUsePreventionApplication {
+  readonly sourceEffectIndex?: number;
   readonly target: "self" | "opponent";
   readonly operation: "use" | "activate" | "deactivate";
   readonly selector?: MoveSelectorCondition;
+  /** Explicit candidate cardinality retained for public selection continuations. */
+  readonly selectionSpec?: EffectSelection;
   readonly duration: LockApplication["duration"];
 }
 
@@ -875,6 +881,7 @@ export interface SuppressionApplication {
   readonly selector?: MoveSelectorCondition;
   readonly selectedMoveId?: MoveDefinition["id"];
   readonly requirement?: string;
+  readonly requirementType?: Requirement["type"];
   readonly aspects: readonly ("all-effects" | "successful-effects")[];
   readonly duration:
     | { readonly type: "current-resolution" }
@@ -1407,7 +1414,7 @@ const activeMoveEffectMatches = (
   const active = (context.activeEffects ?? []).some((effect) => {
     if (
       effect.sourceCombatantId !== subject.id ||
-      (effect.type === "active-constant" && effect.lifecycle === "deactivated")
+      (effect.type === "active-constant" && !isEffectActive(effect))
     )
       return false;
     const sourceMove =
@@ -1452,7 +1459,7 @@ const activeMoveCountForSubject = (
     if (
       effect.type !== "active-constant" ||
       effect.sourceCombatantId !== subject.id ||
-      effect.lifecycle === "deactivated"
+      !isEffectActive(effect)
     )
       continue;
     const sourceMove =
@@ -1802,7 +1809,7 @@ const moveModificationMatches = (
   )
     return true;
   return [...(context.activeEffects ?? [])].some((activeEffect) => {
-    if (activeEffect.type !== "active-constant" || activeEffect.lifecycle === "deactivated") {
+    if (activeEffect.type !== "active-constant" || !isEffectActive(activeEffect)) {
       return false;
     }
     const sourceMove =
@@ -2739,6 +2746,9 @@ const suppressRequirementEffectChanges = (
         target,
         sourceEffectIndex: effectIndex,
         requirement: effect.requirement,
+        ...(effect.requirementType === undefined
+          ? {}
+          : { requirementType: effect.requirementType }),
         aspects: [],
         duration: { type: "turns", remaining: turns },
       },
@@ -4675,15 +4685,27 @@ const moveUsePreventionEffectChanges = (
   target: "self" | "opponent",
 ): EffectChanges => {
   const duration = lockDuration(effect.duration, context);
+  const selectedMoveIds =
+    context.sourceEffectIndex === undefined
+      ? undefined
+      : context.selectedMoveIdGroups?.[context.sourceEffectIndex];
+  const selector =
+    selectedMoveIds === undefined || selectedMoveIds.length === 0 || effect.selector === undefined
+      ? effect.selector
+      : { ...effect.selector, ids: selectedMoveIds };
   return duration === undefined
     ? emptyEffectChanges()
     : {
         ...emptyEffectChanges(),
         moveUsePreventions: [
           {
+            ...(context.sourceEffectIndex === undefined
+              ? {}
+              : { sourceEffectIndex: context.sourceEffectIndex }),
             target,
             operation: effect.operation ?? "use",
-            ...(effect.selector === undefined ? {} : { selector: effect.selector }),
+            ...(selector === undefined ? {} : { selector }),
+            ...(effect.selectionSpec === undefined ? {} : { selectionSpec: effect.selectionSpec }),
             ...(conflictPolicyType(effect) === undefined
               ? {}
               : { stacking: legacyStackingFor(effect) }),
@@ -6904,7 +6926,7 @@ const moveEffectsForTriggerInternal = (
               effect.percent.type === "literal" &&
               effect.percent.value === -5 &&
               effect.selector.subject === "source" &&
-              effect.selector.effectTextIncludes === "Straining" &&
+              effect.selector.titleTags?.includes("straining") === true &&
               effect.scope === undefined
             );
           }));
@@ -7180,10 +7202,24 @@ const moveEffectsForTriggerInternal = (
               runtimeValue(effect.activationCost.operation) === "lose"
             );
           }));
+      const supportedOnMoveUseMultiPreventionChoice =
+        trigger !== "on-success" ||
+        (effectIndices.length === 1 &&
+          effectIndices.every((effectIndex) => {
+            const effect = move.effects![effectIndex];
+            return (
+              effect.type === "prevent-move-use" &&
+              effect.target === "self" &&
+              effect.operation === "deactivate" &&
+              effect.selectionSpec?.type === "up-to" &&
+              effect.selector?.subject === "source"
+            );
+          }));
       if (
         !supportedOnMoveUseCostChoice &&
         !supportedOnMoveUseDamageChoice &&
-        !supportedOnMoveUseNegationChoice
+        !supportedOnMoveUseNegationChoice &&
+        !supportedOnMoveUseMultiPreventionChoice
       )
         continue;
       const supportedOnCostModifiedChoice =
@@ -7245,11 +7281,25 @@ const moveEffectsForTriggerInternal = (
         effectIndices.every((effectIndex) =>
           isSupportedUpkeepSuppressionChoice(move.effects![effectIndex]),
         );
+      const supportedMultiMovePreventionChoice =
+        trigger === "on-success" &&
+        effectIndices.length === 1 &&
+        effectIndices.every((effectIndex) => {
+          const effect = move.effects![effectIndex];
+          return (
+            effect.type === "prevent-move-use" &&
+            effect.target === "self" &&
+            effect.operation === "deactivate" &&
+            effect.selectionSpec?.type === "up-to" &&
+            effect.selector?.subject === "source"
+          );
+        });
       if (
         !supportedLifecycleChoice &&
         !supportedActionPhaseExchangeChoice &&
         !supportedUpkeepFloatingChoice &&
-        !supportedUpkeepSuppressionChoice
+        !supportedUpkeepSuppressionChoice &&
+        !supportedMultiMovePreventionChoice
       )
         continue;
       const choiceEffects = effectIndices.map((effectIndex) => move.effects![effectIndex]);
@@ -7332,6 +7382,7 @@ const moveEffectsForTriggerInternal = (
       effect.selector.ids === undefined;
     const isChoiceEffect =
       (effect.optional === true ||
+        (effect.type === "prevent-move-use" && effect.selectionSpec !== undefined) ||
         isEndFloatingEffectChoice(effect) ||
         effect.activationGroup !== undefined ||
         effect.exclusiveActivationGroup !== undefined ||
@@ -7645,6 +7696,7 @@ const moveWithActiveEffectReplacements = (
   const replacements = (context.activeEffects ?? []).filter(
     (effect): effect is Extract<ActiveCombatEffect, { readonly type: "move-effect-replacement" }> =>
       effect.type === "move-effect-replacement" &&
+      isEffectActive(effect) &&
       effect.sourceCombatantId === context.self.id &&
       effect.targetMoveId === move.id &&
       effect.remainingTriggers > 0,

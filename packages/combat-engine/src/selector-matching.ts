@@ -2,7 +2,7 @@ import type { MoveDefinition, MoveSelectorCondition } from "@dragonball-resurgen
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 
 const isConstantSkill = (move: MoveDefinition) =>
-  move.category === "skill" && move.effectClauses.some((clause) => clause.text === "Constant.");
+  move.category === "skill" && move.mechanics.activationClassification === "constant";
 
 const compare = (left: number, comparison: "at-least" | "at-most" | "exactly", right: number) => {
   if (comparison === "at-least") return left >= right;
@@ -21,33 +21,45 @@ const matchesIdentity = (move: MoveDefinition, selector: MoveSelectorCondition) 
 const matchesTagsAndClassification = (move: MoveDefinition, selector: MoveSelectorCondition) =>
   (selector.tags === undefined ||
     selector.tags.every((tag) => move.tags.includes(tag as (typeof move.tags)[number]))) &&
+  (selector.titleTags === undefined ||
+    selector.titleTags.every((tag) => move.mechanics.titleTags?.includes(tag) === true)) &&
   (selector.custom === undefined || (move.styleId === undefined) === selector.custom) &&
   (selector.restriction === undefined ||
     (move.mechanics.restrictedUses !== undefined) === (selector.restriction === "restricted")) &&
   (selector.constant === undefined || selector.constant === isConstantSkill(move));
 
 const matchesTextAndRequirements = (move: MoveDefinition, selector: MoveSelectorCondition) => {
-  const requirements = move.requirements ?? [];
-  const sourceTextRequirements = requirements
-    .filter((requirement) => requirement.type === "source-text")
-    .map((requirement) => requirement.text.toLowerCase());
+  // Legacy prose selectors remain readable for snapshot diagnostics, but are
+  // intentionally non-executable until converted to typed dimensions.
+  if (hasLegacyProseSelector(selector)) return false;
+  const requirementTags = new Set(move.mechanics.requirementTags ?? []);
+  const ruleTokens = new Set<string>([
+    ...move.effectClauses.flatMap((clause) => clause.ruleTokens),
+    ...(move.mechanics.effectRuleTokens ?? []),
+  ]);
   return (
-    (selector.effectTextIncludes === undefined ||
-      move.effectText.includes(selector.effectTextIncludes)) &&
-    (selector.effectTextIncludesAny === undefined ||
-      selector.effectTextIncludesAny.some((text) => move.effectText.includes(text))) &&
-    (selector.effectTextExcludes === undefined ||
-      !move.effectText.includes(selector.effectTextExcludes)) &&
-    (selector.requirementIncludes === undefined ||
-      selector.requirementIncludes.every((required) =>
-        sourceTextRequirements.some((text) => text.includes(required.toLowerCase())),
+    (selector.effectRuleTokens === undefined ||
+      selector.effectRuleTokens.every((token) => ruleTokens.has(token))) &&
+    (selector.effectRuleTokensAny === undefined ||
+      selector.effectRuleTokensAny.some((token) => ruleTokens.has(token))) &&
+    (selector.requirementTagsInclude === undefined ||
+      selector.requirementTagsInclude.every((required) =>
+        requirementTags.has(required.toLowerCase()),
       )) &&
-    (selector.requirementExcludes === undefined ||
-      selector.requirementExcludes.every(
-        (excluded) => !sourceTextRequirements.some((text) => text.includes(excluded.toLowerCase())),
+    (selector.requirementTagsExclude === undefined ||
+      selector.requirementTagsExclude.every(
+        (excluded) => !requirementTags.has(excluded.toLowerCase()),
       ))
   );
 };
+
+/** Legacy prose selectors are readable for migration diagnostics, never executable. */
+export const hasLegacyProseSelector = (selector: MoveSelectorCondition): boolean =>
+  selector.effectTextIncludes !== undefined ||
+  selector.effectTextIncludesAny !== undefined ||
+  selector.effectTextExcludes !== undefined ||
+  selector.requirementIncludes !== undefined ||
+  selector.requirementExcludes !== undefined;
 
 const matchesAttackRoll = (move: MoveDefinition, selector: MoveSelectorCondition) => {
   if (selector.attackRoll === undefined) return true;

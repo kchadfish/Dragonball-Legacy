@@ -376,7 +376,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "Bukujutsu",
+          requirementTagsInclude: ["bukujutsu"],
           sourceText: 'Your attacks with "Requirement: Bukujutsu"',
         },
         sourceText: 'Your attacks with "Requirement: Bukujutsu" gain +2 dice sides',
@@ -609,7 +609,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "Bukujutsu",
+          requirementTagsInclude: ["bukujutsu"],
           sourceText: "Your attacks that require Bukujutsu",
         },
         sourceText:
@@ -624,7 +624,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
         selector: {
           type: "move-selector",
           subject: "target",
-          effectTextIncludes: "Bukujutsu",
+          requirementTagsInclude: ["bukujutsu"],
           sourceText: "Your attacks that require Bukujutsu",
         },
         sourceText:
@@ -1173,7 +1173,7 @@ const structuredEffectsByMoveId = new Map<string, readonly EffectDefinition[]>([
             selector: {
               type: "move-selector",
               subject: "source",
-              effectTextIncludes: "Channeled Chi Mastery",
+              ids: ["move-kiihakai-channeled-chi-mastery"],
               sourceText: "If you are not using Channeled Chi Mastery",
             },
             sourceText: "If you are not using Channeled Chi Mastery",

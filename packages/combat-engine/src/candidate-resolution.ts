@@ -14,6 +14,7 @@ import type {
   RespondToPendingDecision,
 } from "./contracts.js";
 import type { ActiveEffectId, CombatDecisionId, CombatantId } from "./ids.js";
+import { isEffectDeactivated } from "./effect-lifecycle.js";
 import { matchesMoveSelector } from "./selector-matching.js";
 
 export type CombatCandidate =
@@ -142,7 +143,7 @@ export const resolveMoveCandidates = (
     if (
       effect.type !== "active-constant" ||
       effect.sourceCombatantId !== ownerCombatantId ||
-      (effect.lifecycle === "deactivated" && options.includeDeactivatedConstants !== true)
+      (isEffectDeactivated(effect) && options.includeDeactivatedConstants !== true)
     )
       return [];
     const move = effect.replacement?.sourceMoveSnapshot ?? moveMap.get(effect.sourceDefinitionId);
@@ -262,6 +263,13 @@ export type PendingSelectionValidation =
   | { readonly ok: true; readonly options: readonly PendingDecisionOption[] }
   | { readonly ok: false; readonly reason: "not-configured" | "invalid-selection" };
 
+export const pendingOptionIdsFor = (
+  decision: Partial<Pick<RespondToPendingDecision, "optionId" | "optionIds" | "selectedOptionIds">>,
+): readonly string[] =>
+  (decision.selectedOptionIds ?? [decision.optionId, ...(decision.optionIds ?? [])]).filter(
+    (optionId): optionId is string => optionId !== undefined,
+  );
+
 /**
  * Validates a generic response against the exact persisted candidate set.
  * Specialized legacy pending decisions intentionally bypass this helper by
@@ -269,20 +277,23 @@ export type PendingSelectionValidation =
  */
 export const validatePendingSelection = (
   pending: PendingDecision,
-  decision: Pick<RespondToPendingDecision, "optionId" | "optionIds">,
+  decision: Partial<Pick<RespondToPendingDecision, "optionId" | "optionIds" | "selectedOptionIds">>,
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Validation keeps cardinality and exact-candidate checks together.
 ): PendingSelectionValidation => {
   if (pending.candidates === undefined) return { ok: false, reason: "not-configured" };
-  const optionIds = [...new Set([decision.optionId, ...(decision.optionIds ?? [])])];
+  const optionIds = pendingOptionIdsFor(decision);
   if (optionIds.length === 1 && optionIds[0] === "decline") {
     return pending.optional === true
       ? { ok: true, options: [] }
       : { ok: false, reason: "invalid-selection" };
   }
-  const options = optionIds.flatMap((optionId) => {
-    const option = pending.options.find((candidate) => candidate.id === optionId);
-    return option === undefined ? [] : [option];
-  });
+  const options = optionIds
+    .flatMap((optionId) => {
+      const index = pending.options.findIndex((candidate) => candidate.id === optionId);
+      return index < 0 ? [] : [{ index, option: pending.options[index] }];
+    })
+    .sort((left, right) => left.index - right.index)
+    .map(({ option }) => option);
   if (
     options.length !== optionIds.length ||
     options.some((option) => option.candidate === undefined)
@@ -296,6 +307,13 @@ export const validatePendingSelection = (
   )
     return { ok: false, reason: "invalid-selection" };
   const selection = pending.selection;
+  if (
+    selected.length === 0 &&
+    pending.optional === true &&
+    (selection?.type === "up-to" || selection?.type === "all")
+  ) {
+    return { ok: true, options: [] };
+  }
   if (selection?.type === "one" && selected.length !== 1) {
     return { ok: false, reason: "invalid-selection" };
   }

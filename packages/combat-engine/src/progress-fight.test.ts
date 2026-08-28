@@ -610,11 +610,11 @@ describe("Evening The Field public lifecycle", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "active-effect:evening-self-target",
-          lifecycle: "deactivated",
+          lifecycle: expect.objectContaining({ state: "deactivated" }),
         }),
         expect.objectContaining({
           id: "active-effect:evening-opponent-target",
-          lifecycle: "deactivated",
+          lifecycle: expect.objectContaining({ state: "deactivated" }),
         }),
         expect.objectContaining({
           type: "exchange-skill-reactivation",
@@ -708,7 +708,10 @@ describe("Evening The Field public lifecycle", () => {
     const resolved = requireActiveFightState(resolvedTransition.state);
     expect(resolved.activeEffects).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: deactivatedEffectId, lifecycle: "active" }),
+        expect.objectContaining({
+          id: deactivatedEffectId,
+          lifecycle: expect.objectContaining({ state: "active" }),
+        }),
       ]),
     );
     expect(resolved.activeEffects).not.toEqual(
@@ -1691,7 +1694,7 @@ describe("generic deactivation-based defense choices", () => {
         expect.objectContaining({
           type: "active-constant",
           sourceDefinitionId: "move-afterlife-energy-blade",
-          lifecycle: "deactivated",
+          lifecycle: expect.objectContaining({ state: "deactivated" }),
         }),
         expect.objectContaining({
           type: "action-lock",
@@ -3618,7 +3621,7 @@ describe("generic successful CONSTANT Skill activation", () => {
       expect.objectContaining({
         type: "active-constant",
         sourceDefinitionId: "move-kiihakai-overdrive-mastery",
-        lifecycle: "active",
+        lifecycle: expect.objectContaining({ state: "active" }),
       }),
     );
     expect(resumed.activeEffects).toContainEqual(
@@ -3949,7 +3952,7 @@ describe("generic successful CONSTANT Skill activation", () => {
         type: "active-constant",
         sourceDefinitionId: "move-freestyle-monkey-maneuvers",
         paidActivationCost: 2,
-        lifecycle: "active",
+        lifecycle: expect.objectContaining({ state: "active" }),
       }),
     );
     expect(resumed.version).toBe(pending.version + 1);
@@ -4168,14 +4171,14 @@ describe("generic successful CONSTANT Skill activation", () => {
     expect(completed.activeEffects).toContainEqual(
       expect.objectContaining({
         id: "active-effect:rollback-evening",
-        lifecycle: "active",
+        lifecycle: expect.objectContaining({ state: "active" }),
         sourceDefinitionId: "move-kiihakai-evening-the-field",
       }),
     );
     expect(completed.activeEffects).toContainEqual(
       expect.objectContaining({
         id: "active-effect:rollback-redirected",
-        lifecycle: "active",
+        lifecycle: expect.objectContaining({ state: "active" }),
         sourceDefinitionId: "move-kiihakai-redirected-energy",
       }),
     );
@@ -4364,12 +4367,12 @@ describe("generic successful CONSTANT Skill activation", () => {
         expect.objectContaining({
           sourceDefinitionId: "move-freestyle-expert-swordplay",
           sourceCombatantId: firstCombatantId,
-          lifecycle: "active",
+          lifecycle: expect.objectContaining({ state: "active" }),
         }),
         expect.objectContaining({
           sourceDefinitionId: "move-freestyle-monkey-maneuvers",
           sourceCombatantId: firstCombatantId,
-          lifecycle: "active",
+          lifecycle: expect.objectContaining({ state: "active" }),
         }),
       ]),
     );
@@ -4934,7 +4937,7 @@ describe("phase-aware CONSTANT Skill activation", () => {
         id: "active-effect:fierce-focus",
         sourceDefinitionId: "move-kiihakai-evening-the-field",
         paidActivationCost: 0,
-        lifecycle: "active",
+        lifecycle: expect.objectContaining({ state: "active" }),
       }),
     );
     expect(resumed.pendingDecision).toBeUndefined();
@@ -10570,7 +10573,7 @@ describe("initial turn progression", () => {
           sourceDefinitionId: "move-haokiru-creationist",
           activatedOnTurn: action.turnNumber,
           duration: "combat",
-          lifecycle: "active",
+          lifecycle: { state: "active" },
         },
       ],
     } satisfies ActiveFightState;
