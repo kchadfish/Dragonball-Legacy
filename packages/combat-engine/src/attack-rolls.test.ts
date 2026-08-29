@@ -115,7 +115,17 @@ describe("contested attack rolls", () => {
     );
 
     expect(advantage[0]).toMatchObject({ attackNaturalResult: 20, defenseNaturalResult: 1 });
+    expect(advantage[0]?.attackCandidates).toEqual([
+      { candidateIndex: 0, naturalValue: 4, finalResult: 4 },
+      { candidateIndex: 1, naturalValue: 20, finalResult: 20 },
+    ]);
+    expect(advantage[0]?.selectedAttackCandidateIndex).toBe(1);
     expect(disadvantage[0]).toMatchObject({ attackNaturalResult: 20, defenseNaturalResult: 4 });
+    expect(disadvantage[0]?.defenseCandidates).toEqual([
+      { candidateIndex: 0, naturalValue: 4, finalResult: 4 },
+      { candidateIndex: 1, naturalValue: 18, finalResult: 18 },
+    ]);
+    expect(disadvantage[0]?.selectedDefenseCandidateIndex).toBe(0);
   });
 
   it("replays the selected roll without consuming candidate randomness", () => {
@@ -377,7 +387,7 @@ describe("contested attack rolls", () => {
     ).toThrow(RangeError);
   });
 
-  it("applies validated numeric result substitutions after natural dice and bonuses", () => {
+  it("applies validated numeric result substitutions before stat and declarative bonuses", () => {
     const rolls = resolveContestedAttackRolls(
       {
         attack: { dice: 2, sides: 30 },
@@ -395,10 +405,10 @@ describe("contested attack rolls", () => {
     expect(rolls).toEqual([
       {
         attackNaturalResult: 4,
-        attackResult: 25,
+        attackResult: 27,
         defenseNaturalResult: 20,
-        defenseResult: 26,
-        outcome: "stopped",
+        defenseResult: 25,
+        outcome: "successful",
       },
       {
         attackNaturalResult: 21,

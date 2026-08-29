@@ -711,6 +711,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
       },
     ],
     transformationIds: [
+      "transformation-humans-1-high-tension",
       "transformation-humans-2-super-human",
       "transformation-humans-3-unlocked-potential",
       "transformation-humans-4-mythic-form",

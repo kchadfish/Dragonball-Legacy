@@ -8,7 +8,13 @@ import type {
   NumericExpression,
   Requirement,
 } from "@dragonball-resurgence/game-data";
-import type { ItemId, MoveId, StatusId, TransformationId } from "@dragonball-resurgence/game-data";
+import type {
+  ItemId,
+  MoveId,
+  RaceId,
+  StatusId,
+  TransformationId,
+} from "@dragonball-resurgence/game-data";
 import { z } from "zod";
 
 import type {
@@ -20,8 +26,10 @@ import type {
   PendingDecisionId,
   ResolutionFrameId,
 } from "./ids.js";
+import type { ScheduledCombatWork } from "./fight-flow-scheduler.js";
 import type { CandidateReference } from "./candidate-resolution.js";
 import type { EffectLifecycleBoundary, EffectLifecycleRecord } from "./effect-lifecycle.js";
+import type { CombatDiagnosticTrace } from "./dependencies.js";
 
 export type CombatMode = "spar" | "battle";
 
@@ -79,13 +87,22 @@ export interface ActiveStatus {
     | { readonly type: "uses"; readonly remaining: number };
 }
 
+export interface CombatantTransformationProfile {
+  readonly transformationId: TransformationId;
+  readonly rollSides: number;
+  readonly mastery: "novice" | "intermediate" | "mastered";
+}
+
 /** The transformation currently active on a combatant; permanent unlocks remain outside combat. */
 export interface ActiveTransformation {
   readonly transformationId: TransformationId;
   readonly activatedOnTurn: number;
   readonly baseline?: {
-    readonly currentHitPoints: number;
     readonly maximumHitPoints: number;
+    /** Fixed HP added at activation and removed at reversion. */
+    readonly hpBonus?: number;
+    /** Legacy snapshots retained this activation-time current HP. */
+    readonly currentHitPoints?: number;
     readonly stats: CombatantStats;
   };
 }
@@ -109,6 +126,7 @@ export interface StoredMoveSelection {
 
 export interface CombatantState {
   readonly id: CombatantId;
+  readonly raceId?: RaceId;
   /** The declared martial-arts style used by durable Freestyle classifications. */
   readonly declaredStyleId?: string;
   readonly hitPoints: CombatResources;
@@ -118,6 +136,9 @@ export interface CombatantState {
   readonly specializationPoints?: number;
   readonly level?: number;
   readonly planetHasDragonBalls?: boolean;
+  /** Canonical transformation ownership and stability state. */
+  readonly transformationProfiles?: readonly CombatantTransformationProfile[];
+  /** @deprecated Read only while migrating pre-Phase-9 snapshots. */
   readonly masteredTransformationIds?: readonly TransformationId[];
   readonly moveIds: readonly MoveId[];
   /** Canonical moveset capacities after passive combat modifiers are applied. */
@@ -126,6 +147,7 @@ export interface CombatantState {
   readonly slotCapacityModifications?: readonly SlotCapacityModification[];
   readonly itemIds?: readonly ItemId[];
   readonly transformationIds?: readonly TransformationId[];
+  readonly transformationCooldown?: { readonly remainingOwnerTurns: number };
   /** Number of pending transformations that do not consume the action phase. */
   readonly freeTransformationActions?: number;
   /** Transformation opportunities retained until the next END phase. */
@@ -176,6 +198,7 @@ const createFightCombatantInputSchema = z
     specializationPoints: z.number().nonnegative().optional(),
     level: z.number().nonnegative().optional(),
     planetHasDragonBalls: z.boolean().optional(),
+    raceId: z.string().min(1).optional(),
     masteredTransformationIds: z.array(z.string().min(1)).optional(),
     moveIds: z.array(z.string().min(1)).superRefine((moveIds, context) => {
       const seenMoveIds = new Set<string>();
@@ -208,6 +231,17 @@ const createFightCombatantInputSchema = z
       })
       .optional(),
     transformationIds: z.array(z.string().min(1)).optional(),
+    transformationProfiles: z
+      .array(
+        z
+          .object({
+            transformationId: z.string().min(1),
+            rollSides: z.number().int().positive().max(100),
+            mastery: z.enum(["novice", "intermediate", "mastered"]),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 
@@ -401,6 +435,7 @@ export interface ActiveRollModifierEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: ItemId | MoveId;
+  readonly sourceEffectIndex?: number;
   readonly roll: CombatRollType;
   readonly modifier: "dice" | "result" | "sides";
   readonly amount: number;
@@ -625,7 +660,8 @@ export interface ActiveStatModifierEffect {
   readonly type: "modify-stat";
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
-  readonly sourceDefinitionId: MoveId;
+  readonly sourceDefinitionId: ItemId | MoveId;
+  readonly sourceEffectIndex?: number;
   readonly stat: "dexterity" | "dexterity-bonus";
   readonly operation: "add" | "set" | "multiply";
   readonly amount: number;
@@ -643,7 +679,8 @@ export interface ActiveStatComparisonEffect {
   readonly type: "set-stat-comparison";
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
-  readonly sourceDefinitionId: MoveId;
+  readonly sourceDefinitionId: ItemId | MoveId;
+  readonly sourceEffectIndex?: number;
   readonly leftCombatantId: CombatantId;
   readonly rightCombatantId: CombatantId;
   readonly stat: "dexterity";
@@ -771,6 +808,7 @@ export interface ActiveItemDamageModifierEffect {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: ItemId;
+  readonly sourceEffectIndex?: number;
   readonly amount: number;
   readonly remainingAttacks: number;
 }
@@ -1242,7 +1280,8 @@ export type CombatActionRecord =
       readonly reason: "status" | "effect";
     }
   | {
-      readonly type: "activate-transformation" | "pass" | "power-up" | "surrender";
+      readonly type:
+        "activate-transformation" | "deactivate-transformation" | "pass" | "power-up" | "surrender";
       readonly decisionId: CombatDecisionId;
       readonly actorId: CombatantId;
       readonly turnNumber: number;
@@ -1326,6 +1365,19 @@ export interface CopiedMoveAttackReference {
  * Deterministic source-side attack data retained for a copy effect that
  * explicitly repeats a completed attack's cost, dice, and modifiers.
  */
+export interface RollCandidateSnapshot {
+  readonly candidateIndex: number;
+  readonly naturalValue: number;
+  readonly finalResult: number;
+}
+
+export interface AttackDieCandidateSnapshot {
+  readonly attackCandidates?: readonly RollCandidateSnapshot[];
+  readonly selectedAttackCandidateIndex?: number;
+  readonly defenseCandidates?: readonly RollCandidateSnapshot[];
+  readonly selectedDefenseCandidateIndex?: number;
+}
+
 export interface AttackResolutionSnapshot {
   readonly paidKiCost: number;
   readonly attack: { readonly dice: number; readonly sides: number };
@@ -1354,6 +1406,8 @@ export interface AttackResolutionSnapshot {
   readonly numericResultOverrides: readonly (
     { readonly attack?: number; readonly defense?: number } | undefined
   )[];
+  /** Candidate and selected-index facts retained for deterministic replay/audit. */
+  readonly candidateFacts?: readonly (AttackDieCandidateSnapshot | undefined)[];
   readonly preventCritical: boolean;
   readonly preventCounter: boolean;
 }
@@ -1450,6 +1504,8 @@ export type ResolutionFrame =
       readonly numericResultOverrides: readonly (
         { readonly attack?: number; readonly defense?: number } | undefined
       )[];
+      /** Candidate and selected-index facts retained before a suspended reaction. */
+      readonly candidateFacts?: readonly (AttackDieCandidateSnapshot | undefined)[];
     }
   | {
       readonly id: ResolutionFrameId;
@@ -1702,7 +1758,7 @@ export type ResolutionFrame =
 interface FightStateBase {
   readonly id: FightId;
   /** Serialized fight-state contract version. Legacy snapshots may omit it. */
-  readonly schemaVersion?: 1;
+  readonly schemaVersion?: 1 | 2 | 3;
   readonly version: number;
   readonly rulesVersion: RulesVersion;
   readonly mode: CombatMode;
@@ -1711,6 +1767,8 @@ interface FightStateBase {
   readonly activeEffects: readonly ActiveCombatEffect[];
   readonly actionHistory: readonly CombatActionRecord[];
   readonly resolutionFrames: readonly ResolutionFrame[];
+  /** Ordered unresolved work; optional only while reading pre-Phase-7 snapshots. */
+  readonly scheduledWork?: readonly ScheduledCombatWork[];
   readonly eventSequence: number;
 }
 
@@ -1741,6 +1799,7 @@ export interface FightStateInvariantViolation {
     | "invalid-combatant-state"
     | "invalid-completion"
     | "invalid-resolution-frame"
+    | "invalid-scheduled-work"
     | "invalid-pending-decision"
     | "invalid-resource"
     | "invalid-rules-version"
@@ -1811,6 +1870,13 @@ export interface ActivateTransformationDecision {
   readonly transformationId: TransformationId;
 }
 
+export interface DeactivateTransformationDecision {
+  readonly type: "deactivate-transformation";
+  readonly id: CombatDecisionId;
+  readonly actorId: CombatantId;
+  readonly expectedStateVersion: number;
+}
+
 export interface UseItemDecision {
   readonly type: "use-item";
   readonly id: CombatDecisionId;
@@ -1840,6 +1906,7 @@ export type CombatDecision =
   | BasicAttackDecision
   | UseMoveDecision
   | ActivateTransformationDecision
+  | DeactivateTransformationDecision
   | UseItemDecision
   | RespondToPendingDecision;
 
@@ -1881,6 +1948,10 @@ export type LegalDecision =
       readonly type: "activate-transformation";
       readonly actorId: CombatantId;
       readonly transformationId: TransformationId;
+    }
+  | {
+      readonly type: "deactivate-transformation";
+      readonly actorId: CombatantId;
     }
   | {
       readonly type: "use-item";
@@ -1947,6 +2018,7 @@ export interface ItemUsedEvent extends CombatEventBase {
   readonly type: "item-used";
   readonly combatantId: CombatantId;
   readonly itemId: ItemId;
+  readonly sourceClauseOrder?: number;
 }
 
 export interface AttackRolledEvent extends CombatEventBase {
@@ -1993,6 +2065,8 @@ export interface EffectActivatedEvent extends CombatEventBase {
   readonly sourceCombatantId: CombatantId;
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
+  readonly sourceEffectIndex?: number;
+  readonly sourceClauseOrder?: number;
 }
 
 export interface EffectExpiredEvent extends CombatEventBase {
@@ -2109,6 +2183,12 @@ export interface TransformationRolledEvent extends CombatEventBase {
   readonly forced: true;
 }
 
+export interface TransformationCooldownStartedEvent extends CombatEventBase {
+  readonly type: "transformation-cooldown-started";
+  readonly combatantId: CombatantId;
+  readonly remainingOwnerTurns: number;
+}
+
 export interface KiChangedEvent extends CombatEventBase {
   readonly type: "ki-changed";
   readonly combatantId: CombatantId;
@@ -2211,6 +2291,7 @@ export type CombatEvent =
   | TransformationActivatedEvent
   | TransformationDeactivatedEvent
   | TransformationRolledEvent
+  | TransformationCooldownStartedEvent
   | KiChangedEvent
   | HpChangedEvent
   | DamageAppliedEvent
@@ -2227,6 +2308,8 @@ export interface CombatTransition {
   readonly state: FightState;
   readonly events: readonly CombatEvent[];
   readonly pendingDecision?: PendingDecision;
+  /** Optional calculation diagnostics; omitted unless explicitly retained. */
+  readonly diagnosticTrace?: CombatDiagnosticTrace;
 }
 
 export type CombatFailure =
@@ -2283,6 +2366,10 @@ export type CombatFailure =
   | {
       readonly type: "item-use-exhausted";
       readonly itemId: ItemId;
+    }
+  | {
+      readonly type: "item-use-group-exhausted";
+      readonly group: "healing" | "ki-gain" | "roll-modifier";
     }
   | {
       readonly type: "move-locked";

@@ -13,6 +13,7 @@ import {
   enumerateLegalDecisions,
   submitCombatDecision,
 } from "./index.js";
+import { validateFightState } from "./invariants.js";
 
 const runtimeOptional = <T>(value: T | undefined): T | undefined => value;
 import {
@@ -157,6 +158,16 @@ describe("deferred move catalog capabilities", () => {
       type: "deferred-move",
       performOnTurn: scheduled.turnNumber + 2,
     });
+    expect(scheduled.scheduledWork).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({
+            type: "deferred-move",
+            moveId: "move-afterlife-warp-kamehameha",
+          }),
+        }),
+      ]),
+    );
     expect(scheduled.combatants[firstCombatantId].ki.current).toBe(0);
     expect(scheduled.combatants[firstCombatantId].moveUses["move-afterlife-warp-kamehameha"]).toBe(
       1,
@@ -190,6 +201,16 @@ describe("deferred move catalog capabilities", () => {
     const resumed = requireActiveFightState(resumedTransition.state);
     expect(resumed.pendingDecision).toBeUndefined();
     expect(deferredMove(resumed, "move-afterlife-warp-kamehameha")).toBeUndefined();
+    expect(resumed.scheduledWork).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({
+            type: "deferred-move",
+            moveId: "move-afterlife-warp-kamehameha",
+          }),
+        }),
+      ]),
+    );
     expect(resumed.combatants[secondCombatantId].hitPoints.current).toBeLessThan(500);
     expect(resumed.combatants[firstCombatantId].ki.current).toBe(0);
     expect(resumed.combatants[firstCombatantId].moveUses["move-afterlife-warp-kamehameha"]).toBe(1);
@@ -4787,9 +4808,27 @@ describe("generic successful CONSTANT Skill activation", () => {
       naturalRolls: [{ attack: 20, defense: 24 }],
     });
 
+    const persistedCandidateFacts = [
+      {
+        attackCandidates: [{ candidateIndex: 0, naturalValue: 20, finalResult: 20 }],
+        selectedAttackCandidateIndex: 0,
+        defenseCandidates: [{ candidateIndex: 0, naturalValue: 24, finalResult: 24 }],
+        selectedDefenseCandidateIndex: 0,
+      },
+    ] as const;
+    const suspendedWithCandidateFacts: ActiveFightState = {
+      ...pendingReaction,
+      resolutionFrames: pendingReaction.resolutionFrames.map((frame) =>
+        frame.type === "attack" && frame.stage === "awaiting-post-defense-reaction"
+          ? { ...frame, candidateFacts: persistedCandidateFacts }
+          : frame,
+      ),
+    };
+    expect(validateFightState(suspendedWithCandidateFacts)).toEqual([]);
+
     const resumedTransition = requireTransition(
       submitCombatDecision(
-        pendingReaction,
+        suspendedWithCandidateFacts,
         {
           type: "respond-to-pending-decision",
           id: combatDecisionIdSchema.parse("decision:galick-activate"),
@@ -4816,6 +4855,10 @@ describe("generic successful CONSTANT Skill activation", () => {
       }),
     );
     expect(resumed.pendingDecision).toBeUndefined();
+    const resumedAction = resumed.actionHistory.at(-1);
+    expect(resumedAction?.type).toBe("use-move");
+    if (resumedAction?.type === "use-move")
+      expect(resumedAction.resolutionSnapshot?.candidateFacts).toEqual(persistedCandidateFacts);
   });
 });
 
@@ -6371,6 +6414,16 @@ describe("scheduled resource effect dispatch", () => {
     expect(
       secondTargetUpkeep.state.activeEffects.some((effect) => effect.type === "scheduled-resource"),
     ).toBe(false);
+    expect(secondTargetUpkeep.state.scheduledWork).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({
+            type: "resource",
+            operation: "damage",
+          }),
+        }),
+      ]),
+    );
   });
 
   it("cancels matching scheduled work after a successful basic attack", () => {
@@ -8951,6 +9004,11 @@ describe("generic counter-action transitions", () => {
       stage: "awaiting-counter",
       counterAction: { action: "choose-attack" },
     });
+    expect(counterReady.scheduledWork).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ operation: expect.objectContaining({ type: "counter" }) }),
+      ]),
+    );
     expect(enumerateLegalDecisions(counterReady, secondCombatantId)).toContainEqual(
       expect.objectContaining({
         type: "basic-attack",
@@ -12402,11 +12460,42 @@ describe("initial turn progression", () => {
         }),
       ]),
     );
+    expect(next.scheduledWork).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({
+            type: "extra-action",
+            remainingActions: 1,
+          }),
+        }),
+      ]),
+    );
     expect(enumerateLegalDecisions(next, firstCombatantId)).toContainEqual(
       expect.objectContaining({
         type: "use-move",
         moveId: "move-afterlife-give-me-energy",
       }),
+    );
+    const consumed = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          next,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:action-phase-extra-action-consume"),
+            actorId: firstCombatantId,
+            expectedStateVersion: next.version,
+            moveId: "move-afterlife-give-me-energy",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    expect(consumed.scheduledWork).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ operation: expect.objectContaining({ type: "extra-action" }) }),
+      ]),
     );
   });
 
@@ -12974,6 +13063,16 @@ describe("initial turn progression", () => {
       combatantId: firstCombatantId,
       options: expect.arrayContaining([{ id: "decline", type: "decline" }]),
     });
+    expect(upkeep.scheduledWork).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({
+            type: "extra-action",
+            activationCost: expect.objectContaining({ amount: 1 }),
+          }),
+        }),
+      ]),
+    );
     const pending = upkeep.pendingDecision;
     if (pending === undefined) throw new Error("Expected Launching Kick activation choice.");
     const activate = pending.options.find((option) => option.type === "activate-effect");
@@ -13006,6 +13105,21 @@ describe("initial turn progression", () => {
     );
     expect(activatedExtraAction).toBeDefined();
     expect(activatedExtraAction).not.toHaveProperty("activationCost");
+    expect(activated.scheduledWork).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({
+            type: "extra-action",
+          }),
+        }),
+      ]),
+    );
+    expect(
+      activated.scheduledWork?.some(
+        (work) =>
+          work.operation.type === "extra-action" && work.operation.activationCost !== undefined,
+      ),
+    ).toBe(false);
     expect(enumerateLegalDecisions(activated, firstCombatantId)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

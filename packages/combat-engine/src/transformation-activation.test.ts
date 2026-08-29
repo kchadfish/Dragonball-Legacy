@@ -36,7 +36,7 @@ describe("transformation activation", () => {
             maximumHitPoints: 100,
             stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
             moveIds: [],
-            transformationIds: ["transformation-ghost-2-ghoul"],
+            transformationIds: ["transformation-humans-1-high-tension"],
           },
           {
             maximumHitPoints: 100,
@@ -55,7 +55,7 @@ describe("transformation activation", () => {
     expect(enumerateLegalDecisions(action.value.state, ghostId)).toContainEqual({
       type: "activate-transformation",
       actorId: ghostId,
-      transformationId: "transformation-ghost-2-ghoul",
+      transformationId: "transformation-humans-1-high-tension",
     });
     const activated = submitCombatDecision(
       action.value.state,
@@ -64,7 +64,7 @@ describe("transformation activation", () => {
         id: combatDecisionIdSchema.parse("decision:activate-ghoul"),
         actorId: ghostId,
         expectedStateVersion: 1,
-        transformationId: "transformation-ghost-2-ghoul",
+        transformationId: "transformation-humans-1-high-tension",
       },
       dependencies,
     );
@@ -74,9 +74,12 @@ describe("transformation activation", () => {
 
     expect(activated.value.state).toMatchObject({ version: 2, phase: "end" });
     expect(activated.value.state.combatants[ghostId]).toMatchObject({
-      hitPoints: { current: 140, maximum: 140 },
-      stats: { power: 24, dexterity: 14 },
-      transformation: { transformationId: "transformation-ghost-2-ghoul", activatedOnTurn: 1 },
+      hitPoints: { current: 117, maximum: 117 },
+      stats: { power: 23, dexterity: 12 },
+      transformation: {
+        transformationId: "transformation-humans-1-high-tension",
+        activatedOnTurn: 1,
+      },
     });
     expect(activated.value.events).toEqual(
       expect.arrayContaining([
@@ -284,7 +287,7 @@ describe("transformation activation", () => {
             maximumHitPoints: 100,
             stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
             moveIds: [],
-            transformationIds: ["transformation-ghost-2-ghoul"],
+            transformationIds: ["transformation-humans-1-high-tension"],
           },
           {
             maximumHitPoints: 100,
@@ -314,7 +317,7 @@ describe("transformation activation", () => {
         id: combatDecisionIdSchema.parse("decision:free-transform"),
         actorId: ghostId,
         expectedStateVersion: armed.version,
-        transformationId: "transformation-ghost-2-ghoul",
+        transformationId: "transformation-humans-1-high-tension",
       },
       dependencies,
     );
@@ -324,11 +327,36 @@ describe("transformation activation", () => {
     expect(activated.value.state).toMatchObject({ version: 2, phase: "action" });
     expect(activated.value.state.combatants[ghostId]).toMatchObject({
       freeTransformationActions: undefined,
-      transformation: { transformationId: "transformation-ghost-2-ghoul" },
+      transformation: { transformationId: "transformation-humans-1-high-tension" },
     });
     expect(activated.value.events).not.toContainEqual(
       expect.objectContaining({ type: "phase-changed" }),
     );
+
+    expect(enumerateLegalDecisions(activated.value.state, ghostId)).toContainEqual({
+      type: "deactivate-transformation",
+      actorId: ghostId,
+    });
+    const deactivated = submitCombatDecision(
+      activated.value.state,
+      {
+        type: "deactivate-transformation",
+        id: combatDecisionIdSchema.parse("decision:manual-untransform"),
+        actorId: ghostId,
+        expectedStateVersion: activated.value.state.version,
+      },
+      dependencies,
+    );
+    if (!deactivated.ok || deactivated.value.state.status !== "active")
+      throw new Error("Expected manual deactivation to succeed.");
+    expect(deactivated.value.state.combatants[ghostId]).toMatchObject({
+      hitPoints: { current: 100, maximum: 100 },
+      transformation: undefined,
+    });
+    expect(deactivated.value.state.combatants[ghostId]).not.toHaveProperty(
+      "transformationCooldown",
+    );
+    expect(deactivated.value.state.phase).toBe("end");
   });
 
   it("serializes an optional highest-transformation opportunity at the next END boundary", () => {
@@ -422,6 +450,70 @@ describe("transformation activation", () => {
         type: "transformation-activated",
         combatantId: ghostId,
       }),
+    );
+  });
+
+  it("does not roll an exhausted d100 transformation at the upkeep threshold", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-04T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:d100-exemption")],
+      combatantIds: [ghostId, opponentId],
+      eventIds: Array.from({ length: 12 }, (_, index) =>
+        combatEventIdSchema.parse(`event:d100-exemption-${index + 1}`),
+      ),
+    });
+    const created = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+            moveIds: [],
+            raceId: "race-humans",
+            transformationProfiles: [
+              {
+                transformationId: "transformation-humans-1-high-tension",
+                rollSides: 100,
+                mastery: "mastered",
+              },
+            ],
+          },
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 1, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
+      },
+      dependencies,
+    );
+    if (!created.ok) throw new Error("Expected fight creation to succeed.");
+    const state = {
+      ...created.value.state,
+      phase: "upkeep" as const,
+      combatants: {
+        ...created.value.state.combatants,
+        [ghostId]: {
+          ...created.value.state.combatants[ghostId],
+          hitPoints: { current: 50, maximum: 117 },
+          transformation: {
+            transformationId: "transformation-humans-1-high-tension" as const,
+            activatedOnTurn: 1,
+            baseline: {
+              maximumHitPoints: 100,
+              hpBonus: 17,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+            },
+          },
+        },
+      },
+    };
+    const advanced = advanceFight(state, dependencies);
+    if (!advanced.ok || advanced.value.state.status !== "active")
+      throw new Error("Expected upkeep to advance.");
+    expect(advanced.value.state.combatants[ghostId].transformation).toBeDefined();
+    expect(advanced.value.events).not.toContainEqual(
+      expect.objectContaining({ type: "transformation-rolled", combatantId: ghostId }),
     );
   });
 });

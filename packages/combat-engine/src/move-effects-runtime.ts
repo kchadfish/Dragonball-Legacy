@@ -1766,8 +1766,11 @@ const transformationMasteryMatches = (
   context: MoveEffectRuntimeContext,
 ) =>
   context.self.transformation !== undefined &&
-  context.self.masteredTransformationIds?.includes(context.self.transformation.transformationId) ===
-    true;
+  context.self.transformationProfiles?.some(
+    (profile) =>
+      profile.transformationId === context.self.transformation?.transformationId &&
+      profile.mastery === "mastered",
+  ) === true;
 
 const priorTurnRestrictionMatches = (
   condition: Extract<RuntimeCondition, { readonly type: "prior-turn-restriction" }>,

@@ -1,5 +1,11 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 import { isUseAvailable } from "./availability.js";
+import {
+  calculateCost,
+  calculateDamage,
+  publishCalculationTrace,
+  type CalculationTraceSink,
+} from "./calculation-pipeline.js";
 
 export interface AttackRollQualificationInput {
   readonly attackerDexterity: number;
@@ -34,14 +40,69 @@ export const qualifiesForCounter = ({
         ? GLOBAL_RULES.combat.counter.higherDexterityNaturalRollReduction
         : 0);
 
-export const calculateAttackDamage = (baseDamage: number, critical: boolean) =>
-  Math.round(baseDamage * (critical ? GLOBAL_RULES.combat.criticalHit.baseDamageMultiplier : 1));
+export const calculateAttackDamage = (
+  baseDamage: number,
+  critical: boolean,
+  diagnosticTraceSink?: CalculationTraceSink,
+) =>
+  publishCalculationTrace(
+    calculateDamage({
+      baseDamage,
+      modifiers:
+        critical === false
+          ? []
+          : [
+              {
+                operation: "multiply",
+                amount: GLOBAL_RULES.combat.criticalHit.baseDamageMultiplier,
+                provenance: "combat:critical-hit",
+              },
+            ],
+      retainTrace: diagnosticTraceSink !== undefined,
+    }),
+    diagnosticTraceSink,
+  );
 
-export const calculateKiCost = (baseCost: number, modifiers: readonly number[]) =>
-  Math.max(0, baseCost + modifiers.reduce((total, modifier) => total + modifier, 0));
+export const calculateKiCost = (
+  baseCost: number,
+  modifiers: readonly number[],
+  diagnosticTraceSink?: CalculationTraceSink,
+) =>
+  publishCalculationTrace(
+    calculateCost({
+      baseCost,
+      operations: modifiers.map((amount, index) => ({
+        operation: "add" as const,
+        amount,
+        provenance: `combat:cost-modifier:${index}`,
+      })),
+      retainTrace: diagnosticTraceSink !== undefined,
+    }),
+    diagnosticTraceSink,
+  );
 
-export const calculateBlockKiCost = (opponentBaseCost: number, adjustment: number) =>
-  Math.max(GLOBAL_RULES.combat.blockMinimumKiCost, opponentBaseCost + adjustment);
+export const calculateBlockKiCost = (
+  opponentBaseCost: number,
+  adjustment: number,
+  diagnosticTraceSink?: CalculationTraceSink,
+) =>
+  publishCalculationTrace(
+    calculateCost({
+      baseCost: opponentBaseCost,
+      operations: [
+        { operation: "add", amount: adjustment, provenance: "combat:block-cost-adjustment" },
+      ],
+      bounds: [
+        {
+          type: "minimum",
+          value: GLOBAL_RULES.combat.blockMinimumKiCost,
+          provenance: "combat:block-minimum-ki-cost",
+        },
+      ],
+      retainTrace: diagnosticTraceSink !== undefined,
+    }),
+    diagnosticTraceSink,
+  );
 
 export const resolveMultiDieBlock = (diceCount: number) => {
   if (!Number.isInteger(diceCount) || diceCount < 1) {

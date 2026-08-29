@@ -98,6 +98,14 @@ export type RegisteredEffectDefinition = Extract<
   { readonly type: RegisteredEffectType }
 >;
 
+export type EffectOrigin = "move" | "item" | "transformation";
+
+export interface EffectProvenance {
+  readonly origin: EffectOrigin;
+  readonly sourceDefinitionId: string;
+  readonly sourceClauseOrder?: number;
+}
+
 export interface EffectCompilationIssue {
   readonly code:
     | "unsupported-effect-type"
@@ -116,6 +124,7 @@ export interface CompiledEffect<T extends RegisteredEffectDefinition = Registere
   readonly type: T["type"];
   readonly sourceDefinitionId: string;
   readonly effectIndex: number;
+  readonly provenance: EffectProvenance;
   readonly definition: T;
 }
 
@@ -153,6 +162,8 @@ export interface EffectCompilationInput {
   readonly sourceDefinitionId: string;
   readonly effectIndex: number;
   readonly effect: EffectDefinition;
+  /** Source-neutral provenance; inferred from the namespaced ID when omitted. */
+  readonly origin?: EffectOrigin;
   /** Nested floating bundles may dispatch their effects from on-move-use. */
   readonly allowFloatingOnMoveUse?: boolean;
   /** A pending-choice response may explicitly enable one optional effect plan. */
@@ -164,6 +175,13 @@ export type EffectCompilationResult =
   | { readonly ok: false; readonly issues: readonly EffectCompilationIssue[] };
 
 const supportedTriggers = new Set(combatTriggers);
+
+const effectOriginFor = (sourceDefinitionId: string, origin: EffectOrigin | undefined) => {
+  if (origin !== undefined) return origin;
+  if (sourceDefinitionId.startsWith("item-")) return "item" as const;
+  if (sourceDefinitionId.startsWith("transformation-")) return "transformation" as const;
+  return "move" as const;
+};
 
 const supportedUpkeepEffectTypes = new Set<RegisteredEffectType>([
   "apply-status",
@@ -426,6 +444,21 @@ const isUnsupportedOnMoveUseVariant = <T extends RegisteredEffectDefinition>(eff
       effect.selector.constant === true &&
       effect.activationCost?.resource === "ki" &&
       runtimeValue(effect.activationCost.operation) === "lose") ||
+    (effect.type === "modify-stat" &&
+      effect.target === "self" &&
+      effect.stat === "dexterity-bonus" &&
+      effect.operation === "add" &&
+      effect.amount.type === "literal" &&
+      effect.duration?.type === "turns" &&
+      effect.duration.turns.type === "literal") ||
+    (effect.type === "set-stat-comparison" &&
+      effect.target === "self" &&
+      effect.left === "self" &&
+      effect.right === "opponent" &&
+      effect.stat === "dexterity" &&
+      effect.comparison === "higher-than" &&
+      effect.duration?.type === "turns" &&
+      effect.duration.turns.type === "literal") ||
     (effect.type === "modify-stat" &&
       effect.target === "opponent" &&
       effect.stat === "dexterity-bonus" &&
@@ -3894,13 +3927,21 @@ const setStatComparisonIssues = (
   );
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   if (!(
-    effect.trigger === "upkeep-phase" &&
-    effect.target === "self" &&
-    effect.left === "self" &&
-    effect.right === "opponent" &&
-    runtimeValue(effect.stat) === "dexterity" &&
-    runtimeValue(effect.comparison) === "higher-than" &&
-    effect.duration?.type === "turns"
+    (effect.trigger === "upkeep-phase" &&
+      effect.target === "self" &&
+      effect.left === "self" &&
+      effect.right === "opponent" &&
+      runtimeValue(effect.stat) === "dexterity" &&
+      runtimeValue(effect.comparison) === "higher-than" &&
+      effect.duration?.type === "turns") ||
+    (effect.trigger === "on-move-use" &&
+      effect.target === "self" &&
+      effect.left === "self" &&
+      effect.right === "opponent" &&
+      runtimeValue(effect.stat) === "dexterity" &&
+      runtimeValue(effect.comparison) === "higher-than" &&
+      effect.duration?.type === "turns" &&
+      effect.duration.turns.type === "literal")
   ))
     issues.push(
       issue(
@@ -5717,6 +5758,7 @@ const createExecutor = <T extends RegisteredEffectDefinition>(
     type: effect.type,
     sourceDefinitionId,
     effectIndex,
+    provenance: { origin: "move", sourceDefinitionId },
     definition: effect,
   }),
   execute: (effect, context) => ({
@@ -5870,6 +5912,7 @@ export const compileEffectPlan = ({
   sourceDefinitionId,
   effectIndex,
   effect,
+  origin,
   allowFloatingOnMoveUse = false,
   allowPendingChoice = false,
 }: EffectCompilationInput): EffectCompilationResult => {
@@ -5911,9 +5954,21 @@ export const compileEffectPlan = ({
     if (allowPendingChoice && candidate.code === "requires-pending-choice") return false;
     return true;
   });
-  return filteredIssues.length > 0
-    ? { ok: false, issues: filteredIssues }
-    : { ok: true, value: executor.compile(effect as never, sourceDefinitionId, effectIndex) };
+  if (filteredIssues.length > 0) return { ok: false, issues: filteredIssues };
+  const compiled = executor.compile(effect as never, sourceDefinitionId, effectIndex);
+  return {
+    ok: true,
+    value: {
+      ...compiled,
+      provenance: {
+        origin: effectOriginFor(sourceDefinitionId, origin),
+        sourceDefinitionId,
+        ...(effect.sourceClauseOrder === undefined
+          ? {}
+          : { sourceClauseOrder: effect.sourceClauseOrder }),
+      },
+    },
+  };
 };
 
 export const executeCompiledEffect = (

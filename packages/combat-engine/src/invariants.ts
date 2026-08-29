@@ -1,5 +1,9 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
-import { MOVE_DEFINITIONS } from "@dragonball-resurgence/game-data";
+import {
+  MOVE_DEFINITIONS,
+  RACE_DEFINITIONS,
+  TRANSFORMATION_DEFINITIONS,
+} from "@dragonball-resurgence/game-data";
 
 import {
   activeEffectIdSchema,
@@ -7,15 +11,18 @@ import {
   combatantIdSchema,
   pendingDecisionIdSchema,
   resolutionFrameIdSchema,
+  scheduledWorkIdSchema,
 } from "./ids.js";
 import type { CombatantId, PendingDecisionId } from "./ids.js";
 import type {
   ActiveFightState,
   ActiveCombatEffect,
   ActiveCostModifierEffect,
+  AttackDieCandidateSnapshot,
   CombatActionRecord,
   CombatResources,
   CombatantState,
+  CombatantTransformationProfile,
   CompletedFightState,
   CounterActionReference,
   FightState,
@@ -25,6 +32,7 @@ import type {
   ResourceChangeHistoryRecord,
   ResolutionFrame,
 } from "./contracts.js";
+import type { ScheduledCombatOperation, ScheduledCombatWork } from "./fight-flow-scheduler.js";
 import { matchesMoveSelector } from "./declarative-runtime.js";
 import { conflictKeyFor, conflictMatchKeyFor, conflictPolicyFor } from "./conflict-policy.js";
 import { candidateReferenceId } from "./candidate-resolution.js";
@@ -465,7 +473,62 @@ const combatantForId = (state: FightState, combatantId: string) => {
 const isActiveCombatant = (state: FightState, combatantId: string) =>
   combatantForId(state, combatantId)?.status === "active";
 
-const validateCombatantReferences = (
+const masteryForRollSides = (
+  rollSides: number,
+): CombatantTransformationProfile["mastery"] | undefined => {
+  if (rollSides >= 20 && rollSides <= 40) return "novice";
+  if (rollSides >= 50 && rollSides <= 70) return "intermediate";
+  if (rollSides >= 80 && rollSides <= 100) return "mastered";
+  return undefined;
+};
+
+const validateTransformationProfiles = (
+  combatant: CombatantState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const profileIds = new Set<string>();
+  for (const profile of combatant.transformationProfiles ?? []) {
+    const transformationDefinition = TRANSFORMATION_DEFINITIONS.find(
+      (candidate) => candidate.id === profile.transformationId,
+    );
+    const expectedMastery = masteryForRollSides(profile.rollSides);
+    const invalid =
+      profileIds.has(profile.transformationId) ||
+      transformationDefinition === undefined ||
+      (combatant.raceId !== undefined && transformationDefinition.raceId !== combatant.raceId) ||
+      !Number.isInteger(profile.rollSides) ||
+      profile.rollSides < 1 ||
+      profile.rollSides > 100 ||
+      (expectedMastery !== undefined && expectedMastery !== profile.mastery);
+    if (invalid)
+      addViolation(
+        violations,
+        "invalid-transformation",
+        "Transformation profiles must be unique, known, owned by the race, and have valid mastery.",
+        combatant.id,
+      );
+    profileIds.add(profile.transformationId);
+  }
+};
+
+const validateTransformationCooldown = (
+  combatant: CombatantState,
+  violations: FightStateInvariantViolation[],
+) => {
+  const cooldown = combatant.transformationCooldown;
+  if (
+    cooldown !== undefined &&
+    (!Number.isInteger(cooldown.remainingOwnerTurns) || cooldown.remainingOwnerTurns < 1)
+  )
+    addViolation(
+      violations,
+      "invalid-transformation",
+      "Transformation cooldown must contain a positive remaining owner-turn count.",
+      combatant.id,
+    );
+};
+
+const validateActiveStatusReferences = (
   state: FightState,
   combatant: CombatantState,
   violations: FightStateInvariantViolation[],
@@ -476,18 +539,34 @@ const validateCombatantReferences = (
         combatantForId(state, activeStatus.duration.ownerCombatantId) !== undefined) &&
       (activeStatus.duration.type !== "until-turn-start-roll-threshold" ||
         isActiveCombatant(state, activeStatus.duration.combatantId));
-    if (
-      combatantForId(state, activeStatus.sourceCombatantId) === undefined ||
-      !validDurationOwner
-    ) {
+    if (combatantForId(state, activeStatus.sourceCombatantId) === undefined || !validDurationOwner)
       addViolation(
         violations,
         "invalid-status",
         "Active statuses must reference existing combatants for their source and turn owner.",
         combatant.id,
       );
-    }
   }
+};
+
+const validateCombatantReferences = (
+  state: FightState,
+  combatant: CombatantState,
+  violations: FightStateInvariantViolation[],
+) => {
+  if (
+    combatant.raceId !== undefined &&
+    !RACE_DEFINITIONS.some((race) => race.id === combatant.raceId)
+  )
+    addViolation(
+      violations,
+      "invalid-transformation",
+      `Combatant references unknown race ${combatant.raceId}.`,
+      combatant.id,
+    );
+  validateTransformationProfiles(combatant, violations);
+  validateTransformationCooldown(combatant, violations);
+  validateActiveStatusReferences(state, combatant, violations);
 
   const { transformation } = combatant;
   if (
@@ -504,6 +583,19 @@ const validateCombatantReferences = (
       combatant.id,
     );
   }
+  if (
+    transformation?.baseline !== undefined &&
+    (!Number.isFinite(transformation.baseline.maximumHitPoints) ||
+      transformation.baseline.maximumHitPoints <= 0 ||
+      (transformation.baseline.hpBonus !== undefined &&
+        (!Number.isFinite(transformation.baseline.hpBonus) || transformation.baseline.hpBonus < 0)))
+  )
+    addViolation(
+      violations,
+      "invalid-transformation",
+      "Transformation baseline HP values must be finite and positive.",
+      combatant.id,
+    );
 };
 
 interface RuntimeActiveEffect {
@@ -1523,6 +1615,61 @@ type AttackActionHistoryRecord = Extract<
   { readonly type: "basic-attack" | "use-move" }
 >;
 
+const validCandidateFact = (
+  facts: AttackDieCandidateSnapshot | undefined,
+  attackSides: number,
+  defenseSides: number,
+) => {
+  if (facts === undefined) return true;
+  const validCandidates = (
+    candidates:
+      | readonly {
+          readonly candidateIndex: number;
+          readonly naturalValue: number;
+          readonly finalResult: number;
+        }[]
+      | undefined,
+    sides: number,
+  ) =>
+    candidates === undefined ||
+    (candidates.length > 0 &&
+      candidates.every(
+        (candidate, index) =>
+          candidate.candidateIndex === index &&
+          validCounter(candidate.naturalValue, 1) &&
+          candidate.naturalValue <= sides &&
+          Number.isFinite(candidate.finalResult),
+      ));
+  const validSelectedIndex = (
+    candidates: readonly unknown[] | undefined,
+    selectedIndex: number | undefined,
+  ) => {
+    if (candidates === undefined) return selectedIndex === undefined;
+    return (
+      selectedIndex !== undefined &&
+      Number.isInteger(selectedIndex) &&
+      selectedIndex >= 0 &&
+      selectedIndex < candidates.length
+    );
+  };
+  return (
+    validCandidates(facts.attackCandidates, attackSides) &&
+    validCandidates(facts.defenseCandidates, defenseSides) &&
+    validSelectedIndex(facts.attackCandidates, facts.selectedAttackCandidateIndex) &&
+    validSelectedIndex(facts.defenseCandidates, facts.selectedDefenseCandidateIndex)
+  );
+};
+
+const validCandidateFactArray = (
+  facts: readonly (AttackDieCandidateSnapshot | undefined)[] | undefined,
+  expectedLength: number,
+  attackSides: number,
+  defenseSides: number,
+) =>
+  facts === undefined ||
+  (facts.length === expectedLength &&
+    facts.every((candidateFacts) => validCandidateFact(candidateFacts, attackSides, defenseSides)));
+
 const validAttackResolutionSnapshot = (
   snapshot: NonNullable<AttackActionHistoryRecord["resolutionSnapshot"]>,
   // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
@@ -1556,6 +1703,12 @@ const validAttackResolutionSnapshot = (
       override === undefined ||
       ((override.attack === undefined || Number.isFinite(override.attack)) &&
         (override.defense === undefined || Number.isFinite(override.defense))),
+  ) &&
+  validCandidateFactArray(
+    snapshot.candidateFacts,
+    snapshot.attack.dice,
+    snapshot.attack.sides,
+    snapshot.defenseSides,
   ) &&
   snapshot.criticalThresholds.every(
     (threshold) =>
@@ -2639,11 +2792,16 @@ const validateFightMetadata = (
   combatantEntries: readonly [string, CombatantState][],
   violations: FightStateInvariantViolation[],
 ) => {
-  if (state.schemaVersion !== undefined && state.schemaVersion !== 1) {
+  if (
+    state.schemaVersion !== undefined &&
+    state.schemaVersion !== 1 &&
+    state.schemaVersion !== 2 &&
+    state.schemaVersion !== 3
+  ) {
     addViolation(
       violations,
       "invalid-schema-version",
-      "Fight state schema version must be 1 when present.",
+      "Fight state schema version must be 1, 2, or 3 when present.",
     );
   }
   if (!validCounter(state.version, 0)) {
@@ -2675,6 +2833,191 @@ const validateFightMetadata = (
       violations,
       "invalid-combatant-count",
       "The initial combat engine scope supports exactly two combatants.",
+    );
+  }
+};
+
+const finiteNumbersOnly = (value: unknown): boolean => {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(finiteNumbersOnly);
+  if (typeof value !== "object" || value === null) return true;
+  return Object.values(value).every(finiteNumbersOnly);
+};
+
+const validScheduledWork = (
+  state: FightState,
+  work: ScheduledCombatWork,
+  ids: ReadonlySet<string>,
+  insertionOrders: ReadonlySet<number>,
+): boolean => {
+  if (!scheduledWorkIdSchema.safeParse(work.id).success || ids.has(work.id)) return false;
+  if (
+    !Number.isInteger(work.insertionOrder) ||
+    work.insertionOrder < 1 ||
+    insertionOrders.has(work.insertionOrder)
+  )
+    return false;
+  if (
+    (work.ownerCombatantId !== undefined &&
+      state.combatants[work.ownerCombatantId] === undefined) ||
+    (work.targetCombatantId !== undefined && state.combatants[work.targetCombatantId] === undefined)
+  )
+    return false;
+  if (
+    work.sourceEffectId !== undefined &&
+    !activeEffectIdSchema.safeParse(work.sourceEffectId).success
+  )
+    return false;
+  const timing = work.timing;
+  if (timing.type === "immediate")
+    return validScheduledOperation(state, work) && finiteNumbersOnly(work);
+  if (timing.type !== "end-of-action" && timing.type !== "next-upkeep" && timing.type !== "delayed")
+    return false;
+  if (state.combatants[timing.combatantId] === undefined) return false;
+  if (!Number.isInteger(timing.turnNumber) || timing.turnNumber < 1) return false;
+  if (timing.turnNumber < state.turnNumber) return false;
+  return validScheduledOperation(state, work) && finiteNumbersOnly(work);
+};
+
+const validMoveDefinition = (sourceDefinitionId: string | undefined): boolean =>
+  sourceDefinitionId !== undefined &&
+  MOVE_DEFINITIONS.some((move) => move.id === sourceDefinitionId);
+
+const validScheduledResourceOperation = (
+  state: FightState,
+  work: ScheduledCombatWork,
+  operation: Extract<ScheduledCombatOperation, { readonly type: "resource" }>,
+): boolean =>
+  validMoveDefinition(work.sourceDefinitionId) &&
+  (operation.resource === "hp" || operation.resource === "ki") &&
+  (operation.operation === "damage" ||
+    operation.operation === "drain" ||
+    operation.operation === "gain" ||
+    operation.operation === "lose" ||
+    operation.operation === "set") &&
+  Number.isInteger(operation.sourceEffectIndex) &&
+  operation.sourceEffectIndex >= 0 &&
+  (operation.boundary.type === "turn-start" ||
+    operation.boundary.type === "turn-end" ||
+    operation.boundary.type === "phase-start") &&
+  state.combatants[operation.boundary.combatantId] !== undefined &&
+  Number.isInteger(operation.remainingBoundaries) &&
+  operation.remainingBoundaries >= 1 &&
+  (operation.repeat === "once" || operation.repeat === "each-turn");
+
+const validScheduledResultOperation = (
+  operation: Extract<ScheduledCombatOperation, { readonly type: "combat-result" }>,
+): boolean =>
+  (operation.result === "successful" || operation.result === "stopped") &&
+  (operation.replacement === undefined ||
+    operation.replacement === "successful" ||
+    operation.replacement === "stopped") &&
+  typeof operation.prevented === "boolean";
+
+const validScheduledPhaseOperation = (
+  state: FightState,
+  operation: Extract<ScheduledCombatOperation, { readonly type: "advance-phase" }>,
+): boolean =>
+  (operation.phase === "upkeep" ||
+    operation.phase === "action" ||
+    operation.phase === "counter" ||
+    operation.phase === "end") &&
+  state.combatants[operation.activeCombatantId] !== undefined;
+
+const validScheduledExtraActionOperation = (
+  work: ScheduledCombatWork,
+  operation: Extract<ScheduledCombatOperation, { readonly type: "extra-action" }>,
+): boolean =>
+  validMoveDefinition(work.sourceDefinitionId) &&
+  (operation.phase === "action" || operation.phase === "upkeep") &&
+  typeof operation.sourceMoveOnly === "boolean" &&
+  Number.isInteger(operation.remainingActions) &&
+  operation.remainingActions >= 0 &&
+  Number.isInteger(operation.availableFromTurn) &&
+  operation.availableFromTurn >= 1 &&
+  Number.isInteger(operation.expiresAfterTurn) &&
+  operation.expiresAfterTurn >= operation.availableFromTurn;
+
+const validScheduledCounterOperation = (
+  state: FightState,
+  operation: Extract<ScheduledCombatOperation, { readonly type: "counter" }>,
+): boolean =>
+  Number.isInteger(operation.chainDepth) &&
+  operation.chainDepth >= 1 &&
+  operation.chainDepth <=
+    GLOBAL_RULES.combat.engineeringSafeguards.maximumConsecutiveCounterAttacks &&
+  resolutionFrameIdSchema.safeParse(operation.returnFrameId).success &&
+  state.resolutionFrames.some((frame) => frame.id === operation.returnFrameId) &&
+  combatDecisionIdSchema.safeParse(operation.sourceActionId).success;
+
+const validScheduledResumeOperation = (
+  state: FightState,
+  operation: Extract<ScheduledCombatOperation, { readonly type: "resume-frame" }>,
+): boolean =>
+  resolutionFrameIdSchema.safeParse(operation.frameId).success &&
+  state.resolutionFrames.some((frame) => frame.id === operation.frameId);
+
+const validScheduledDeferredMoveOperation = (
+  state: FightState,
+  work: ScheduledCombatWork,
+  operation: Extract<ScheduledCombatOperation, { readonly type: "deferred-move" }>,
+): boolean =>
+  validMoveDefinition(work.sourceDefinitionId) &&
+  MOVE_DEFINITIONS.some((move) => move.id === operation.moveId) &&
+  Number.isInteger(operation.sourceEffectIndex) &&
+  operation.sourceEffectIndex >= 0 &&
+  combatDecisionIdSchema.safeParse(operation.declarationDecisionId).success &&
+  state.combatants[operation.cancellation.actorCombatantId] !== undefined &&
+  operation.cancellation.result === "successful" &&
+  (operation.onCancellation === undefined ||
+    (operation.onCancellation.affectedType === "attack" &&
+      operation.onCancellation.duration === "combat"));
+
+const validScheduledOperation = (state: FightState, work: ScheduledCombatWork): boolean => {
+  const operation = runtimeValue(work.operation) as ScheduledCombatOperation;
+  switch (operation.type) {
+    case "resource":
+      return validScheduledResourceOperation(state, work, operation);
+    case "combat-result":
+      return validScheduledResultOperation(operation);
+    case "advance-phase":
+      return validScheduledPhaseOperation(state, operation);
+    case "skip-action":
+      return operation.reason === "status" || operation.reason === "effect";
+    case "extra-action":
+      return validScheduledExtraActionOperation(work, operation);
+    case "counter":
+      return validScheduledCounterOperation(state, operation);
+    case "resume-frame":
+      return validScheduledResumeOperation(state, operation);
+    case "deferred-move":
+      return validScheduledDeferredMoveOperation(state, work, operation);
+    default:
+      return false;
+  }
+};
+
+const validateScheduledWork = (state: FightState, violations: FightStateInvariantViolation[]) => {
+  const work = state.scheduledWork ?? [];
+  const ids = new Set<string>();
+  const insertionOrders = new Set<number>();
+  for (const candidate of work) {
+    if (!validScheduledWork(state, candidate, ids, insertionOrders)) {
+      addViolation(
+        violations,
+        "invalid-scheduled-work",
+        "Scheduled work must have unique IDs, valid references, legal timing, and finite values.",
+        candidate.id,
+      );
+    }
+    ids.add(candidate.id);
+    insertionOrders.add(candidate.insertionOrder);
+  }
+  if (state.status === "completed" && work.length > 0) {
+    addViolation(
+      violations,
+      "invalid-completion",
+      "A completed fight must not retain unresolved scheduled work.",
     );
   }
 };
@@ -2848,7 +3191,15 @@ const validPostDefenseNaturalRolls = (frame: PostDefenseReactionFrame | undefine
   const validNaturalResults = frame.naturalRolls.every(
     (roll) => validCounter(roll.attack, 1) && validCounter(roll.defense, 1),
   );
-  return validResultOverrides && validNumericOverrides && validNaturalResults;
+  const validCandidateFacts = validCandidateFactArray(
+    frame.candidateFacts,
+    frame.naturalRolls.length,
+    Number.POSITIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+  );
+  return (
+    validResultOverrides && validNumericOverrides && validNaturalResults && validCandidateFacts
+  );
 };
 
 const validPostDefenseReactionMatch = (
@@ -2996,6 +3347,7 @@ export const validateFightState = (state: FightState): readonly FightStateInvari
   const combatantEntries = Object.entries(state.combatants);
 
   validateFightMetadata(state, combatantEntries, violations);
+  validateScheduledWork(state, violations);
 
   for (const [recordId, combatant] of combatantEntries) {
     validateCombatant(recordId, combatant, state.turnNumber, violations);

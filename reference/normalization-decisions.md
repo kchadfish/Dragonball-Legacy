@@ -566,6 +566,19 @@ Status: Approved
 Decision: The Time Freeze user cannot perform energy attacks during the same
 next two turns in which Time Freeze STUNS allies and opponents.
 
+## ND-070 - Modifier precedence and damage floor
+
+Status: Approved
+
+Decision: When multiple effects modify the same calculated value, resolve them
+in this order: prevention or negation, replacement or substitution, set,
+additive, multiplicative, then caps or floors. The declared effect operation
+(`add`, `multiply`, or `set`) determines the operation's stage; precedence is
+not inferred from the effect's wording or numeric basis. Additive modifiers
+resolve before multiplicative modifiers. Caps and floors apply after the full
+formula. The default minimum damage floor is 0; there is no default 50-point
+damage floor.
+
 ## NR-001 - Empty item description
 
 Status: Resolved

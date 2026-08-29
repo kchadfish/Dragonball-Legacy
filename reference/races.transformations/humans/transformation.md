@@ -1,4 +1,4 @@
-
+[color=lightgoldenrodyellow]Level 1: High Tension[/color]
 
 Appearance: The aura of the individual becomes pale in color and whirlwinds around them. Their muscles bulge and become strained. Internally, the body is pumping much more adrenaline than would be medically acceptable and to survive this form shows true strength on the part of the transformed.
 Stats: +17% Power. +17% HP. +16% Dexterity.

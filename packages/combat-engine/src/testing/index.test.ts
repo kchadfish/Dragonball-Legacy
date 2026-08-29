@@ -8,6 +8,7 @@ import {
   fightIdSchema,
   pendingDecisionIdSchema,
   resolutionFrameIdSchema,
+  scheduledWorkIdSchema,
   SystemCombatIdSource,
   SystemRandomSource,
   SeededRandomSource,
@@ -61,6 +62,7 @@ describe("combat-engine testing dependencies", () => {
       fightIds: [fightIdSchema.parse("fight:opening-spar")],
       pendingDecisionIds: [pendingDecisionIdSchema.parse("pending-decision:reaction")],
       resolutionFrameIds: [resolutionFrameIdSchema.parse("resolution-frame:attack")],
+      scheduledWorkIds: [scheduledWorkIdSchema.parse("scheduled-work:extra-action")],
     });
 
     expect(ids.nextFightId()).toBe("fight:opening-spar");
@@ -70,6 +72,7 @@ describe("combat-engine testing dependencies", () => {
     expect(ids.nextPendingDecisionId()).toBe("pending-decision:reaction");
     expect(ids.nextActiveEffectId()).toBe("active-effect:burning");
     expect(ids.nextResolutionFrameId()).toBe("resolution-frame:attack");
+    expect(ids.nextScheduledWorkId()).toBe("scheduled-work:extra-action");
     expect(() => ids.nextFightId()).toThrow("fightIds");
 
     const dependencies = createTestCombatDependencies([5], new Date("2026-08-04T12:00:00.000Z"), {
@@ -89,5 +92,6 @@ describe("combat-engine testing dependencies", () => {
     expect(pendingDecisionIdSchema.safeParse(ids.nextPendingDecisionId()).success).toBe(true);
     expect(activeEffectIdSchema.safeParse(ids.nextActiveEffectId()).success).toBe(true);
     expect(resolutionFrameIdSchema.safeParse(ids.nextResolutionFrameId()).success).toBe(true);
+    expect(scheduledWorkIdSchema.safeParse(ids.nextScheduledWorkId()).success).toBe(true);
   });
 });

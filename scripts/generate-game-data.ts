@@ -297,6 +297,33 @@ const generatedMoveDefinitions = moveDefinitions.filter(({ id }) => {
 const itemFieldValue = (sourceText: string, field: string): string | undefined =>
   new RegExp(`^${field}:\\s*(.+)$`, "mu").exec(sourceText)?.[1]?.trim();
 
+const itemUsePolicyFor = (effectText: string) => {
+  const use = /\bUSE\s*x\s*(\d+)/iu.exec(effectText)?.[1];
+  const explicitRestricted = /\bRESTRICTED\s*x\s*(\d+)/iu.exec(effectText)?.[1];
+  const oncePerCombat = /once per (?:combat|battle)/iu.test(effectText);
+  const restricted = explicitRestricted ?? (oncePerCombat ? "1" : undefined);
+  if (use === undefined && restricted === undefined) return undefined;
+
+  const timing = /when you lose a battle/iu.test(effectText)
+    ? "defeat-interrupt"
+    : /does not take up your turn/iu.test(effectText)
+      ? "free"
+      : /after .*?roll/iu.test(effectText) || /declare this after rolling/iu.test(effectText)
+        ? "reaction"
+        : "action";
+  const groups = [
+    /(?:gain|heal).*?(?:HP|Health)/iu.test(effectText) ? "healing" : undefined,
+    /gain .*?ki/iu.test(effectText) ? "ki-gain" : undefined,
+    /dice|roll result|add \+.*?to .*?roll/iu.test(effectText) ? "roll-modifier" : undefined,
+  ].filter((group): group is "healing" | "ki-gain" | "roll-modifier" => group !== undefined);
+  return {
+    timing,
+    ...(restricted === undefined ? {} : { restrictedUses: Number(restricted) }),
+    ...(use === undefined ? {} : { consumableUses: Number(use) }),
+    ...(groups.length === 0 ? {} : { groups }),
+  } as const;
+};
+
 const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] => {
   const generatedEffects: Record<string, unknown>[] = [];
   let currentClauseOrder = 0;
@@ -319,6 +346,8 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
     for (const match of clause.text.matchAll(
       /([+-]?\s*\d+)%\s*(Power|HP|Health|Dexterity|Dex|All Stats)\b/giu,
     )) {
+      const textBeforeMatch = clause.text.slice(0, match.index ?? 0);
+      if (/(?:attack|attacks)\s+(?:do|does|gain)\s+\+\s*\(\s*$/iu.test(textBeforeMatch)) continue;
       const statName = match[2].toLowerCase();
       effects.push({
         trigger: /for the next week/iu.test(clause.text) ? "on-item-use" : "passive",
@@ -336,6 +365,46 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
           ? { duration: { unit: "week", value: 1 } }
           : {}),
         sourceText: match[0],
+      });
+    }
+    const dexterityBonus = /Dexterity bonus gains \+(\d+) for the next (\d+) turns/iu.exec(
+      clause.text,
+    );
+    if (dexterityBonus !== null) {
+      effects.push({
+        trigger: "on-move-use",
+        target: "self",
+        type: "modify-stat",
+        stat: "dexterity-bonus",
+        operation: "add",
+        amount: { type: "literal", value: Number(dexterityBonus[1]) },
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: Number(dexterityBonus[2]) },
+          sourceText: dexterityBonus[0],
+        },
+        sourceText: dexterityBonus[0],
+      });
+    }
+    const dexterityComparison =
+      /Your Dexterity is considered higher than your opponent['’]s for the next (\d+) turns/iu.exec(
+        clause.text,
+      );
+    if (dexterityComparison !== null) {
+      effects.push({
+        trigger: "on-move-use",
+        target: "self",
+        type: "set-stat-comparison",
+        left: "self",
+        stat: "dexterity",
+        comparison: "higher-than",
+        right: "opponent",
+        duration: {
+          type: "turns",
+          turns: { type: "literal", value: Number(dexterityComparison[1]) },
+          sourceText: dexterityComparison[0],
+        },
+        sourceText: dexterityComparison[0],
       });
     }
     for (const match of clause.text.matchAll(/gain\s+\((\d+)%\s+total\s+hp\)\s+hp/giu)) {
@@ -716,14 +785,15 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
     if (raceUseLimit !== null) {
       stateRule("limit-race-item-uses", {
         amount: raceUseLimit[1] === "two" ? 2 : Number(raceUseLimit[1]),
-        conditionText: "race:majin",
+        raceId: "race-majins",
       });
     }
     const raceKi = /If used by a Makyan, gain (\d+) ki/iu.exec(clause.text);
     if (raceKi !== null) {
       stateRule("grant-resource-when-race", {
         amount: Number(raceKi[1]),
-        conditionText: "race:makyan;resource:ki",
+        raceId: "race-makyans",
+        resource: "ki",
       });
     }
     if (/opponent loses \(5% Attack's Damage\) HP/iu.test(clause.text)) {
@@ -767,7 +837,10 @@ const itemEffectsFor = (effectText: string): readonly Record<string, unknown>[] 
     const transformationResult =
       /add \+(\d+) to any transformation roll result after your roll/iu.exec(clause.text);
     if (transformationResult !== null) {
-      stateRule("modify-transformation-roll-result", { amount: Number(transformationResult[1]) });
+      stateRule("modify-transformation-roll-result", {
+        amount: Number(transformationResult[1]),
+        ...(/Majin only/iu.test(effectText) ? { raceId: "race-majins" } : {}),
+      });
     }
     const dailyHeal =
       /heal (?:an additional |\+)?\+?\(?\+?(\d+)% Total HP\)?(?: extra)? per day/iu.exec(
@@ -1116,6 +1189,7 @@ const itemDefinitions = (
             )?.[1];
             const shipSlot = /\[SHIP (WEAPON|DEFENSE)\]/iu.exec(sourceText)?.[1];
             const useMatch = /\b(?:USE|RESTRICTED)\s*x\s*(\d+)/iu.exec(effectText);
+            const usePolicy = itemUsePolicyFor(effectText);
             const ship =
               itemCategoryFor(sourcePath, sourceText, document) === "ship"
                 ? {
@@ -1162,6 +1236,7 @@ const itemDefinitions = (
                 : { inventorySlotCondition: inventoryMatch[2].trim() }),
               ...(itemPrice(sourceText) === undefined ? {} : { price: itemPrice(sourceText) }),
               ...(useMatch === null ? {} : { maxUses: Number(useMatch[1]) }),
+              ...(usePolicy === undefined ? {} : { usePolicy }),
               ...(equipmentSlot === undefined
                 ? {}
                 : { equipmentSlot: equipmentSlot.toLowerCase().replace(/\s+/gu, "-") }),

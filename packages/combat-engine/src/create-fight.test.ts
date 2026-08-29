@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { CreateFightInput, FightState } from "./index.js";
+import type {
+  ActiveExtraActionEffect,
+  ActiveScheduledResourceEffect,
+  CreateFightInput,
+  FightState,
+} from "./index.js";
 import { advanceFight, createFight } from "./index.js";
 import {
   activeEffectIdSchema,
@@ -10,6 +15,7 @@ import {
   fightIdSchema,
   pendingDecisionIdSchema,
   resolutionFrameIdSchema,
+  scheduledWorkIdSchema,
 } from "./ids.js";
 import { validateFightState } from "./invariants.js";
 import { createTestCombatDependencies } from "./testing/index.js";
@@ -44,6 +50,139 @@ const createDependencies = () =>
   });
 
 describe("createFight", () => {
+  it("persists canonical race and transformation profiles without legacy IDs", () => {
+    const result = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 20, dexterity: 4, dexterityBonus: 0 },
+            moveIds: [],
+            raceId: "race-humans",
+            transformationProfiles: [
+              {
+                transformationId: "transformation-humans-1-high-tension",
+                rollSides: 20,
+                mastery: "novice",
+              },
+            ],
+          },
+          {
+            maximumHitPoints: 100,
+            stats: { power: 18, dexterity: 5, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
+      },
+      createDependencies(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const combatant = result.value.state.combatants[firstCombatantId];
+    expect(result.value.state.schemaVersion).toBe(3);
+    expect(combatant).toMatchObject({
+      raceId: "race-humans",
+      transformationProfiles: [
+        {
+          transformationId: "transformation-humans-1-high-tension",
+          rollSides: 20,
+          mastery: "novice",
+        },
+      ],
+    });
+    expect(combatant).not.toHaveProperty("transformationIds");
+    expect(combatant).not.toHaveProperty("masteredTransformationIds");
+  });
+
+  it("normalizes legacy transformation IDs and derives the fixed HP bonus on migration", () => {
+    const createdFight = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            maximumHitPoints: 150,
+            transformationIds: ["transformation-humans-1-high-tension"],
+            masteredTransformationIds: ["transformation-humans-1-high-tension"],
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const legacyCombatant = createdFight.value.state.combatants[firstCombatantId];
+    const result = advanceFight(
+      {
+        ...createdFight.value.state,
+        schemaVersion: 2,
+        combatants: {
+          ...createdFight.value.state.combatants,
+          [firstCombatantId]: {
+            ...legacyCombatant,
+            transformationProfiles: undefined,
+            transformationIds: ["transformation-humans-1-high-tension"],
+            masteredTransformationIds: ["transformation-humans-1-high-tension"],
+            hitPoints: { current: 160, maximum: 175 },
+            transformation: {
+              transformationId: "transformation-humans-1-high-tension",
+              activatedOnTurn: 1,
+              baseline: {
+                currentHitPoints: 150,
+                maximumHitPoints: 150,
+                stats: legacyCombatant.stats,
+              },
+            },
+          },
+        },
+      },
+      createDependencies(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const combatant = result.value.state.combatants[firstCombatantId];
+    expect(result.value.state.schemaVersion).toBe(3);
+    expect(combatant.transformationProfiles).toEqual([
+      {
+        transformationId: "transformation-humans-1-high-tension",
+        rollSides: 100,
+        mastery: "mastered",
+      },
+    ]);
+    expect(combatant.transformation?.baseline).toEqual({
+      maximumHitPoints: 150,
+      hpBonus: 25,
+      stats: legacyCombatant.stats,
+    });
+  });
+
+  it("rejects mismatched race ownership and out-of-scope canonical transformations", () => {
+    const result = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 20, dexterity: 4, dexterityBonus: 0 },
+            moveIds: [],
+            raceId: "race-humans",
+            transformationProfiles: [
+              {
+                transformationId: "transformation-ghost-2-ghoul",
+                rollSides: 20,
+                mastery: "novice",
+              },
+            ],
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    expect(result).toMatchObject({ ok: false, error: { type: "invalid-fight-setup" } });
+  });
+
   it("normalizes a legacy snapshot without a schema marker at the public boundary", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
@@ -52,7 +191,102 @@ describe("createFight", () => {
     const result = advanceFight(legacyState, createDependencies());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.state.schemaVersion).toBe(1);
+    expect(result.value.state.schemaVersion).toBe(3);
+  });
+
+  it("migrates scheduling-only v1 effects into queued work at the public boundary", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const legacyEffect: ActiveExtraActionEffect = {
+      id: activeEffectIdSchema.parse("active-effect:legacy-extra-action"),
+      type: "extra-action",
+      sourceCombatantId: secondCombatantId,
+      targetCombatantId: secondCombatantId,
+      sourceDefinitionId: "move-afterlife-give-me-energy",
+      sourceEffectIndex: 0,
+      phase: "action",
+      sourceMoveOnly: false,
+      remainingActions: 1,
+      availableFromTurn: 1,
+      expiresAfterTurn: 1,
+    };
+    const result = advanceFight(
+      {
+        ...createdFight.value.state,
+        schemaVersion: 1,
+        activeEffects: [legacyEffect],
+      },
+      createDependencies(),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.state).toMatchObject({
+      schemaVersion: 3,
+      activeEffects: [],
+      scheduledWork: [
+        expect.objectContaining({
+          sourceEffectId: legacyEffect.id,
+          operation: expect.objectContaining({ type: "extra-action" }),
+        }),
+      ],
+    });
+  });
+
+  it("executes a migrated v1 scheduled resource without an active-effect mirror", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-29T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:legacy-scheduled-resource")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      activeEffectIds: [activeEffectIdSchema.parse("active-effect:legacy-resource")],
+      eventIds: Array.from({ length: 40 }, (_, index) =>
+        combatEventIdSchema.parse(`event:legacy-scheduled-resource-${index}`),
+      ),
+    });
+    const createdFight = createFight(input, dependencies);
+    if (!createdFight.ok || createdFight.value.state.status !== "active")
+      throw new Error("Expected initial fight creation to succeed.");
+    const initialState = createdFight.value.state;
+    const sourceCombatantId = initialState.activeCombatantId;
+    const targetCombatantId = Object.values(initialState.combatants).find(
+      (combatant) => combatant.id !== sourceCombatantId,
+    )!.id;
+    const legacyEffect: ActiveScheduledResourceEffect = {
+      id: activeEffectIdSchema.parse("active-effect:legacy-resource"),
+      type: "scheduled-resource",
+      sourceCombatantId,
+      targetCombatantId,
+      sourceDefinitionId: "move-afterlife-burning-shoot",
+      sourceEffectIndex: 0,
+      timing: { type: "turn-end", combatantId: sourceCombatantId },
+      remainingBoundaries: 1,
+      repeat: "once",
+      resource: "hp",
+      operation: "damage",
+      amount: { type: "literal", value: 4 },
+    };
+    const legacyState: FightState = {
+      ...initialState,
+      schemaVersion: 1,
+      phase: "end",
+      activeEffects: [legacyEffect],
+    };
+    const result = advanceFight(legacyState, dependencies);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.state.combatants[targetCombatantId].hitPoints.current).toBe(
+      initialState.combatants[targetCombatantId].hitPoints.current - 4,
+    );
+    expect(result.value.state.activeEffects).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "scheduled-resource" })]),
+    );
+    expect(result.value.state.scheduledWork).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: expect.objectContaining({ type: "resource" }),
+        }),
+      ]),
+    );
   });
 
   it("creates a deterministic, valid initial 1v1 state without mutating setup input", () => {
@@ -64,7 +298,7 @@ describe("createFight", () => {
       value: {
         state: {
           id: fightIdSchema.parse("fight:opening-spar"),
-          schemaVersion: 1,
+          schemaVersion: 3,
           version: 0,
           rulesVersion: { value: "legacy-reference-2026-08", sourcePath: "reference/rules.md" },
           mode: "spar",
@@ -75,6 +309,7 @@ describe("createFight", () => {
           activeEffects: [],
           actionHistory: [],
           resolutionFrames: [],
+          scheduledWork: [],
           combatants: {
             [firstCombatantId]: {
               id: firstCombatantId,
@@ -95,6 +330,7 @@ describe("createFight", () => {
               storedRolls: {},
               itemUses: {},
               activeStatuses: [],
+              transformationProfiles: [],
               status: "active",
             },
             [secondCombatantId]: {
@@ -116,6 +352,7 @@ describe("createFight", () => {
               storedRolls: {},
               itemUses: {},
               activeStatuses: [],
+              transformationProfiles: [],
               status: "active",
             },
           },
@@ -469,16 +706,42 @@ describe("validateFightState", () => {
     );
   });
 
-  it("rejects an unknown fight-state schema version", () => {
+  it("accepts the current fight-state schema version", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
 
     expect(
       validateFightState({
         ...createdFight.value.state,
-        schemaVersion: 2,
+        schemaVersion: 4,
       } as unknown as FightState),
     ).toContainEqual(expect.objectContaining({ type: "invalid-schema-version" }));
+  });
+
+  it("rejects malformed scheduled work before a transition can use it", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const malformedWork = {
+      id: scheduledWorkIdSchema.parse("scheduled-work:malformed"),
+      insertionOrder: 1,
+      ownerCombatantId: combatantIdSchema.parse("combatant:missing"),
+      timing: { type: "immediate" },
+      operation: {
+        type: "resource",
+        resource: "ki",
+        operation: "gain",
+        amount: { type: "literal", value: Number.NaN },
+      },
+    };
+
+    expect(
+      validateFightState({
+        ...createdFight.value.state,
+        scheduledWork: [malformedWork],
+      } as unknown as FightState),
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "invalid-scheduled-work" })]),
+    );
   });
 
   it("identifies malformed pending decisions and completed-fight winners", () => {

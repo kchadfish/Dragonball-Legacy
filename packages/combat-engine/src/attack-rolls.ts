@@ -1,6 +1,8 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 
 import type { RandomSource } from "./dependencies.js";
+import { publishCalculationTrace, type CalculationTraceSink } from "./calculation-pipeline.js";
+import { calculateFinalRollResult } from "./roll-calculations.js";
 
 export interface AttackRollDefinition {
   readonly dice: number;
@@ -42,6 +44,7 @@ export interface ContestedAttackRollInput {
   readonly afterDieResolved?: (index: number, rolls: readonly AttackDieRoll[]) => void;
   /** Declarative constraints on whether a die may count as successful or stopped. */
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
+  readonly diagnosticTraceSink?: CalculationTraceSink;
 }
 
 export interface ResolutionThresholdRule {
@@ -60,6 +63,17 @@ export interface AttackDieRoll {
   readonly defenseNaturalResult?: number;
   readonly defenseResult?: number;
   readonly outcome: "blocked" | "stopped" | "successful";
+  /** Candidate facts retained when advantage/disadvantage selected among dice. */
+  readonly attackCandidates?: readonly RollCandidateFact[];
+  readonly selectedAttackCandidateIndex?: number;
+  readonly defenseCandidates?: readonly RollCandidateFact[];
+  readonly selectedDefenseCandidateIndex?: number;
+}
+
+export interface RollCandidateFact {
+  readonly candidateIndex: number;
+  readonly naturalValue: number;
+  readonly finalResult: number;
 }
 
 /** Natural die values retained by a suspended reaction before its final resolution. */
@@ -67,6 +81,29 @@ export interface ContestedAttackNaturalRoll {
   readonly attack: number;
   readonly defense?: number;
 }
+
+const resolvedRollResult = (
+  naturalValue: number,
+  statContribution: number,
+  numericOverride: number | undefined,
+  dynamicModifier: number,
+  diagnosticTraceSink?: CalculationTraceSink,
+) => {
+  const result = calculateFinalRollResult({
+    candidateNaturalValue: naturalValue,
+    statContribution: statContribution + dynamicModifier,
+    enforceStructuralMinimum: false,
+    operations: [
+      ...(numericOverride === undefined
+        ? []
+        : [
+            { operation: "set" as const, amount: numericOverride, provenance: "roll:substitution" },
+          ]),
+    ],
+    retainTrace: diagnosticTraceSink !== undefined,
+  });
+  return publishCalculationTrace(result, diagnosticTraceSink);
+};
 
 const assertAttackDefinition = ({ dice, sides }: AttackRollDefinition) => {
   if (!Number.isInteger(dice) || dice < 1 || !Number.isInteger(sides) || sides < 1) {
@@ -190,7 +227,16 @@ const assertPersistedDieValues = (
 };
 
 const resolvedUnblockedDie = (
-  ...[attackNaturalResult, attackResult, persisted, index, input, random, dynamicResultModifier]: [
+  ...[
+    attackNaturalResult,
+    attackResult,
+    persisted,
+    index,
+    input,
+    random,
+    dynamicResultModifier,
+    candidateFacts,
+  ]: [
     attackNaturalResult: number,
     attackResult: number,
     persisted: ContestedAttackNaturalRoll | undefined,
@@ -198,17 +244,25 @@ const resolvedUnblockedDie = (
     input: ContestedAttackRollInput,
     random: RandomSource,
     dynamicResultModifier: { readonly attack?: number; readonly defense?: number } | undefined,
+    candidateFacts?: Pick<
+      AttackDieRoll,
+      | "attackCandidates"
+      | "selectedAttackCandidateIndex"
+      | "defenseCandidates"
+      | "selectedDefenseCandidateIndex"
+    >,
   ]
 ): AttackDieRoll => {
   const defenseNaturalResult =
     persisted?.defense ??
     random.integer(1, input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides);
-  const defenseResult =
-    input.numericResultOverrides?.[index]?.defense ??
-    defenseNaturalResult +
-      input.defenderDexterityBonus +
-      (input.defenderResultModifier ?? 0) +
-      (dynamicResultModifier?.defense ?? 0);
+  const defenseResult = resolvedRollResult(
+    defenseNaturalResult,
+    input.defenderDexterityBonus,
+    input.numericResultOverrides?.[index]?.defense,
+    (input.defenderResultModifier ?? 0) + (dynamicResultModifier?.defense ?? 0),
+    input.diagnosticTraceSink,
+  );
   const defaultOutcome =
     attackResult >= defenseResult ? ("successful" as const) : ("stopped" as const);
   const protectedOutcome =
@@ -229,6 +283,7 @@ const resolvedUnblockedDie = (
     defenseNaturalResult,
     defenseResult,
     outcome: input.resultOverrides?.[index] ?? outcome,
+    ...candidateFacts,
   };
 };
 
@@ -288,10 +343,14 @@ const resolveContestedAttackDie = (
     persisted === undefined && selection?.roll === "attack"
       ? Array.from({ length: selection.diceCount }, () => random.integer(1, input.attack.sides))
       : [persisted?.attack ?? random.integer(1, input.attack.sides)];
-  const attackResults = attackCandidates.map(
-    (natural) =>
-      input.numericResultOverrides?.[index]?.attack ??
-      natural + input.attackerDexterityBonus + (dynamicResultModifier?.attack ?? 0),
+  const attackResults = attackCandidates.map((natural) =>
+    resolvedRollResult(
+      natural,
+      input.attackerDexterityBonus,
+      input.numericResultOverrides?.[index]?.attack,
+      dynamicResultModifier?.attack ?? 0,
+      input.diagnosticTraceSink,
+    ),
   );
   const selectedAttackIndex =
     selection?.selection === "lowest"
@@ -306,24 +365,45 @@ const resolveContestedAttackDie = (
           0,
         );
   const attackNaturalResult = attackCandidates[selectedAttackIndex];
-  const attackResult =
-    input.numericResultOverrides?.[index]?.attack ??
-    attackNaturalResult + input.attackerDexterityBonus + (dynamicResultModifier?.attack ?? 0);
+  const attackCandidateFacts =
+    selection?.roll === "attack"
+      ? {
+          attackCandidates: attackCandidates.map((naturalValue, candidateIndex) => ({
+            candidateIndex,
+            naturalValue,
+            finalResult: attackResults[candidateIndex]!,
+          })),
+          selectedAttackCandidateIndex: selectedAttackIndex,
+        }
+      : undefined;
+  const attackResult = resolvedRollResult(
+    attackNaturalResult,
+    input.attackerDexterityBonus,
+    input.numericResultOverrides?.[index]?.attack,
+    dynamicResultModifier?.attack ?? 0,
+    input.diagnosticTraceSink,
+  );
   if (index < (input.blockedDice ?? 0)) {
-    return { attackNaturalResult, attackResult, outcome: "blocked" };
+    return {
+      attackNaturalResult,
+      attackResult,
+      outcome: "blocked",
+      ...attackCandidateFacts,
+    };
   }
   if (persisted === undefined && selection?.roll === "defense") {
     const defenseSides = input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides;
     const defenseCandidates = Array.from({ length: selection.diceCount }, () =>
       random.integer(1, defenseSides),
     );
-    const defenseResults = defenseCandidates.map(
-      (natural) =>
-        input.numericResultOverrides?.[index]?.defense ??
-        natural +
-          input.defenderDexterityBonus +
-          (input.defenderResultModifier ?? 0) +
-          (dynamicResultModifier?.defense ?? 0),
+    const defenseResults = defenseCandidates.map((natural) =>
+      resolvedRollResult(
+        natural,
+        input.defenderDexterityBonus,
+        input.numericResultOverrides?.[index]?.defense,
+        (input.defenderResultModifier ?? 0) + (dynamicResultModifier?.defense ?? 0),
+        input.diagnosticTraceSink,
+      ),
     );
     const selectedDefenseIndex =
       selection.selection === "lowest"
@@ -337,6 +417,14 @@ const resolveContestedAttackDie = (
               result > defenseResults[selected] ? candidate : selected,
             0,
           );
+    const defenseCandidateFacts = {
+      defenseCandidates: defenseCandidates.map((naturalValue, candidateIndex) => ({
+        candidateIndex,
+        naturalValue,
+        finalResult: defenseResults[candidateIndex]!,
+      })),
+      selectedDefenseCandidateIndex: selectedDefenseIndex,
+    };
     return resolvedUnblockedDie(
       attackNaturalResult,
       attackResult,
@@ -345,6 +433,7 @@ const resolveContestedAttackDie = (
       input,
       random,
       dynamicResultModifier,
+      { ...attackCandidateFacts, ...defenseCandidateFacts },
     );
   }
   return resolvedUnblockedDie(
@@ -355,6 +444,7 @@ const resolveContestedAttackDie = (
     input,
     random,
     dynamicResultModifier,
+    attackCandidateFacts,
   );
 };
 
@@ -379,6 +469,7 @@ export const resolveContestedAttackRolls = (
     resolutionThresholds,
     rollSelection,
     naturalDefenseStopPreventionAtMost,
+    diagnosticTraceSink,
   }: ContestedAttackRollInput,
   random: RandomSource,
 ): readonly AttackDieRoll[] => {
@@ -415,6 +506,7 @@ export const resolveContestedAttackRolls = (
     resolutionThresholds,
     rollSelection,
     naturalDefenseStopPreventionAtMost,
+    diagnosticTraceSink,
   };
   const rolls: AttackDieRoll[] = [];
   for (let index = 0; index < attack.dice; index += 1) {

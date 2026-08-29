@@ -12,6 +12,8 @@ import {
 import {
   applyCombatItemPassives,
   combatItemPreventedOutcomes,
+  itemResourceGainForRace,
+  itemUseLimitForCombatant,
   resolveItemResources,
 } from "./item-effects-runtime.js";
 import { advanceFight, enumerateLegalDecisions, submitCombatDecision } from "./progress-fight.js";
@@ -147,6 +149,7 @@ describe("item effect runtime", () => {
         combatEventIdSchema.parse("event:common-item-turn-started"),
         combatEventIdSchema.parse("event:common-item-action"),
         combatEventIdSchema.parse("event:common-item-used"),
+        combatEventIdSchema.parse("event:common-item-phase"),
       ],
     });
     const created = createFight(
@@ -192,7 +195,7 @@ describe("item effect runtime", () => {
     if (!used.ok || used.value.state.status !== "active")
       throw new Error("Expected used item state.");
 
-    expect(used.value.state.version).toBe(2);
+    expect(used.value.state).toMatchObject({ version: 2, phase: "end" });
     expect(used.value.state.combatants[firstCombatantId]).toMatchObject({
       hitPoints: { current: 100 },
       itemUses: { "item-equipment-first-aid-kit": 1 },
@@ -204,6 +207,39 @@ describe("item effect runtime", () => {
       expect.objectContaining({
         type: "use-item",
         itemId: "item-equipment-first-aid-kit",
+      }),
+    );
+  });
+
+  it("allows a Majin to use Majin Cookies twice while ordinary races retain the one-use limit", () => {
+    const item = ITEM_DEFINITIONS.find(
+      (candidate) => candidate.id === "item-equipment-majin-cookies",
+    );
+    if (item === undefined) throw new Error("Expected Majin Cookies data.");
+    expect(itemUseLimitForCombatant(item, { ...self, raceId: "race-majins" })).toBe(2);
+    expect(itemUseLimitForCombatant(item, { ...self, raceId: "race-humans" })).toBe(1);
+    expect(item.effects).toContainEqual(
+      expect.objectContaining({
+        operation: "limit-race-item-uses",
+        raceId: "race-majins",
+        amount: 2,
+      }),
+    );
+  });
+
+  it("grants Black Water Mist's conditional Ki only to a Makyan", () => {
+    const item = ITEM_DEFINITIONS.find(
+      (candidate) => candidate.id === "item-equipment-black-water-mist",
+    );
+    if (item === undefined) throw new Error("Expected Black Water Mist data.");
+    expect(itemResourceGainForRace(item, { ...self, raceId: "race-makyans" }).ki).toBe(3);
+    expect(itemResourceGainForRace(item, { ...self, raceId: "race-humans" }).ki).toBe(0);
+    expect(item.effects).toContainEqual(
+      expect.objectContaining({
+        operation: "grant-resource-when-race",
+        raceId: "race-makyans",
+        resource: "ki",
+        amount: 3,
       }),
     );
   });
@@ -224,11 +260,7 @@ describe("item effect runtime", () => {
           "event:drink-action",
           "event:drink-used",
           "event:drink-effect",
-          "event:drink-attack",
-          "event:drink-defense",
-          "event:drink-resolved",
-          "event:drink-damage",
-          "event:drink-end",
+          "event:drink-phase",
         ].map((id) => combatEventIdSchema.parse(id)),
       },
     );
@@ -284,21 +316,76 @@ describe("item effect runtime", () => {
       }),
     );
 
-    const attack = submitCombatDecision(
-      used.value.state,
+    expect(used.value.state.phase).toBe("end");
+  });
+
+  it("retains Yema's attack count and temporary Dexterity effects through item activation", () => {
+    const firstCombatantId = combatantIdSchema.parse("combatant:yema-user");
+    const secondCombatantId = combatantIdSchema.parse("combatant:yema-opponent");
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-06T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:yema")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      activeEffectIds: [
+        "active-effect:yema-damage" as never,
+        "active-effect:yema-dex" as never,
+        "active-effect:yema-comparison" as never,
+      ],
+      eventIds: [
+        "event:yema-fight-started",
+        "event:yema-turn-started",
+        "event:yema-action",
+        "event:yema-used",
+        "event:yema-ki",
+        "event:yema-damage",
+        "event:yema-dex",
+        "event:yema-comparison",
+      ].map((id) => combatEventIdSchema.parse(id)),
+    });
+    const created = createFight(
       {
-        type: "basic-attack",
-        id: combatDecisionIdSchema.parse("decision:drink-attack"),
-        actorId: firstCombatantId,
-        expectedStateVersion: 2,
-        basicAttack: "basic-punch",
-        targetCombatantId: secondCombatantId,
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 2, dexterityBonus: 0 },
+            moveIds: [],
+            itemIds: ["item-equipment-yema-fruit"],
+          },
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 1, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
       },
       dependencies,
     );
-    if (!attack.ok) throw new Error("Expected attack to resolve.");
-    expect(attack.value.events).toContainEqual(
-      expect.objectContaining({ type: "attack-rolled", naturalResult: 32, result: 32 }),
+    if (!created.ok) throw new Error("Expected valid fight setup.");
+    const action = advanceFight(created.value.state, dependencies);
+    if (!action.ok || action.value.state.status !== "active")
+      throw new Error("Expected action state.");
+    const used = submitCombatDecision(
+      action.value.state,
+      {
+        type: "use-item",
+        id: combatDecisionIdSchema.parse("decision:yema"),
+        actorId: firstCombatantId,
+        expectedStateVersion: 1,
+        itemId: "item-equipment-yema-fruit",
+      },
+      dependencies,
+    );
+    if (!used.ok || used.value.state.status !== "active")
+      throw new Error("Expected used item state.");
+
+    expect(used.value.state.phase).toBe("action");
+    expect(used.value.state.combatants[firstCombatantId].ki.current).toBe(3);
+    expect(used.value.state.activeEffects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "modify-item-next-attack-damage", remainingAttacks: 3 }),
+        expect.objectContaining({ type: "modify-stat", stat: "dexterity-bonus", amount: 3 }),
+        expect.objectContaining({ type: "set-stat-comparison", comparison: "higher-than" }),
+      ]),
     );
   });
 });

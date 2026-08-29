@@ -5506,3 +5506,213 @@ conflict-policy resolution.
   identity and optional effect indices.
 - The current extended repository quality gate passes with 982 tests, build,
   coverage, duplication scan, and production dependency audit.
+
+## 2026-08-28 - Phase 6 CE-600/630/640 calculation foundation
+
+The first Phase 6 calculation slice adds the public `calculation-pipeline`
+primitive for the ND-070 order: prevention, set, additive, multiplicative,
+one-time integer rounding, and ordered bounds. Operation type selects the
+calculation stage; same-stage operations and bounds retain explicit compiled
+order with stable array-order ties. Full-calculation prevention carries the
+caller-supplied prevented value separately from modifier-level prevention, and
+both applied and skipped operations can be retained in diagnostic trace output.
+
+The damage adapter resolves `power-percent` and `damage-percent` operands
+against their declared bases, combines modifiers before rounding, and applies
+the default zero damage floor. The shared move-cost helpers now use the same
+ordered calculation path, removing their duplicate current-action reduction
+fold. Existing target-current-HP clamping remains in resource mutation.
+
+The public transition contract now reserves opt-in diagnostic-trace retention
+through injected combat dependencies and an optional result field, without
+serializing diagnostics into `FightState` or changing event, identifier, or
+random-consumption behavior. Full trace collection through every suspended
+transition remains the next integration checkpoint.
+
+CE-630/640 roll records now expose separate dice-count, die-sides, and final
+result calculations. Structural minimums apply to dice count and die sides;
+natural candidate values remain unchanged while selected natural values, stat
+contributions, final results, and outcome-facing values are retained. Numeric
+result substitutions are set-stage inputs followed by stat/declarative
+additions, with injected and persisted randomness unchanged. CE-660 now also
+provides a result classifier that retains the initially triggered outcome
+separately from the final outcome and derives critical/counter flags only
+after final-result prevention is applied.
+
+Focused evidence includes `calculation-pipeline.test.ts`,
+`roll-calculations.test.ts`, `attack-rolls.test.ts`, `combat-mechanics.test.ts`,
+and the public `basic-attack.test.ts`. The combat-engine typecheck passed and
+all 27 combat-engine test files passed (585 tests). Catalog accounting is
+unchanged at 975 `supported-generic`, 0 `supported-named`, 0
+`unsupported-in-scope`, and 145 `audited-out-of-scope` occurrences; this slice
+does not reclassify definitions. The next Phase 6 work is diagnostic trace
+retention at the public transition boundary, followed by complete unified
+cost/damage runtime migration and roll-executor lineage/replay integration.
+
+## 2026-08-28 - Phase 6 CE-610/620/650 adapter and replay slice
+
+The shared pipeline now exposes an explicit `calculateCost` adapter with the
+zero-cost floor and one rounding pass, and converted-attack damage now uses
+the shared damage adapter for per-hit scaling and critical multiplication.
+Existing resource mutation continues to own HP/Ki caps and direct HP-loss
+semantics remain separate from ordinary damage.
+
+The roll calculation module now provides a candidate executor, stable
+highest/lowest selection, persisted candidate snapshots, replay without
+random-source calls, and reroll lineage records. Focused tests cover replay
+randomness invariance and single-candidate reroll lineage. The current attack
+snapshot contract remains backward compatible; full suspended-frame candidate
+fact integration remains outstanding.
+
+The focused slice passes 20 roll/calculation/move-attack tests and the
+combat-engine typecheck. Catalog accounting remains unchanged at 975
+`supported-generic`, 0 `supported-named`, 0 `unsupported-in-scope`, and 145
+`audited-out-of-scope` occurrences. The next resume point is wiring diagnostic
+traces and candidate lineage through the public transition and suspended-frame
+paths, then completing the named-case audit.
+
+## 2026-08-28 - Phase 6 public trace and legacy damage adapter slice
+
+Diagnostic trace sinks now flow through public `submitCombatDecision` and
+`advanceFight` transitions. Trace retention is opt-in, ephemeral, and attached
+only to the returned transition; calculation traces do not enter `FightState`,
+combat events, identifiers, or random-source accounting. Contested attack rolls
+retain the sink through their normalized input boundary, and the public basic
+attack regression verifies roll-stage provenance is observable.
+
+Legacy active damage modifiers and serialized current-action damage operations
+now pass through the shared damage adapter, preserving their percentage-based
+multipliers while allowing the critical multiplier to remain a direct factor.
+The broader focused slice passes 113 tests, and the combat-engine typecheck and
+changed-file lint pass. Candidate lineage in persisted suspended frames and the
+remaining named-case audit are still outstanding.
+
+## 2026-08-28 - Phase 6 CE-650 replay persistence and named-case audit
+
+Candidate natural values, selected candidate indexes, and final candidate
+results now survive both completed attack-resolution snapshots and suspended
+post-defense reaction frames. The public resume path restores those facts into
+the resumed action snapshot, consumes no randomness for persisted candidates,
+and rejects malformed candidate arrays, indexes, natural values, and final
+results through the existing fight-state invariant boundary. Focused public
+coverage verifies validation and resume behavior in addition to the standalone
+candidate replay and reroll tests.
+
+The named-case audit found no new capability-matrix classifications: the
+authoritative counts remain 975 `supported-generic`, 0 `supported-named`, 0
+`unsupported-in-scope`, and 145 `audited-out-of-scope` occurrences. Close
+Shave's equal-roll stop and Energy Redirection's per-die result change use the
+generic combat-result pipeline; Second Chance uses the generic persisted
+reroll executor; Heroic Tunic uses the generic item-resource reaction path;
+and Death Beam's public move submission uses the generic converted-attack
+pipeline. Existing named strings are limited to compatibility/event labels and
+the variable-cost Close Shave activation affordance; no named result or damage
+executor is required for these catalog occurrences. Definition-specific
+regressions remain in `basic-attack.test.ts`, `item-effects-runtime.test.ts`,
+and `death-beam.test.ts`.
+
+Phase 6 implementation and replay integration are complete for the represented
+variants. Final handoff verification remains: format changed files, run the
+focused changed-scope checks, and run exactly one repository-level
+`npm run quality` gate.
+
+## 2026-08-29 - Phase 7 CE-700 scheduler foundation
+
+Phase 7 now has a public serialized `ScheduledCombatWork` contract with typed
+immediate, end-of-action, next-upkeep, and explicit delayed phase/turn timing.
+Work receives stable namespaced IDs and monotonic insertion positions, and the
+shared scheduler helpers order, select, and consume work immutably. Phase
+handoffs, full-action skips, and core result classification now pass through
+explicit scheduler operations before the existing event and defeat pipelines
+continue. The
+`CombatIdSource` and deterministic test source expose scheduled-work ID
+generation.
+
+Newly created fights use snapshot schema version 2 and initialize an empty
+scheduled-work queue. Public transition boundaries normalize schema-v1 or
+unmarked snapshots and migrate scheduling-only extra-action,
+scheduled-resource, and deferred-move effects into the queue using deterministic
+compatibility IDs; ongoing lifecycle effects and resolution frames remain in
+their existing authorities. Queue invariants validate namespaced IDs, unique
+insertion order, combatant references, legal timing, operation discriminants,
+finite nested values, and completed-state cleanup.
+
+Focused evidence is in `fight-flow-scheduler.test.ts`, the updated creation and
+schema tests, public extra-action/deferred-move/counter/resource regressions,
+the combat-engine typecheck, and the full combat-engine suite (28 files, 601
+tests). Extra-action consumption, deferred-move cleanup, counter-frame
+serialization, scheduled-resource queue consumption, and unresolved-frame
+provenance now update the queue at their public flow boundaries. The
+active-effect and resolution-frame representations remain authorities by
+design: restrictions and locks continue to drive legal decisions, suspended
+defense work resumes from persisted frame facts, and result classification is
+executed through immediate scheduler operations before the established damage
+and defeat paths; completed transitions clear all queued work and frames. The
+next resume point is Phase 8 / CE-800, item
+effects through the shared executor.
+
+## 2026-08-29 - Phase 8 CE-800/810/820/830 item executor slice
+
+Item definitions now carry generated `ItemUsePolicy` metadata that separates
+ordinary action use, explicit free use, reactions, defeat interrupts, `USE`
+capacity, `RESTRICTED` capacity, and combat item groups. Legacy `maxUses`
+remains readable as a deterministic compatibility fallback. Legal item
+enumeration and submission share the same timing, ownership, capacity, group,
+and supported-effect checks; accepted action items end the action phase while
+free items retain it. Activation Ki is checked and charged once before
+`itemUses` is incremented.
+
+The source-neutral effect compiler now retains item/move/transformation
+provenance and source-clause ordering. Every generated item effect is routed
+through the item adapter registry, including every generated state-rule
+operation. The matrix currently accounts for 283 item occurrences: 148
+supported-generic, 49 supported-named combat adapters, 0 unsupported-in-scope,
+and 86 explicitly audited external or later-phase occurrences. The former
+blanket `item-state-rule` exclusion is removed; race-dependent operations are
+marked Phase 9 and multiplayer, escape, or remote-target operations are marked
+Phase 10.
+
+The shared calculation pipeline now owns item passive percentage changes and
+resource caps. Item roll, damage, prevention, temporary Yema stat/comparison,
+and combat-duration effects retain item ID, effect index, and clause provenance
+in activation events and active state. Focused regressions cover First Aid Kit
+action consumption, Senzu Root free use, generated policy distinctions,
+exhaustive adapter accounting, and the updated capability report. The next
+resume point is Phase 9 race/transformation state, followed by Phase 10
+multiplayer, escape, and remote-target item continuations.
+
+## 2026-08-29 - Phase 9 CE-900/910/920 transformation and race closure
+
+Phase 9 is complete. New fights use schema version 3 and persist canonical
+`transformationProfiles` containing the transformation ID, roll sides, and
+mastery. Known-race and race-ownership validation covers the six active race
+families exactly: Humans, Saiyans, Hybrid-Saiyans, Namekians, Changelings, and
+Bio-Androids. Legacy transformation ID arrays remain readable and normalize to
+canonical novice d20 or mastered d100 profiles at public state boundaries;
+legacy class IDs are not introduced into combat state.
+
+Transformation lifecycle state now retains the base maximum hit points and a
+fixed rounded percentage bonus. Activation adds that bonus to both maximum and
+current hit points and derives transformed stats from the base stats. Reversion
+removes the same fixed bonus, caps current hit points at the base maximum, and
+preserves the normal defeat path, with the documented surviving floor of one
+when removal alone would reach zero. Manual deactivation consumes the action and
+does not start a stability cooldown. Automatic upkeep rolls only at or below
+half transformed maximum hit points; failed stability reverts and starts a
+persisted five completed owner-turn cooldown, while skipped turns do not advance
+it. D100 profiles are exempt from upkeep stability rolls.
+
+Race-dependent item rules are typed and executable: Majin Cookies allow up to
+two uses for Majins while preserving ordinary item capacity rules, and Black
+Water Mist grants three Ki only to Makyan combatants. Transformation and item
+roll modifiers share the calculation trace and deterministic event path.
+
+The generated capability matrix now records 236 race/class clauses and 255
+active-family transformation clauses, including source-text-only abilities as
+auditable non-executable rows with explicit classification and prerequisite.
+The capability accounting covers all 117 converted race/class entries and all
+six-family transformation ability clauses. Focused Phase 9 regressions cover
+canonical persistence, legacy migration, race ownership, fixed HP lifecycle,
+manual deactivation, upkeep thresholds, cooldown progression, typed item rules,
+and capability accounting. The next resume point is Phase 10 / CE-1000 for
+multiplayer, escape, remote-target, and relationship mechanics.

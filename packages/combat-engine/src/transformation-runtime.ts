@@ -3,8 +3,8 @@ import type { TransformationDefinition } from "@dragonball-resurgence/game-data"
 import type { CombatantState } from "./contracts.js";
 
 export interface TransformationBaseline {
-  readonly currentHitPoints: number;
   readonly maximumHitPoints: number;
+  readonly hpBonus?: number;
   readonly stats: CombatantState["stats"];
 }
 
@@ -21,7 +21,6 @@ export const applyTransformation = (
   transformation: TransformationDefinition,
 ): TransformedCombatant => {
   const baseline = {
-    currentHitPoints: combatant.hitPoints.current,
     maximumHitPoints: combatant.hitPoints.maximum,
     stats: combatant.stats,
   };
@@ -29,16 +28,14 @@ export const applyTransformation = (
     baseline.maximumHitPoints,
     transformation.statModifiers.hpPercent,
   );
+  const hpBonus = maximumHitPoints - baseline.maximumHitPoints;
   return {
-    baseline,
+    baseline: { ...baseline, hpBonus },
     combatant: {
       ...combatant,
       hitPoints: {
         maximum: maximumHitPoints,
-        current: Math.min(
-          maximumHitPoints,
-          adjusted(combatant.hitPoints.current, transformation.statModifiers.hpPercent),
-        ),
+        current: Math.min(maximumHitPoints, combatant.hitPoints.current + hpBonus),
       },
       stats: {
         ...combatant.stats,
@@ -56,11 +53,20 @@ export const applyTransformation = (
 export const revertTransformation = (
   combatant: CombatantState,
   baseline: TransformationBaseline,
-): CombatantState => ({
-  ...combatant,
-  hitPoints: {
-    maximum: baseline.maximumHitPoints,
-    current: Math.min(baseline.maximumHitPoints, baseline.currentHitPoints),
-  },
-  stats: baseline.stats,
-});
+): CombatantState => {
+  const hpBonus =
+    baseline.hpBonus ?? Math.max(0, combatant.hitPoints.maximum - baseline.maximumHitPoints);
+  const currentAfterBonus = Math.min(
+    baseline.maximumHitPoints,
+    Math.max(0, combatant.hitPoints.current - hpBonus),
+  );
+  const current =
+    combatant.status === "active" && combatant.hitPoints.current > 0 && currentAfterBonus === 0
+      ? 1
+      : currentAfterBonus;
+  return {
+    ...combatant,
+    hitPoints: { maximum: baseline.maximumHitPoints, current },
+    stats: baseline.stats,
+  };
+};

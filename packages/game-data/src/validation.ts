@@ -217,31 +217,87 @@ const validateItemEffectClauses = (item: ItemDefinition, errors: string[]) => {
   }
 };
 
+const validateItemRule = (
+  item: ItemDefinition,
+  rule: ItemDefinition["rules"][number],
+  errors: string[],
+) => {
+  if (!item.effectText.includes(rule.sourceText))
+    errors.push(`Item rule source is not in effect text: ${item.id}`);
+  if (!rule.executable && rule.unresolvedReason === undefined)
+    errors.push(`Unresolved item rule is not classified: ${item.id}:${rule.sourceText}`);
+  if (rule.executable && rule.unresolvedReason !== undefined)
+    errors.push(
+      `Executable item rule has unresolved classification: ${item.id}:${rule.sourceText}`,
+    );
+  if (
+    rule.executable &&
+    !(item.effects ?? []).some((effect) => effect.sourceClauseOrder === rule.sourceClauseOrder)
+  )
+    errors.push(`Executable item rule is not structured: ${item.id}:${rule.sourceText}`);
+};
+
+const validateTypedRaceEffect = (
+  item: ItemDefinition,
+  effect: NonNullable<ItemDefinition["effects"]>[number],
+  errors: string[],
+) => {
+  if (
+    effect.type === "item-state-rule" &&
+    (effect.operation === "limit-race-item-uses" ||
+      effect.operation === "grant-resource-when-race") &&
+    effect.raceId === undefined
+  )
+    errors.push(`Race-dependent item effect is missing a typed race ID: ${item.id}`);
+  if (
+    effect.type === "item-state-rule" &&
+    effect.operation === "grant-resource-when-race" &&
+    effect.resource === undefined
+  )
+    errors.push(`Race-dependent resource effect is missing a resource: ${item.id}`);
+};
+
+const validateItemEffect = (
+  item: ItemDefinition,
+  effect: NonNullable<ItemDefinition["effects"]>[number],
+  errors: string[],
+) => {
+  if (!item.effectText.includes(effect.sourceText))
+    errors.push(`Item effect source is not in effect text: ${item.id}`);
+  validateEffectSemantics(effect, `${item.id}:${effect.sourceText}`, errors);
+  validateTypedRaceEffect(item, effect, errors);
+};
+
 const validateItemRules = (item: ItemDefinition, errors: string[]) => {
-  for (const rule of item.rules) {
-    if (!item.effectText.includes(rule.sourceText)) {
-      errors.push(`Item rule source is not in effect text: ${item.id}`);
-    }
-    if (!rule.executable && rule.unresolvedReason === undefined) {
-      errors.push(`Unresolved item rule is not classified: ${item.id}:${rule.sourceText}`);
-    }
-    if (rule.executable && rule.unresolvedReason !== undefined) {
-      errors.push(
-        `Executable item rule has unresolved classification: ${item.id}:${rule.sourceText}`,
-      );
-    }
-    if (
-      rule.executable &&
-      !(item.effects ?? []).some((effect) => effect.sourceClauseOrder === rule.sourceClauseOrder)
-    ) {
-      errors.push(`Executable item rule is not structured: ${item.id}:${rule.sourceText}`);
+  item.rules.forEach((rule) => validateItemRule(item, rule, errors));
+  (item.effects ?? []).forEach((effect) => validateItemEffect(item, effect, errors));
+};
+
+const validateItemUsePolicy = (item: ItemDefinition, errors: string[]) => {
+  // eslint-disable-next-line sonarjs/deprecation -- validate legacy generated data during migration.
+  const legacyMaxUses = item.maxUses;
+  if (legacyMaxUses !== undefined && (!Number.isInteger(legacyMaxUses) || legacyMaxUses < 1)) {
+    errors.push(`Invalid item maximum uses: ${item.id}`);
+  }
+  if (item.usePolicy === undefined) return;
+  if (
+    !["action", "free", "upkeep", "reaction", "defeat-interrupt"].includes(item.usePolicy.timing)
+  ) {
+    errors.push(`Invalid item use timing: ${item.id}`);
+  }
+  for (const [name, value] of [
+    ["restricted uses", item.usePolicy.restrictedUses],
+    ["consumable uses", item.usePolicy.consumableUses],
+  ] as const) {
+    if (value !== undefined && (!Number.isInteger(value) || value < 1)) {
+      errors.push(`Invalid item ${name}: ${item.id}`);
     }
   }
-  for (const effect of item.effects ?? []) {
-    if (!item.effectText.includes(effect.sourceText)) {
-      errors.push(`Item effect source is not in effect text: ${item.id}`);
-    }
-    validateEffectSemantics(effect, `${item.id}:${effect.sourceText}`, errors);
+  if (
+    item.usePolicy.groups !== undefined &&
+    new Set(item.usePolicy.groups).size !== item.usePolicy.groups.length
+  ) {
+    errors.push(`Duplicate item use groups: ${item.id}`);
   }
 };
 
@@ -252,9 +308,7 @@ const validateItemProperties = (item: ItemDefinition, errors: string[]) => {
   if (item.price !== undefined && (!Number.isInteger(item.price) || item.price < 0)) {
     errors.push(`Invalid item price: ${item.id}`);
   }
-  if (item.maxUses !== undefined && (!Number.isInteger(item.maxUses) || item.maxUses < 1)) {
-    errors.push(`Invalid item maximum uses: ${item.id}`);
-  }
+  validateItemUsePolicy(item, errors);
   if (item.locations.some((location) => location.trim().length === 0)) {
     errors.push(`Invalid item location: ${item.id}`);
   }

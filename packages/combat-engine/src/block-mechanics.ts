@@ -1,6 +1,7 @@
 import type { MoveDefinition } from "@dragonball-resurgence/game-data";
 
 import { calculateBlockKiCost } from "./combat-mechanics.js";
+import type { CalculationTraceSink } from "./calculation-pipeline.js";
 
 export interface BlockableAttack {
   readonly attackType: "physical" | "energy";
@@ -37,8 +38,12 @@ export const evaluateBlockEligibility = (
 };
 
 /** Calculates a converted Block's X±N cost, respecting the global minimum. */
-export const calculateConvertedBlockCost = (block: MoveDefinition, attackBaseKiCost: number) => {
+export const calculateConvertedBlockCost = (
+  block: MoveDefinition,
+  attackBaseKiCost: number,
+  diagnosticTraceSink?: CalculationTraceSink,
+) => {
   const mechanics = block.mechanics.block;
   if (block.category !== "block" || mechanics === undefined) return undefined;
-  return calculateBlockKiCost(attackBaseKiCost, mechanics.baseCostAdjustment);
+  return calculateBlockKiCost(attackBaseKiCost, mechanics.baseCostAdjustment, diagnosticTraceSink);
 };

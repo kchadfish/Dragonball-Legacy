@@ -414,6 +414,18 @@ export interface TransformationSourceDefinition {
   readonly source: SourceReference;
 }
 
+export type ItemActivationTiming = "action" | "free" | "upkeep" | "reaction" | "defeat-interrupt";
+
+export type ItemUseGroup = "healing" | "ki-gain" | "roll-modifier";
+
+/** Combat-local item availability; USE and RESTRICTED remain distinct. */
+export interface ItemUsePolicy {
+  readonly timing: ItemActivationTiming;
+  readonly restrictedUses?: number;
+  readonly consumableUses?: number;
+  readonly groups?: readonly ItemUseGroup[];
+}
+
 export interface ItemDefinition {
   readonly id: ItemId;
   readonly name: string;
@@ -425,7 +437,9 @@ export interface ItemDefinition {
   readonly inventorySlots: number;
   readonly inventorySlotCondition?: string;
   readonly price?: number;
+  /** @deprecated Use usePolicy.consumableUses/restrictedUses. */
   readonly maxUses?: number;
+  readonly usePolicy?: ItemUsePolicy;
   readonly equipmentSlot?: "upper-body" | "lower-body" | "full-body" | "accessory";
   readonly shipSlot?: "weapon" | "defense";
   readonly availability: "all" | "listed" | "unavailable";
@@ -658,6 +672,10 @@ export interface ItemStateRuleEffect extends ItemEffectBase {
     | "allow-target-item-attack";
   readonly amount?: number;
   readonly duration?: { readonly unit: "day" | "week" | "combat"; readonly value: number };
+  /** Typed race/resource predicates for combat-owned state rules. */
+  readonly raceId?: RaceId;
+  readonly resource?: "hp" | "ki";
+  /** @deprecated Source prose is retained only for non-mechanical traceability. */
   readonly conditionText?: string;
 }
 

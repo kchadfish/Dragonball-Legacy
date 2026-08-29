@@ -20,7 +20,7 @@ describe("race and transformation definitions", () => {
     expect(
       TRANSFORMATION_SOURCE_DEFINITIONS.some((source) => source.status === "no-mechanics"),
     ).toBe(true);
-    expect(TRANSFORMATION_DEFINITIONS).toHaveLength(79);
+    expect(TRANSFORMATION_DEFINITIONS).toHaveLength(80);
   });
 
   it("links each transformation to its owning race and keeps source-traceable abilities", () => {

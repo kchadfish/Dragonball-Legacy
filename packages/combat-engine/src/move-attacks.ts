@@ -8,6 +8,16 @@ import {
   type ResolutionThresholdRule,
 } from "./attack-rolls.js";
 import { qualifiesForCounter, qualifiesForCritical } from "./combat-mechanics.js";
+import {
+  calculateDamage,
+  publishCalculationTrace,
+  type CalculationTraceSink,
+} from "./calculation-pipeline.js";
+import { classifyCombatResult } from "./result-classification.js";
+import {
+  executeScheduledCombatResult,
+  scheduledCombatResultOperation,
+} from "./fight-flow-scheduler.js";
 
 import type { CombatantState } from "./contracts.js";
 import type { RandomSource } from "./dependencies.js";
@@ -43,6 +53,7 @@ export interface MoveAttackDefinition {
   /** Deterministic hook for effects that observe each fully resolved die. */
   readonly afterDieResolved?: (index: number, rolls: readonly AttackDieRoll[]) => void;
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
+  readonly diagnosticTraceSink?: CalculationTraceSink;
   readonly baseDamage: number;
   /** A converted `damagePerHit` move deals its listed damage for every successful die. */
   readonly damagePerHit?: boolean;
@@ -63,10 +74,27 @@ const damageForSuccessfulDice = (
   successfulHitCount: number,
   critical: boolean,
   damagePerHit: boolean,
+  diagnosticTraceSink?: CalculationTraceSink,
 ) =>
-  Math.round(
-    (damagePerHit ? baseDamage : baseDamage / dice) * successfulHitCount * (critical ? 2 : 1),
+  publishCalculationTrace(
+    calculateDamage({
+      baseDamage: (damagePerHit ? baseDamage : baseDamage / dice) * successfulHitCount,
+      modifiers: critical
+        ? [{ operation: "multiply", amount: 2, provenance: "damage:critical-multiplier" }]
+        : [],
+      retainTrace: diagnosticTraceSink !== undefined,
+    }),
+    diagnosticTraceSink,
   );
+
+const finalOutcomeForRolls = (
+  rolls: readonly AttackDieRoll[],
+  successfulHitCount: number,
+): "blocked" | "stopped" | "successful" => {
+  if (successfulHitCount > 0) return "successful";
+  if (rolls.some((roll) => roll.outcome === "stopped")) return "stopped";
+  return "blocked";
+};
 
 /** Resolves a converted attack before move effects are applied. */
 export const resolveMoveAttack = (
@@ -96,12 +124,38 @@ export const resolveMoveAttack = (
       beforeDieResultModifier: definition.beforeDieResultModifier,
       afterDieResolved: definition.afterDieResolved,
       resolutionThresholds: definition.resolutionThresholds,
+      diagnosticTraceSink: definition.diagnosticTraceSink,
     },
     random,
   );
+  const initiallyTriggeredResult = finalOutcomeForRolls(
+    rolls,
+    rolls.filter((roll) => roll.outcome === "successful").length,
+  );
+  const resultOperation = scheduledCombatResultOperation({
+    sourceId: "move-attack",
+    result: initiallyTriggeredResult === "blocked" ? "stopped" : initiallyTriggeredResult,
+  });
+  const finalResult = executeScheduledCombatResult(resultOperation.operation);
   const successful = rolls.filter((roll) => roll.outcome === "successful");
   const firstRoll = rolls.at(0);
-  const critical =
+  const finalOutcome = finalResult;
+  const classification =
+    firstRoll === undefined
+      ? undefined
+      : classifyCombatResult({
+          initiallyTriggeredResult,
+          finalResult: finalOutcome,
+          diceCount: definition.attack.dice,
+          diceSides: definition.attack.sides,
+          naturalAttackResult: firstRoll.attackNaturalResult,
+          naturalDefenseResult: firstRoll.defenseNaturalResult,
+          attackerDexterity: attacker.stats.dexterity,
+          defenderDexterity: defender.stats.dexterity,
+          criticalPrevented: definition.preventCritical,
+          counterPrevented: definition.preventCounter,
+        });
+  const criticalThresholdMatch =
     definition.preventCritical !== true &&
     rolls.length === 1 &&
     firstRoll !== undefined &&
@@ -119,7 +173,7 @@ export const resolveMoveAttack = (
           ? firstRoll.attackNaturalResult >= threshold
           : firstRoll.attackResult >= threshold,
       ));
-  const counter =
+  const counterThresholdMatch =
     definition.preventCounter !== true &&
     successful.length === 0 &&
     rolls.some(
@@ -135,6 +189,8 @@ export const resolveMoveAttack = (
           outcome: "stopped",
         }),
     );
+  const critical = (classification?.critical ?? false) || criticalThresholdMatch;
+  const counter = rolls.length === 1 ? (classification?.counter ?? false) : counterThresholdMatch;
 
   return {
     rolls,
@@ -148,6 +204,7 @@ export const resolveMoveAttack = (
       successful.length,
       critical,
       definition.damagePerHit === true,
+      definition.diagnosticTraceSink,
     ),
   };
 };

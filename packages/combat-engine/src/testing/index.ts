@@ -7,6 +7,7 @@ import type {
   FightId,
   PendingDecisionId,
   ResolutionFrameId,
+  ScheduledWorkId,
 } from "../ids.js";
 import type { MoveId } from "@dragonball-resurgence/game-data";
 
@@ -72,6 +73,7 @@ export interface CombatIdSequences {
   readonly fightIds?: readonly FightId[];
   readonly pendingDecisionIds?: readonly PendingDecisionId[];
   readonly resolutionFrameIds?: readonly ResolutionFrameId[];
+  readonly scheduledWorkIds?: readonly ScheduledWorkId[];
 }
 
 const takeSequenceValue = <T>(values: readonly T[], name: string): readonly [T, readonly T[]] => {
@@ -88,6 +90,7 @@ export class SequenceCombatIdSource implements CombatIdSource {
   #fightIds: readonly FightId[];
   #pendingDecisionIds: readonly PendingDecisionId[];
   #resolutionFrameIds: readonly ResolutionFrameId[];
+  #scheduledWorkIds: readonly ScheduledWorkId[];
 
   constructor(sequences: CombatIdSequences) {
     this.#activeEffectIds = sequences.activeEffectIds ?? [];
@@ -97,6 +100,7 @@ export class SequenceCombatIdSource implements CombatIdSource {
     this.#fightIds = sequences.fightIds ?? [];
     this.#pendingDecisionIds = sequences.pendingDecisionIds ?? [];
     this.#resolutionFrameIds = sequences.resolutionFrameIds ?? [];
+    this.#scheduledWorkIds = sequences.scheduledWorkIds ?? [];
   }
 
   nextFightId(): FightId {
@@ -138,6 +142,12 @@ export class SequenceCombatIdSource implements CombatIdSource {
   nextResolutionFrameId(): ResolutionFrameId {
     const [value, remaining] = takeSequenceValue(this.#resolutionFrameIds, "resolutionFrameIds");
     this.#resolutionFrameIds = remaining;
+    return value;
+  }
+
+  nextScheduledWorkId(): ScheduledWorkId {
+    const [value, remaining] = takeSequenceValue(this.#scheduledWorkIds, "scheduledWorkIds");
+    this.#scheduledWorkIds = remaining;
     return value;
   }
 }

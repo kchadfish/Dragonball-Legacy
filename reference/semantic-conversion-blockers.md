@@ -63,3 +63,22 @@ Dexterity Bonus for their next 2 turns. If any CONSTANT Skills are active, your
 next attack cannot be BLOCKED. Cost: X-1 KI.
 
 Resolution: Active CONSTANT Skills controlled by either combatant qualify.
+
+## SB-005 - Modifier precedence and damage floor
+
+Status: Resolved — see ND-070 in `normalization-decisions.md`.
+
+Source: `ARCHITECTURE.md`, `reference/normalization-decisions.md` ND-013,
+and Phase 6 of `docs/architecture/combat-engine-roadmap.md`.
+
+Effect: Costs, damage, dice sides, roll results, and related calculated values
+may receive multiple declarative modifiers with different operations.
+
+Why unresolved: The architecture and approved ND-013 specified conflicting
+orders for additive and multiplicative modifiers, and the default minimum
+damage floor was not recorded in the ruling packet.
+
+Resolution: Use the declared operation to select the stage. Resolve
+prevention or negation, replacement or substitution, set, additive,
+multiplicative, then caps or floors. Apply the full formula before caps and
+floors. The default minimum damage floor is 0, not 50.

@@ -327,9 +327,12 @@ establishes that every in-scope mechanic has been deliberately accounted for.
 
 The executor owns one documented precedence model for effects that affect the
 same rule value. Prevention and negation are evaluated first, followed by
-replacement or substitution, set operations, multiplicative modifications,
-additive modifications, and finally caps or floors. A new effect type must
-declare its place in this model instead of creating move-specific ordering.
+replacement or substitution, set operations, additive modifications,
+multiplicative modifications, and finally caps or floors. The declared effect
+operation (`add`, `multiply`, or `set`) determines the operation's stage rather
+than source wording or numeric basis. A new effect type must declare its place
+in this model instead of creating move-specific ordering. The default minimum
+damage floor is 0.
 
 Game data must express selection semantics directly whenever an effect can
 choose targets: required versus optional, one versus up-to versus all eligible

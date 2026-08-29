@@ -1,9 +1,14 @@
 import { ITEM_DEFINITIONS } from "../packages/game-data/src/item-definitions.js";
 import { MOVE_DEFINITIONS } from "../packages/game-data/src/move-definitions.js";
+import { RACE_DEFINITIONS } from "../packages/game-data/src/race-definitions.js";
 import { TRANSFORMATION_DEFINITIONS } from "../packages/game-data/src/transformation-definitions.js";
 import type { EffectDefinition } from "../packages/game-data/src/shared/effects.js";
 
 import { compileEffectPlan } from "../packages/combat-engine/src/effect-executors.js";
+import {
+  compileItemEffectPlan,
+  itemEffectAdapterFor,
+} from "../packages/combat-engine/src/item-effect-adapters.js";
 import {
   isCombatResultCountNextActionsDamageModifier,
   isSelectedMoveUntilAttackThresholdDamageModifier,
@@ -15,6 +20,13 @@ const runtimeValue = (value: unknown): unknown => value;
 
 export type CapabilityStatus =
   "supported-generic" | "supported-named" | "unsupported-in-scope" | "audited-out-of-scope";
+
+export type ClauseClassification =
+  | "supported"
+  | "unsupported"
+  | "noncombat/permanent-state"
+  | "narrative-or-administrator-mediated"
+  | "deferred";
 
 interface SourceEffect {
   readonly type?: unknown;
@@ -60,11 +72,12 @@ interface SourceEffect {
   readonly relativeOperation?: unknown;
   readonly cap?: { readonly type?: unknown; readonly scope?: unknown };
   readonly conditions?: readonly { readonly type?: unknown }[];
+  readonly sourceText?: unknown;
 }
 
 interface Occurrence {
   readonly sourceDefinitionId: string;
-  readonly origin: "move" | "item" | "transformation";
+  readonly origin: "move" | "item" | "transformation" | "race";
   readonly effectIndex: number;
   readonly effect: SourceEffect;
 }
@@ -89,10 +102,12 @@ export interface CombatCapabilityMatrixRow {
   readonly reason: string;
   readonly prerequisite: string | null;
   readonly approvedExclusion: string | null;
+  readonly classification: ClauseClassification;
+  readonly sourceText: string | null;
 }
 
 export interface CombatCapabilityMatrix {
-  readonly generatedAt: "2026-08-26";
+  readonly generatedAt: "2026-08-29";
   readonly activeTransformationFamilies: readonly string[];
   readonly structuredTransformationEffects: number;
   readonly occurrences: readonly CombatCapabilityMatrixRow[];
@@ -101,11 +116,27 @@ export interface CombatCapabilityMatrix {
 const activeTransformationRaceIds = new Set([
   "race-humans",
   "race-saiyans",
-  "race-hybrid-saiyans",
-  "race-namekians",
+  "race-hybrid-saiyan",
+  "race-namek",
   "race-changeling",
   "race-bio-androids",
 ]);
+
+const sourceOnlyRaceClassificationFor = (sourceText: string): ClauseClassification => {
+  if (
+    /choose|claim|learn|player|planet|afterlife|story|saga|week|day|travel|quest|roleplay|guardian|interfere|exchange|inventory|training|EXP|marketplace/iu.test(
+      sourceText,
+    )
+  )
+    return "narrative-or-administrator-mediated";
+  if (
+    /attack|damage|HP|KI|cost|roll|dice|stat|power|dexterity|block|defen[cs]e|transformation/iu.test(
+      sourceText,
+    )
+  )
+    return "unsupported";
+  return "deferred";
+};
 
 const genericExecutors: Readonly<
   Record<string, { executor: string; test: string; capabilityId?: string }>
@@ -377,21 +408,6 @@ const genericExecutors: Readonly<
   },
 };
 
-const itemExecutors: Readonly<Record<string, { executor: string; test: string }>> = {
-  "item-modify-damage": { executor: "item-damage", test: "basic-attack.test.ts" },
-  "item-modify-resource": { executor: "item-resource", test: "item-effects-runtime.test.ts" },
-  "modify-resource": { executor: "item-resource", test: "item-effects-runtime.test.ts" },
-  "item-modify-roll": { executor: "item-roll", test: "item-effects-runtime.test.ts" },
-  "item-modify-stat-percent": {
-    executor: "item-stat-passive",
-    test: "item-effects-runtime.test.ts",
-  },
-  "item-prevent-combat-outcome": {
-    executor: "item-combat-outcome-prevention",
-    test: "progress-fight.test.ts, item-effects-runtime.test.ts",
-  },
-};
-
 const approvedItemExclusions: Readonly<Record<string, string>> = {
   "item-grant-travel-permission": "travel and permission rules are outside combat scope",
   "item-modify-experience-percent": "progression economy is outside combat scope",
@@ -400,7 +416,6 @@ const approvedItemExclusions: Readonly<Record<string, string>> = {
   "item-modify-ship-capacity": "spaceship mechanics are outside combat scope",
   "item-reduce-duration": "quest and travel duration is outside combat scope",
   "item-space-combat": "spaceship combat is outside the active scope",
-  "item-state-rule": "narrative or administrator-mediated item rule",
 };
 
 const approvedMoveExclusions: Readonly<Record<string, string>> = {
@@ -1716,6 +1731,33 @@ const isExactPendingChoiceVariant = (
 
 const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) => {
   const effectType = stringValue(occurrence.effect.type) ?? "unknown";
+  if (occurrence.origin === "race") {
+    const sourceText = stringValue(occurrence.effect.sourceText) ?? "";
+    const classification = sourceOnlyRaceClassificationFor(sourceText);
+    const external = classification !== "unsupported";
+    return {
+      status: external ? ("audited-out-of-scope" as const) : ("unsupported-in-scope" as const),
+      capabilityId: null,
+      executor: null,
+      focusedCoverage: null,
+      reason: external
+        ? `Race or class clause is ${classification} and has no combat-state executor.`
+        : "Race or class clause describes combat behavior without a structured combat executor.",
+      prerequisite: "CE-920 structured race/class mechanics",
+      approvedExclusion: external ? "CE-920 race/class source-only clause" : null,
+    };
+  }
+  if (occurrence.origin === "transformation" && effectType === "source-text-only") {
+    return {
+      status: "unsupported-in-scope" as const,
+      capabilityId: null,
+      executor: null,
+      focusedCoverage: null,
+      reason: "Transformation ability remains source-text-only and is never parsed at runtime.",
+      prerequisite: "CE-910 structured transformation ability conversion",
+      approvedExclusion: null,
+    };
+  }
   const approvedOccurrenceExclusion =
     occurrence.origin === "move"
       ? approvedMoveOccurrenceExclusions[
@@ -1759,6 +1801,73 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       reason: approvedMoveExclusions[effectType],
       prerequisite: null,
       approvedExclusion: approvedMoveExclusions[effectType],
+    };
+  }
+  if (occurrence.origin === "item") {
+    const item = ITEM_DEFINITIONS.find(
+      (candidate) => candidate.id === occurrence.sourceDefinitionId,
+    );
+    const typedEffect = occurrence.effect as never;
+    const adapter = item === undefined ? undefined : itemEffectAdapterFor(typedEffect);
+    const compilation =
+      item === undefined
+        ? undefined
+        : compileItemEffectPlan({ item, effectIndex: occurrence.effectIndex });
+    if (adapter?.classification === "audited-out-of-scope")
+      return {
+        status: "audited-out-of-scope" as const,
+        capabilityId: null,
+        executor: null,
+        focusedCoverage: null,
+        reason: adapter.reason,
+        prerequisite: adapter.prerequisite ?? null,
+        approvedExclusion: adapter.reason,
+      };
+    if (adapter === undefined || compilation === undefined || !compilation.ok)
+      return {
+        status: "unsupported-in-scope" as const,
+        capabilityId: null,
+        executor: null,
+        focusedCoverage: null,
+        reason:
+          compilation !== undefined && !compilation.ok
+            ? (compilation.issues[0]?.message ?? "The item compiler rejected this occurrence.")
+            : "The item definition is missing from the generated catalog.",
+        prerequisite: adapter?.prerequisite ?? "typed item compiler accounting",
+        approvedExclusion: null,
+      };
+    const legacyCoverage =
+      effectType === "item-modify-resource" || effectType === "modify-resource"
+        ? "item-effects-runtime.test.ts"
+        : effectType === "item-modify-damage"
+          ? "basic-attack.test.ts"
+          : effectType === "item-prevent-combat-outcome"
+            ? "progress-fight.test.ts, item-effects-runtime.test.ts"
+            : "item-effects-runtime.test.ts";
+    const legacyExecutor =
+      effectType === "modify-resource" || effectType === "item-modify-resource"
+        ? "item-resource"
+        : effectType === "item-modify-roll"
+          ? "item-roll"
+          : effectType === "item-modify-damage"
+            ? "item-damage"
+            : effectType === "item-modify-stat-percent"
+              ? "item-stat-passive"
+              : adapter.executor;
+    const legacyCapability =
+      effectType === "item-prevent-combat-outcome"
+        ? "item-prevent-combat-outcome.v1"
+        : effectType === "modify-resource"
+          ? "modify-resource.v1"
+          : (adapter.capabilityId ?? `${effectType}.v1`);
+    return {
+      status: adapter.classification,
+      capabilityId: legacyCapability,
+      executor: legacyExecutor,
+      focusedCoverage: legacyCoverage,
+      reason: adapter.reason,
+      prerequisite: null,
+      approvedExclusion: null,
     };
   }
   if (
@@ -2591,16 +2700,43 @@ const collectOccurrences = (): readonly Occurrence[] => {
     effects: readonly unknown[] | undefined,
   ) => {
     for (const [effectIndex, rawEffect] of (effects ?? []).entries()) {
+      if (rawEffect === undefined) continue;
       const effect = rawEffect as SourceEffect;
       occurrences.push({ origin, sourceDefinitionId, effectIndex, effect });
     }
   };
   for (const move of MOVE_DEFINITIONS) add("move", move.id, move.effects);
   for (const item of ITEM_DEFINITIONS) add("item", item.id, item.effects);
+  for (const race of RACE_DEFINITIONS) {
+    for (const trait of race.racialTraits)
+      for (const clause of trait.effectClauses)
+        occurrences.push({
+          origin: "race",
+          sourceDefinitionId: `${race.id}:trait:${trait.id}`,
+          effectIndex: clause.order - 1,
+          effect: { type: "source-text-only", sourceText: clause.text },
+        });
+    for (const classDefinition of race.classes)
+      for (const clause of classDefinition.effectClauses)
+        occurrences.push({
+          origin: "race",
+          sourceDefinitionId: `${race.id}:class:${classDefinition.id}`,
+          effectIndex: clause.order - 1,
+          effect: { type: "source-text-only", sourceText: clause.text },
+        });
+  }
   for (const transformation of TRANSFORMATION_DEFINITIONS) {
     if (!activeTransformationRaceIds.has(transformation.raceId)) continue;
-    for (const [abilityName, ability] of Object.entries(transformation.abilities))
+    for (const [abilityName, ability] of Object.entries(transformation.abilities)) {
       add("transformation", `${transformation.id}:${abilityName}`, ability.effects);
+      for (const clause of ability.effectClauses ?? [])
+        occurrences.push({
+          origin: "transformation",
+          sourceDefinitionId: `${transformation.id}:${abilityName}`,
+          effectIndex: clause.order - 1,
+          effect: { type: "source-text-only", sourceText: clause.text },
+        });
+    }
   }
   return occurrences;
 };
@@ -2622,16 +2758,26 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
       conflictPolicy: conflictPolicyFor(occurrence.effect),
       selection: selectionFor(occurrence.effect),
       costTiming: stringValue(occurrence.effect.activationCost?.timing),
+      classification:
+        occurrence.origin === "race" || occurrence.effect.type === "source-text-only"
+          ? occurrence.origin === "race"
+            ? sourceOnlyRaceClassificationFor(stringValue(occurrence.effect.sourceText) ?? "")
+            : "unsupported"
+          : classification.status === "audited-out-of-scope"
+            ? "narrative-or-administrator-mediated"
+            : classification.status === "unsupported-in-scope"
+              ? "unsupported"
+              : "supported",
+      sourceText: stringValue(occurrence.effect.sourceText),
       ...classification,
     } satisfies CombatCapabilityMatrixRow;
   });
   return {
-    generatedAt: "2026-08-26",
-    activeTransformationFamilies: [...activeTransformationRaceIds].map((raceId) =>
-      raceId.slice(5, -1),
-    ),
+    generatedAt: "2026-08-29",
+    activeTransformationFamilies: [...activeTransformationRaceIds],
     structuredTransformationEffects: occurrences.filter(
-      (occurrence) => occurrence.origin === "transformation",
+      (occurrence) =>
+        occurrence.origin === "transformation" && occurrence.effectType !== "source-text-only",
     ).length,
     occurrences,
   };
@@ -2699,7 +2845,7 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
     "",
     `Transformation structured effects in active six-family scope: ${matrix.structuredTransformationEffects} (source-text-only abilities are not executable).`,
     "",
-    "Statuses: `supported-generic`, `supported-named`, `unsupported-in-scope`, `audited-out-of-scope`.",
+    "Statuses: `supported-generic`, `supported-named`, `unsupported-in-scope`, `audited-out-of-scope`. Classifications: `supported`, `unsupported`, `noncombat/permanent-state`, `narrative-or-administrator-mediated`, `deferred`.",
     "",
     "## Unsupported in-scope summary",
     "",
@@ -2718,12 +2864,12 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
     "",
     "## Occurrences",
     "",
-    "| Source definition | Origin | Effect index | Effect type | Variant | Selection | Cost timing | Conflict policy | Status | Capability | Executor | Coverage | Reason | Prerequisite | Approved exclusion |",
-    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Source definition | Origin | Effect index | Effect type | Variant | Selection | Cost timing | Conflict policy | Status | Classification | Capability | Executor | Coverage | Source text | Reason | Prerequisite | Approved exclusion |",
+    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of matrix.occurrences) {
     lines.push(
-      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.selection ?? "-"} | ${row.costTiming ?? "-"} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
+      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.selection ?? "-"} | ${row.costTiming ?? "-"} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.classification} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.sourceText ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
     );
   }
   return `${lines.join("\n")}\n`;

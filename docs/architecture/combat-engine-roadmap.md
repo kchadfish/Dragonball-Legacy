@@ -264,9 +264,11 @@ lifecycle model.
 
 ### Phase 6 — Calculation and roll precedence
 
-Implement the architectural precedence model—prevention or negation,
-replacement or substitution, set, multiplicative, additive, then caps or
-floors—through explicit calculation stages.
+Implement the ND-070 precedence model—prevention or negation, replacement or
+substitution, set, additive, multiplicative, then caps or floors—through
+explicit calculation stages. Select the stage from the declared operation
+(`add`, `multiply`, or `set`), apply caps and floors after the full formula,
+and use 0 as the default minimum damage floor.
 
 - CE-600: reusable calculation result and trace model.
 - CE-610: Ki and resource costs.
@@ -304,12 +306,15 @@ Items must not grow a parallel combat runtime.
 
 ### Phase 9 — Transformation and race closure
 
-- CE-900: audit activation, cost, stat and resource changes, baseline retention,
-  reversion, defeat, and lifecycle behavior for the six-family scope.
-- CE-910: execute only structured transformation mechanics; retain source-text-
-  only abilities as unsupported until converted.
-- CE-920: classify each in-scope race and class combat rule as supported,
-  unsupported, noncombat, narrative or administrator-mediated, or deferred.
+- CE-900: complete. Activation, cost, stat and resource changes, fixed baseline
+  retention, reversion, defeat, cooldown, and lifecycle behavior are covered for
+  the six-family scope.
+- CE-910: complete. Structured transformation mechanics execute through the
+  shared deterministic roll/calculation pipeline; source-text-only abilities
+  remain explicitly unsupported until converted.
+- CE-920: complete. Race and class combat clauses are represented in the
+  capability matrix with supported, unsupported, noncombat,
+  narrative/administrator-mediated, or deferred classifications.
 
 ### Phase 10 — Explicit scope boundary
 

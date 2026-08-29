@@ -2,6 +2,7 @@ import { GLOBAL_RULES, RULES_VERSION } from "@dragonball-resurgence/game-config"
 import {
   ITEM_DEFINITIONS,
   MOVE_DEFINITIONS,
+  RACE_DEFINITIONS,
   TRANSFORMATION_DEFINITIONS,
 } from "@dragonball-resurgence/game-data";
 
@@ -12,6 +13,7 @@ import type {
   CombatResult,
   CombatTransition,
   CombatantState,
+  CombatantTransformationProfile,
   CreateFightInput,
   FightSetupIssue,
   SlotCapacityModification,
@@ -31,12 +33,25 @@ import {
   activeRollModifierFromApplication,
   startCombatCopySelectionFor,
 } from "./progress-fight.js";
+import {
+  scheduledWorkFromLegacyEffect,
+  scheduledWorkFromResolutionFrame,
+} from "./fight-flow-scheduler.js";
 
 const knownMoveIds = new Set(MOVE_DEFINITIONS.map((move) => move.id));
 const knownItemIds = new Set(ITEM_DEFINITIONS.map((item) => item.id));
 const knownTransformationIds = new Set(
   TRANSFORMATION_DEFINITIONS.map((transformation) => transformation.id),
 );
+const knownRaceIds = new Set(RACE_DEFINITIONS.map((race) => race.id));
+const activeTransformationRaceIds = new Set([
+  "race-humans",
+  "race-saiyans",
+  "race-hybrid-saiyan",
+  "race-namek",
+  "race-changeling",
+  "race-bio-androids",
+]);
 
 const toFightSetupIssues = (error: {
   readonly issues: readonly { readonly path: readonly PropertyKey[]; readonly message: string }[];
@@ -51,6 +66,7 @@ const createCombatantState = (
   combatant: CreateFightInput["combatants"][number],
 ): CombatantState => ({
   id: combatantId,
+  ...(combatant.raceId === undefined ? {} : { raceId: combatant.raceId as never }),
   ...(combatant.declaredStyleId === undefined
     ? {}
     : { declaredStyleId: combatant.declaredStyleId }),
@@ -64,9 +80,7 @@ const createCombatantState = (
   ...(combatant.planetHasDragonBalls === undefined
     ? {}
     : { planetHasDragonBalls: combatant.planetHasDragonBalls }),
-  ...(combatant.masteredTransformationIds === undefined
-    ? {}
-    : { masteredTransformationIds: [...combatant.masteredTransformationIds] }),
+  transformationProfiles: transformationProfilesFor(combatant),
   moveIds: [...combatant.moveIds],
   slotCapacities: {
     mastery: GLOBAL_RULES.movesetSlots.mastery,
@@ -77,9 +91,6 @@ const createCombatantState = (
   },
   slotCapacityModifications: [],
   ...(combatant.itemIds === undefined ? {} : { itemIds: [...combatant.itemIds] }),
-  ...(combatant.transformationIds === undefined
-    ? {}
-    : { transformationIds: [...combatant.transformationIds] }),
   moveUses: {},
   storedRolls: {},
   moveUseLimitModifiers: {},
@@ -87,6 +98,19 @@ const createCombatantState = (
   activeStatuses: [],
   status: "active",
 });
+
+const transformationProfilesFor = (
+  combatant: CreateFightInput["combatants"][number],
+): readonly CombatantTransformationProfile[] => {
+  if (combatant.transformationProfiles !== undefined)
+    return combatant.transformationProfiles.map((profile) => ({ ...profile }));
+  const mastered = new Set(combatant.masteredTransformationIds ?? []);
+  return (combatant.transformationIds ?? []).map((transformationId) => ({
+    transformationId: transformationId as never,
+    rollSides: mastered.has(transformationId) ? 100 : 20,
+    mastery: mastered.has(transformationId) ? "mastered" : "novice",
+  }));
+};
 
 const passiveSlotCapacityState = (
   source: CombatantState,
@@ -131,6 +155,74 @@ const unknownTransformationIssuesFor = (input: CreateFightInput) =>
           ],
     ),
   );
+
+const masteryForRollSides = (
+  rollSides: number,
+): CombatantTransformationProfile["mastery"] | undefined => {
+  if (rollSides >= 20 && rollSides <= 40) return "novice";
+  if (rollSides >= 50 && rollSides <= 70) return "intermediate";
+  if (rollSides >= 80 && rollSides <= 100) return "mastered";
+  return undefined;
+};
+
+const transformationProfileIssuesForProfile = (
+  combatant: CreateFightInput["combatants"][number],
+  combatantIndex: number,
+  profileIndex: number,
+  profile: CombatantTransformationProfile,
+  seen: Set<string>,
+): readonly FightSetupIssue[] => {
+  const transformation = TRANSFORMATION_DEFINITIONS.find(
+    (candidate) => candidate.id === profile.transformationId,
+  );
+  const path = `combatants.${combatantIndex}.transformationProfiles.${profileIndex}`;
+  const issues: FightSetupIssue[] = [];
+  if (seen.has(profile.transformationId))
+    issues.push({ path, message: "Transformation profiles must not contain duplicates." });
+  seen.add(profile.transformationId);
+  if (transformation === undefined)
+    return [
+      ...issues,
+      { path, message: `Unknown transformation ID: ${profile.transformationId}.` },
+    ];
+  if (combatant.raceId !== undefined && transformation.raceId !== combatant.raceId)
+    issues.push({ path, message: "Transformation must belong to the combatant's race." });
+  if (
+    combatant.transformationProfiles !== undefined &&
+    !activeTransformationRaceIds.has(transformation.raceId)
+  )
+    issues.push({ path, message: "Transformation is outside the active six-family scope." });
+  const expectedMastery = masteryForRollSides(profile.rollSides);
+  if (expectedMastery !== undefined && expectedMastery !== profile.mastery)
+    issues.push({ path, message: "Transformation mastery does not match its roll sides." });
+  return issues;
+};
+
+const transformationProfileIssuesForCombatant = (
+  combatant: CreateFightInput["combatants"][number],
+  combatantIndex: number,
+): readonly FightSetupIssue[] => {
+  const profiles = transformationProfilesFor(combatant);
+  const seen = new Set<string>();
+  const raceIssues: readonly FightSetupIssue[] =
+    combatant.raceId !== undefined && !knownRaceIds.has(combatant.raceId)
+      ? [
+          {
+            path: `combatants.${combatantIndex}.raceId`,
+            message: `Unknown race ID: ${combatant.raceId}.`,
+          },
+        ]
+      : [];
+  return [
+    ...raceIssues,
+    ...profiles.flatMap((profile, profileIndex) =>
+      transformationProfileIssuesForProfile(combatant, combatantIndex, profileIndex, profile, seen),
+    ),
+  ];
+};
+
+const transformationProfileIssuesFor = (input: CreateFightInput) =>
+  input.combatants.flatMap(transformationProfileIssuesForCombatant);
 
 const missingDeclaredStyleIssuesFor = (input: CreateFightInput) =>
   input.combatants.flatMap((combatant, combatantIndex) =>
@@ -336,11 +428,13 @@ export const createFight = (
   );
   const unknownItemIssues = unknownItemIssuesFor(parsedInput.data);
   const unknownTransformationIssues = unknownTransformationIssuesFor(parsedInput.data);
+  const transformationProfileIssues = transformationProfileIssuesFor(parsedInput.data);
   const missingDeclaredStyleIssues = missingDeclaredStyleIssuesFor(parsedInput.data);
   const setupIssues = [
     ...unknownMoveIssues,
     ...unknownItemIssues,
     ...unknownTransformationIssues,
+    ...transformationProfileIssues,
     ...missingDeclaredStyleIssues,
   ];
   if (setupIssues.length > 0) {
@@ -390,7 +484,7 @@ export const createFight = (
   const activeCombatantId = initiative.activeCombatantId;
   const state: ActiveFightState = {
     id: fightId,
-    schemaVersion: 1,
+    schemaVersion: 3,
     version: 0,
     rulesVersion: { ...RULES_VERSION },
     mode: parsedInput.data.mode,
@@ -402,6 +496,7 @@ export const createFight = (
     activeEffects: startCombat.activeEffects,
     actionHistory: [],
     resolutionFrames: [],
+    scheduledWork: [],
     eventSequence: 2 + initiative.tieBreakerRolls.length,
   };
   const initialCopySelection = startCombatCopySelectionFor(state, dependencies);
@@ -413,7 +508,20 @@ export const createFight = (
           pendingDecision: initialCopySelection.pendingDecision,
           resolutionFrames: [...state.resolutionFrames, initialCopySelection.frame],
         };
-  const violations = validateFightState(stateWithInitialCopySelection);
+  const scheduledWork = [
+    ...stateWithInitialCopySelection.activeEffects.flatMap((effect, index) => {
+      const work = scheduledWorkFromLegacyEffect(effect, state.turnNumber, index + 1, "mirror");
+      return work === undefined ? [] : [work];
+    }),
+    ...stateWithInitialCopySelection.resolutionFrames.map((frame, index) =>
+      scheduledWorkFromResolutionFrame(
+        frame,
+        stateWithInitialCopySelection.activeEffects.length + index + 1,
+      ),
+    ),
+  ];
+  const stateWithScheduledWork = { ...stateWithInitialCopySelection, scheduledWork };
+  const violations = validateFightState(stateWithScheduledWork);
   if (violations.length > 0) {
     return { ok: false, error: { type: "invalid-fight-state", violations } };
   }
@@ -421,7 +529,7 @@ export const createFight = (
   return {
     ok: true,
     value: {
-      state: stateWithInitialCopySelection,
+      state: stateWithScheduledWork,
       events: [
         {
           id: dependencies.ids.nextEventId(),

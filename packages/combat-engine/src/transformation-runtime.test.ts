@@ -50,7 +50,7 @@ describe("transformation runtime", () => {
 
     const transformed = applyTransformation(combatant, ghoul);
     expect(transformed.combatant).toMatchObject({
-      hitPoints: { current: 112, maximum: 140 },
+      hitPoints: { current: 120, maximum: 140 },
       stats: { power: 24, dexterity: 14 },
     });
     expect(revertTransformation(transformed.combatant, transformed.baseline)).toMatchObject(

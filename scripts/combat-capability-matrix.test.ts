@@ -28,6 +28,7 @@ describe("combat capability matrix", () => {
           row.effectType.length > 0 &&
           row.variant.length > 0 &&
           row.reason.length > 0 &&
+          row.classification.length > 0 &&
           (row.status === "audited-out-of-scope"
             ? row.approvedExclusion !== null
             : row.status === "unsupported-in-scope"
@@ -50,8 +51,49 @@ describe("combat capability matrix", () => {
     expect(rendered).toContain("| Conflict policy |");
     expect(rendered).toContain("## Unsupported in-scope priorities");
     expect(rendered).toContain("| Rank | Prerequisite | Effect type | Occurrences | Definitions |");
-    expect(createCombatCapabilityMatrix().occurrences).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ status: "unsupported-in-scope" })]),
+    expect(createCombatCapabilityMatrix().occurrences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          origin: "race",
+          classification: "unsupported",
+          status: "unsupported-in-scope",
+        }),
+        expect.objectContaining({
+          origin: "transformation",
+          effectType: "source-text-only",
+          classification: "unsupported",
+          status: "unsupported-in-scope",
+        }),
+      ]),
+    );
+  }, 30_000);
+
+  it("accounts for every race/class and active-family transformation clause exactly once", () => {
+    const rows = createCombatCapabilityMatrix().occurrences;
+    expect(rows.filter((row) => row.origin === "race")).toHaveLength(236);
+    expect(rows.filter((row) => row.origin === "transformation")).toHaveLength(255);
+    expect(rows.filter((row) => row.origin === "transformation")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceDefinitionId: "transformation-humans-1-high-tension:novice",
+        }),
+        expect.objectContaining({
+          sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:mastered",
+        }),
+        expect.objectContaining({
+          sourceDefinitionId: "transformation-namek-1-giant-form:intermediate",
+        }),
+      ]),
+    );
+    expect(rows.every((row) => row.classification.length > 0)).toBe(true);
+    expect(rows.filter((row) => row.effectType === "source-text-only")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          origin: "transformation",
+          status: "unsupported-in-scope",
+          executor: null,
+        }),
+      ]),
     );
   }, 30_000);
 

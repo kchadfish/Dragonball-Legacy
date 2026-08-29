@@ -86,6 +86,7 @@ describe("basic attacks", () => {
   it("applies the converted active-CONSTANT count bonus at the public move boundary", () => {
     const randomValues = Array.from({ length: 20 }, (_, index) => (index % 2 === 0 ? 20 : 1));
     const { state, dependencies } = createActionState(randomValues);
+    const tracedDependencies = { ...dependencies, retainDiagnosticTrace: true };
     const armed: ActiveFightState = {
       ...state,
       turnNumber: 10,
@@ -110,12 +111,17 @@ describe("basic attacks", () => {
           moveId: "move-afterlife-wolf-fang-fist",
           targetCombatantId: defenderId,
         },
-        dependencies,
+        tracedDependencies,
       ),
     );
 
     expect(transition.events).toContainEqual(
       expect.objectContaining({ type: "attack-rolled", naturalResult: 20, result: 26 }),
+    );
+    expect(transition.diagnosticTrace).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ stage: "additive", provenance: "roll:stat-contribution" }),
+      ]),
     );
   });
 
@@ -1864,7 +1870,7 @@ describe("basic attacks", () => {
       ),
     );
     expect(first.events).toContainEqual(
-      expect.objectContaining({ type: "defense-rolled", naturalResult: 1, result: 20 }),
+      expect.objectContaining({ type: "defense-rolled", naturalResult: 1, result: 19 }),
     );
     expect(first.state.activeEffects).toEqual([]);
   });

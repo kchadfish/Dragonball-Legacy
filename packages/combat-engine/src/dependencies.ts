@@ -6,7 +6,9 @@ import type {
   FightId,
   PendingDecisionId,
   ResolutionFrameId,
+  ScheduledWorkId,
 } from "./ids.js";
+import type { CalculationTraceEntry, CalculationTraceSink } from "./calculation-pipeline.js";
 
 const maximumUint32 = 2 ** 32;
 
@@ -87,6 +89,7 @@ export interface CombatIdSource {
   nextPendingDecisionId(): PendingDecisionId;
   nextActiveEffectId(): ActiveEffectId;
   nextResolutionFrameId(): ResolutionFrameId;
+  nextScheduledWorkId(): ScheduledWorkId;
 }
 
 const nextSystemId = <TPrefix extends string>(prefix: TPrefix) =>
@@ -121,10 +124,20 @@ export class SystemCombatIdSource implements CombatIdSource {
   nextResolutionFrameId(): ResolutionFrameId {
     return nextSystemId("resolution-frame") as ResolutionFrameId;
   }
+
+  nextScheduledWorkId(): ScheduledWorkId {
+    return nextSystemId("scheduled-work") as ScheduledWorkId;
+  }
 }
 
 export interface CombatDependencies {
   readonly random: RandomSource;
   readonly clock: Clock;
   readonly ids: CombatIdSource;
+  /** Opt-in calculation diagnostics; never part of authoritative fight state. */
+  readonly retainDiagnosticTrace?: boolean;
+  /** Ephemeral sink installed by a public transition while diagnostics are requested. */
+  readonly diagnosticTraceSink?: CalculationTraceSink;
 }
+
+export type CombatDiagnosticTrace = readonly CalculationTraceEntry[];
