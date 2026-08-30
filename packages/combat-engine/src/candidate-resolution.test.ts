@@ -11,6 +11,7 @@ import {
   resolveSourceActionCandidates,
   resolveSourceEffectCandidates,
   createPendingSelection,
+  enumeratePendingLegalDecisions,
   validatePendingSelection,
 } from "./index.js";
 import {
@@ -161,6 +162,49 @@ describe("combat candidate resolution", () => {
       ok: false,
       reason: "invalid-selection",
     });
+  });
+
+  it("enumerates canonical one, up-to, all, and decline responses", () => {
+    const first = {
+      type: "move" as const,
+      id: "move-akaikaru-firestorm",
+      ownerCombatantId: selfId,
+    };
+    const second = {
+      type: "move" as const,
+      id: "move-akaikaru-blown-fuse",
+      ownerCombatantId: selfId,
+    };
+    const pending = {
+      id: pendingDecisionIdSchema.parse("pending-decision:enumerated-selection"),
+      stateVersion: 0,
+      combatantId: selfId,
+      type: "select-move" as const,
+      optional: true,
+      selection: { type: "up-to" as const, limit: { type: "literal" as const, value: 2 } },
+      candidates: [first, second],
+      options: [
+        { id: "first", type: "select-move" as const, moveId: first.id, candidate: first },
+        { id: "second", type: "select-move" as const, moveId: second.id, candidate: second },
+      ],
+    };
+
+    expect(
+      enumeratePendingLegalDecisions(pending).map((decision) => decision.selectedOptionIds),
+    ).toEqual([["first"], ["second"], ["first", "second"], ["decline"]]);
+    expect(enumeratePendingLegalDecisions({ ...pending, optional: false }).at(-1)).toMatchObject({
+      optionId: "first",
+      optionIds: ["second"],
+      selectedOptionIds: ["first", "second"],
+    });
+    expect(
+      enumeratePendingLegalDecisions({ ...pending, selection: { type: "one" } }).map(
+        (decision) => decision.selectedOptionIds,
+      ),
+    ).toEqual([["first"], ["second"], ["decline"]]);
+    expect(
+      enumeratePendingLegalDecisions({ ...pending, optional: false, selection: { type: "all" } }),
+    ).toHaveLength(1);
   });
 
   it("prefers the normalized selectedOptionIds payload when present", () => {

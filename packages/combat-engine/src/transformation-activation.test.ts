@@ -80,6 +80,7 @@ describe("transformation activation", () => {
         transformationId: "transformation-humans-1-high-tension",
         activatedOnTurn: 1,
       },
+      slotCapacities: { "advanced-attack": 6 },
     });
     expect(activated.value.events).toEqual(
       expect.arrayContaining([
@@ -508,6 +509,71 @@ describe("transformation activation", () => {
         },
       },
     };
+    const advanced = advanceFight(state, dependencies);
+    if (!advanced.ok || advanced.value.state.status !== "active")
+      throw new Error("Expected upkeep to advance.");
+    expect(advanced.value.state.combatants[ghostId].transformation).toBeDefined();
+    expect(advanced.value.events).not.toContainEqual(
+      expect.objectContaining({ type: "transformation-rolled", combatantId: ghostId }),
+    );
+  });
+
+  it("does not roll a transformation with a typed stability ability at the upkeep threshold", () => {
+    const dependencies = createTestCombatDependencies([], new Date("2026-08-04T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:typed-transformation-stability")],
+      combatantIds: [ghostId, opponentId],
+      eventIds: Array.from({ length: 12 }, (_, index) =>
+        combatEventIdSchema.parse(`event:typed-transformation-stability-${index + 1}`),
+      ),
+    });
+    const created = createFight(
+      {
+        mode: "spar",
+        combatants: [
+          {
+            maximumHitPoints: 100,
+            stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+            moveIds: [],
+            raceId: "race-humans",
+            transformationProfiles: [
+              {
+                transformationId: "transformation-humans-2-super-human",
+                rollSides: 50,
+                mastery: "intermediate",
+              },
+            ],
+          },
+          {
+            maximumHitPoints: 100,
+            stats: { power: 10, dexterity: 1, dexterityBonus: 0 },
+            moveIds: [],
+          },
+        ],
+      },
+      dependencies,
+    );
+    if (!created.ok) throw new Error("Expected fight creation to succeed.");
+    const state = {
+      ...created.value.state,
+      phase: "upkeep" as const,
+      combatants: {
+        ...created.value.state.combatants,
+        [ghostId]: {
+          ...created.value.state.combatants[ghostId],
+          hitPoints: { current: 67, maximum: 134 },
+          transformation: {
+            transformationId: "transformation-humans-2-super-human" as const,
+            activatedOnTurn: 1,
+            baseline: {
+              maximumHitPoints: 100,
+              hpBonus: 34,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+            },
+          },
+        },
+      },
+    };
+
     const advanced = advanceFight(state, dependencies);
     if (!advanced.ok || advanced.value.state.status !== "active")
       throw new Error("Expected upkeep to advance.");

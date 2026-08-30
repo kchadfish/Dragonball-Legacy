@@ -2,6 +2,8 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { INNATE_ABILITY_OVERLAY_BY_ID } from "../packages/game-data/src/innate-ability-overlays.js";
+
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const referenceRoot = join(repositoryRoot, "reference");
 const outputPath = join(repositoryRoot, "packages/game-data/src/reference-documents.ts");
@@ -214,6 +216,61 @@ const clausesFor = (effectText: string) =>
       text,
       ruleTokens: ruleTokens.filter((token) => new RegExp(`\\b${token}\\b`, "iu").test(text)),
     }));
+
+const innateOverlayFor = (sourceDefinitionId: string, effectText: string, sourcePath: string) => {
+  const overlay = INNATE_ABILITY_OVERLAY_BY_ID.get(sourceDefinitionId);
+  if (overlay === undefined) return undefined;
+  const clauses = clausesFor(effectText);
+  const effects = overlay.effects.map((effect) => {
+    const sourceText = effect.sourceText;
+    const exactClause = clauses.find(
+      (candidate) =>
+        candidate.text === sourceText ||
+        candidate.text.includes(sourceText) ||
+        sourceText.includes(candidate.text),
+    );
+    const typedClause = clauses.find((candidate) => {
+      const text = candidate.text.toLowerCase();
+      if (effect.type === "modify-damage") return text.includes("damage");
+      if (effect.type === "modify-cost") return text.includes("cost");
+      if (effect.type === "modify-slot-capacity") return text.includes("slot");
+      if (effect.type === "modify-stat") return text.includes("dexterity");
+      if (effect.type === "modify-resource") return text.includes("ki") || text.includes("health");
+      if (effect.type === "modify-roll") return text.includes("roll") || text.includes("dice");
+      return false;
+    });
+    const clause = exactClause ?? typedClause ?? (clauses.length === 1 ? clauses[0] : undefined);
+    return clause === undefined
+      ? effect
+      : { ...effect, sourceClauseOrder: clause.order, sourceText: clause.text };
+  });
+  const sourceClauses = [
+    ...new Set([
+      ...effects.map((effect) => effect.sourceClauseOrder),
+      ...(overlay.coveredClauseOrders ?? []),
+    ]),
+  ].flatMap((clauseOrder) => {
+    const clause = clauses.find((candidate) => candidate.order === clauseOrder);
+    return clause === undefined
+      ? []
+      : [
+          {
+            sourceDefinitionId,
+            sourcePath,
+            clauseOrder: clause.order,
+            sourceText: clause.text,
+          },
+        ];
+  });
+  return {
+    ...overlay,
+    effects,
+    sourceClauses: sourceClauses.filter(
+      (sourceClause, index, all) =>
+        all.findIndex((candidate) => candidate.clauseOrder === sourceClause.clauseOrder) === index,
+    ),
+  };
+};
 
 for (const path of sourceFiles.filter((file) =>
   relative(referenceRoot, file).startsWith(`moves${sep}`),
@@ -1343,24 +1400,49 @@ for (const path of sourceFiles.filter((file) =>
       /Stats:\s*([+-]?\d+)%\s*Power[.,]\s*([+-]?\d+)%\s*(?:HP|Endurance)[.,]\s*([+-]?\d+)%\s*Dexterity/iu.exec(
         text,
       );
+    const transformationId = toTransformationId(raceId, tier, name);
     const abilityMatches = [
       ...text.matchAll(
-        /\[?(NOVICE|INTERMEDIATE|MASTERED)\]?\s*([^\n-]*)-?\s*([^\n]+(?:\n(?!\[?(?:NOVICE|INTERMEDIATE|MASTERED)\]?)[^\n]+)*)/giu,
+        /(?:^|\n)\s*\[?(NOVICE|INTERMEDIATE|MASTERED)\]?\s*([\s\S]*?)(?=\n\s*\[?(?:NOVICE|INTERMEDIATE|MASTERED)\]?\s*|$)/giu,
       ),
     ];
     const abilityFor = (mastery: string) => {
       const match = abilityMatches.find((candidate) => candidate[1].toLowerCase() === mastery);
+      const rawText = match?.[2]?.trim() ?? "";
+      const normalizedRawText = rawText.replace(/^[-–—]\s*/u, "");
+      const repairedNamedClause = /^(.+?)\s+(?:-|[\u2013\u2014]|â€.)\s*(?=[A-Z])([\s\S]+)$/u.exec(
+        normalizedRawText,
+      );
       const effectText =
-        match?.[3]?.trim() ?? "Source does not define this Transformation Ability.";
+        repairedNamedClause?.[2]?.trim() ||
+        normalizedRawText ||
+        "Source does not define this Transformation Ability.";
       const abilityName = match?.[2]?.trim().replace(/[:—-]+$/u, "");
+      const parsedAbilityName =
+        repairedNamedClause?.[1]?.trim() ||
+        (repairedNamedClause === undefined ? undefined : abilityName);
+      const overlay = innateOverlayFor(
+        `${transformationId}:${mastery}`,
+        effectText,
+        `reference/${sourcePath}`,
+      );
       return {
-        ...(abilityName === undefined || abilityName.length === 0 ? {} : { name: abilityName }),
+        ...(parsedAbilityName === undefined || parsedAbilityName.length === 0
+          ? {}
+          : { name: parsedAbilityName }),
         effectText,
         effectClauses: clausesFor(effectText),
+        ...(overlay === undefined
+          ? {}
+          : {
+              sourceClauses: overlay.sourceClauses,
+              coveredClauseOrders: overlay.coveredClauseOrders,
+              effects: overlay.effects,
+            }),
       };
     };
     transformationDefinitions.push({
-      id: toTransformationId(raceId, tier, name),
+      id: transformationId,
       raceId,
       name,
       tier,
@@ -1435,20 +1517,42 @@ const raceDefinitions = await Promise.all(
         ),
         racialTraitsText,
         classesText,
-        racialTraits: namedRaceEntries(racialTraitsText).map((trait) => ({
-          id: `race-trait-${raceId.replace(/^race-/u, "")}-${toId(trait.name)}`,
-          name: trait.name,
-          effectText: trait.effectText,
-          effectClauses: clausesFor(trait.effectText),
-          source: { path: `reference/${sourcePath}`, text: source },
-        })),
-        classes: namedRaceEntries(classesText).map((raceClass) => ({
-          id: `race-class-${raceId.replace(/^race-/u, "")}-${toId(raceClass.name)}`,
-          name: raceClass.name,
-          effectText: raceClass.effectText,
-          effectClauses: clausesFor(raceClass.effectText),
-          source: { path: `reference/${sourcePath}`, text: source },
-        })),
+        racialTraits: namedRaceEntries(racialTraitsText).map((trait) => {
+          const id = `race-trait-${raceId.replace(/^race-/u, "")}-${toId(trait.name)}`;
+          const overlay = innateOverlayFor(id, trait.effectText, `reference/${sourcePath}`);
+          return {
+            id,
+            name: trait.name,
+            effectText: trait.effectText,
+            effectClauses: clausesFor(trait.effectText),
+            ...(overlay === undefined
+              ? {}
+              : {
+                  sourceClauses: overlay.sourceClauses,
+                  coveredClauseOrders: overlay.coveredClauseOrders,
+                  effects: overlay.effects,
+                }),
+            source: { path: `reference/${sourcePath}`, text: source },
+          };
+        }),
+        classes: namedRaceEntries(classesText).map((raceClass) => {
+          const id = `race-class-${raceId.replace(/^race-/u, "")}-${toId(raceClass.name)}`;
+          const overlay = innateOverlayFor(id, raceClass.effectText, `reference/${sourcePath}`);
+          return {
+            id,
+            name: raceClass.name,
+            effectText: raceClass.effectText,
+            effectClauses: clausesFor(raceClass.effectText),
+            ...(overlay === undefined
+              ? {}
+              : {
+                  sourceClauses: overlay.sourceClauses,
+                  coveredClauseOrders: overlay.coveredClauseOrders,
+                  effects: overlay.effects,
+                }),
+            source: { path: `reference/${sourcePath}`, text: source },
+          };
+        }),
         transformationIds: transformations.map((transformation) => transformation.id),
         source: { path: `reference/${sourcePath}`, text: source },
       };
@@ -1464,11 +1568,20 @@ const genericClassDefinitions = [
 ].map((match) => {
   const name = match[1]?.trim() ?? "";
   const effectText = match[2]?.trim() ?? "";
+  const id = `generic-class-${toId(name)}`;
+  const overlay = innateOverlayFor(id, effectText, `reference/${genericClassSourcePath}`);
   return {
-    id: `generic-class-${toId(name)}`,
+    id,
     name,
     effectText,
     effectClauses: clausesFor(effectText),
+    ...(overlay === undefined
+      ? {}
+      : {
+          sourceClauses: overlay.sourceClauses,
+          coveredClauseOrders: overlay.coveredClauseOrders,
+          effects: overlay.effects,
+        }),
     source: { path: `reference/${genericClassSourcePath}`, text: genericClassSource },
   };
 });

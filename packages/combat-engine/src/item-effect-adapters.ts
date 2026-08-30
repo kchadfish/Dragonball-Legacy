@@ -12,6 +12,12 @@ import {
   type EffectCompilationIssue,
   type EffectOrigin,
 } from "./effect-executors.js";
+import {
+  scopeDecisionForEffect,
+  scopeDecisionMetadata,
+  type ScopeDecisionCategory,
+  type ScopeDecisionId,
+} from "./scope-decisions.js";
 
 export type ItemEffectClassification =
   "supported-generic" | "supported-named" | "unsupported-in-scope" | "audited-out-of-scope";
@@ -23,6 +29,8 @@ export interface ItemEffectAdapter {
   readonly capabilityId?: string;
   readonly reason: string;
   readonly prerequisite?: string;
+  readonly scopeDecisionId?: ScopeDecisionId;
+  readonly scopeDecisionCategory?: ScopeDecisionCategory;
 }
 
 export interface CompiledItemEffect {
@@ -204,7 +212,6 @@ const customAdapters: Readonly<Record<string, ItemEffectAdapter>> = {
     classification: "audited-out-of-scope",
     executor: null,
     reason: "Spaceship combat is a later combat scope.",
-    prerequisite: "Phase 10 spaceship combat state",
   },
 };
 
@@ -247,13 +254,6 @@ const combatStateRuleOperations = new Set<ItemStateRuleEffect["operation"]>([
 const phase9StateRuleOperations = new Set<ItemStateRuleEffect["operation"]>([
   "limit-race-item-uses",
   "grant-resource-when-race",
-]);
-
-const phase10StateRuleOperations = new Set<ItemStateRuleEffect["operation"]>([
-  "prevent-interference",
-  "select-escape-roll-modifier",
-  "allow-target-item-attack",
-  "destroy-item-on-roll-threshold",
 ]);
 
 const externalStateRuleReasons: Readonly<
@@ -315,13 +315,14 @@ const itemStateRuleAdapter = (effect: ItemStateRuleEffect): ItemEffectAdapter =>
       reason: "The race-dependent operation is resolved from typed combatant race state.",
     };
   }
-  if (phase10StateRuleOperations.has(effect.operation)) {
+  const scopeDecision = scopeDecisionForEffect(effect);
+  if (scopeDecision !== undefined) {
     return {
       effectType,
       classification: "audited-out-of-scope",
       executor: null,
-      reason: "Multiplayer, escape, or remote-target item behavior requires the Phase 10 contract.",
-      prerequisite: "Phase 10 multiplayer and remote-target state",
+      reason: scopeDecision.reason,
+      ...scopeDecisionMetadata(scopeDecision),
     };
   }
   const externalReason = externalStateRuleReasons[effect.operation];
@@ -366,6 +367,16 @@ export const itemEffectAdapterFor = (effect: ItemEffectDefinition): ItemEffectAd
       prerequisite: "Phase 8 item adapter implementation",
     };
   const adapter = itemEffectAdapterRegistry[effect.type];
+  const scopeDecision = scopeDecisionForEffect(effect);
+  if (scopeDecision !== undefined)
+    return {
+      ...adapter,
+      classification: "audited-out-of-scope",
+      executor: null,
+      reason: scopeDecision.reason,
+      prerequisite: undefined,
+      ...scopeDecisionMetadata(scopeDecision),
+    };
   if (effect.type === "item-modify-stat-percent" && effect.duration?.unit === "week")
     return {
       effectType: effect.type,

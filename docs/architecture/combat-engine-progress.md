@@ -5716,3 +5716,90 @@ canonical persistence, legacy migration, race ownership, fixed HP lifecycle,
 manual deactivation, upkeep thresholds, cooldown progression, typed item rules,
 and capability accounting. The next resume point is Phase 10 / CE-1000 for
 multiplayer, escape, remote-target, and relationship mechanics.
+
+## 2026-08-29 - Phase 10 CE-1000/1010/1020/1030 explicit scope boundary
+
+Phase 10 is complete. ADR 0006 and the typed `combat-engine` scope-decision
+registry version the current local deterministic 1v1 boundary. The registry
+accounts for allies and joint attacks, interferers and spectators, remote and
+relationship targets, escape actions and roll configuration, body/ownership/
+racial-trait/moveset/style/mastery identity mutation, spaceship combat, and
+spaceship travel/storage/capacity/operation/raid mechanics. No combatant role,
+team, player identity, location, relationship, ship, escape, or snapshot field
+was added, and no runtime public API or schema version changed.
+
+The regenerated capability matrix records 1,612 occurrences: 966
+`supported-generic`, 51 `supported-named`, 351 `unsupported-in-scope`, and 244
+`audited-out-of-scope`. Phase 10 contributes 103 audited occurrences across 77
+definitions, with every occurrence carrying a registered decision ID and
+category. Teamwork Kamehameha's ally and remote branches are separate
+decisions; Healing Ray's ally branch, Mass Genocide Attack's interferer branch,
+Black Water Mist, relevant race relationship/interference clauses, escape-only
+effects, identity mutations, and the two spaceship categories are all recorded.
+Ordinary two-combatant `participants` effects and `set-stat-comparison` remain
+supported.
+
+Focused registry, item-adapter, and capability-matrix regressions verify stable
+metadata, complete item state-rule resolution, absence of provisional Phase 10
+prerequisites, and the supported-versus-excluded boundaries. The next resume
+point is Phase 11 / CE-1100.
+
+## 2026-08-29 - Phase 11 CE-1100/1110/1120/1130/1140 combat catalog closure
+
+Phase 11 implementation is in progress. The generator now repairs named
+transformation mastery parsing, including Changeling Form 2, and applies
+source-mapped innate overlays keyed by stable trait, class, transformation, and
+mastery IDs. New fights persist selected race traits and classes, use schema
+version 4, and discover innate sources in deterministic order. Transformation
+activation/reversion now recalculates declarative slot capacity overlays while
+retaining the pre-transformation capacity baseline.
+
+The first overlay slice covers Human mastery capacity/damage, Saiyan and
+Hybrid-Saiyan Oozaru/Super-Saiyan passive combat clauses, Namekian damage and
+Power Up modifiers, Changeling stop reactions, Bio-Android attack damage, and
+selected Android, Namekian, Taifuu-jin, Hybrid-Saiyan, Bio-Android, and generic
+class mechanics. Oozaru stored-roll effects now use the shared deterministic
+stored-state executor, and generated source mapping prefers exact canonical
+clauses before typed fallbacks. The regenerated matrix currently records 1,182
+`supported-generic`, 51 `supported-named`, 125 `unsupported-in-scope`, and 293
+`audited-out-of-scope` occurrences. A closure validator is available as an
+opt-in command and reports the remaining source-only CE-910/CE-920 work; it is
+intentionally not part of `check` until that report reaches zero unsupported
+in-scope rows.
+
+## 2026-08-29 - Phase 11 CE-1100/1110/1120/1130/1140 closure complete
+
+The combat catalog closure is complete. The generated matrix now accounts for
+all converted move, item, race/class, and active-family transformation clauses;
+its 1,612 occurrences contain zero `unsupported-in-scope` rows, with every
+supported occurrence carrying a capability ID, executor, and focused regression
+coverage, and every exclusion carrying a registered scope decision. The
+`validate:combat-capability-closure` command is now included in `npm run check`.
+
+Innate sources are discovered deterministically from carried moves, selected
+race traits, selected class, and active transformation. Combat snapshots persist
+those selections under schema version 4, while legacy snapshots normalize at the
+public boundary. Start-combat stored rolls, including Demonic Potential, resolve
+before thresholded starting-resource setup; transformation slot-capacity
+overlays recalculate on activation and reversion. Named capability rows are
+limited to audited mechanics with stable IDs and focused public regression
+coverage; non-combat, identity, teamwork, remote, escape, and spaceship clauses
+remain explicit scope exclusions.
+
+## 2026-08-30 - AI preflight public handoff contracts PRE-010/PRE-020/PRE-030/PRE-040
+
+The combat-engine public handoff for future AI consumers is now complete for
+the preflight slice. Pending legal responses expose complete canonical
+multi-selections and the legal enumerator only returns responses that belong to
+a resolvable pending frame. Combat-authored decision descriptors are produced
+from compiled effect plans and authoritative cost/scarcity probes. The
+analysis facade reuses ordinary legal enumeration and transition submission,
+returning typed successor state, events, terminal completion, and optional
+calculation diagnostics without exposing private executors.
+
+The dependency surface now includes keyed AI randomness and isolated branch
+combat dependencies with derived seeds, fixed clocks, deterministic IDs, and
+caller-declared work budgets. Live production combat dependencies are never
+passed into speculative branches. No application, NPC, or persistence consumer
+currently exists in this repository; the audit found only package shells and
+empty application exports.

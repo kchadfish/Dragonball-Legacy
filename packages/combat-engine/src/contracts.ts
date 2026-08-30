@@ -50,11 +50,25 @@ export type CombatSlot = "mastery" | "skill" | "advanced-attack" | "signature" |
 
 export type CombatSlotCapacities = Readonly<Record<CombatSlot, number>>;
 
+/** Stable catalog identity retained when a declarative source creates durable combat state. */
+export type CombatSourceReference =
+  | { readonly kind: "move"; readonly definitionId: string }
+  | { readonly kind: "item"; readonly definitionId: string }
+  | { readonly kind: "race-trait"; readonly definitionId: string }
+  | { readonly kind: "race-class"; readonly definitionId: string }
+  | { readonly kind: "generic-class"; readonly definitionId: string }
+  | {
+      readonly kind: "transformation-ability";
+      readonly definitionId: string;
+      readonly mastery: "novice" | "intermediate" | "mastered";
+    };
+
 /** A passive declarative change to one moveset slot capacity. */
 export interface SlotCapacityModification {
   readonly sourceCombatantId: CombatantId;
-  readonly sourceDefinitionId: MoveId;
+  readonly sourceDefinitionId: string;
   readonly sourceEffectIndex: number;
+  readonly sourceReference?: CombatSourceReference;
   readonly slot: CombatSlot;
   readonly amount: number;
 }
@@ -104,12 +118,15 @@ export interface ActiveTransformation {
     /** Legacy snapshots retained this activation-time current HP. */
     readonly currentHitPoints?: number;
     readonly stats: CombatantStats;
+    readonly slotCapacities?: CombatSlotCapacities;
+    readonly slotCapacityModifications?: readonly SlotCapacityModification[];
   };
 }
 
 /** A natural die result retained by a declarative move for later combat resolution. */
 export interface StoredRoll {
-  readonly sourceDefinitionId: MoveId;
+  /** Move or selected innate source that owns the roll. */
+  readonly sourceDefinitionId: string;
   readonly storageKey: string;
   readonly naturalResults: readonly number[];
   readonly sides: number;
@@ -127,6 +144,10 @@ export interface StoredMoveSelection {
 export interface CombatantState {
   readonly id: CombatantId;
   readonly raceId?: RaceId;
+  /** Combat-local snapshots of selected innate racial traits. */
+  readonly raceTraitIds?: readonly string[];
+  /** Combat-local snapshot of the selected race or generic class. */
+  readonly classId?: string;
   /** The declared martial-arts style used by durable Freestyle classifications. */
   readonly declaredStyleId?: string;
   readonly hitPoints: CombatResources;
@@ -160,6 +181,8 @@ export interface CombatantState {
   readonly moveUses: Readonly<Record<MoveId, number>>;
   /** Combat-local counts for immediate declarative effects with their own use limits. */
   readonly effectUseCounts?: Readonly<Record<string, number>>;
+  /** Turn number on which each turn-scoped immediate effect group was used. */
+  readonly effectUseTurns?: Readonly<Record<string, number>>;
   /** Combat-local positive increases to a move's canonical restricted-use limit. */
   readonly moveUseLimitModifiers?: Readonly<Record<MoveId, number>>;
   /** Combat-local named rolls; a later roll with the same key replaces the prior value. */
@@ -199,6 +222,23 @@ const createFightCombatantInputSchema = z
     level: z.number().nonnegative().optional(),
     planetHasDragonBalls: z.boolean().optional(),
     raceId: z.string().min(1).optional(),
+    raceTraitIds: z
+      .array(z.string().min(1))
+      .superRefine((traitIds, context) => {
+        const seenTraitIds = new Set<string>();
+        for (const [index, traitId] of traitIds.entries()) {
+          if (seenTraitIds.has(traitId)) {
+            context.addIssue({
+              code: "custom",
+              message: "Race trait IDs must not contain duplicates.",
+              path: [index],
+            });
+          }
+          seenTraitIds.add(traitId);
+        }
+      })
+      .optional(),
+    classId: z.string().min(1).optional(),
     masteredTransformationIds: z.array(z.string().min(1)).optional(),
     moveIds: z.array(z.string().min(1)).superRefine((moveIds, context) => {
       const seenMoveIds = new Set<string>();
@@ -385,6 +425,7 @@ export interface ActiveEffectBase {
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: string;
   readonly sourceEffectIndex?: number;
+  readonly sourceReference?: CombatSourceReference;
   readonly lifecycle: {
     readonly state: "active" | "deactivated" | "cooldown" | "expired";
     readonly activationBoundary: EffectLifecycleBoundary;
@@ -422,6 +463,7 @@ export interface ActiveCostModifierEffect {
   readonly targetCombatantId: CombatantId;
   readonly sourceDefinitionId: MoveId;
   readonly amount: number;
+  readonly allowUnmodifiable?: true;
   readonly selector: AdvancedAttackCostSelector;
   readonly scope: "next-eligible-action";
 }
@@ -496,6 +538,7 @@ export interface ActiveRerollEffect {
   readonly activationResource?: "ki";
   readonly activationCost?: number;
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly remaining: number };
+  readonly useLimitGroup?: string;
   readonly duration:
     | { readonly type: "combat" }
     | { readonly type: "next-action"; readonly combatantId: CombatantId }
@@ -1518,6 +1561,8 @@ export type ResolutionFrame =
       readonly pendingDecisionId: PendingDecisionId;
       readonly attack: CopiedMoveAttackReference;
       readonly effectIndices: readonly number[];
+      /** Stable source identity retained while the optional attack effect is pending. */
+      readonly sourceReference?: CombatSourceReference;
       /** Normalized selection semantics retained for a resumable attack choice. */
       readonly selection?: EffectSelection;
       /** Whether this serialized attack choice may be declined. */
@@ -1591,6 +1636,8 @@ export type ResolutionFrame =
       readonly returnPhase: "action" | "end" | "upkeep";
       readonly pendingDecisionId?: PendingDecisionId;
       readonly sourceDefinitionId: MoveId;
+      /** Stable source identity retained while the effect choice is pending. */
+      readonly sourceReference?: CombatSourceReference;
       /** Action move being resumed when the selected listener is a different source. */
       readonly actionMoveId?: MoveId;
       readonly sourceCombatantId?: CombatantId;
@@ -1617,6 +1664,8 @@ export type ResolutionFrame =
       readonly targetCombatantId: CombatantId;
       readonly sourceDefinitionId: string;
       readonly effectIndex: number;
+      /** Stable catalog identity retained across resumable effect frames. */
+      readonly sourceReference?: CombatSourceReference;
       /** Legacy effect frames omitted this field and represent deactivation. */
       readonly operation?:
         | "activate"
@@ -1758,7 +1807,7 @@ export type ResolutionFrame =
 interface FightStateBase {
   readonly id: FightId;
   /** Serialized fight-state contract version. Legacy snapshots may omit it. */
-  readonly schemaVersion?: 1 | 2 | 3;
+  readonly schemaVersion?: 1 | 2 | 3 | 4;
   readonly version: number;
   readonly rulesVersion: RulesVersion;
   readonly mode: CombatMode;
@@ -1963,6 +2012,10 @@ export type LegalDecision =
       readonly actorId: CombatantId;
       readonly pendingDecisionId: PendingDecisionId;
       readonly optionId: string;
+      /** Remaining options in canonical persisted-candidate order. */
+      readonly optionIds?: readonly string[];
+      /** Complete canonical selection submitted by this legal response. */
+      readonly selectedOptionIds: readonly string[];
     };
 
 export interface CombatEventBase {

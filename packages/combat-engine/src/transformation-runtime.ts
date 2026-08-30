@@ -6,6 +6,8 @@ export interface TransformationBaseline {
   readonly maximumHitPoints: number;
   readonly hpBonus?: number;
   readonly stats: CombatantState["stats"];
+  readonly slotCapacities?: NonNullable<CombatantState["slotCapacities"]>;
+  readonly slotCapacityModifications?: NonNullable<CombatantState["slotCapacityModifications"]>;
 }
 
 export interface TransformedCombatant {
@@ -20,9 +22,13 @@ export const applyTransformation = (
   combatant: CombatantState,
   transformation: TransformationDefinition,
 ): TransformedCombatant => {
-  const baseline = {
+  const baseline: TransformationBaseline = {
     maximumHitPoints: combatant.hitPoints.maximum,
     stats: combatant.stats,
+    ...(combatant.slotCapacities === undefined ? {} : { slotCapacities: combatant.slotCapacities }),
+    ...(combatant.slotCapacityModifications === undefined
+      ? {}
+      : { slotCapacityModifications: combatant.slotCapacityModifications }),
   };
   const maximumHitPoints = adjusted(
     baseline.maximumHitPoints,
@@ -68,5 +74,9 @@ export const revertTransformation = (
     ...combatant,
     hitPoints: { maximum: baseline.maximumHitPoints, current },
     stats: baseline.stats,
+    ...(baseline.slotCapacities === undefined ? {} : { slotCapacities: baseline.slotCapacities }),
+    ...(baseline.slotCapacityModifications === undefined
+      ? {}
+      : { slotCapacityModifications: baseline.slotCapacityModifications }),
   };
 };

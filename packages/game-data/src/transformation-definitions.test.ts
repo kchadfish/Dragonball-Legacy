@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { TRANSFORMATION_DEFINITIONS } from "./transformation-definitions.js";
+import { RACE_DEFINITIONS } from "./race-definitions.js";
 import type { TransformationDefinition } from "./shared/types.js";
 import { validateTransformationDefinitions } from "./validation.js";
 
@@ -42,6 +44,61 @@ const validTransformation = {
 } satisfies TransformationDefinition;
 
 describe("transformation definitions", () => {
+  it("captures every labeled mastery, including hyphenated ability names", () => {
+    const transformation = TRANSFORMATION_DEFINITIONS.find(
+      (candidate) => candidate.id === "transformation-changeling-1-form-2",
+    );
+
+    expect(transformation?.abilities.intermediate).toMatchObject({
+      name: "The Power of Intimidation",
+      effectText: expect.stringContaining("defense roll of 25 or higher"),
+    });
+    expect(transformation?.abilities.novice.name).toBe("The Element of Fear");
+    expect(transformation?.abilities.mastered.name).toBe("The Great Intimidator");
+  });
+
+  it("keeps active-family innate overlays source-mapped to canonical clauses", () => {
+    const activeRaces = new Set([
+      "race-humans",
+      "race-saiyans",
+      "race-hybrid-saiyan",
+      "race-namek",
+      "race-changeling",
+      "race-bio-androids",
+    ]);
+    const activeTransformations = TRANSFORMATION_DEFINITIONS.filter((transformation) =>
+      activeRaces.has(transformation.raceId),
+    );
+    expect(activeTransformations.length).toBeGreaterThan(0);
+    for (const transformation of activeTransformations)
+      for (const ability of Object.values(transformation.abilities)) {
+        const sourceClauseOrders = new Set(
+          (ability.sourceClauses ?? []).map((sourceClause) => sourceClause.clauseOrder),
+        );
+        expect(
+          (ability.effects ?? [])
+            .filter((effect) => effect.sourceClauseOrder !== undefined)
+            .every((effect) => sourceClauseOrders.has(effect.sourceClauseOrder!)),
+        ).toBe(true);
+        for (const sourceClause of ability.sourceClauses ?? [])
+          expect(ability.effectClauses?.[sourceClause.clauseOrder - 1]?.text).toBe(
+            sourceClause.sourceText,
+          );
+      }
+  });
+
+  it("retains source-mapped race and generic innate definitions", () => {
+    const mapped = [
+      ...RACE_DEFINITIONS.flatMap((race) => [...race.racialTraits, ...race.classes]),
+    ].filter((definition) => definition.effects !== undefined);
+    expect(mapped.length).toBeGreaterThan(0);
+    for (const definition of mapped)
+      for (const sourceClause of definition.sourceClauses ?? [])
+        expect(definition.effectClauses[sourceClause.clauseOrder - 1]?.text).toBe(
+          sourceClause.sourceText,
+        );
+  });
+
   it("separates stat modifiers from mastery-ranked Transformation Abilities", () => {
     expect(validTransformation.statModifiers).toEqual({
       powerPercent: 50,

@@ -1,0 +1,27 @@
+{
+  "name": "@dragonball-resurgence/ai-engine",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@dragonball-resurgence/combat-engine": "0.1.0",
+    "@dragonball-resurgence/game-config": "0.1.0",
+    "@dragonball-resurgence/game-data": "0.1.0",
+    "@dragonball-resurgence/shared": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  }
+}

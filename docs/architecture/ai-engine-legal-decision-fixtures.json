@@ -1,0 +1,208 @@
+{
+  "scopeVersion": "ai-combat-scope:v1",
+  "generatedAt": "2026-08-30",
+  "authority": {
+    "combatProgress": "docs/architecture/combat-engine-progress.md",
+    "combatCapabilityMatrix": "docs/architecture/combat-engine-capability-matrix.md",
+    "publicContract": "packages/combat-engine/src/contracts.ts",
+    "publicEnumeration": "packages/combat-engine/src/progress-fight.ts"
+  },
+  "ordinaryLegalDecisionFixtures": [
+    {
+      "id": "action-phase-basic-and-flow",
+      "sourceTest": "packages/combat-engine/src/basic-attack.test.ts",
+      "sourceBehavior": "enumerates the three zero-Ki basic attacks plus pass, power-up, and surrender",
+      "legalDecisions": [
+        {
+          "type": "basic-attack",
+          "actorId": "combatant:attacker",
+          "basicAttack": "basic-punch",
+          "targetCombatantId": "combatant:defender"
+        },
+        {
+          "type": "basic-attack",
+          "actorId": "combatant:attacker",
+          "basicAttack": "basic-kick",
+          "targetCombatantId": "combatant:defender"
+        },
+        {
+          "type": "basic-attack",
+          "actorId": "combatant:attacker",
+          "basicAttack": "basic-ki-blast",
+          "targetCombatantId": "combatant:defender"
+        },
+        { "type": "pass", "actorId": "combatant:attacker" },
+        { "type": "power-up", "actorId": "combatant:attacker" },
+        { "type": "surrender", "actorId": "combatant:attacker" }
+      ]
+    },
+    {
+      "id": "move-item-and-transformation-actions",
+      "sourceTest": "packages/combat-engine/src/death-beam.test.ts; packages/combat-engine/src/item-effects-runtime.test.ts; packages/combat-engine/src/transformation-activation.test.ts",
+      "sourceBehavior": "public action enumeration exposes move, item, and transformation decisions when state permits",
+      "legalDecisions": [
+        {
+          "type": "use-move",
+          "actorId": "combatant:attacker",
+          "moveId": "move-afterlife-death-beam",
+          "targetCombatantId": "combatant:defender"
+        },
+        {
+          "type": "use-item",
+          "actorId": "combatant:attacker",
+          "itemId": "item-equipment-senzu-root"
+        },
+        {
+          "type": "activate-transformation",
+          "actorId": "combatant:attacker",
+          "transformationId": "transformation-humans-1-high-tension"
+        },
+        {
+          "type": "deactivate-transformation",
+          "actorId": "combatant:attacker"
+        }
+      ]
+    },
+    {
+      "id": "counter-use-move",
+      "sourceTest": "packages/combat-engine/src/basic-attack.test.ts",
+      "sourceBehavior": "counter phase offers a use-move legal decision when a counter action is available",
+      "legalDecisions": [
+        {
+          "type": "use-move",
+          "actorId": "combatant:defender",
+          "moveId": "move-afterlife-x20-kaioken-kamehameha",
+          "targetCombatantId": "combatant:attacker"
+        }
+      ]
+    }
+  ],
+  "pendingDecisionFixtures": [
+    {
+      "id": "defense-response-roll-or-block",
+      "sourceTest": "packages/combat-engine/src/death-beam.test.ts",
+      "sourceBehavior": "converted attack pauses for the defender to choose a defense response",
+      "pendingDecision": {
+        "id": "pending-decision:defense-response",
+        "stateVersion": 8,
+        "combatantId": "combatant:defender",
+        "type": "defense-response",
+        "options": [
+          { "id": "roll-defense", "type": "roll-defense" },
+          {
+            "id": "use-block:move-aoyosumu-defiant-stance",
+            "type": "use-block",
+            "moveId": "move-aoyosumu-defiant-stance"
+          }
+        ]
+      },
+      "legalResponse": {
+        "type": "respond-to-pending-decision",
+        "actorId": "combatant:defender",
+        "pendingDecisionId": "pending-decision:defense-response",
+        "optionId": "roll-defense",
+        "selectedOptionIds": ["roll-defense"]
+      }
+    },
+    {
+      "id": "optional-effect-decline",
+      "sourceTest": "packages/combat-engine/src/basic-attack.test.ts",
+      "sourceBehavior": "a defense transition offers an optional effect activation or explicit decline",
+      "pendingDecision": {
+        "id": "pending-decision:optional-effect",
+        "stateVersion": 9,
+        "combatantId": "combatant:defender",
+        "type": "optional-effect",
+        "optional": true,
+        "options": [
+          {
+            "id": "activate-effect:move-akaikaru-limb-twist",
+            "type": "activate-effect",
+            "moveId": "move-akaikaru-limb-twist"
+          },
+          { "id": "decline", "type": "decline" }
+        ]
+      },
+      "legalResponse": {
+        "type": "respond-to-pending-decision",
+        "actorId": "combatant:defender",
+        "pendingDecisionId": "pending-decision:optional-effect",
+        "optionId": "decline",
+        "selectedOptionIds": ["decline"]
+      }
+    },
+    {
+      "id": "generic-one-move-selection",
+      "sourceTest": "packages/combat-engine/src/candidate-resolution.test.ts",
+      "sourceBehavior": "generic candidate resolution persists move candidates and one-selection metadata",
+      "pendingDecision": {
+        "id": "pending-decision:select-move",
+        "stateVersion": 3,
+        "combatantId": "combatant:attacker",
+        "type": "select-move",
+        "candidates": [
+          {
+            "type": "move",
+            "id": "move-akaikaru-firestorm",
+            "ownerCombatantId": "combatant:attacker"
+          }
+        ],
+        "selection": { "type": "one" },
+        "options": [
+          {
+            "id": "candidate:move:move-akaikaru-firestorm",
+            "type": "select-move",
+            "moveId": "move-akaikaru-firestorm",
+            "candidate": {
+              "type": "move",
+              "id": "move-akaikaru-firestorm",
+              "ownerCombatantId": "combatant:attacker"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-one-combatant-selection",
+      "sourceTest": "packages/combat-engine/src/candidate-resolution.test.ts",
+      "sourceBehavior": "generic candidate resolution persists an opponent combatant candidate",
+      "pendingDecision": {
+        "id": "pending-decision:select-combatant",
+        "stateVersion": 3,
+        "combatantId": "combatant:attacker",
+        "type": "select-combatant",
+        "candidates": [{ "type": "combatant", "id": "combatant:defender" }],
+        "selection": { "type": "one" },
+        "options": [
+          {
+            "id": "candidate:combatant:combatant:defender",
+            "type": "select-combatant",
+            "combatantId": "combatant:defender",
+            "candidate": { "type": "combatant", "id": "combatant:defender" }
+          }
+        ]
+      }
+    }
+  ],
+  "selectionCardinalityFixtures": [
+    {
+      "selection": { "type": "one" },
+      "sourceTest": "packages/combat-engine/src/candidate-resolution.test.ts",
+      "responseStatus": "complete for one option"
+    },
+    {
+      "selection": { "type": "up-to", "limit": { "type": "literal", "value": 2 } },
+      "sourceTest": "packages/combat-engine/src/candidate-resolution.test.ts",
+      "responseStatus": "complete LegalDecision members are enumerated in persisted option order"
+    },
+    {
+      "selection": { "type": "all" },
+      "sourceTest": "packages/combat-engine/src/candidate-resolution.test.ts",
+      "responseStatus": "complete LegalDecision members are enumerated in persisted option order"
+    }
+  ],
+  "declaredPendingTypesWithoutCurrentPublicTransitionFixture": [
+    "select-source-action",
+    "select-source-effect"
+  ]
+}

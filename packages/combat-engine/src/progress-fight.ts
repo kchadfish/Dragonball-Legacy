@@ -46,15 +46,21 @@ import {
   scheduledSkipActionOperation,
 } from "./fight-flow-scheduler.js";
 import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
-import { pendingOptionIdsFor, validatePendingSelection } from "./candidate-resolution.js";
+import {
+  enumeratePendingLegalDecisions,
+  pendingOptionIdsFor,
+  validatePendingSelection,
+} from "./candidate-resolution.js";
 import { hasLegacyProseSelector, matchesMoveSelector } from "./selector-matching.js";
 import { compileEffectPlan } from "./effect-executors.js";
 import {
   dispatchCombatTrigger as moveEffectsForTrigger,
+  dispatchCombatTriggerSources,
   dispatchCombatTriggerSourceResults,
   dispatchStoppedCombatTrigger as stoppedMoveEffects,
   dispatchSuccessfulCombatTrigger as successfulMoveEffects,
   discoverCombatTriggerSources,
+  combatTriggerSourcesFor,
   type CombatTriggerSource,
 } from "./combat-trigger-dispatch.js";
 import { staticSelectionLimit } from "./effect-selection.js";
@@ -174,6 +180,9 @@ import type {
   CombatTransition,
   CombatantState,
   CombatantTransformationProfile,
+  CombatSlotCapacities,
+  CombatSourceReference,
+  SlotCapacityModification,
   CompletedFightState,
   CopiedMoveAttackReference,
   FightState,
@@ -532,6 +541,47 @@ const scheduledWorkAtTransition = (state: FightState): FightState["scheduledWork
   return [...synchronized, ...additions, ...counterAdditions, ...frameAdditions];
 };
 
+const combatSourceReferenceFor = (
+  state: FightState,
+  combatantId: CombatantId,
+  sourceDefinitionId: string,
+): CombatSourceReference | undefined => {
+  const source = combatTriggerSourcesFor(state.combatants[combatantId], "self").find(
+    (candidate) => candidate.move.id === sourceDefinitionId,
+  );
+  return (
+    source?.source ??
+    (MOVE_DEFINITIONS.some((candidate) => candidate.id === sourceDefinitionId)
+      ? { kind: "move", definitionId: sourceDefinitionId }
+      : undefined)
+  );
+};
+
+const combatSourceReferenceForFrame = (
+  state: FightState,
+  frame: ResolutionFrame,
+): CombatSourceReference | undefined => {
+  if (frame.type === "effect")
+    return combatSourceReferenceFor(state, frame.sourceCombatantId, frame.sourceDefinitionId);
+  if (frame.type === "effect-choice")
+    return combatSourceReferenceFor(
+      state,
+      frame.sourceCombatantId ?? frame.actorId,
+      frame.sourceDefinitionId,
+    );
+  if (frame.stage !== "awaiting-effect-choice") return undefined;
+  const sourceDefinitionId =
+    frame.effectSourceDefinitionId ??
+    (frame.attack.type === "move" ? frame.attack.moveId : undefined);
+  return sourceDefinitionId === undefined
+    ? undefined
+    : combatSourceReferenceFor(
+        state,
+        frame.effectSourceCombatantId ?? frame.attackerId,
+        sourceDefinitionId,
+      );
+};
+
 const transitionFrom = (
   state: FightState,
   events: readonly CombatEvent[],
@@ -539,9 +589,15 @@ const transitionFrom = (
   // Normalize legacy snapshots at the deterministic transition boundary. The
   // optional contract field keeps historical snapshots readable while every
   // newly returned state carries the current schema marker.
+  const resolutionFrames = state.resolutionFrames.map((frame) => {
+    if ("sourceReference" in frame && frame.sourceReference !== undefined) return frame;
+    const sourceReference = combatSourceReferenceForFrame(state, frame);
+    return sourceReference === undefined ? frame : { ...frame, sourceReference };
+  });
   const normalizedState: FightState = {
     ...state,
-    schemaVersion: 3,
+    schemaVersion: 4,
+    resolutionFrames,
     scheduledWork: scheduledWorkAtTransition(state),
   };
   const violations = validateFightState(normalizedState);
@@ -626,7 +682,7 @@ const normalizeLegacyFightState = (state: CombatTransition["state"]): CombatTran
   );
   const schedulingEffectsChanged = legacySchedulingEffects.length > 0;
   if (
-    state.schemaVersion === 3 &&
+    state.schemaVersion === 4 &&
     state.scheduledWork !== undefined &&
     !effectsChanged &&
     !schedulingEffectsChanged
@@ -634,7 +690,7 @@ const normalizeLegacyFightState = (state: CombatTransition["state"]): CombatTran
     return state;
   return {
     ...state,
-    schemaVersion: 3,
+    schemaVersion: 4,
     combatants,
     activeEffects: schedulingEffectsChanged
       ? activeEffects.filter(
@@ -1683,6 +1739,13 @@ const hasRerollDefinition = (combatant: CombatantState) =>
     ),
   );
 
+const hasOnRollResultRerollDefinition = (state: ActiveFightState, combatantId: CombatantId) =>
+  combatTriggerSourcesFor(state.combatants[combatantId], "self").some(({ move }) =>
+    (move.effects ?? []).some(
+      (effect) => effect.type === "reroll" && effect.trigger === "on-roll-result",
+    ),
+  );
+
 type RerollEffectDefinition = Extract<EffectDefinition, { readonly type: "reroll" }>;
 
 interface CompiledRerollSource {
@@ -1695,9 +1758,7 @@ const compiledRerollSources = (
   state: ActiveFightState,
   combatantId: CombatantId,
 ): readonly CompiledRerollSource[] =>
-  state.combatants[combatantId].moveIds.flatMap((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
-    if (move === undefined) return [];
+  combatTriggerSourcesFor(state.combatants[combatantId], "self").flatMap(({ move }) => {
     return (move.effects ?? []).flatMap((effect, effectIndex) => {
       const compiled = compileEffectPlan({
         sourceDefinitionId: move.id,
@@ -1852,6 +1913,7 @@ const hasPostDefenseReaction = (
   availablePostRollDefenseItems(state.combatants[combatantId]).length > 0 ||
   hasActiveConstant(state, combatantId, "move-aoyosumu-close-shave") ||
   hasPostDefenseRerollPotential(state, combatantId, "defense", attackMove) ||
+  hasOnRollResultRerollDefinition(state, combatantId) ||
   hasBeforeDefenseChoicePotential(state, combatantId) ||
   hasRerollDefinition(state.combatants[combatantId]) ||
   hasCounterActionPotential(state, combatantId) ||
@@ -4214,9 +4276,20 @@ const requiredTransformationRollAtUpkeep = (
       : combatant.transformationProfiles?.find(
           (candidate) => candidate.transformationId === transformed.transformationId,
         );
+  const transformationStability =
+    transformed !== undefined &&
+    combatTriggerSourcesFor(combatant, "self")
+      .filter((source) => source.kind === "transformation-ability")
+      .some(
+        (source) =>
+          source.move.effects?.some(
+            (effect) => effect.type === "prevent-transformation-reversion",
+          ) ?? false,
+      );
   const automaticRoll =
     transformed !== undefined &&
     combatant.hitPoints.current <= combatant.hitPoints.maximum / 2 &&
+    !transformationStability &&
     (profile?.rollSides ?? 20) !== 100;
   if (requirements.length === 0 && !automaticRoll) {
     return { combatants: state.combatants, activeEffects: state.activeEffects, events: [] };
@@ -5921,6 +5994,7 @@ interface AttackEffectChoiceInput {
   readonly effectAlternatives?: readonly PendingEffectChoice[];
   readonly effectSourceDefinitionId?: MoveId;
   readonly effectSourceCombatantId?: CombatantId;
+  readonly sourceReference?: import("./contracts.js").CombatSourceReference;
   readonly numericSelection: PendingEffectChoice["numericSelection"];
   readonly effectTrigger?:
     | "before-attack-roll"
@@ -6051,6 +6125,7 @@ const awaitingEffectChoiceSourceFields = (input: AttackEffectChoiceInput) => ({
   ...(input.effectTrigger === undefined || input.effectTrigger === "before-attack-roll"
     ? {}
     : { effectTrigger: input.effectTrigger }),
+  ...(input.sourceReference === undefined ? {} : { sourceReference: input.sourceReference }),
 });
 
 const awaitingEffectChoiceRollFields = (input: AttackEffectChoiceInput) => ({
@@ -6149,6 +6224,14 @@ const requestAttackEffectChoice = (
     rollEvents = [],
     dependencies,
   } = input;
+  const sourceReference =
+    input.sourceReference ??
+    (input.effectSourceDefinitionId === undefined
+      ? { kind: "move" as const, definitionId: input.move.id }
+      : combatTriggerSourcesFor(
+          state.combatants[input.effectSourceCombatantId ?? decision.actorId],
+          "self",
+        ).find((source) => source.move.id === input.effectSourceDefinitionId)?.source);
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const nextVersion = state.version + 1;
   let pendingOptions: readonly PendingDecisionOption[];
@@ -6182,7 +6265,12 @@ const requestAttackEffectChoice = (
       type: "optional-effect",
       options: pendingOptions,
     },
-    resolutionFrames: [awaitingEffectChoiceAttackFrame(input, pendingDecisionId)],
+    resolutionFrames: [
+      awaitingEffectChoiceAttackFrame(
+        sourceReference === undefined ? input : { ...input, sourceReference },
+        pendingDecisionId,
+      ),
+    ],
     eventSequence: state.eventSequence + 1 + rollEvents.length,
   };
   return transitionFrom(nextState, rollEvents);
@@ -8926,6 +9014,7 @@ const costModificationPreventedBy = (
   move: MoveDefinition,
 ) => {
   const { application } = prevention;
+  if (modifier.allowUnmodifiable === true) return false;
   if (
     prevention.targetCombatantId !== modifier.targetCombatantId ||
     !application.aspects.includes("cost") ||
@@ -9164,6 +9253,7 @@ const currentActionCostModifiersFor = (
         targetCombatantId,
         sourceDefinitionId: sourceMove.id,
         amount: modification.amount,
+        ...(modification.allowUnmodifiable === true ? { allowUnmodifiable: true } : {}),
         selector: {
           category: "advanced-attack",
           baseKiCost: move.mechanics.kiCost?.type === "literal" ? move.mechanics.kiCost.value : 0,
@@ -9455,7 +9545,7 @@ const stoppedSkillTriggeredEffects = (
   context: Parameters<typeof moveEffectsForTrigger>[2],
 ): readonly StoppedSkillTriggeredEffects[] => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
-  return attacker.moveIds.flatMap((moveId) => {
+  const carried = attacker.moveIds.flatMap((moveId) => {
     const sourceMove = moves.get(moveId);
     if (
       sourceMove === undefined ||
@@ -9482,6 +9572,31 @@ const stoppedSkillTriggeredEffects = (
       ? []
       : [{ sourceMove, owner: attacker, target, effects }];
   });
+  const innate = combatTriggerSourcesFor(attacker, "self")
+    .filter((source) => source.source?.kind !== "move")
+    .flatMap((triggerSource) => {
+      const sourceMove = triggerSource.move;
+      const effects = moveEffectsForTrigger(sourceMove, "on-stopped", {
+        ...context,
+        sourceReference: triggerSource.source,
+        self: attacker,
+        opponent: target,
+        triggeringMove,
+        triggeringMoveOwner: "self",
+      });
+      return effects.resources.length === 0 &&
+        effects.locks.length === 0 &&
+        effects.statuses.length === 0 &&
+        effects.combatResultOverrides.length === 0 &&
+        effects.floatingEffects.length === 0 &&
+        effects.forcedActions.length === 0 &&
+        effects.rollModifications.length === 0 &&
+        effects.damageModifications.length === 0 &&
+        effects.costModifications.length === 0
+        ? []
+        : [{ sourceMove, owner: attacker, target, effects }];
+    });
+  return [...carried, ...innate];
 };
 
 const stoppedSkillEffectsForResolution = (
@@ -9952,6 +10067,114 @@ const convertedAttackCost = (
     costModifierMultiplier,
     diagnosticTraceSink,
   );
+};
+
+export interface AuthoritativeDecisionCost {
+  readonly resource: "hp" | "ki";
+  readonly declared: number;
+  readonly effective: number;
+  readonly timing: "declaration" | "activation" | "response";
+}
+
+const decisionNumericContext = (
+  state: ActiveFightState,
+  actor: CombatantState,
+  opponent: CombatantState,
+) => ({
+  self: actor,
+  opponent,
+  turnNumber: state.turnNumber,
+  participantCount: 2,
+  completedTurnCount: state.turnNumber - 1,
+  actionHistory: state.actionHistory,
+  activeEffects: state.activeEffects,
+  moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+  moveActivationCounts: moveActivationCounts(state),
+});
+
+/** Resolves decision costs with the same calculation path used by submission. */
+export const probeLegalDecisionCosts = (
+  state: ActiveFightState,
+  decision: LegalDecision,
+): readonly AuthoritativeDecisionCost[] => {
+  if (decision.type !== "use-move") {
+    if (decision.type !== "use-item") return [];
+    const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === decision.itemId);
+    return item === undefined
+      ? []
+      : (item.effects ?? []).flatMap((effect) => {
+          if (effect.type === "item-state-rule" && effect.operation === "pay-activation-ki")
+            return [
+              {
+                resource: "ki" as const,
+                declared: effect.amount ?? 0,
+                effective: effect.amount ?? 0,
+                timing: "activation" as const,
+              },
+            ];
+          return [];
+        });
+  }
+  const actor = state.combatants[decision.actorId];
+  const target = state.combatants[decision.targetCombatantId];
+  const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+  const expression = move?.mechanics.kiCost;
+  if (move === undefined || expression === undefined) return [];
+  const declared = evaluateDurableNumericExpression(
+    expression,
+    decisionNumericContext(state, actor, target),
+  );
+  if (declared === undefined) return [];
+  const effective =
+    move.mechanics.attack === undefined
+      ? effectiveMoveCost(state, actor.id, move, declared)
+      : convertedAttackCost(state, actor, move, declared);
+  return [{ resource: "ki", declared, effective, timing: "declaration" }];
+};
+
+export interface AuthoritativeDecisionScarcity {
+  readonly kind: "move-use" | "item-use" | "transformation";
+  readonly used: number;
+  readonly limit?: number;
+  readonly remaining?: number;
+}
+
+/** Resolves use scarcity through combat-owned limits and persisted counters. */
+export const probeLegalDecisionScarcity = (
+  state: ActiveFightState,
+  decision: LegalDecision,
+): readonly AuthoritativeDecisionScarcity[] => {
+  if (decision.type === "use-move") {
+    const actor = state.combatants[decision.actorId];
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+    if (move === undefined) return [];
+    const used = actor.moveUses[move.id] ?? 0;
+    const limit = effectiveMoveUseLimit(state, actor, move);
+    return [
+      {
+        kind: "move-use",
+        used,
+        ...(limit === undefined ? {} : { limit, remaining: Math.max(0, limit - used) }),
+      },
+    ];
+  }
+  if (decision.type === "use-item") {
+    const actor = state.combatants[decision.actorId];
+    const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === decision.itemId);
+    if (item === undefined) return [];
+    const used = actor.itemUses?.[item.id] ?? 0;
+    const limit = itemUseLimitForCombatant(item, actor);
+    return [
+      {
+        kind: "item-use",
+        used,
+        ...(limit === undefined ? {} : { limit, remaining: Math.max(0, limit - used) }),
+      },
+    ];
+  }
+  if (decision.type === "activate-transformation")
+    return [{ kind: "transformation", used: 0, limit: 1, remaining: 1 }];
+  return [];
 };
 
 const convertedAttackEffectContext = (
@@ -10676,6 +10899,67 @@ const masterySourcesForCombatant = (
     return move?.category === "mastery" ? [move] : [];
   });
 
+const innatePassiveEffectsFor = (
+  source: ActiveFightState["combatants"][CombatantId],
+  opponent: ActiveFightState["combatants"][CombatantId],
+  move: MoveDefinition,
+  context: Parameters<typeof moveEffectsForTrigger>[2],
+) =>
+  mergeMoveEffects(
+    ...combatTriggerSourcesFor(source, "self")
+      .filter((triggerSource) => triggerSource.source?.kind !== "move")
+      .map((triggerSource) =>
+        moveEffectsForTrigger(triggerSource.move, "passive", {
+          ...context,
+          self: source,
+          opponent,
+          triggeringMove: move,
+          triggeringMoveOwner: "self",
+        }),
+      ),
+  );
+
+const slotCapacityStateFor = (
+  state: ActiveFightState,
+  source: ActiveFightState["combatants"][CombatantId],
+  opponent: ActiveFightState["combatants"][CombatantId],
+) => {
+  const base: CombatSlotCapacities = {
+    mastery: GLOBAL_RULES.movesetSlots.mastery,
+    skill: GLOBAL_RULES.movesetSlots.skill,
+    "advanced-attack": GLOBAL_RULES.movesetSlots.advancedAttack,
+    signature: GLOBAL_RULES.movesetSlots.signatureTechnique,
+    block: GLOBAL_RULES.movesetSlots.block,
+  };
+  const modifications = dispatchCombatTriggerSources(
+    "passive",
+    combatTriggerSourcesFor(source, "self"),
+    (triggerSource) => ({
+      self: source,
+      opponent,
+      turnNumber: state.turnNumber,
+      completedTurnCount: state.turnNumber - 1,
+      moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+      moveActivationCounts: moveActivationCounts(state),
+      successfulHitCount: 0,
+      actionHistory: state.actionHistory,
+      activeEffects: state.activeEffects,
+      mode: state.mode,
+      sourceReference: triggerSource.source,
+    }),
+  ).flatMap((effects) => effects.slotCapacityModifications) as readonly SlotCapacityModification[];
+  return {
+    capacities: modifications.reduce(
+      (current, modification) => ({
+        ...current,
+        [modification.slot]: current[modification.slot] + modification.amount,
+      }),
+      base,
+    ),
+    modifications,
+  };
+};
+
 const passiveAttackEffectsFor = (
   ...[
     state,
@@ -10726,6 +11010,7 @@ const passiveAttackEffectsFor = (
           : { resolvedOptionalEffectIndices: resolvedEffectIndices }),
       }),
     ),
+    innatePassiveEffectsFor(attacker, target, move, context),
   );
 
 interface ConvertedAttackEffectRollModifierInput {
@@ -11463,6 +11748,7 @@ interface ConvertedAttackActivatedEffectsInput {
   readonly createdOnTurn: number;
   readonly effects: ReturnType<typeof successfulMoveEffects>;
   readonly defeated: boolean;
+  readonly sourceReference?: import("./contracts.js").CombatSourceReference;
 }
 
 const activeCombatResultEffectsFromApplications = (
@@ -11641,6 +11927,7 @@ const convertedAttackActivatedEffects = ({
   createdOnTurn,
   effects,
   defeated,
+  sourceReference,
   // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 }: ConvertedAttackActivatedEffectsInput) => {
   const suppressions = effects.suppressions
@@ -12083,9 +12370,13 @@ const convertedAttackActivatedEffects = ({
     ...moveRemovals,
     ...moveEffectReplacements,
   ];
+  const sourceAwareAdditions =
+    sourceReference === undefined
+      ? additions
+      : additions.map((effect) => ({ ...effect, sourceReference }));
   return resolveActiveEffectConflicts(
     [],
-    additions.map((effect) => activeEffectWithDefinitionPolicy(effect, move)),
+    sourceAwareAdditions.map((effect) => activeEffectWithDefinitionPolicy(effect, move)),
   ).effects;
 };
 
@@ -12101,10 +12392,7 @@ const powerUpTriggeredEffects = (
   } = {},
 ) => {
   const moves = new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate]));
-  const sourceCandidates: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
-    const move = moves.get(moveId);
-    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
-  });
+  const sourceCandidates: CombatTriggerSource[] = [...combatTriggerSourcesFor(actor, "self")];
   for (const effect of state.activeEffects) {
     if (
       effect.type === "active-constant" &&
@@ -12202,10 +12490,7 @@ const startCombatTriggeredEffects = (
       mode: state.mode,
       collectPendingChoices: true,
     };
-    const sources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
-      const move = moves.get(moveId);
-      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
-    });
+    const sources: CombatTriggerSource[] = [...combatTriggerSourcesFor(actor, "self")];
     return dispatchCombatTriggerSourceResults("start-combat", sources, (source) => {
       const choiceFrame = upkeepEffectChoiceFrameFor(state, actor.id, source.move.id);
       return {
@@ -12329,8 +12614,11 @@ const activeEffectsFromTriggered = (
   }[],
   dependencies: CombatDependencies,
 ) =>
-  triggered.flatMap(({ sourceMove, actor, target, effects }) =>
-    convertedAttackActivatedEffects({
+  triggered.flatMap(({ sourceMove, actor, target, effects }) => {
+    const sourceReference = combatTriggerSourcesFor(actor, "self").find(
+      (source) => source.move.id === sourceMove.id,
+    )?.source;
+    return convertedAttackActivatedEffects({
       state,
       dependencies,
       attacker: actor,
@@ -12339,8 +12627,9 @@ const activeEffectsFromTriggered = (
       createdOnTurn: state.turnNumber,
       effects,
       defeated: false,
-    }),
-  );
+      sourceReference,
+    });
+  });
 
 const turnEndTriggeredEffects = (
   state: ActiveFightState,
@@ -12351,10 +12640,7 @@ const turnEndTriggeredEffects = (
       (candidate) => candidate.id !== actor.id && candidate.status === "active",
     );
     if (target === undefined) return [];
-    const triggerSources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
-      const move = moves.get(moveId);
-      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
-    });
+    const triggerSources: CombatTriggerSource[] = [...combatTriggerSourcesFor(actor, "self")];
     for (const effect of state.activeEffects) {
       if (
         effect.type === "active-constant" &&
@@ -12470,10 +12756,7 @@ const upkeepTriggeredEffects = (
       activeEffects: state.activeEffects,
       mode: state.mode,
     };
-    const triggerSources: CombatTriggerSource[] = actor.moveIds.flatMap((moveId) => {
-      const move = moves.get(moveId);
-      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
-    });
+    const triggerSources: CombatTriggerSource[] = [...combatTriggerSourcesFor(actor, "self")];
     for (const effect of state.activeEffects) {
       if (
         effect.type === "active-constant" &&
@@ -12534,6 +12817,9 @@ const requestUpkeepEffectChoice = (
     returnPhase: "upkeep",
     pendingDecisionId,
     sourceDefinitionId: entry.sourceMove.id,
+    sourceReference: combatTriggerSourcesFor(entry.actor, "self").find(
+      (source) => source.move.id === entry.sourceMove.id,
+    )?.source ?? { kind: "move", definitionId: entry.sourceMove.id },
     sourceCombatantId: entry.actor.id,
     effectIndices: choice.effectIndices,
     effectTrigger,
@@ -14821,6 +15107,14 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
   const attackEffectContext = convertedAttackEffectContextForAction(effectContext, input, move);
   const beforeAttackEffects = mergeMoveEffects(
     moveEffectsForTrigger(move, "before-attack-roll", attackEffectContext),
+    ...combatTriggerSourcesFor(attacker, "self")
+      .filter((source) => source.source?.kind !== "move")
+      .map((source) =>
+        moveEffectsForTrigger(source.move, "before-attack-roll", {
+          ...attackEffectContext,
+          sourceReference: source.source,
+        }),
+      ),
     ...(input.beforeAttackEffectSourceDefinitionId === undefined ||
     input.selectedBeforeAttackEffects === undefined
       ? []
@@ -15086,6 +15380,17 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
   if (pendingDamageTransition !== undefined) return pendingDamageTransition;
   const defensiveDamageModifications = [
     ...(input.selectedBeforeDefenseDamageModifications ?? []),
+    ...innatePassiveEffectsFor(target, attacker, move, {
+      ...damageEffectContext,
+      self: target,
+      opponent: attacker,
+      triggeringMove: move,
+      triggeringMoveOwner: "self",
+    }).damageModifications.filter(
+      (modification) =>
+        modification.target === "self" &&
+        (modification.scope === undefined || modification.scope === "current-action"),
+    ),
     ...defensiveOnDamageModificationsForAttack(
       input,
       attacker,
@@ -16606,7 +16911,8 @@ const resolveBasicAttack = (
     requestDefense &&
     (legalBlockMoves(state, target.id, blockableAttack).length > 0 ||
       availablePreRollDefenseItems(target).length > 0 ||
-      hasPostDefenseReaction(state, target.id))
+      hasPostDefenseReaction(state, target.id) ||
+      hasOnRollResultRerollDefinition(state, attacker.id))
   ) {
     return requestAttackDefense({
       state,
@@ -17175,15 +17481,27 @@ export const enumerateLegalDecisions = (
   state: CombatTransition["state"],
   combatantId: CombatantId,
 ): readonly LegalDecision[] => {
-  if (state.schemaVersion !== 3 || state.scheduledWork === undefined)
+  if (state.schemaVersion !== 4 || state.scheduledWork === undefined)
     return enumerateLegalDecisions(normalizeLegacyFightState(state), combatantId);
   if (
     state.status !== "active" ||
     (state.phase !== "action" && state.phase !== "counter" && state.phase !== "upkeep") ||
-    state.pendingDecision !== undefined ||
     state.activeCombatantId !== combatantId
   )
     return [];
+  if (state.pendingDecision !== undefined) {
+    const pending = state.pendingDecision;
+    const hasResolvableFrame = state.resolutionFrames.some(
+      (frame) => "pendingDecisionId" in frame && frame.pendingDecisionId === pending.id,
+    );
+    const resolvable =
+      pending.type === "defense-response" ||
+      pending.type === "post-defense-roll" ||
+      hasResolvableFrame;
+    return pending.combatantId === combatantId && resolvable
+      ? enumeratePendingLegalDecisions(state.pendingDecision)
+      : [];
+  }
   const opponentId = nextActiveCombatantId(state);
   if (opponentId === undefined) return [];
   const unlockedDecisions = unlockedLegalDecisions(
@@ -18495,7 +18813,7 @@ const advanceFightInternal = (
   state: CombatTransition["state"],
   dependencies: CombatDependencies,
 ): CombatResult<CombatTransition> => {
-  if (state.schemaVersion !== 3 || state.scheduledWork === undefined)
+  if (state.schemaVersion !== 4 || state.scheduledWork === undefined)
     return advanceFightInternal(normalizeLegacyFightState(state), dependencies);
   const invalidState = currentStateFailure(state);
   if (invalidState !== undefined) return { ok: false, error: invalidState };
@@ -20920,9 +21238,7 @@ const availablePostDefenseRerolls = (
   rolls: readonly AttackDieRoll[],
 ): readonly PostDefenseRerollChoice[] => {
   const attackMove = pendingAttackMove(frame.attack);
-  return state.combatants[combatantId].moveIds.flatMap((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
-    if (move === undefined) return [];
+  return combatTriggerSourcesFor(state.combatants[combatantId], "self").flatMap(({ move }) => {
     if (
       state.activeEffects.some(
         (effect) =>
@@ -20965,6 +21281,12 @@ const availablePostDefenseRerolls = (
           !hasPriorSourceResult(state, combatantId, application)
         )
           return [];
+        const useKey = `${application.sourceDefinitionId}:${application.useLimitGroup ?? application.effectIndex}`;
+        if (
+          application.useLimit?.scope === "turn" &&
+          state.combatants[combatantId].effectUseTurns?.[useKey] === state.turnNumber
+        )
+          return [];
         const withEffectLimit = reactionSkillAvailability(
           state,
           combatantId,
@@ -20993,11 +21315,14 @@ const availablePostDefenseRerolls = (
 const rerollOptionId = (choice: PostDefenseRerollChoice) =>
   `activate-reroll:${choice.move.id}:${choice.application.effectIndex}:${choice.dieIndex ?? "all"}`;
 
-const rerollOptions = (choices: readonly PostDefenseRerollChoice[]) =>
+const rerollOptions = (
+  choices: readonly PostDefenseRerollChoice[],
+  ownedMoveIds: readonly MoveId[],
+) =>
   choices.map((choice) => ({
     id: rerollOptionId(choice),
     type: "activate-effect" as const,
-    moveId: choice.move.id,
+    ...(ownedMoveIds.includes(choice.move.id) ? { moveId: choice.move.id } : {}),
   }));
 
 const postDefenseFrameRolls = (
@@ -21047,6 +21372,7 @@ const hasPostDefenseReactionPotential = (
     availablePostRollDefenseItems(defender).length > 0 ||
     hasActiveConstant(state, defender.id, "move-aoyosumu-close-shave") ||
     hasPostDefenseRerollPotential(state, defender.id, "defense", move) ||
+    hasOnRollResultRerollDefinition(state, defender.id) ||
     hasRerollDefinition(defender) ||
     eligibleRerollsForPostDefense(state, frame).some(
       (effect) => effect.targetCombatantId === defender.id,
@@ -21054,6 +21380,7 @@ const hasPostDefenseReactionPotential = (
     hasCounterActionPotential(state, defender.id) ||
     hasCombatResultReactionPotential(state, frame) ||
     hasPostDefenseRerollPotential(state, attacker.id, "attack", move) ||
+    hasOnRollResultRerollDefinition(state, attacker.id) ||
     hasRerollDefinition(attacker) ||
     eligibleRerollsForPostDefense(state, frame).some(
       (effect) => effect.targetCombatantId === attacker.id,
@@ -21590,7 +21917,7 @@ const postDefenseReaction = (
     ...combatResultReactionOptions(state, frame, defender.id, resolvedRolls),
     ...combatResultNegationOptions(state, frame, defender.id, resolvedRolls),
     ...closeShaveReactionOptions(state, defender.id),
-    ...rerollOptions(defenderRerolls),
+    ...rerollOptions(defenderRerolls, defender.moveIds),
     ...rerollOptionsForCombatant(state, frame, rolls, defender.id),
     ...counterActionOptionsForCombatant(state, frame, rolls, defender.id),
     ...availablePostRollDefenseItems(defender).map(({ item }) => ({
@@ -21610,7 +21937,7 @@ const postDefenseReaction = (
     "attack",
     resolvedRolls,
   );
-  attackerOptions.push(...rerollOptions(attackerRerolls));
+  attackerOptions.push(...rerollOptions(attackerRerolls, attacker.moveIds));
   attackerOptions.push(...counterActionOptionsForCombatant(state, frame, rolls, attacker.id));
   attackerOptions.push(
     ...postDefenseEffectChoices(state, frame, rolls).map((choice) => ({
@@ -21946,12 +22273,20 @@ const postDefenseReactionState = (
     ...(reroll?.application.useLimit === undefined
       ? {}
       : {
-          [`${reroll.application.sourceDefinitionId}:${reroll.application.effectIndex}`]:
+          [`${reroll.application.sourceDefinitionId}:${reroll.application.useLimitGroup ?? reroll.application.effectIndex}`]:
             (actor.effectUseCounts?.[
-              `${reroll.application.sourceDefinitionId}:${reroll.application.effectIndex}`
+              `${reroll.application.sourceDefinitionId}:${reroll.application.useLimitGroup ?? reroll.application.effectIndex}`
             ] ?? 0) + 1,
         }),
   };
+  const rerollUseKey =
+    reroll?.application.useLimit === undefined
+      ? undefined
+      : `${reroll.application.sourceDefinitionId}:${reroll.application.useLimitGroup ?? reroll.application.effectIndex}`;
+  const effectUseTurns =
+    reroll?.application.useLimit?.scope !== "turn" || rerollUseKey === undefined
+      ? actor.effectUseTurns
+      : { ...(actor.effectUseTurns ?? {}), [rerollUseKey]: baseState.turnNumber };
   const opponentId = Object.values(baseState.combatants).find(
     (combatant) => combatant.id !== actorId,
   )?.id;
@@ -21996,6 +22331,7 @@ const postDefenseReactionState = (
         ki: { ...actor.ki, current: actor.ki.current - (reactionKiCost ?? 0) },
         moveUses,
         ...(Object.keys(effectUseCounts).length === 0 ? {} : { effectUseCounts }),
+        ...(effectUseTurns === undefined ? {} : { effectUseTurns }),
       },
     },
     activeEffects,
@@ -22066,7 +22402,10 @@ const requestAttackerPostDefenseReaction = (
   const options = combatResultReactionOptions(state, frame, attacker.id, rolls);
   options.push(...combatResultNegationOptions(state, frame, attacker.id, rolls));
   options.push(
-    ...rerollOptions(availablePostDefenseRerolls(state, frame, attacker.id, "attack", rolls)),
+    ...rerollOptions(
+      availablePostDefenseRerolls(state, frame, attacker.id, "attack", rolls),
+      state.combatants[attacker.id].moveIds,
+    ),
   );
   options.push(
     ...postDefenseEffectChoices(state, frame, rolls).map((choice) => ({
@@ -24106,6 +24445,9 @@ const activeRerollFromApplication = (
     ...(application.activationCost === undefined
       ? {}
       : { activationCost: application.activationCost }),
+    ...(application.useLimitGroup === undefined
+      ? {}
+      : { useLimitGroup: application.useLimitGroup }),
     duration,
     ...(application.useLimit === undefined
       ? {}
@@ -25758,6 +26100,24 @@ const resolveTransformationActivation = (
   }
   const freeTransformationAction = (combatant.freeTransformationActions ?? 0) > 0;
   const transformed = applyTransformation(combatant, transformation);
+  const opponent = Object.values(state.combatants).find(
+    (candidate) => candidate.id !== combatant.id,
+  );
+  if (opponent === undefined)
+    return { ok: false, error: { type: "illegal-decision", decisionType: decision.type } };
+  const transformedCapacity = slotCapacityStateFor(
+    state,
+    {
+      ...transformed.combatant,
+      transformation: { transformationId: transformation.id, activatedOnTurn: state.turnNumber },
+    },
+    opponent,
+  );
+  const transformedWithInnateCapacity = {
+    ...transformed.combatant,
+    slotCapacities: transformedCapacity.capacities,
+    slotCapacityModifications: transformedCapacity.modifications,
+  };
   const remainingFreeTransformationActions = Math.max(
     0,
     (combatant.freeTransformationActions ?? 0) - (freeTransformationAction ? 1 : 0),
@@ -25771,7 +26131,7 @@ const resolveTransformationActivation = (
     combatants: {
       ...state.combatants,
       [combatant.id]: {
-        ...transformed.combatant,
+        ...transformedWithInnateCapacity,
         ...(remainingFreeTransformationActions === 0
           ? { freeTransformationActions: undefined }
           : { freeTransformationActions: remainingFreeTransformationActions }),
@@ -29707,7 +30067,7 @@ const submitCombatDecisionInternal = (
           optionId: inputDecision.selectedOptionIds?.[0] ?? "",
         } as CombatDecision)
       : (inputDecision as CombatDecision);
-  if (state.schemaVersion !== 3 || state.scheduledWork === undefined)
+  if (state.schemaVersion !== 4 || state.scheduledWork === undefined)
     return submitCombatDecisionInternal(normalizeLegacyFightState(state), decision, dependencies);
   const invalidState = currentStateFailure(state);
   if (invalidState !== undefined) return { ok: false, error: invalidState };

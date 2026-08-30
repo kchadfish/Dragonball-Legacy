@@ -80,7 +80,7 @@ describe("createFight", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const combatant = result.value.state.combatants[firstCombatantId];
-    expect(result.value.state.schemaVersion).toBe(3);
+    expect(result.value.state.schemaVersion).toBe(4);
     expect(combatant).toMatchObject({
       raceId: "race-humans",
       transformationProfiles: [
@@ -142,7 +142,7 @@ describe("createFight", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const combatant = result.value.state.combatants[firstCombatantId];
-    expect(result.value.state.schemaVersion).toBe(3);
+    expect(result.value.state.schemaVersion).toBe(4);
     expect(combatant.transformationProfiles).toEqual([
       {
         transformationId: "transformation-humans-1-high-tension",
@@ -183,6 +183,122 @@ describe("createFight", () => {
     expect(result).toMatchObject({ ok: false, error: { type: "invalid-fight-setup" } });
   });
 
+  it("accepts cross-race trait snapshots and validates selected trait/class identity", () => {
+    const valid = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            raceId: "race-humans",
+            raceTraitIds: ["race-trait-saiyans-saiyan-might"],
+            classId: "generic-class-weaponmaster",
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    expect(valid.ok).toBe(true);
+    if (valid.ok)
+      expect(valid.value.state.combatants[firstCombatantId]).toMatchObject({
+        raceTraitIds: ["race-trait-saiyans-saiyan-might"],
+        classId: "generic-class-weaponmaster",
+      });
+
+    const duplicateTrait = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            raceTraitIds: ["race-trait-saiyans-saiyan-might", "race-trait-saiyans-saiyan-might"],
+            classId: "generic-class-weaponmaster",
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    expect(duplicateTrait).toMatchObject({ ok: false, error: { type: "invalid-fight-setup" } });
+    if (!duplicateTrait.ok && duplicateTrait.error.type === "invalid-fight-setup")
+      expect(duplicateTrait.error.issues.map((issue) => issue.message)).toEqual([
+        "Race trait IDs must not contain duplicates.",
+      ]);
+
+    const unknownClass = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            raceTraitIds: ["race-trait-saiyans-saiyan-might"],
+            classId: "generic-class-does-not-exist",
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    expect(unknownClass).toMatchObject({ ok: false, error: { type: "invalid-fight-setup" } });
+    if (!unknownClass.ok && unknownClass.error.type === "invalid-fight-setup")
+      expect(unknownClass.error.issues.map((issue) => issue.message)).toEqual([
+        "Unknown class ID: generic-class-does-not-exist.",
+      ]);
+  });
+
+  it("applies selected innate start-combat resources through the public transition", () => {
+    const createdFight = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            raceId: "race-namek",
+            raceTraitIds: ["race-trait-namek-meditative-preparation"],
+          },
+          input.combatants[1],
+        ],
+      },
+      createDependencies(),
+    );
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+    const advanced = advanceFight(createdFight.value.state, createDependencies());
+    expect(advanced).toMatchObject({ ok: true });
+    if (advanced.ok) expect(advanced.value.state.combatants[firstCombatantId].ki.current).toBe(7);
+  });
+
+  it("resolves selected start-combat stored rolls before thresholded Ki setup", () => {
+    const dependencies = createTestCombatDependencies([5], new Date("2026-08-04T12:00:00.000Z"), {
+      fightIds: [fightIdSchema.parse("fight:demonic-potential")],
+      combatantIds: [firstCombatantId, secondCombatantId],
+      eventIds: [
+        combatEventIdSchema.parse("event:demonic-potential-start"),
+        combatEventIdSchema.parse("event:demonic-potential-turn"),
+      ],
+    });
+    const result = createFight(
+      {
+        ...input,
+        combatants: [
+          {
+            ...input.combatants[0],
+            raceId: "race-makaioshin",
+            raceTraitIds: ["race-trait-makaioshin-demonic-potential"],
+          },
+          input.combatants[1],
+        ],
+      },
+      dependencies,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.state.combatants[firstCombatantId].ki.current).toBe(10);
+    expect(
+      result.value.state.combatants[firstCombatantId].storedRolls?.["demonic-potential-start-roll"],
+    ).toMatchObject({ naturalResults: [5], sides: 10 });
+  });
+
   it("normalizes a legacy snapshot without a schema marker at the public boundary", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
@@ -191,7 +307,7 @@ describe("createFight", () => {
     const result = advanceFight(legacyState, createDependencies());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.state.schemaVersion).toBe(3);
+    expect(result.value.state.schemaVersion).toBe(4);
   });
 
   it("migrates scheduling-only v1 effects into queued work at the public boundary", () => {
@@ -222,7 +338,7 @@ describe("createFight", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.state).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       activeEffects: [],
       scheduledWork: [
         expect.objectContaining({
@@ -298,7 +414,7 @@ describe("createFight", () => {
       value: {
         state: {
           id: fightIdSchema.parse("fight:opening-spar"),
-          schemaVersion: 3,
+          schemaVersion: 4,
           version: 0,
           rulesVersion: { value: "legacy-reference-2026-08", sourcePath: "reference/rules.md" },
           mode: "spar",
@@ -715,7 +831,7 @@ describe("validateFightState", () => {
         ...createdFight.value.state,
         schemaVersion: 4,
       } as unknown as FightState),
-    ).toContainEqual(expect.objectContaining({ type: "invalid-schema-version" }));
+    ).not.toContainEqual(expect.objectContaining({ type: "invalid-schema-version" }));
   });
 
   it("rejects malformed scheduled work before a transition can use it", () => {

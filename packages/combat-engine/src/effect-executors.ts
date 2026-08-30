@@ -90,6 +90,7 @@ export const registeredEffectTypes = [
   "modify-damage-reduction-cost",
   "resolve-contest",
   "require-transformation-roll",
+  "prevent-transformation-reversion",
 ] as const satisfies readonly EffectDefinition["type"][];
 
 export type RegisteredEffectType = (typeof registeredEffectTypes)[number];
@@ -608,6 +609,7 @@ const commonIssues = <T extends RegisteredEffectDefinition>(
     effect.type !== "modify-roll" &&
     effect.type !== "activate" &&
     effect.type !== "apply-status" &&
+    effect.type !== "roll-and-store" &&
     !(
       effect.type === "modify-cost" &&
       effect.operation === "set" &&
@@ -1317,6 +1319,7 @@ const modifyDamageUseLimitIssues = (
   if (effect.useLimit === undefined) return [];
   const issues: EffectCompilationIssue[] = [];
   if (
+    effect.trigger !== "start-combat" &&
     effect.trigger !== "action-phase" &&
     effect.trigger !== "upkeep-phase" &&
     !(effect.trigger === "on-damage" && effect.activationCost !== undefined)
@@ -2397,7 +2400,12 @@ const modifyStatIssues = (
         `Stat duration ${effect.duration.type} is not supported by this executor slice.`,
       ),
     );
-  if (effect.scope === undefined && effect.duration === undefined)
+  const permanentPassive =
+    effect.trigger === "passive" &&
+    effect.target === "self" &&
+    effect.scope === undefined &&
+    effect.duration === undefined;
+  if (effect.scope === undefined && effect.duration === undefined && !permanentPassive)
     issues.push(
       issue(
         "unsupported-variant",
@@ -3447,7 +3455,10 @@ const residualExecutorIssues = (
           condition.resource === "hp" &&
           condition.value.type === "resource-percent" &&
           condition.value.percent === 50,
-      ));
+      )) ||
+    (effect.type === "prevent-transformation-reversion" &&
+      effect.trigger === "passive" &&
+      effect.target === "self");
   const catalogIdentity =
     (effect.type === "grant-destruction-mastery" &&
       sourceDefinitionId === "move-kiihakai-destruction-mastery" &&
@@ -3927,7 +3938,7 @@ const setStatComparisonIssues = (
   );
   const issues = commonIssues(effect, sourceDefinitionId, effectIndex);
   if (!(
-    (effect.trigger === "upkeep-phase" &&
+    ((effect.trigger === "passive" || effect.trigger === "upkeep-phase") &&
       effect.target === "self" &&
       effect.left === "self" &&
       effect.right === "opponent" &&
@@ -4272,13 +4283,18 @@ const rollAndStoreIssues = (
         "Stored rolls are owned by the source combatant.",
       ),
     );
-  if (effect.trigger !== "action-phase" && effect.trigger !== "upkeep-phase")
+  if (
+    effect.trigger !== "action-phase" &&
+    effect.trigger !== "upkeep-phase" &&
+    effect.trigger !== "on-damage" &&
+    effect.trigger !== "start-combat"
+  )
     issues.push(
       issue(
         "unsupported-trigger",
         sourceDefinitionId,
         effectIndex,
-        "Stored rolls currently resolve during action or upkeep phases.",
+        "Stored rolls currently resolve during combat setup, action, or upkeep phases.",
       ),
     );
   if (!Number.isInteger(effect.dice) || effect.dice < 1)
@@ -5182,16 +5198,18 @@ const modifyMoveClassificationIssues = (
     );
   })();
   const durableDeclaredStyle =
-    effect.trigger === "on-success" &&
+    (effect.trigger === "on-success" || effect.trigger === "passive") &&
     effect.target === "self" &&
     effect.scope === undefined &&
     effect.replaceStyle === "declared-style" &&
     effect.addTags === undefined &&
     effect.setStyleId === undefined &&
     durableSelector &&
-    effect.duration?.type === "turns" &&
-    effect.duration.turns.type === "literal" &&
-    effect.duration.turns.value === 4;
+    ((effect.trigger === "on-success" &&
+      effect.duration?.type === "turns" &&
+      effect.duration.turns.type === "literal" &&
+      effect.duration.turns.value === 4) ||
+      (effect.trigger === "passive" && effect.duration === undefined));
   const startCombatStyleSelection =
     effect.trigger === "start-combat" &&
     effect.target === "self" &&
@@ -5563,11 +5581,17 @@ const endFloatingIssues = (
     effect.conditions[0]?.type === "combat-result" &&
     effect.conditions[0].actor === "self" &&
     effect.conditions[0].result === "successful";
+  const powerUpSelfCleanup =
+    effect.trigger === "on-power-up" &&
+    effect.target === "self" &&
+    effect.selector === "self" &&
+    effect.conditions === undefined;
   if (
-    effect.trigger !== "on-success" ||
-    effect.target !== "opponent" ||
-    effect.selector !== "any" ||
-    !exactCondition
+    !powerUpSelfCleanup &&
+    (effect.trigger !== "on-success" ||
+      effect.target !== "opponent" ||
+      effect.selector !== "any" ||
+      !exactCondition)
   )
     issues.push(
       issue(
@@ -5903,6 +5927,11 @@ export const effectExecutorRegistry = {
   ),
   "require-transformation-roll": createExecutor(
     "require-transformation-roll",
+    (effect, sourceDefinitionId, effectIndex) =>
+      residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
+  ),
+  "prevent-transformation-reversion": createExecutor(
+    "prevent-transformation-reversion",
     (effect, sourceDefinitionId, effectIndex) =>
       residualExecutorIssues(effect as RegisteredEffectDefinition, sourceDefinitionId, effectIndex),
   ),

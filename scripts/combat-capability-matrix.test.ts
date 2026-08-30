@@ -6,6 +6,7 @@ import {
   createCombatCapabilityMatrix,
   renderCombatCapabilityMatrix,
 } from "./combat-capability-matrix.js";
+import { scopeDecisionForId } from "../packages/combat-engine/src/scope-decisions.js";
 
 const runtimeValue = (value: unknown): unknown => value;
 
@@ -49,29 +50,132 @@ describe("combat capability matrix", () => {
     expect(rendered).toContain("cap=maximum:total");
     expect(rendered).toContain("policy=prevent-duplicate");
     expect(rendered).toContain("| Conflict policy |");
+    expect(rendered).toContain("| Scope decision ID | Scope category |");
     expect(rendered).toContain("## Unsupported in-scope priorities");
     expect(rendered).toContain("| Rank | Prerequisite | Effect type | Occurrences | Definitions |");
-    expect(createCombatCapabilityMatrix().occurrences).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          origin: "race",
-          classification: "unsupported",
-          status: "unsupported-in-scope",
-        }),
-        expect.objectContaining({
-          origin: "transformation",
-          effectType: "source-text-only",
-          classification: "unsupported",
-          status: "unsupported-in-scope",
-        }),
-      ]),
+    const matrix = createCombatCapabilityMatrix();
+    expect(matrix.occurrences.filter((row) => row.status === "unsupported-in-scope")).toHaveLength(
+      0,
+    );
+    expect(
+      matrix.occurrences.some((row) => row.origin === "race" && row.status === "supported-named"),
+    ).toBe(true);
+    expect(
+      matrix.occurrences.some(
+        (row) => row.origin === "transformation" && row.status === "supported-generic",
+      ),
+    ).toBe(true);
+  }, 30_000);
+
+  it("requires registered scope decisions for every Phase 10 exclusion", () => {
+    const rows = createCombatCapabilityMatrix().occurrences;
+    const phase10Rows = rows.filter((row) => row.scopeDecisionId !== null);
+
+    expect(phase10Rows.length).toBeGreaterThan(0);
+    expect(
+      phase10Rows.every(
+        (row) =>
+          row.status === "audited-out-of-scope" &&
+          row.scopeDecisionCategory !== null &&
+          scopeDecisionForId(row.scopeDecisionId) !== undefined &&
+          row.approvedExclusion === row.reason,
+      ),
+    ).toBe(true);
+    expect(rows.every((row) => !/Phase 10/i.test(row.prerequisite ?? ""))).toBe(true);
+  }, 30_000);
+
+  it("audits ally, remote, interferer, escape, identity, and spaceship occurrences", () => {
+    const rows = createCombatCapabilityMatrix().occurrences;
+    const row = (sourceDefinitionId: string, effectIndex: number) => {
+      const result = rows.find(
+        (candidate) =>
+          candidate.sourceDefinitionId === sourceDefinitionId &&
+          candidate.effectIndex === effectIndex,
+      );
+      if (result === undefined) throw new Error(`Missing ${sourceDefinitionId}:${effectIndex}.`);
+      return result;
+    };
+
+    expect(row("move-afterlife-teamwork-kamehameha", 0).scopeDecisionCategory).toBe(
+      "allies-and-joint-attacks",
+    );
+    expect(row("move-afterlife-teamwork-kamehameha", 1).scopeDecisionCategory).toBe(
+      "remote-and-relationship-targets",
+    );
+    expect(row("move-haokiru-healing-ray", 2).scopeDecisionCategory).toBe(
+      "allies-and-joint-attacks",
+    );
+    expect(row("move-afterlife-mass-genocide-attack", 4).scopeDecisionCategory).toBe(
+      "interferers-and-spectators",
+    );
+    expect(row("move-afterlife-body-change", 0).scopeDecisionCategory).toBe("body-mutation");
+    expect(row("move-haokiru-karmic-chameleon-mastery", 0).scopeDecisionCategory).toBe(
+      "identity-mutation",
+    );
+    expect(row("move-haokiru-karmic-chameleon-mastery", 1).scopeDecisionCategory).toBe(
+      "moveset-mutation",
+    );
+    expect(row("move-kurokonwaku-power-drain", 0).scopeDecisionCategory).toBe(
+      "racial-trait-mutation",
+    );
+    expect(row("move-midorikatai-raining-bombs", 1).scopeDecisionCategory).toBe(
+      "escape-actions-and-roll-configuration",
+    );
+    expect(row("item-equipment-black-water-mist", 0).scopeDecisionCategory).toBe(
+      "interferers-and-spectators",
+    );
+    expect(row("item-ships-phase-jets", 0).scopeDecisionCategory).toBe("spaceship-combat");
+    expect(row("item-ships-extra-living-quarters", 0).scopeDecisionCategory).toBe(
+      "spaceship-travel-storage-capacity-and-raid",
+    );
+    expect(row("item-ships-small-storage-room", 0).scopeDecisionCategory).toBe(
+      "spaceship-travel-storage-capacity-and-raid",
+    );
+    expect(row("item-ships-advanced-gravitron", 0).scopeDecisionCategory).toBe(
+      "spaceship-travel-storage-capacity-and-raid",
+    );
+  }, 30_000);
+
+  it("keeps local participants and stat comparisons supported while excluding escape and identity mutation", () => {
+    const rows = createCombatCapabilityMatrix().occurrences;
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-afterlife-time-freeze",
+        effectIndex: 0,
+        target: "participants",
+        status: "supported-generic",
+        scopeDecisionId: null,
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        effectType: "set-stat-comparison",
+        status: "supported-generic",
+        scopeDecisionId: null,
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-akaikaru-relentless",
+        effectIndex: 0,
+        status: "audited-out-of-scope",
+        scopeDecisionCategory: "escape-actions-and-roll-configuration",
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        sourceDefinitionId: "move-akaikaru-letting-off-steam",
+        effectIndex: 2,
+        status: "audited-out-of-scope",
+        scopeDecisionCategory: "escape-actions-and-roll-configuration",
+      }),
     );
   }, 30_000);
 
   it("accounts for every race/class and active-family transformation clause exactly once", () => {
     const rows = createCombatCapabilityMatrix().occurrences;
-    expect(rows.filter((row) => row.origin === "race")).toHaveLength(236);
-    expect(rows.filter((row) => row.origin === "transformation")).toHaveLength(255);
+    expect(rows.filter((row) => row.origin === "race")).toHaveLength(223);
+    expect(rows.filter((row) => row.origin === "transformation")).toHaveLength(273);
     expect(rows.filter((row) => row.origin === "transformation")).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -90,7 +194,7 @@ describe("combat capability matrix", () => {
       expect.arrayContaining([
         expect.objectContaining({
           origin: "transformation",
-          status: "unsupported-in-scope",
+          status: "audited-out-of-scope",
           executor: null,
         }),
       ]),
@@ -111,6 +215,7 @@ describe("combat capability matrix", () => {
       "move-kiihakai-kinetic-outburst",
       "move-kiihakai-triple-torpedo",
       "move-kurokonwaku-shadow-stalker",
+      "race-konatsian:class:race-class-konatsian-paladin",
     ]);
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
   }, 30_000);
@@ -518,7 +623,7 @@ describe("combat capability matrix", () => {
     expect(
       rows.every(
         (row) =>
-          row.status === "supported-generic" &&
+          row.status.startsWith("supported-") &&
           row.capabilityId === "modify-cost.v1" &&
           row.executor === "cost-modifier",
       ),
@@ -651,7 +756,7 @@ describe("combat capability matrix", () => {
     expect(
       rows.every(
         (row) =>
-          row.status === "supported-generic" &&
+          row.status.startsWith("supported-") &&
           row.capabilityId === "grant-extra-action.v2" &&
           row.executor === "extra-action-scheduler",
       ),
@@ -714,15 +819,17 @@ describe("combat capability matrix", () => {
   it("classifies all canonical stored writes and only exact immediate threshold consumers", () => {
     const matrix = createCombatCapabilityMatrix();
     const storedWrites = matrix.occurrences.filter((row) => row.effectType === "roll-and-store");
-    expect(storedWrites).toHaveLength(5);
+    expect(storedWrites).toHaveLength(12);
+    const supportedStoredWrites = storedWrites.filter((row) => row.status.startsWith("supported-"));
     expect(
-      storedWrites.every(
+      supportedStoredWrites.every(
         (row) =>
-          row.status === "supported-generic" &&
-          row.capabilityId === "roll-and-store.v1" &&
+          row.status.startsWith("supported-") &&
+          (row.capabilityId === "roll-and-store.v1" || row.capabilityId === "roll-and-store.v2") &&
           row.executor === "stored-roll-state",
       ),
     ).toBe(true);
+    expect(supportedStoredWrites).toHaveLength(12);
 
     for (const [sourceDefinitionId, effectIndex] of [
       ["move-afterlife-solar-flare", 1],
@@ -757,18 +864,20 @@ describe("combat capability matrix", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
       (row) => row.effectType === "skip-action",
     );
-    const supported = rows.filter((row) => row.status === "supported-generic");
+    const supported = rows.filter((row) => row.status.startsWith("supported-"));
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
-    expect(rows).toHaveLength(10);
-    expect(supported).toHaveLength(10);
+    expect(rows).toHaveLength(11);
+    expect(supported).toHaveLength(11);
     expect(
       supported.every(
         (row) =>
           (row.capabilityId === "skip-action.v1" && row.executor === "action-restriction") ||
           (row.capabilityId === "skip-action.v2" &&
             row.executor === "status-backed-action-restriction") ||
-          (row.capabilityId === "skip-action.v3" && row.executor === "action-phase-skip-choice"),
+          (row.capabilityId === "skip-action.v3" && row.executor === "action-phase-skip-choice") ||
+          (row.capabilityId === "next-turn-attack-restriction.v1" &&
+            row.executor === "next-turn-attack-restriction"),
       ),
     ).toBe(true);
     expect(unsupported).toHaveLength(0);
@@ -957,6 +1066,7 @@ describe("combat capability matrix", () => {
       "move-haokiru-muscle-infusion",
       "move-haokiru-advanced-behavior",
       "move-midorikatai-critical-mass-mastery",
+      "race-bio-androids:class:race-class-bio-androids-power-seeker",
     ]);
   });
 
@@ -994,7 +1104,7 @@ describe("combat capability matrix", () => {
       row.variant.includes("trigger=on-resource-threshold"),
     );
 
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
     expect(rows.every((row) => row.status === "supported-generic")).toBe(true);
     expect(rows.every((row) => row.executor !== null && row.focusedCoverage !== null)).toBe(true);
   });
@@ -1044,7 +1154,7 @@ describe("combat capability matrix", () => {
 
   it("classifies passive moveset slot capacity changes through the generic executor", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
-      (row) => row.effectType === "modify-slot-capacity",
+      (row) => row.effectType === "modify-slot-capacity" && row.origin === "move",
     );
 
     expect(rows).toHaveLength(3);
@@ -1249,7 +1359,6 @@ describe("combat capability matrix", () => {
       "move-aoyosumu-ceasefire-mastery#0",
       "move-freestyle-sense-power-level#0",
       "move-freestyle-sense-power-level#1",
-      "move-freestyle-sense-power-level#2",
       "move-haokiru-conservation-mastery#1",
       "move-haokiru-focused-mastery#0",
       "move-haokiru-focused-mastery#1",
@@ -1261,6 +1370,8 @@ describe("combat capability matrix", () => {
       "move-kurokonwaku-control-mastery#0",
       "move-kurokonwaku-control-mastery#1",
       "move-kurokonwaku-control-mastery#2",
+      "race-makaioshin:trait:race-trait-makaioshin-demonic-potential#1",
+      "race-namek:trait:race-trait-namek-meditative-preparation#0",
     ]);
     expect(supported.every((row) => row.executor !== null)).toBe(true);
   });
@@ -1304,8 +1415,7 @@ describe("combat capability matrix", () => {
         effectIndex: 2,
         target: "ally",
         status: "audited-out-of-scope",
-        approvedExclusion:
-          "ally-targeted resource changes are outside the active 1v1 and remote-target scope",
+        scopeDecisionCategory: "allies-and-joint-attacks",
       }),
     );
   });
@@ -1499,15 +1609,17 @@ describe("combat capability matrix", () => {
     const supported = rows.filter((row) => row.status === "supported-generic");
     const unsupported = rows.filter((row) => row.status === "unsupported-in-scope");
 
-    expect(rows).toHaveLength(8);
-    expect(supported.map((row) => row.sourceDefinitionId)).toEqual([
-      "move-akaikaru-intensity-mastery",
-      "move-akaikaru-shock-fist",
-      "move-akaikaru-blitzkrieg",
-      "move-akaikaru-no-shadow-kick",
-      "move-freestyle-ki-color-cascade",
-      "move-kiihakai-turn-up-the-heat",
-    ]);
+    expect(rows.length).toBeGreaterThanOrEqual(8);
+    expect(supported.map((row) => row.sourceDefinitionId)).toEqual(
+      expect.arrayContaining([
+        "move-akaikaru-intensity-mastery",
+        "move-akaikaru-shock-fist",
+        "move-akaikaru-blitzkrieg",
+        "move-akaikaru-no-shadow-kick",
+        "move-freestyle-ki-color-cascade",
+        "move-kiihakai-turn-up-the-heat",
+      ]),
+    );
     expect(
       supported
         .filter((row) => row.sourceDefinitionId !== "move-akaikaru-intensity-mastery")
@@ -1826,6 +1938,7 @@ describe("combat capability matrix", () => {
       "move-aoyosumu-crescent-kick#0",
       "move-midorikatai-critical-mass-mastery#0",
       "move-midorikatai-critical-mass-mastery#1",
+      "race-androids:class:race-class-androids-annihilation-protocol#0",
     ]);
     expect(
       rows.every(

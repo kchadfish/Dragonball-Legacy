@@ -574,6 +574,8 @@ export interface BaseEffectDefinition {
   readonly useLimit?: {
     readonly scope: "combat" | "turn";
     readonly count: number | NumericExpression;
+    /** Effects sharing this key consume one common use budget. */
+    readonly group?: string;
     readonly sourceText: string;
   };
   readonly activationCost?: {
@@ -613,6 +615,7 @@ export type EffectDefinition =
   | ResolveContestEffect
   | ForceTransformationEffect
   | RequireTransformationRollEffect
+  | PreventTransformationReversionEffect
   | GrantEquipmentEffect
   | GrantDefenseResponseEffect
   | GrantEscapeRollEffect
@@ -829,6 +832,10 @@ export interface RequireTransformationRollEffect extends BaseEffectDefinition {
   readonly ignoreTransformationDice: true;
 }
 
+export interface PreventTransformationReversionEffect extends BaseEffectDefinition {
+  readonly type: "prevent-transformation-reversion";
+}
+
 export interface GrantRacialTraitsEffect extends BaseEffectDefinition {
   readonly type: "grant-racial-traits";
   readonly source: "opponent";
@@ -1037,6 +1044,8 @@ export interface ModifyCostEffect extends BaseEffectDefinition {
   readonly type: "modify-cost";
   readonly operation: "add" | "set";
   readonly amount: NumericExpression;
+  /** Some canonical abilities explicitly bypass normal cost-lock rules. */
+  readonly allowUnmodifiable?: true;
   readonly selector?: MoveSelectorCondition;
   readonly minimum?: NumericExpression;
   readonly maximum?: NumericExpression;

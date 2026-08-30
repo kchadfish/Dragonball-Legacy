@@ -25,10 +25,12 @@
     "generate:game-data": "tsx scripts/generate-game-data.ts && prettier --write packages/game-data/src/*-definitions.ts packages/game-data/src/reference-documents.ts packages/game-data/src/move-source-definitions.ts",
     "report:combat-mechanics": "tsx scripts/combat-mechanics-inventory.ts",
     "report:combat-capabilities": "tsx scripts/combat-capability-matrix.ts > docs/architecture/combat-engine-capability-matrix.md",
+    "validate:combat-capability-closure": "tsx scripts/validate-combat-capability-closure.ts",
     "validate:combat-engine-boundaries": "tsx scripts/validate-combat-engine-boundaries.ts",
+    "validate:ai-engine-boundaries": "tsx scripts/validate-ai-engine-boundaries.ts",
     "validate:game-data": "tsx scripts/validate-game-data.ts",
     "validate:reference-markdown": "tsx scripts/validate-reference-markdown.ts",
-    "check": "npm run format:check && npm run lint && npm run validate:reference-markdown && npm run validate:game-data && npm run validate:combat-engine-boundaries && npm run test && npm run build",
+    "check": "npm run format:check && npm run lint && npm run validate:reference-markdown && npm run validate:game-data && npm run validate:combat-engine-boundaries && npm run validate:ai-engine-boundaries && npm run validate:combat-capability-closure && npm run test && npm run build",
     "quality": "npm run check && npm run test:coverage && npm run duplicates && npm run audit:production"
   },
   "devDependencies": {

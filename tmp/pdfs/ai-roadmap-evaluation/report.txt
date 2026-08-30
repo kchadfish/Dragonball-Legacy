@@ -1,0 +1,2033 @@
+=== PAGE 1 ===
+AI Engine Roadmap Evaluation for Dragonball
+Legacy
+Executive summary
+The proposed @dragonball-resurgence/ai-engine roadmap is architecturally strong and, with a
+few contract corrections, is a good implementation plan for this repository. Its most important design
+choice is correct: the AI is a policy layer over combat-engine legal decisions, not another combat runtime.
+That matches the repository's existing architecture, which assigns legality, rolls, damage, resources,
+statuses, transformations, counters, completion, and state transitions exclusively to combat-engine ,
+while the planned AI package scores only engine-provided choices. 
+There is currently no packages/ai-engine package on master , and the packages directory contains
+only combat-engine , game-config , game-data , npc-ai , persistence , shared , and 
+transformation-evaluator . The architecture directory likewise contains 
+combat-ai-simulation.md and the combat-engine architecture/progress/roadmap/matrix documents,
+but no ai-engine-progress.md or AI capability-matrix document. npc-ai remains effectively empty:
+its public source is just export {}; . 
+The combat engine, however, is far more AI-ready than the older combat-ai-simulation.md status
+text implies. Current combat state includes schema/version information, rules version, combatants, active
+effects, action history, serialized resolution frames, scheduled work, pending decisions, and explicit
+completed states. The public contract includes LegalDecision discriminants for pass, power-up,
+surrender, basic attack, move use, transformation activation/deactivation, item use, and pending-decision
+responses. The August 29 progress record shows Phase 9 transformation/race closure complete and
+identifies Phase 10 scope-boundary classification as the next combat-engine resume point. 
+My overall assessment is:
+Area
+Assessment
+Architecture/boundaries
+Excellent
+Dependency ordering
+Very good
+Explainability/reproducibility
+Excellent
+Fit to existing combat
+architecture
+Strong
+Current AI implementation
+Not started
+1
+
+
+=== PAGE 2 ===
+Area
+Assessment
+Combat-engine readiness for
+early AI work
+Yes, with a declared verified slice
+Combat-engine readiness for
+claiming complete AI
+competence
+Not yet
+Biggest design defect
+Pending multi-selection does not cleanly fit the current 
+LegalDecision contract
+Biggest architectural risk
+AI feature/outcome evaluation could accidentally reinterpret
+combat rules from raw game data
+Biggest technical prerequisite
+for lookahead
+A deterministic branch/sandbox dependency model separate
+from live combat RNG
+Recommended action
+Proceed with AI-000 through AI-240 after a short contract-
+hardening checkpoint; do not wait to write the whole AI until
+combat Phase 11, but scope claims to verified combat coverage
+Three changes should be made before treating the roadmap as implementation-ready.
+First, resolve the pending-decision contract. CombatDecisionInput now supports 
+selectedOptionIds for normalized multi-selection, and the combat progress record explicitly
+documents one , all , and up-to pending-selection behavior. Yet LegalDecision still represents a
+pending answer as exactly one optionId . The AI roadmap's invariant that its result is “exactly one
+decision from the supplied legal set” therefore needs either a richer engine legal-decision representation
+for complete selections or a documented engine-owned method for materializing a complete pending
+choice.
+Second, add an explicit AI analysis boundary to the design. AI-110 currently implies that the AI will infer
+evaluation features by combining LegalDecision , FightState , and raw declarative game-data .
+That is safe for identities and plainly declarative metadata, but it becomes dangerous when the AI starts
+deciding what an effect means. The repository already has a compiled/executor combat architecture
+specifically to prevent different consumers from independently interpreting mechanics. The AI should
+therefore consume either combat-engine-authored decision descriptors or public combat-engine analysis/
+probe functions for mechanically significant facts.
+Third, treat deterministic lookahead randomness as a distinct design problem from ordinary AI noise. The
+current SeededRandomSource is deterministic but stateful, exposes only integer() , and has no clone/
+fork operation. Combat dependencies also include clock and generated IDs. That is sufficient for combat
+replay, but not by itself sufficient for order-independent speculative branches. Phase 7 should use branch-
+local deterministic combat dependencies derived from an analysis seed and branch identity, never the live
+fight's RNG object.
+2
+
+
+=== PAGE 3 ===
+With those corrections, I would rate the roadmap about 9/10 as a target architecture and roughly 8/10
+as an immediately executable implementation queue. The missing 1–2 points are primarily interface
+hardening, not a redesign.
+Repository readiness and completeness
+Repository artifacts and roadmap mapping
+The roadmap itself appears to be provided planning content rather than an artifact currently
+committed under docs/architecture . The committed architecture directory contains the combat/AI
+architecture document plus combat-engine baseline, matrix, progress, roadmap, and design guidance; it
+does not currently list an AI-engine roadmap, AI progress record, or AI capability matrix. 
+The root workspace is already prepared for a new package structurally: npm workspaces include 
+packages/* . The root TypeScript project references packages individually, however, so creating ai-
+engine requires adding it to root tsconfig.json ; later npc-ai also needs a dependency/reference
+update. 
+The following maps every AI-### item to the repository artifact I would expect it to own.
+Roadmap item
+Required/likely repository artifact
+Current repository state
+AI-000 Package
+packages/ai-engine/
+package.json , tsconfig.json , 
+src/index.ts ; root 
+tsconfig.json reference
+Absent; workspace glob already
+supports it. 
+AI-010 Contracts
+src/contracts.ts , public exports,
+contract tests
+Unspecified/absent; conceptual
+contracts exist in combat-ai-
+simulation.md . 
+AI-020 Random
+helpers
+src/random.ts , 
+random.test.ts
+Absent; combat engine provides 
+RandomSource and 
+SeededRandomSource . 
+AI-030 Safe
+fallback
+src/fallback.ts , pending-choice
+tests
+Absent
+AI-100 Capability
+matrix
+scripts/ai-capability-
+matrix.ts , docs/architecture/
+ai-engine-capability-
+matrix.md
+Absent; combat matrix provides a
+strong pattern. 
+AI-110 Feature
+extraction
+src/features/* or src/
+evaluation/features.ts
+Absent; combat/game-data surfaces
+exist.
+AI-120 Evaluator
+registry
+src/evaluation/registry.ts
+Absent
+3
+
+
+=== PAGE 4 ===
+Roadmap item
+Required/likely repository artifact
+Current repository state
+AI-130 Accounting
+gate
+validator script/test; root quality
+integration
+Absent
+AI-200 Score
+factors
+src/evaluation/score-
+factor.ts
+Absent
+AI-210 Resource
+utility
+src/evaluation/resource-
+utility.ts
+Absent
+AI-220 Damage/
+survival/KO
+src/evaluation/combat-
+utility.ts
+Absent
+AI-230 Action
+economy
+src/evaluation/action-
+economy.ts
+Absent
+AI-240 Baseline
+chooser
+src/evaluation/evaluate-
+decision.ts , behavioral tests
+Absent
+AI-300 State
+evaluator
+src/state-evaluation/index.ts
+Absent; required state is substantially
+represented in FightState . 
+AI-310 Status/
+control
+src/state-evaluation/
+status.ts
+Absent
+AI-320
+Transformation
+context
+src/state-evaluation/
+transformation.ts
+Absent; combat transformation
+profiles/state are present. 
+AI-330 Scarce-use
+conservation
+src/evaluation/scarcity.ts
+Absent; combat state already retains
+move/item/effect use counters. 
+AI-340 Pending
+choices
+src/evaluation/pending.ts
+Absent; engine has persisted pending
+decisions, but contract issue noted
+below. 
+AI-400 Personality
+src/personalities/*
+Absent
+AI-410 Difficulty
+src/difficulty/*
+Absent
+AI-420 Mistakes/
+noise
+src/difficulty/noise.ts
+Absent
+AI-430 Simulation
+profile
+src/profiles/simulation.ts
+Absent
+AI-500 Setup
+inference
+src/combo-inference/setup.ts
+Absent
+AI-510 Opportunity
+windows
+src/combo-inference/
+windows.ts
+Absent
+4
+
+
+=== PAGE 5 ===
+Roadmap item
+Required/likely repository artifact
+Current repository state
+AI-520 Denial/
+control
+src/combo-inference/denial.ts
+Absent
+AI-530 Combo
+chains
+src/combo-inference/chains.ts
+Absent
+AI-540 AI hints
+optional additions to game-data
+schemas/validation
+Intentionally absent, which is
+correct; architecture says hints should
+wait until mechanically justified. 
+AI-600 Outcome
+categories
+src/outcomes/* ; preferably
+combat analysis adapter
+Absent
+AI-610 Expected
+utility
+src/outcomes/expected-
+utility.ts
+Absent
+AI-620 Dominance/
+pruning
+src/search/pruning.ts
+Absent
+AI-630 Analysis
+budget
+src/search/budget.ts
+Absent
+AI-640 Pruning
+diagnostics
+diagnostic structures/tests
+Absent
+AI-700 One-step
+lookahead
+src/lookahead/engine-probe.ts
+Absent
+AI-710 Opponent
+response
+src/opponent-modeling/*
+Absent
+AI-720 Response
+weighting
+same
+Absent
+AI-730 Depth
+configuration
+difficulty/search config
+Absent
+AI-740 Pending
+lookahead
+lookahead pending resolver
+Absent
+AI-750 Safeguards
+search budget/repetition guard
+Absent
+AI-800 Explainable
+ranking
+src/diagnostics/model.ts
+Absent; combat diagnostic traces
+provide a useful precedent. 
+AI-810 Explanation
+generation
+src/diagnostics/explain.ts
+Absent
+AI-820 Replay
+record
+src/replay/contracts.ts
+Absent
+5
+
+
+=== PAGE 6 ===
+Roadmap item
+Required/likely repository artifact
+Current repository state
+AI-830 Replay
+verification
+src/replay/replay.ts , tests
+Absent
+AI-840 Retention
+levels
+diagnostic configuration
+Absent
+AI-900 NPC
+consumer contract
+AI public profile/priorities contract; 
+npc-ai dependency
+Absent; npc-ai is currently shell-
+only. 
+AI-910 Boss phase
+compatibility
+npc-ai adapters + AI modifier
+contract
+Absent
+AI-920 Tactical
+priorities
+src/priorities/* or profile
+modifier API
+Absent
+AI-930 NPC
+integration proof
+packages/npc-ai/...test.ts
+Absent
+AI-1000 Stateless
+batch safety
+isolation/concurrency tests
+Absent
+AI-1010 Simulation
+deterministic mode
+simulation-quality profile/config
+Absent
+AI-1020
+Performance
+budget
+*.bench.ts or benchmark script/
+report
+Absent
+AI-1030 Reduced
+diagnostics
+diagnostic retention API
+Absent
+AI-1040 AI-vs-AI
+driver proof
+AI integration test/support driver
+Absent
+AI-1100 Surface
+closure
+regenerated AI matrix
+Absent
+AI-1110 Capability
+regressions
+focused AI test suite
+Absent
+AI-1120
+Deterministic
+replay
+replay regression suite
+Absent
+AI-1130 Full-fight
+scenarios
+integration scenario fixtures
+Absent
+AI-1140 Synthetic
+quality tests
+deterministic tactical fixtures
+Absent
+6
+
+
+=== PAGE 7 ===
+Roadmap item
+Required/likely repository artifact
+Current repository state
+AI-1150 Closure
+gate
+matrix validator + 
+npm run quality
+Absent; repository quality command
+itself already exists. 
+Two planning artifacts should be created at the same time as AI-000 rather than later:
+docs/architecture/ai-engine-progress.md should become the implementation handoff record,
+exactly as your roadmap proposes, and docs/architecture/ai-engine-capability-matrix.md
+should be generated rather than manually maintained. The existing combat project already demonstrates
+that the roadmap/progress/matrix separation works well: its roadmap explicitly says progress is
+authoritative for implementation state and the generated capability matrix is authoritative for per-
+occurrence accounting. 
+Combat-engine prerequisite validation
+The combat side is no longer a hypothetical foundation. Much of the AI-readiness contract is present.
+AI prerequisite
+Repository
+assessment
+Evidence / consequence
+Engine owns legality
+Present
+Architecture explicitly assigns legal-action
+enumeration to combat-engine. 
+Typed 
+LegalDecision
+union
+Present
+Pass, power-up, surrender, basic attack, move,
+transformation activate/deactivate, item and
+pending-response variants exist. 
+Active-actor legal
+enumeration
+Present for
+implemented
+combat scope
+Architecture and progress identify 
+enumerateLegalDecisions as a public flow. 
+Complete pending-
+choice enumeration
+Partial / contract
+needs hardening
+Pending state supports one , all , and up-to ;
+submission accepts selectedOptionIds , while 
+LegalDecision exposes one optionId . 
+Immutable transition
+semantics
+Present
+Design requires non-mutating transitions; current
+progress repeatedly reports immutable/versioned
+transitions. 
+State versioning
+Present
+FightStateBase.version ; decisions contain
+expected state version. 
+Serializable state
+Present
+State now has schema version and serializable
+effect/frame/scheduled-work structures. 
+Seeded combat RNG
+Present
+SeededRandomSource is implemented over a
+deterministic uint32 PRNG. 
+Randomness injected
+Present
+CombatDependencies.random is explicit. 
+7
+
+
+=== PAGE 8 ===
+AI prerequisite
+Repository
+assessment
+Evidence / consequence
+Clock injected
+Present
+CombatDependencies.clock ; production and
+fixed test clocks exist. 
+Deterministic IDs
+available in tests
+Present
+Sequence-based deterministic IDs cover fights,
+decisions, events, pending work, effects and
+scheduled work. 
+Suspended work in
+state
+Present
+resolutionFrames , pendingDecision , and
+scheduled work are persisted. 
+Pending-choice
+candidate persistence
+Present
+Pending decisions can persist candidate references,
+selection cardinality and optionality. 
+Explicit completion
+Present
+FightState = ActiveFightState \| 
+CompletedFightState . 
+Structured termination
+reason
+Present
+Engine completion distinguishes cancellation, defeat
+and surrender and carries winner where applicable. 
+Structured combat
+events
+Present
+Event contracts carry IDs, sequence and causation,
+and specific attack/status/transformation/resource
+events are typed. 
+Rule-resolution loop
+safeguards
+Substantially
+present
+Counter chain safeguard exists; scheduling is
+serialized and invariant checked. Full combat closure
+remains pending. 
+Full current combat
+catalog closure
+Not yet
+Current progress reaches completed Phase 9 and
+says Phase 10 scope classification is next; Phase 11
+closure still follows. 
+Cheap snapshot
+cloning
+Unspecified
+Serializable state is proven; no repository evidence
+located establishes copy/clone cost against an AI
+lookahead budget.
+Branch-local
+deterministic RNG
+Missing as a
+dedicated
+abstraction
+SeededRandomSource has private mutable state
+and no public fork /clone API. 
+Branch-local
+deterministic IDs
+Test primitive
+exists; AI sandbox
+contract absent
+Sequence IDs exist for tests, but no path-derived
+lookahead dependency factory exists. 
+Combat analysis/
+probe API
+Unspecified/
+missing as a
+deliberate API
+Ordinary transition APIs exist; there is no AI-specific
+authoritative decision-description contract in the
+reviewed files.
+8
+
+
+=== PAGE 9 ===
+AI prerequisite
+Repository
+assessment
+Evidence / consequence
+Diagnostic retention
+independent of
+behavior
+Strong precedent
+present
+Combat traces are opt-in, ephemeral, attached to
+returned transitions, and explicitly kept out of state/
+random accounting. 
+The practical conclusion is important: AI development does not need to wait entirely for combat Phase
+11. Your own roadmap correctly permits development against a smaller verified combat slice. Given the
+present engine, Phase 0, Phase 1, most of Phase 2, and a substantial portion of Phase 3 can be built now
+against the declared 1v1 surface. What should wait is any assertion that the AI strategically understands the
+complete active combat catalog.
+The older combat-ai-simulation.md should also be refreshed before implementation starts. It still
+describes npc-ai as a shell and the engine as an “intentionally narrow but growing rules slice,” while the
+current combat progress record has advanced through calculation/replay, scheduling, items, and six-family
+transformation/race closure. 
+Capability gap matrix
+This matrix measures AI strategic support today, not whether combat-engine can execute the mechanic.
+Because no AI package exists and npc-ai exports nothing, a combat mechanic being fully supported
+does not make its AI evaluation supported. 
+AI capability
+dimension
+Supported
+Supported-
+baseline
+Unsupported-
+in-scope
+Audited-
+out-of-
+scope
+Justification / affected
+decisions
+Legal-decision
+type
+✓
+Engine provides
+discriminated choices;
+no AI evaluator/
+fallback exists. Affects
+every decision.
+Pending-
+decision type
+✓
+Engine has defense,
+post-defense, optional-
+effect and several
+selection types, but no
+AI policy exists. 
+Action category
+✓
+Pass, power-up,
+attacks, moves, items,
+transformation actions
+need categorization.
+9
+
+
+=== PAGE 10 ===
+AI capability
+dimension
+Supported
+Supported-
+baseline
+Unsupported-
+in-scope
+Audited-
+out-of-
+scope
+Justification / affected
+decisions
+Resource effects
+✓
+HP/Ki and costs exist
+in combat state/
+mechanics but have no
+utility model.
+Damage effects
+✓
+No expected-damage
+or damage-value
+evaluator exists.
+Defensive
+effects
+✓
+Defense/block
+pending choices exist;
+no AI valuation.
+Status effects
+✓
+Active statuses are
+represented in combat
+state; AI significance is
+absent. 
+Transformation
+effects
+✓
+Combat now has
+canonical
+transformation
+profiles/state; AI
+timing model absent. 
+Restricted-use
+consequences
+✓
+Move, item and effect
+use state exists; no
+conservation utility.
+Temporary
+setup effects
+✓
+Active effects/lifecycles
+exist; no setup
+valuation.
+Denial effects
+✓
+Engine supports
+restrictions/locks/
+removals; no option-
+denial valuation.
+Forced-action
+consequences
+✓
+Scheduler/effect
+runtime can represent
+them; AI utility absent.
+Current-state
+dependencies
+✓
+Rich state exists but no
+state evaluator.
+Matchup
+dependencies
+✓
+1v1 opponent context
+is in delivery scope; no
+matchup scoring.
+10
+
+
+=== PAGE 11 ===
+AI capability
+dimension
+Supported
+Supported-
+baseline
+Unsupported-
+in-scope
+Audited-
+out-of-
+scope
+Justification / affected
+decisions
+Combo
+dependencies
+✓
+No AI inference
+package exists.
+Expected-
+outcome
+support
+✓
+Combat has roll/
+calculation machinery,
+but AI has no
+probability/expected-
+utility layer.
+Personality
+weighting
+✓
+Planned only.
+Difficulty
+weighting
+✓
+Planned only.
+Lookahead
+support
+✓
+No speculative engine
+driver or branch
+dependencies exist.
+Opponent-
+response
+support
+✓
+No AI evaluator exists
+to rank opponent legal
+responses.
+Diagnostics
+✓
+AI diagnostics absent;
+combat trace design is
+reusable precedent.
+Deterministic AI
+coverage
+✓
+Combat determinism
+exists, but there is no
+AI seed/profile/replay
+implementation.
+There should be zero fake supported-baseline entries at project creation. AI-030 should create the
+first ones legitimately. Once the generic safe selector exists, every currently enumerable legal decision
+category can initially become supported-baseline ; Phase 2 onward then promotes strategically
+understood categories to supported .
+That progression gives the matrix real meaning:
+unsupported-in-scope
+        |
+        | AI-030 + registry accounting
+        v
+supported-baseline
+        |
+11
+
+
+=== PAGE 12 ===
+        | actual strategic evaluator + focused proof
+        v
+supported
+Gaps in the roadmap itself
+The roadmap is unusually comprehensive, but I would make five substantive adjustments.
+Explicitly include surrender in immediate terminal utility. surrender is a real LegalDecision , but
+Phase 2's baseline list names attacks, power-up, pass, defense and item use without explicitly naming
+surrender. It does not need its own phase, but AI-220 should be described as damage, survival, KO, and
+terminal-outcome utility. Otherwise a generic baseline score of zero could accidentally make voluntary
+defeat competitive with an unattractive but viable action.
+Treat transformation deactivation as explicitly part of AI-320. Both activation and deactivation are legal
+decision discriminants. The transformation evaluator should therefore handle not only “is transforming
+worth it?” but also “is remaining transformed worth it?” against costs, cooldowns, HP/state effects and
+current tactical horizon.
+Resolve multi-selection before AI-030 is declared complete. A fallback that “supports pending decisions”
+is not actually complete if the engine can require/select multiple candidates but the legal-decision
+representation only exposes one option at a time. This is the roadmap's most concrete contract issue.
+Move structured diagnostics scaffolding earlier. AI-800–840 can remain the full diagnostics phase, but the 
+ScoreFactor , candidate identity, evaluator version and provenance model should exist by AI-200.
+Retrofitting provenance after six phases of evaluators will be unnecessarily painful.
+Add a combat-analysis/probe checkpoint before AI-600/700. Outcome probabilities and lookahead are
+exactly where a well-behaved evaluator can accidentally turn into a second combat engine. The roadmap
+repeatedly says not to do so; the cleanest enforcement is a formal interface through which AI asks combat-
+engine to describe or execute mechanics rather than reconstructing them.
+Recommended implementation sequence
+I would preserve almost all of your phase order, but insert a contract-hardening milestone before Phase
+0 and bring the minimal diagnostic schema forward.
+Priority and effort plan
+Effort here is relative implementation effort, not elapsed-time promises.
+12
+
+
+=== PAGE 13 ===
+Priority
+Capability
+Roadmap
+Effort
+Primary risk
+Proof case
+Preflight
+Freeze
+supported
+combat slice
+prerequisite
+Low
+AI tests
+unknowingly
+claim support
+for unfinished
+combat
+semantics
+Generated list of
+supported 1v1
+legal/pending
+surfaces
+Preflight
+Multi-selection
+legal contract
+prerequisite /
+AI-030
+Medium
+AI cannot
+represent a
+complete
+engine-legal
+pending
+response
+Optional up-to-2,
+mandatory all,
+explicit decline
+Preflight
+Analysis/probe
+boundary
+prerequisite
+to 600/700
+High
+Duplicate
+combat-rule
+interpretation
+AI obtains
+damage/cost/
+outcome facts
+without parsing
+prose or
+duplicating
+formulas
+Foundation
+Package/
+contracts
+AI-000/010
+Low
+Public API grows
+prematurely
+Build/typecheck/
+public-export test
+Foundation
+AI random
+streams
+AI-020
+Medium
+Candidate
+iteration
+changes
+random
+consumption
+Same decision set
+reordered →
+same keyed
+noise/tie result
+Foundation
+Safe fallback
+AI-030
+Low–
+Medium
+Illegal/
+unsupported
+pending result
+Every nonempty
+legal set produces
+member of same
+set
+Accounting
+Capability
+matrix
+AI-100/130
+Medium
+Matrix drifts
+from code
+New 
+LegalDecision
+discriminant
+causes validation/
+type failure
+Accounting
+Feature
+extraction
+AI-110
+High
+Reimplementing
+mechanics from
+data
+Features
+generated
+without source-
+text access
+13
+
+
+=== PAGE 14 ===
+Priority
+Capability
+Roadmap
+Effort
+Primary risk
+Proof case
+Accounting
+Exhaustive
+registry
+AI-120
+Medium
+Silent fallback
+after engine
+expansion
+never /
+exhaustiveness
+compile test
+Immediate
+utility
+Score-factor
+model
+AI-200
+Medium
+Opaque scores
+become
+impossible to
+debug
+Exact factor sum
+equals total
+Immediate
+utility
+Resource
+valuation
+AI-210
+Medium
+Static Ki/HP
+values produce
+bad endgame
+choices
+Last Ki is valued
+differently at 0/1/
+maximum state
+Immediate
+utility
+Damage/KO/
+terminal
+AI-220
+High
+Rule duplication
+Guaranteed KO
+dominates
+ordinary
+nonlethal
+alternatives
+Immediate
+utility
+Action
+economy
+AI-230
+Medium
+Free/delayed
+actions scored
+like ordinary
+actions
+Free useful item
+vs action-
+consuming
+equivalent
+Baseline
+competence
+Combined
+chooser
+AI-240
+Medium
+Interactions
+between factors
+swamp terminal
+priorities
+KO, survival, pass,
+power-up, item
+scenarios
+Context
+State evaluator
+AI-300
+Medium
+Double-
+counting factors
+State score has
+independently
+testable
+components
+Context
+Status/control
+AI-310
+High
+Status name
+special-casing
+Stun/lock value
+derives from
+effects/options,
+not IDs
+Context
+Transformation
+AI-320
+Medium–
+High
+Bad horizon
+modeling
+Transform now vs
+preserve;
+deactivate when
+advantageous
+Context
+Scarce-use
+conservation
+AI-330
+Medium
+Hoarding or
+reckless
+consumption
+Once-only move
+saved in low-value
+state, spent for
+lethal
+14
+
+
+=== PAGE 15 ===
+Priority
+Capability
+Roadmap
+Effort
+Primary risk
+Proof case
+Context
+Pending
+decisions
+AI-340
+High
+Parallel ad-hoc
+defense policy
+Same scoring
+machinery ranks
+action and
+defense choices
+Profiles
+Personality
+AI-400
+Medium
+Personality
+overrides
+obvious
+terminal tactics
+Aggressive/
+defensive profiles
+differ without
+selecting
+nonsense
+Profiles
+Difficulty/noise
+AI-410/420
+Medium
+RNG/order
+sensitivity
+Same
+profile+seed
+reproduces; noise
+cannot make
+illegal action
+Profiles
+Simulation
+profile
+AI-430
+Low
+Hidden
+nondeterminism
+Zero-noise
+deterministic
+regression
+Strategy
+Setup/window/
+denial
+AI-500–520
+High
+Speculative
+value inflation
+Short-lived setup
+discounted when
+no usable follow-
+up exists
+Strategy
+Combo chains
+AI-530
+High
+Definition-ID
+combo table
+develops
+Renaming IDs
+does not break
+inferred
+relationship
+Optional
+metadata
+aiHints
+gate
+AI-540
+Low if
+unused
+Hints become
+hidden rules
+Mechanics still
+determine
+legality/effect
+with hints deleted
+Risk
+Outcome
+estimation
+AI-600/610
+High
+AI duplicates
+dice/calculation
+rules
+Expected value
+derived solely
+from combat-
+owned
+mechanics/
+probes
+Search
+Pruning/
+budget
+AI-620–640
+Medium–
+High
+Pruning
+removes
+tactically unique
+move
+Lethal/survival/
+unique
+candidates
+protected
+15
+
+
+=== PAGE 16 ===
+Priority
+Capability
+Roadmap
+Effort
+Primary risk
+Proof case
+Lookahead
+Engine-driven
+branches
+AI-700
+High
+Speculative
+branch mutates
+or consumes
+live
+dependencies
+Byte/canonical
+equality of live
+state and RNG
+behavior before/
+after probe
+Lookahead
+Opponent
+model
+AI-710/720
+High
+AI invents
+opponent action
+Every response is
+present in
+speculative
+engine legal set
+Lookahead
+Depth/
+pending/
+safeguards
+AI-730–750
+High
+Combinatorial
+explosion
+Node exhaustion
+degrades to
+shallower result
+deterministically
+Diagnostics
+Ranking/
+explanation
+AI-800/810
+Medium
+Explanation
+becomes
+separate
+reasoning logic
+Text generated
+solely from factor
+records
+Replay
+Replay record
+AI-820/830
+Medium–
+High
+Version/data
+mismatch
+makes replay
+misleading
+State/profile/
+data/seed match
+reproduces factor
+hash + decision
+Diagnostics
+Retention
+levels
+AI-840
+Low–
+Medium
+Instrumentation
+alters behavior
+selection-only ==
+summary == full
+selection
+NPC
+Consumer/
+priorities
+AI-900–930
+Medium
+npc-ai
+sneaks in
+combat logic
+Boss priority can
+only modify
+supplied
+candidate scores
+Batch
+Stateless/
+deterministic
+AI-1000/1010
+Medium
+Cross-fight
+contamination
+A→B→A equals A-
+alone
+Batch
+Performance/
+reduced diag
+AI-1020/1030
+Medium
+Lookahead too
+expensive for
+simulation
+Decision
+benchmark by
+candidate count/
+depth
+Integration
+Full-fight driver
+AI-1040
+High
+Stalls/pending
+edge cases
+Two AI policies
+reach engine
+completion under
+external cap
+16
+
+
+=== PAGE 17 ===
+Priority
+Capability
+Roadmap
+Effort
+Primary risk
+Proof case
+Closure
+Matrix/
+regressions/
+replay/fights
+AI-1100–
+1150
+High
+“Mostly works”
+becomes
+completion
+Zero unexplained
+core gaps +
+repository quality
+gate
+Recommended dependency shape
+The implementation sequence I would actually use is:
+Combat Phase 10/11 scope definition
+            │
+            ├── resolve pending multi-selection legal contract
+            ├── define AI analysis/probe boundary
+            └── declare first verified AI combat slice
+                         │
+                         ▼
+                  AI-000 → AI-030
+                         │
+                         ▼
+                  AI-100 → AI-130
+                         │
+                         ▼
+                  AI-200 → AI-240
+                         │
+                         ▼
+                  AI-300 → AI-340
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+        AI-400 → AI-430       early diagnostic schema
+              │                     │
+              └──────────┬──────────┘
+                         ▼
+                  AI-500 → AI-540
+                         │
+                         ▼
+                  AI-600 → AI-640
+                         │
+                         ▼
+                  AI-700 → AI-750
+                         │
+                         ▼
+                  AI-800 → AI-840
+                         │
+17
+
+
+=== PAGE 18 ===
+                  ┌──────┴──────┐
+                  ▼             ▼
+            AI-900–930    AI-1000–1040
+                  └──────┬──────┘
+                         ▼
+                 AI-1100 → AI-1150
+I would not collapse this into a conventional minimax/search project. Your roadmap is right to build a
+strong static evaluator before search. The combat state is already rich enough that a good immediate/
+contextual evaluator should solve a substantial portion of “obvious intelligence” cheaply, leaving expensive
+branching for genuinely ambiguous candidates. That is especially important for a future simulator, where
+every extra engine probe will be multiplied across many fights. The repository's AI/simulation architecture
+already describes this bounded static-evaluation → pruning → shallow-lookahead pipeline and explicitly
+rejects initial full MCTS. 
+Technical design
+Public AI API
+I would slightly refine the conceptual API from combat-ai-simulation.md . The document currently
+proposes state, actor, legal decisions, game data, personality, difficulty and RNG as inputs. 
+A more implementation-safe shape would be:
+import type {
+CombatantId,
+FightState,
+LegalDecision,
+} from "@dragonball-resurgence/combat-engine";
+export type AiDiagnosticsLevel =
+| "selection-only"
+| "ranked-summary"
+| "full";
+export interface AiDecisionRequest {
+readonly state: FightState;
+readonly actorId: CombatantId;
+readonly legalDecisions: readonly LegalDecision[];
+readonly profile: AiProfile;
+readonly dependencies: AiDecisionDependencies;
+readonly diagnosticsLevel?: AiDiagnosticsLevel;
+}
+export interface AiDecisionDependencies {
+/**
+18
+
+
+=== PAGE 19 ===
+   * AI-only randomness.
+   * Never the live CombatDependencies.random instance.
+   */
+readonly random: AiRandomSource;
+/**
+   * Immutable mechanics/data projection used for strategic inspection.
+   */
+readonly gameData: AiGameDataView;
+/**
+   * Optional until outcome analysis/lookahead is enabled.
+   */
+readonly combatAnalysis?: CombatAnalysisProbe;
+}
+export interface AiDecisionResult {
+readonly decision: LegalDecision;
+readonly diagnostics?: AiDecisionDiagnostics;
+}
+The important aspect is not these exact names. It is that AI random, declarative data access and
+speculative combat access are separate dependencies.
+I also recommend that the game-data dependency be a request-injected immutable view, rather than
+letting AI code silently use global registries. The future simulation architecture explicitly wants immutable
+simulation-only data variants and must avoid mutation of live registries. An injected view makes that future
+use case much easier.
+Decision descriptors rather than AI rule interpretation
+The main architectural refinement I would make to AI-110 is:
+interface CombatDecisionDescriptor {
+readonly decision: LegalDecision;
+readonly category:
+| "attack"
+| "resource"
+| "pass"
+| "item"
+| "transformation"
+| "pending-response"
+| "terminal";
+readonly actionConsumption: "action" | "free" | "response";
+19
+
+
+=== PAGE 20 ===
+readonly declaredCosts: readonly CombatCostDescriptor[];
+readonly declaredEffects: readonly CombatEffectDescriptor[];
+readonly scarcity: readonly CombatScarcityDescriptor[];
+}
+This should be produced from combat-engine-owned compiled/authoritative information, not
+recreated by the AI from source prose.
+Why? The repository has invested heavily in exactly this separation. Game definitions are declarative; the
+combat engine compiles and executes typed effects; source/display prose must not become executable
+authority. Current combat progress also records migrations specifically removing runtime prose
+interpretation and replacing it with typed rule tokens and selectors. 
+The AI can still infer strategy. For example:
+combat descriptor says:
+  applies status X for 1 target turn
+  prevents attack category Y
+  costs 4 Ki
+AI says:
+  opponent currently has 4 strong Y actions
+  therefore denial-value = +11
+  one-turn horizon discount = 0.65
+  Ki-cost = -5
+That is AI reasoning.
+This would be wrong:
+AI reads move prose
+  -> recognizes "cannot use Advanced Attacks"
+  -> implements its own interpretation of the lock
+That is a second rules engine.
+Deterministic randomness
+The combat engine currently defines a minimal RandomSource.integer() API, plus deterministic 
+SeededRandomSource . Its state is private and advances with each request. 
+Do not simply give one SeededRandomSource to AI evaluation and call it sequentially while iterating
+candidates. Doing so makes this change dangerous:
+20
+
+
+=== PAGE 21 ===
+// Candidate C is added by a future game-data update.
+[A, B] -> [A, B, C]
+If random calls are sequential, the noise consumed for B may change simply because C was inserted or
+because sort/evaluation order changed.
+Prefer stable derived streams:
+interface AiRandomSource {
+readonly seed: number;
+integer(
+key: string,
+minimum: number,
+maximum: number,
+): number;
+chance(
+key: string,
+probability: number,
+): boolean;
+}
+Conceptually:
+noise("decision:use-move:foo")
+tieBreak("rank:use-move:foo")
+mistake("decision-root")
+Each result should derive from:
+root AI seed
++ evaluator/profile version
++ stable purpose
++ canonical decision key
+rather than from “how many calls happened before this one.”
+This buys you an extremely useful property:
+Reordering the supplied legal decisions does not change scores or the winner when all
+semantic inputs are otherwise equal.
+21
+
+
+=== PAGE 22 ===
+That should become a deterministic metamorphic test.
+AI randomness must also remain distinct from combat randomness. Your roadmap already states this
+correctly, and it is crucial because changing an AI personality tie-break must not advance the eventual live
+combat dice stream. The existing combat dependency interface makes the boundary explicit enough to
+enforce. 
+Lookahead sandboxing
+The cleanest lookahead implementation is not to clone the live combat RNG.
+Use:
+interface CombatAnalysisProbe {
+enumerateLegalDecisions(
+state: FightState,
+actorId: CombatantId,
+): readonly LegalDecision[];
+transition(
+state: FightState,
+decision: LegalDecision,
+branch: AnalysisBranch,
+): CombatAnalysisTransition;
+}
+Internally, each AnalysisBranch gets its own:
+branch combat seed
+fixed clock
+branch-local deterministic ID source
+work/node budget
+derived from a stable path such as:
+root analysis seed
+  / candidate key
+  / outcome branch
+  / response key
+  / depth
+The speculative branch must never receive the production fight's CombatDependencies object.
+22
+
+
+=== PAGE 23 ===
+The repository already has deterministic test implementations for clock, random sequences and generated
+ID sequences, showing that the necessary dependency seams exist. 
+Likewise, avoid structuredClone(state) by default. The engine's stated transition contract is non-
+mutating, and state members are exposed as readonly structures. If public transitions genuinely preserve
+input state, lookahead can safely pass the same snapshot as input and retain returned successor states.
+Add deepFreeze /mutation-sentinel tests to prove this. Only add a clone helper if profiling demonstrates
+that some integration actually needs one.
+Score-factor and diagnostic model
+Do not make the primary diagnostic representation merely:
+Record<string, number>
+Use structured factors:
+export interface AiScoreFactor {
+readonly code:
+| "expected-damage"
+| "ko-pressure"
+| "survival"
+| "ki-cost"
+| "ki-gain"
+| "scarcity-cost"
+| "status-value"
+| "denial-value"
+| "setup-value"
+| "action-economy"
+| "lookahead-value"
+| "terminal-outcome";
+readonly value: number;
+readonly source:
+| "immediate"
+| "state"
+| "personality"
+| "combo"
+| "expected-outcome"
+| "lookahead";
+readonly basis?: Readonly<Record<string, string | number | boolean>>;
+}
+23
+
+
+=== PAGE 24 ===
+Then:
+export interface AiCandidateDiagnostic {
+readonly decisionKey: string;
+readonly decision: LegalDecision;
+readonly factors: readonly AiScoreFactor[];
+readonly totalScore: number;
+readonly uncertainty?: {
+readonly lower?: number;
+readonly upper?: number;
+readonly confidence?: number;
+};
+readonly pruning?: {
+readonly status:
+| "retained"
+| "dominated"
+| "pruned-budget"
+| "protected";
+readonly reasonCode?: string;
+};
+readonly lookahead?: AiLookaheadDiagnostic;
+}
+The human-readable explanation then becomes a renderer:
+Use Final Flash ranked first because:
++ lethal damage opportunity (+30)
++ opponent cannot survive expected success (+18)
+- high Ki consumption (-8)
+- restricted-use conservation (-5)
+= 35
+It should never recompute the choice.
+The combat engine has already established the correct precedent: calculation diagnostics are opt-in and
+ephemeral and are explicitly kept out of authoritative state, events and random-consumption behavior. The
+AI should use exactly the same principle.
+Replay record
+I would make AI-820 slightly stronger than the roadmap's proposed identity/version record:
+24
+
+
+=== PAGE 25 ===
+export interface AiDecisionReplayRecord {
+readonly schemaVersion: 1;
+readonly fight: {
+readonly id: string;
+readonly schemaVersion: number;
+readonly stateVersion: number;
+readonly rulesVersion: string;
+readonly canonicalStateHash: string;
+};
+readonly actorId: string;
+readonly legalDecisions: readonly {
+readonly key: string;
+readonly decision: LegalDecision;
+}[];
+readonly data: {
+readonly gameDataVersion: string;
+readonly gameDataHash?: string;
+};
+readonly ai: {
+readonly engineVersion: string;
+readonly evaluatorVersion: string;
+readonly profileId: string;
+readonly profileVersion: string;
+readonly profileHash: string;
+readonly seed: number;
+};
+readonly budget: {
+readonly candidateLimit: number;
+readonly lookaheadDepth: number;
+readonly nodeLimit: number;
+};
+readonly selectedDecisionKey: string;
+readonly rankingHash: string;
+readonly diagnostics?: AiDecisionDiagnostics;
+}
+Current combat state already supplies fight identity, state schema, state version and rules version, so those
+fields map naturally to existing contracts. 
+25
+
+
+=== PAGE 26 ===
+For normal production diagnostics, store a state hash plus version, not necessarily a duplicate full
+snapshot every time. Simulation/anomaly tooling can choose to preserve the snapshot where exact offline
+replay is required.
+Testing strategy
+The roadmap's synthetic tests are good. I would add several invariants that will catch subtle architectural
+bugs better than move-specific regressions:
+Test
+Required invariant
+Legal subset property
+result.decision deeply equals one legal candidate supplied to AI
+Empty set
+Explicit typed AI error; never synthesized action
+Input-order
+invariance
+Permuting legal decisions does not alter deterministic ranking
+State immutability
+AI evaluation leaves frozen input state unchanged
+Game-data
+immutability
+AI evaluation cannot modify supplied registry/view
+Diagnostics
+invariance
+selection-only , summary and full diagnostics select identically
+Same-seed replay
+Same complete input → same factors, pruning, branches and decision
+RNG isolation
+AI tie-break/noise does not alter subsequent live combat roll
+Branch isolation
+Evaluating candidate A cannot change candidate B's speculative result
+Batch isolation
+A → B → A gives the same second A result as isolated A
+Dominance
+Strictly superior otherwise-equivalent choice wins
+Terminal sanity
+Guaranteed KO beats nonterminal gain absent higher-priority survival rule
+Surrender sanity
+Surrender is treated as terminal loss, not generic zero-value action
+Survival sanity
+Preventing guaranteed immediate loss can beat greedier damage
+Scarcity sanity
+One-use action is not spent for no incremental value
+Setup sanity
+Useful setup beats raw damage only when an exploitable window exists
+Expiry sanity
+Setup that expires before capitalization loses setup value
+Denial sanity
+Locking a category the opponent cannot use has approximately no denial
+value
+Personality sanity
+Profile changes weights, never legality
+Difficulty sanity
+Easy/hard alter analysis behavior, never combat state/stats
+26
+
+
+=== PAGE 27 ===
+Test
+Required invariant
+Pruning protection
+Lethal, survival and strategically unique alternatives survive pruning
+Search exhaustion
+Budget exhaustion falls back to already-computed legal ranking
+Pending parity
+Defensive/pending choices use the same core factor/evaluation pipeline
+ID independence
+Renaming a move ID without changing mechanics does not change generic
+combo reasoning
+Repository policy already requires focused Vitest coverage for major behavior changes, normal/boundary/
+regression cases, public-behavior testing, and a final extended npm run quality gate for architecture/
+package-boundary work. The root quality command presently includes formatting/lint/data and
+boundary validation/tests/build, coverage, duplication detection and production dependency audit. 
+Compliance, deliverables, and exit gates
+Non-goal compliance
+The roadmap's non-goals are correct and compatible with repository architecture.
+Non-goal
+Design guard
+Monte Carlo orchestration
+Remains simulation ownership
+Simulation statistics/matrices
+No analytics code in ai-engine
+Anomaly detection/balance
+reports
+Simulation/report layer only
+NPC definitions
+npc-ai owns profiles/configuration
+Discord integration
+AI has no app dependency
+Persistence
+AI request/result are domain values, not records
+Reinforcement learning
+No training loop
+Neural networks
+No model runtime
+LLM combat decisions
+No language-model decision boundary
+Full minimax
+Search explicitly shallow and bounded
+Full MCTS
+Explicitly deferred; architecture already rejects it initially. 
+Perfect-play claim
+Simulation-quality profile means best implemented bounded
+policy
+Hidden difficulty bonuses
+Difficulty modifies reasoning only
+27
+
+
+=== PAGE 28 ===
+Non-goal
+Design guard
+Duplicated combat rules
+Engine-generated decisions/descriptors/transitions remain
+authoritative
+Source/display prose execution
+Feature extractor never interprets source text
+Mutable game-data experiments
+AI receives immutable view; simulation variants own overlays
+Wall-clock-driven deterministic
+search
+Deterministic profile uses node/work budgets, not timing
+decisions
+One subtle refinement: your Phase 7 safeguard says “time or work budgets where appropriate.” Never use
+a wall-clock timeout as the selection-determining budget in deterministic simulation mode. A 10 ms
+cutoff can expand a different number of branches under different machines/load and therefore change the
+selected action. Use deterministic node/probe/work limits for reproducible profiles. Wall-clock cancellation
+may still abort external work, but should not silently become part of deterministic strategy.
+Roadmap exit-criteria checklist
+Because ai-engine is currently absent, every AI phase is formally not started. The useful distinction is
+whether its prerequisites are available.
+Phase
+Exit deliverable
+Current state
+Gate assessment
+Foundation
+Package, contracts,
+independent RNG, legal
+fallback
+Not
+implemented
+Ready after pending-
+selection contract decision
+Mechanical
+accounting
+Matrix, features, exhaustive
+evaluator registry
+Not
+implemented
+Mostly ready; strongly
+recommend combat analysis
+descriptor
+Immediate utility
+Factors, resource/damage/
+survival/action economy
+Not
+implemented
+Ready for verified combat
+slice
+State/matchup
+State/status/transformation/
+scarcity/pending
+Not
+implemented
+Combat state foundation is
+strong
+Personality/
+difficulty
+Profiles, bounded noise,
+simulation profile
+Not
+implemented
+AI prerequisite only
+Setup/combo
+Mechanical setup, windows,
+denial, combo chains
+Not
+implemented
+Wait until feature
+semantics are trustworthy
+Expected
+outcomes/
+pruning
+Engine-owned outcomes, EV,
+budgets
+Not
+implemented
+Requires analysis/probe
+contract first
+Lookahead
+Engine transition branches,
+opponent model, safeguards
+Not
+implemented
+Requires branch-local
+dependency design first
+28
+
+
+=== PAGE 29 ===
+Phase
+Exit deliverable
+Current state
+Gate assessment
+Diagnostics/
+replay
+Ranked factors, explanations,
+replay, retention
+Not
+implemented
+Schema should begin
+earlier at AI-200
+NPC readiness
+Profile/priorities contract and
+integration proof
+Not
+implemented
+npc-ai shell is ready to
+remain thin. 
+Simulation
+readiness
+Stateless deterministic batch
+policy, benchmark, AI-vs-AI
+Not
+implemented
+Wait for lookahead/
+performance stabilization
+Closure
+Complete matrix, tactical
+regressions, full fights,
+quality
+Not
+implemented
+Final gate only
+Combat itself should satisfy one additional gate before AI completion, even though it need not block AI
+initiation:
+The active combat scope used to claim simulation-quality AI must have reached its own
+closure/classification boundary.
+As of the current progress record, combat Phase 9 is complete and Phase 10 remains the explicit next
+resume point. That means the correct language during early AI work is something like “AI supports the
+verified combat slice through [declared scope]”, not “the AI understands all Dragonball Legacy combat.”
+Quality-gate fit
+Your working method is consistent with AGENTS.md : format incrementally, run focused tests/typechecks
+while working, and use npm run quality rather than redundantly running npm run check
+immediately beforehand when architecture/package boundaries are materially changed. 
+One artifact is worth adding to the root scripts once Phase 1 lands:
+{
+"scripts": {
+"report:ai-capabilities":
+"tsx scripts/ai-capability-matrix.ts > docs/architecture/ai-engine-
+capability-matrix.md",
+"validate:ai-capabilities":
+"tsx scripts/validate-ai-capabilities.ts"
+}
+}
+Ultimately that validator should join npm run check or another existing repository validation stage so a
+newly introduced LegalDecision discriminant cannot merge without deliberate AI accounting. The
+repository already uses this philosophy for combat capability accounting. 
+29
+
+
+=== PAGE 30 ===
+Immediate milestones
+The highest-value immediate work is not writing damage heuristics. It is making the boundary
+unambiguous enough that all subsequent AI code is safe.
+I recommend the first implementation milestone contain these concrete repository changes:
+Commit this roadmap as docs/architecture/ai-engine-roadmap.md and create docs/
+architecture/ai-engine-progress.md .
+Update the stale status section of combat-ai-simulation.md to reflect the current combat-
+engine implementation.
+Decide the multi-selection legal-decision representation.
+Define the minimal combat analysis/decision-description interface, even if its Phase 0
+implementation exposes only identity/category/basic cost facts.
+Create packages/ai-engine and add it to root TypeScript references.
+Implement AiDecisionRequest , AiDecisionResult , profile contracts, structured 
+ScoreFactor , AI RNG interface, and deterministic legal fallback.
+Add the initial generated capability matrix. It should honestly turn current unsupported categories
+into supported-baseline only after fallback coverage exists.
+Implement immediate utility before personality, combos or search.
+A concise proposed milestone schedule is:
+These dates are a sequencing model, not a forecast of developer throughput. The more meaningful
+estimates are the low/medium/high effort ratings above.
+The decisive milestone is the end of Core competence, not lookahead. By that point, the engine should
+already make rational deterministic 1v1 choices using immediate damage, KO/survival pressure, Ki, action
+economy, statuses, transformations, scarce resources and pending decisions. That gives you a useful NPC
+policy and a foundation that can be measured before spending complexity on search.
+The intended end-state is consequently:
+                           authoritative
+                    ┌────────────────────────┐
+                    │     combat-engine      │
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+p 06
+p 13
+p 20
+p 27
+t 04
+t 11
+t 18
+t 25
+v 01
+v 08
+v 15
+v 22
+Combat-scope and architecture refresh
+Pending multi-selection contract
+Analysis/probe boundary design
+AI package, contracts, RNG, fallback
+Capability matrix and exhaustive registry
+Score factors and immediate utility
+State, status, transformation, scarcity
+Personality and difficulty
+Setup, denial, combo inference
+Outcomes, expected utility, pruning
+Shallow lookahead and opponent responses
+Diagnostics and deterministic replay
+NPC and batch-consumer proofs
+Capability closure and full-fight regressions
+Contract hardening
+Foundation
+Core competence
+Strategic reasoning
+Production hardening
+Proposed AI Engine Implementation Milestones
+30
+
+
+=== PAGE 31 ===
+                    │                        │
+                    │ legality               │
+                    │ rules                  │
+                    │ rolls                  │
+                    │ transitions            │
+                    │ outcome mechanics      │
+                    └───────────┬────────────┘
+                                │
+             FightState + complete LegalDecision set
+                                │
+                                ▼
+                    ┌────────────────────────┐
+                    │       ai-engine        │
+                    │                        │
+                    │ describe strategy      │
+                    │ score utility          │
+                    │ model context          │
+                    │ infer setup            │
+                    │ prune                  │
+                    │ bounded lookahead      │
+                    │ explain ranking        │
+                    └───────────┬────────────┘
+                                │
+                         one legal decision
+                                │
+                                ▼
+                    ┌────────────────────────┐
+                    │     combat-engine      │
+                    │ submit/resolve action  │
+                    └────────────────────────┘
+That boundary is the strongest aspect of the roadmap, and it fits the repository unusually well. combat-
+engine already has immutable/versioned state, structured pending work, deterministic dependencies,
+typed legal decisions, calculation tracing, scheduling, item support, transformations, and a capability-
+accounting culture. The AI roadmap should reuse those patterns rather than invent a different
+architecture.
+The one thing I would not do is begin by teaching the AI individual Dragon Ball moves. The roadmap is
+absolutely right to reject that workflow. Build the evaluator around reusable concepts—terminal value,
+damage, resource pressure, scarcity, option denial, lifecycle windows, action economy and engine-driven
+futures—and make the capability matrix prove what those concepts cover. That gives you an AI engine that
+can grow with the game's declarative catalog instead of accumulating a second, increasingly impossible-to-
+maintain collection of move rules.
+31

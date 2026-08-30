@@ -1,6 +1,9 @@
 import { ITEM_DEFINITIONS } from "../packages/game-data/src/item-definitions.js";
 import { MOVE_DEFINITIONS } from "../packages/game-data/src/move-definitions.js";
-import { RACE_DEFINITIONS } from "../packages/game-data/src/race-definitions.js";
+import {
+  GENERIC_CLASS_DEFINITIONS,
+  RACE_DEFINITIONS,
+} from "../packages/game-data/src/race-definitions.js";
 import { TRANSFORMATION_DEFINITIONS } from "../packages/game-data/src/transformation-definitions.js";
 
 type CountByKey = Readonly<Record<string, number>>;
@@ -19,6 +22,7 @@ export interface CombatMechanicsInventory {
   readonly raceAbilities: {
     readonly traits: number;
     readonly classes: number;
+    readonly genericClasses: number;
   };
   readonly itemDefinitions: {
     readonly total: number;
@@ -157,6 +161,8 @@ export const createCombatMechanicsInventory = (): CombatMechanicsInventory => {
   for (const race of RACE_DEFINITIONS) {
     collectSourceExpressions(race, `races.${race.id}`, sourceExpressions, unresolvedRuleReasons);
   }
+  for (const classDefinition of GENERIC_CLASS_DEFINITIONS)
+    collectEffects(classDefinition.effects, "generic-class");
 
   const itemRules = ITEM_DEFINITIONS.flatMap((item) => item.rules);
 
@@ -178,6 +184,7 @@ export const createCombatMechanicsInventory = (): CombatMechanicsInventory => {
     raceAbilities: {
       traits: RACE_DEFINITIONS.flatMap((race) => race.racialTraits).length,
       classes: RACE_DEFINITIONS.flatMap((race) => race.classes).length,
+      genericClasses: GENERIC_CLASS_DEFINITIONS.length,
     },
     itemDefinitions: {
       total: ITEM_DEFINITIONS.length,

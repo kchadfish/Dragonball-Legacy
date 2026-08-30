@@ -92,6 +92,23 @@ export interface EffectClauseDefinition {
   readonly ruleTokens: readonly EffectRuleToken[];
 }
 
+/** A stable, source-traceable clause used by a hand-authored semantic overlay. */
+export interface SourceClauseReference {
+  readonly sourceDefinitionId: string;
+  readonly sourcePath?: string;
+  readonly clauseOrder: number;
+  readonly sourceText: string;
+}
+
+/** Declarative mechanics layered onto generated race/class/transformation data. */
+export interface InnateAbilityOverlay {
+  readonly sourceDefinitionId: string;
+  readonly sourceClauses: readonly SourceClauseReference[];
+  /** Clauses represented by conflict or other metadata without a standalone effect. */
+  readonly coveredClauseOrders?: readonly number[];
+  readonly effects: readonly EffectDefinition[];
+}
+
 export type NumericExpression =
   | { readonly type: "literal"; readonly value: number }
   | {
@@ -209,7 +226,7 @@ export type NumericExpression =
   | {
       readonly type: "current-resource";
       readonly subject: "self" | "opponent";
-      readonly resource: "ki";
+      readonly resource: "hp" | "ki";
     }
   | {
       readonly type: "triggering-resource-change";
@@ -355,6 +372,9 @@ export interface RaceTraitDefinition {
   readonly name: string;
   readonly effectText: string;
   readonly effectClauses: readonly EffectClauseDefinition[];
+  readonly sourceClauses?: readonly SourceClauseReference[];
+  readonly coveredClauseOrders?: readonly number[];
+  readonly effects?: readonly EffectDefinition[];
   readonly source: SourceReference;
 }
 
@@ -363,6 +383,9 @@ export interface RaceClassDefinition {
   readonly name: string;
   readonly effectText: string;
   readonly effectClauses: readonly EffectClauseDefinition[];
+  readonly sourceClauses?: readonly SourceClauseReference[];
+  readonly coveredClauseOrders?: readonly number[];
+  readonly effects?: readonly EffectDefinition[];
   readonly source: SourceReference;
 }
 
@@ -371,6 +394,9 @@ export interface GenericClassDefinition {
   readonly name: string;
   readonly effectText: string;
   readonly effectClauses: readonly EffectClauseDefinition[];
+  readonly sourceClauses?: readonly SourceClauseReference[];
+  readonly coveredClauseOrders?: readonly number[];
+  readonly effects?: readonly EffectDefinition[];
   readonly source: SourceReference;
 }
 
@@ -384,6 +410,8 @@ export interface TransformationAbilityDefinition {
   readonly name?: string;
   readonly effectText?: string;
   readonly effectClauses?: readonly EffectClauseDefinition[];
+  readonly sourceClauses?: readonly SourceClauseReference[];
+  readonly coveredClauseOrders?: readonly number[];
   readonly effects?: readonly EffectDefinition[];
 }
 

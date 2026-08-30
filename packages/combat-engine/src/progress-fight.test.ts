@@ -1261,7 +1261,22 @@ describe("generic before-attack pending effect choices", () => {
     });
 
     expect(pending.combatants[firstCombatantId].hitPoints.current).toBe(100);
-    expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([]);
+    expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([
+      {
+        type: "respond-to-pending-decision",
+        actorId: firstCombatantId,
+        pendingDecisionId: pending.pendingDecision!.id,
+        optionId: "activate-effect:0,1",
+        selectedOptionIds: ["activate-effect:0,1"],
+      },
+      {
+        type: "respond-to-pending-decision",
+        actorId: firstCombatantId,
+        pendingDecisionId: pending.pendingDecision!.id,
+        optionId: "decline",
+        selectedOptionIds: ["decline"],
+      },
+    ]);
 
     const resumed = requireActiveFightState(
       requireTransition(
@@ -1579,7 +1594,22 @@ describe("generic action-phase skip choices", () => {
         }),
       ]),
     );
-    expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([]);
+    expect(enumerateLegalDecisions(pending, firstCombatantId)).toEqual([
+      {
+        type: "respond-to-pending-decision",
+        actorId: firstCombatantId,
+        pendingDecisionId: pending.pendingDecision!.id,
+        optionId: "activate-effect:move-kiihakai-power-boost:0",
+        selectedOptionIds: ["activate-effect:move-kiihakai-power-boost:0"],
+      },
+      {
+        type: "respond-to-pending-decision",
+        actorId: firstCombatantId,
+        pendingDecisionId: pending.pendingDecision!.id,
+        optionId: "decline",
+        selectedOptionIds: ["decline"],
+      },
+    ]);
 
     const skipped = requireActiveFightState(
       requireTransition(
@@ -5766,7 +5796,7 @@ describe("start-combat effect dispatch", () => {
     const transition = requireTransition(advanceFight(created.state, dependencies));
 
     expect(transition.state.version).toBe(created.state.version + 1);
-    expect(transition.state.combatants[firstCombatantId].ki.current).toBe(6);
+    expect(transition.state.combatants[firstCombatantId].ki.current).toBe(7);
     expect(transition.state.activeEffects).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

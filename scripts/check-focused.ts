@@ -11,6 +11,7 @@ const workspaceNames = {
   "game-config": "@dragonball-resurgence/game-config",
   "game-data": "@dragonball-resurgence/game-data",
   "combat-engine": "@dragonball-resurgence/combat-engine",
+  "ai-engine": "@dragonball-resurgence/ai-engine",
   "npc-ai": "@dragonball-resurgence/npc-ai",
   persistence: "@dragonball-resurgence/persistence",
   shared: "@dragonball-resurgence/shared",
@@ -36,6 +37,7 @@ const scriptTestPaths = new Set([
   "scripts/combat-mechanics-inventory.test.ts",
   "scripts/reference-markdown-validation.test.ts",
   "scripts/validate-combat-engine-boundaries.test.ts",
+  "scripts/validate-ai-engine-boundaries.test.ts",
 ]);
 
 const normalizePath = (path: string): string => path.replaceAll("\\", "/");
@@ -124,6 +126,13 @@ export const planFocusedCheck = (inputFiles: readonly string[]): FocusedCheckPla
       continue;
     }
 
+    if (file.startsWith("packages/ai-engine/")) {
+      addWorkspace(workspaceNames["ai-engine"]);
+      addTestPath("packages/ai-engine/src");
+      addUnique(validatorScripts, "validate:ai-engine-boundaries");
+      continue;
+    }
+
     const workspace = packageWorkspaceFor(file);
     if (workspace !== undefined) {
       addWorkspace(workspace);
@@ -143,6 +152,8 @@ export const planFocusedCheck = (inputFiles: readonly string[]): FocusedCheckPla
           addUnique(validatorScripts, "validate:game-data");
         } else if (file === "scripts/validate-combat-engine-boundaries.ts") {
           addUnique(validatorScripts, "validate:combat-engine-boundaries");
+        } else if (file === "scripts/validate-ai-engine-boundaries.ts") {
+          addUnique(validatorScripts, "validate:ai-engine-boundaries");
         } else if (file === "scripts/validate-reference-markdown.ts") {
           addUnique(validatorScripts, "validate:reference-markdown");
         } else if (!file.endsWith("/check-focused.ts")) {

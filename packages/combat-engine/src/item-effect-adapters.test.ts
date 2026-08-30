@@ -8,6 +8,7 @@ import {
   itemStateRuleOperations,
   registeredItemEffectTypes,
 } from "./item-effect-adapters.js";
+import { scopeDecisionForItemStateRuleOperation } from "./scope-decisions.js";
 
 const item = (id: string) => {
   const definition = ITEM_DEFINITIONS.find((candidate) => candidate.id === id);
@@ -65,6 +66,33 @@ describe("item effect adapters", () => {
     expect(itemEffectAdapterFor(yemaCost)).toMatchObject({
       classification: "supported-named",
       executor: "item-state-rule.pay-activation-ki",
+    });
+  });
+
+  it("uses registered scope decisions for every Phase 10 item state rule", () => {
+    const phase10Operations = itemStateRuleOperations.filter(
+      (operation) => scopeDecisionForItemStateRuleOperation(operation) !== undefined,
+    );
+    const phase10Effects = ITEM_DEFINITIONS.flatMap((definition) =>
+      (definition.effects ?? []).filter(
+        (effect) =>
+          effect.type === "item-state-rule" && phase10Operations.includes(effect.operation),
+      ),
+    );
+
+    expect(phase10Effects.length).toBeGreaterThan(0);
+    expect(
+      phase10Effects.every((effect) => {
+        const adapter = itemEffectAdapterFor(effect);
+        return (
+          adapter.classification === "audited-out-of-scope" &&
+          adapter.scopeDecisionId !== undefined &&
+          adapter.scopeDecisionCategory !== undefined
+        );
+      }),
+    ).toBe(true);
+    expect(itemEffectAdapterFor(phase10Effects[0])).toMatchObject({
+      classification: "audited-out-of-scope",
     });
   });
 });

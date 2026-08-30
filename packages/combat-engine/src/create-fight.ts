@@ -2,6 +2,7 @@ import { GLOBAL_RULES, RULES_VERSION } from "@dragonball-resurgence/game-config"
 import {
   ITEM_DEFINITIONS,
   MOVE_DEFINITIONS,
+  GENERIC_CLASS_DEFINITIONS,
   RACE_DEFINITIONS,
   TRANSFORMATION_DEFINITIONS,
 } from "@dragonball-resurgence/game-data";
@@ -16,6 +17,7 @@ import type {
   CombatantTransformationProfile,
   CreateFightInput,
   FightSetupIssue,
+  StoredRoll,
   SlotCapacityModification,
 } from "./contracts.js";
 import { createFightInputSchema } from "./contracts.js";
@@ -27,7 +29,8 @@ import { applyCombatItemPassives } from "./item-effects-runtime.js";
 import {
   dispatchCombatTrigger as moveEffectsForTrigger,
   dispatchCombatTriggerSources,
-  type CombatTriggerSource,
+  dispatchCombatTriggerSourceResults,
+  combatTriggerSourcesFor,
 } from "./combat-trigger-dispatch.js";
 import {
   activeRollModifierFromApplication,
@@ -44,6 +47,13 @@ const knownTransformationIds = new Set(
   TRANSFORMATION_DEFINITIONS.map((transformation) => transformation.id),
 );
 const knownRaceIds = new Set(RACE_DEFINITIONS.map((race) => race.id));
+const knownRaceTraitIds = new Set(
+  RACE_DEFINITIONS.flatMap((race) => race.racialTraits.map((trait) => trait.id)),
+);
+const knownClassIds = new Set([
+  ...RACE_DEFINITIONS.flatMap((race) => race.classes.map((classDefinition) => classDefinition.id)),
+  ...GENERIC_CLASS_DEFINITIONS.map((classDefinition) => classDefinition.id),
+]);
 const activeTransformationRaceIds = new Set([
   "race-humans",
   "race-saiyans",
@@ -67,6 +77,8 @@ const createCombatantState = (
 ): CombatantState => ({
   id: combatantId,
   ...(combatant.raceId === undefined ? {} : { raceId: combatant.raceId as never }),
+  ...(combatant.raceTraitIds === undefined ? {} : { raceTraitIds: [...combatant.raceTraitIds] }),
+  ...(combatant.classId === undefined ? {} : { classId: combatant.classId }),
   ...(combatant.declaredStyleId === undefined
     ? {}
     : { declaredStyleId: combatant.declaredStyleId }),
@@ -119,10 +131,7 @@ const passiveSlotCapacityState = (
   readonly capacities: CombatSlotCapacities;
   readonly modifications: readonly SlotCapacityModification[];
 } => {
-  const triggerSources: CombatTriggerSource[] = source.moveIds.flatMap((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
-    return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
-  });
+  const triggerSources = combatTriggerSourcesFor(source, "self");
   const modifications = dispatchCombatTriggerSources("passive", triggerSources, () => ({
     self: source,
     opponent,
@@ -140,6 +149,41 @@ const passiveSlotCapacityState = (
     source.slotCapacities!,
   );
   return { capacities, modifications };
+};
+
+const applyPermanentInnateStats = (source: CombatantState, opponent: CombatantState) => {
+  const results = dispatchCombatTriggerSourceResults(
+    "passive",
+    combatTriggerSourcesFor(source, "self"),
+    () => ({
+      self: source,
+      opponent,
+      turnNumber: 1,
+      completedTurnCount: 0,
+      moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+      moveActivationCounts: new Map(),
+      successfulHitCount: 0,
+    }),
+  );
+  const modifications = results.flatMap(({ source: triggerSource, effects }) =>
+    triggerSource.source?.kind === "move"
+      ? []
+      : effects.statModifications.filter(
+          (modification) =>
+            modification.target === "self" &&
+            modification.scope === undefined &&
+            modification.duration === undefined,
+        ),
+  );
+  const stats = modifications.reduce((current, modification) => {
+    const statKey = modification.stat === "dexterity-bonus" ? "dexterityBonus" : "dexterity";
+    const value = current[statKey];
+    let nextValue = modification.amount;
+    if (modification.operation === "add") nextValue = value + modification.amount;
+    if (modification.operation === "multiply") nextValue = value * modification.amount;
+    return { ...current, [statKey]: nextValue };
+  }, source.stats);
+  return { ...source, stats };
 };
 
 const unknownTransformationIssuesFor = (input: CreateFightInput) =>
@@ -257,6 +301,28 @@ const unknownItemIssuesFor = (input: CreateFightInput) =>
     ),
   );
 
+const unknownInnateAbilityIssuesFor = (input: CreateFightInput) =>
+  input.combatants.flatMap((combatant, combatantIndex) => [
+    ...(combatant.raceTraitIds ?? []).flatMap((traitId, traitIndex) =>
+      knownRaceTraitIds.has(traitId)
+        ? []
+        : [
+            {
+              path: `combatants.${combatantIndex}.raceTraitIds.${traitIndex}`,
+              message: `Unknown race trait ID: ${traitId}.`,
+            } satisfies FightSetupIssue,
+          ],
+    ),
+    ...(combatant.classId !== undefined && !knownClassIds.has(combatant.classId)
+      ? [
+          {
+            path: `combatants.${combatantIndex}.classId`,
+            message: `Unknown class ID: ${combatant.classId}.`,
+          } satisfies FightSetupIssue,
+        ]
+      : []),
+  ]);
+
 interface InitiativeResult {
   readonly activeCombatantId: CombatantId;
   readonly tieBreakerRolls: readonly {
@@ -350,6 +416,7 @@ const appendStartCombatRollModification = (
   if (active !== undefined) activeEffects.push(active);
 };
 
+/* eslint-disable sonarjs/cognitive-complexity -- Start-combat effects must be resolved in source order as one deterministic transaction. */
 const startCombatRollState = (
   firstCombatant: CombatantState,
   secondCombatant: CombatantState,
@@ -358,32 +425,81 @@ const startCombatRollState = (
   const moves = new Map(MOVE_DEFINITIONS.map((move) => [move.id, move]));
   const activeEffects: ActiveCombatEffect[] = [];
   const initiativeModifiers = new Map<CombatantId, number>();
+  const combatants: [CombatantState, CombatantState] = [firstCombatant, secondCombatant];
+  const applyStartResource = (
+    combatant: CombatantState,
+    change: ReturnType<typeof moveEffectsForTrigger>["resources"][number],
+  ): CombatantState => {
+    const resource = change.resource === "hp" ? combatant.hitPoints : combatant.ki;
+    let nextCurrent: number;
+    if (change.operation === "set") nextCurrent = change.amount;
+    else if (change.operation === "gain") nextCurrent = resource.current + change.amount;
+    else nextCurrent = resource.current - change.amount;
+    return {
+      ...combatant,
+      ...(change.resource === "hp"
+        ? {
+            hitPoints: {
+              ...resource,
+              current: Math.max(0, Math.min(resource.maximum, nextCurrent)),
+            },
+          }
+        : {
+            ki: {
+              ...resource,
+              current: Math.max(0, Math.min(resource.maximum, nextCurrent)),
+            },
+          }),
+    };
+  };
   for (const [source, opponent] of [
-    [firstCombatant, secondCombatant],
-    [secondCombatant, firstCombatant],
+    [0, 1],
+    [1, 0],
   ] as const) {
-    const triggerSources: CombatTriggerSource[] = source.moveIds.flatMap((moveId) => {
-      const move = moves.get(moveId);
-      return move === undefined ? [] : [{ kind: "carried-skill", move, owner: "self" }];
-    });
-    const effects = dispatchCombatTriggerSources("start-combat", triggerSources, () => ({
-      self: source,
-      opponent,
-      turnNumber: 1,
-      completedTurnCount: 0,
-      moves,
-      moveActivationCounts: new Map(),
-      successfulHitCount: 0,
-      activeEffects,
-    }));
-    for (const [index, effectResult] of effects.entries()) {
-      const move = triggerSources[index]!.move;
-      for (const application of effectResult.rollModifications)
+    const sourceIndex = source;
+    const opponentIndex = opponent;
+    const triggerSources = combatTriggerSourcesFor(combatants[sourceIndex], "self");
+    const dispatch = () =>
+      dispatchCombatTriggerSourceResults("start-combat", triggerSources, () => ({
+        self: combatants[sourceIndex],
+        opponent: combatants[opponentIndex],
+        turnNumber: 1,
+        completedTurnCount: 0,
+        moves,
+        moveActivationCounts: new Map(),
+        successfulHitCount: 0,
+        activeEffects,
+      }));
+    let results = dispatch();
+    const storedRollRequests = results.flatMap(({ effects }) => effects.storedRollRequests);
+    if (storedRollRequests.length > 0) {
+      let storedRolls = { ...(combatants[sourceIndex].storedRolls ?? {}) };
+      for (const request of storedRollRequests) {
+        const storedRoll: StoredRoll = {
+          sourceDefinitionId: request.sourceDefinitionId,
+          storageKey: request.storageKey,
+          naturalResults: Array.from({ length: request.dice }, () =>
+            dependencies.random.integer(1, request.sides),
+          ),
+          sides: request.sides,
+          storedOnTurn: 1,
+        };
+        storedRolls = { ...storedRolls, [request.storageKey]: storedRoll };
+      }
+      combatants[sourceIndex] = { ...combatants[sourceIndex], storedRolls };
+      results = dispatch();
+    }
+    for (const { source: triggerSource, effects } of results) {
+      for (const change of effects.resources) {
+        const targetIndex = change.target === "self" ? sourceIndex : opponentIndex;
+        combatants[targetIndex] = applyStartResource(combatants[targetIndex], change);
+      }
+      for (const application of effects.rollModifications)
         appendStartCombatRollModification(
           application,
-          source,
-          opponent,
-          move.id,
+          combatants[sourceIndex],
+          combatants[opponentIndex],
+          triggerSource.move.id,
           activeEffects,
           initiativeModifiers,
           dependencies,
@@ -391,10 +507,13 @@ const startCombatRollState = (
     }
   }
   return {
+    combatants,
     activeEffects: resolveActiveEffectConflicts([], activeEffects).effects,
     initiativeModifiers,
   };
 };
+
+/* eslint-enable sonarjs/cognitive-complexity */
 
 /**
  * Creates the supported initial local, untransformed, itemless 1v1 state.
@@ -428,12 +547,14 @@ export const createFight = (
   );
   const unknownItemIssues = unknownItemIssuesFor(parsedInput.data);
   const unknownTransformationIssues = unknownTransformationIssuesFor(parsedInput.data);
+  const unknownInnateAbilityIssues = unknownInnateAbilityIssuesFor(parsedInput.data);
   const transformationProfileIssues = transformationProfileIssuesFor(parsedInput.data);
   const missingDeclaredStyleIssues = missingDeclaredStyleIssuesFor(parsedInput.data);
   const setupIssues = [
     ...unknownMoveIssues,
     ...unknownItemIssues,
     ...unknownTransformationIssues,
+    ...unknownInnateAbilityIssues,
     ...transformationProfileIssues,
     ...missingDeclaredStyleIssues,
   ];
@@ -458,33 +579,48 @@ export const createFight = (
     );
   const firstCombatantBase = combatantWithItemPassives(firstCombatantId, firstCombatantInput);
   const secondCombatantBase = combatantWithItemPassives(secondCombatantId, secondCombatantInput);
-  const firstSlotCapacityState = passiveSlotCapacityState(firstCombatantBase, secondCombatantBase);
-  const secondSlotCapacityState = passiveSlotCapacityState(secondCombatantBase, firstCombatantBase);
+  const firstCombatantWithInnateStats = applyPermanentInnateStats(
+    firstCombatantBase,
+    secondCombatantBase,
+  );
+  const secondCombatantWithInnateStats = applyPermanentInnateStats(
+    secondCombatantBase,
+    firstCombatantBase,
+  );
+  const firstSlotCapacityState = passiveSlotCapacityState(
+    firstCombatantWithInnateStats,
+    secondCombatantWithInnateStats,
+  );
+  const secondSlotCapacityState = passiveSlotCapacityState(
+    secondCombatantWithInnateStats,
+    firstCombatantWithInnateStats,
+  );
   const firstCombatant: CombatantState = {
-    ...firstCombatantBase,
+    ...firstCombatantWithInnateStats,
     slotCapacities: firstSlotCapacityState.capacities,
     slotCapacityModifications: firstSlotCapacityState.modifications,
   };
   const secondCombatant: CombatantState = {
-    ...secondCombatantBase,
+    ...secondCombatantWithInnateStats,
     slotCapacities: secondSlotCapacityState.capacities,
     slotCapacityModifications: secondSlotCapacityState.modifications,
   };
-  const combatants: Readonly<Record<CombatantId, CombatantState>> = {
-    [firstCombatantId]: firstCombatant,
-    [secondCombatantId]: secondCombatant,
-  };
   const startCombat = startCombatRollState(firstCombatant, secondCombatant, dependencies);
+  const [firstCombatantAfterStart, secondCombatantAfterStart] = startCombat.combatants;
+  const combatants: Readonly<Record<CombatantId, CombatantState>> = {
+    [firstCombatantId]: firstCombatantAfterStart,
+    [secondCombatantId]: secondCombatantAfterStart,
+  };
   const initiative = determineInitiative(
-    firstCombatant,
-    secondCombatant,
+    firstCombatantAfterStart,
+    secondCombatantAfterStart,
     dependencies,
     startCombat.initiativeModifiers,
   );
   const activeCombatantId = initiative.activeCombatantId;
   const state: ActiveFightState = {
     id: fightId,
-    schemaVersion: 3,
+    schemaVersion: 4,
     version: 0,
     rulesVersion: { ...RULES_VERSION },
     mode: parsedInput.data.mode,

@@ -160,6 +160,58 @@ describe("basic attacks", () => {
     );
   });
 
+  it("offers Human Average's once-per-turn reroll through the public attack flow", () => {
+    const { state, dependencies } = createActionState([14, 1, 20]);
+    const armed: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [attackerId]: {
+          ...state.combatants[attackerId],
+          classId: "race-class-humans-average-in-the-extreme",
+        },
+      },
+    };
+    const declared = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:human-average-attack"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const defense = requireActiveState(declared.state).pendingDecision;
+    if (defense === undefined) throw new Error("Expected a defense response.");
+    const rolledResult = submitCombatDecision(
+      declared.state,
+      {
+        type: "respond-to-pending-decision",
+        id: combatDecisionIdSchema.parse("decision:human-average-defense"),
+        actorId: defenderId,
+        expectedStateVersion: declared.state.version,
+        pendingDecisionId: defense.id,
+        optionId: "roll-defense",
+      },
+      dependencies,
+    );
+    if (!rolledResult.ok) throw new Error(JSON.stringify(rolledResult.error));
+    const rolled = rolledResult.value;
+    const reaction = requireActiveState(rolled.state).pendingDecision;
+    if (reaction === undefined) throw new Error("Expected the Human Average reroll choice.");
+    expect(reaction.combatantId).toBe(attackerId);
+    const rerollOption = reaction.options.find((option) =>
+      option.id.startsWith("activate-reroll:"),
+    );
+    expect(rerollOption).toBeDefined();
+    expect(reaction.options).toContainEqual({ id: "decline", type: "decline" });
+  });
+
   it("applies a converted total-result cap after active and immediate modifiers", () => {
     const activeModifierId = activeEffectIdSchema.parse("active-effect:vanishing-result-cap");
     const { state, dependencies } = createActionState([20, 1], [activeModifierId]);
@@ -931,6 +983,65 @@ describe("basic attacks", () => {
 
     expect(transition.events).toContainEqual(
       expect.objectContaining({ type: "ki-changed", combatantId: attackerId, amount: -2 }),
+    );
+  });
+
+  it("allows an explicitly unmodifiable cost reduction through a generic cost lock", () => {
+    const dependencies = createDependencies(
+      [10, 1],
+      [activeEffectIdSchema.parse("active-effect:cost-reduction")],
+    );
+    const fight = requireTransition(
+      createFight(
+        {
+          ...input,
+          combatants: [
+            {
+              ...input.combatants[0],
+              moveIds: [...input.combatants[0].moveIds, "move-kurokonwaku-spiked-ball"],
+            },
+            input.combatants[1],
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const state = requireActiveState(
+      requireTransition(advanceFight(fight.state, dependencies)).state,
+    );
+    const armed: ActiveFightState = {
+      ...state,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:cost-reduction"),
+          type: "modify-ki-cost",
+          sourceCombatantId: defenderId,
+          targetCombatantId: attackerId,
+          sourceDefinitionId: "move-afterlife-give-me-energy",
+          amount: -1,
+          allowUnmodifiable: true,
+          selector: { category: "advanced-attack", baseKiCost: 2 },
+          scope: "next-eligible-action",
+        },
+      ],
+    };
+    const transition = requireTransition(
+      submitCombatDecision(
+        armed,
+        {
+          type: "use-move",
+          id: combatDecisionIdSchema.parse("decision:cost-unmodifiable"),
+          actorId: attackerId,
+          expectedStateVersion: armed.version,
+          moveId: "move-kurokonwaku-spiked-ball",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(transition.events).toContainEqual(
+      expect.objectContaining({ type: "ki-changed", combatantId: attackerId, amount: -1 }),
     );
   });
 

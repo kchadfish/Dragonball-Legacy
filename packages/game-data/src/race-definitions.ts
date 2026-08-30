@@ -57,6 +57,62 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-androids-power-core",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Your techniques with a KI Point cost of 3 or higher cost -1 KI Points to perform, to a minimum of 1 KI Point.",
+          },
+          {
+            sourceDefinitionId: "race-trait-androids-power-core",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "This ability can affect attacks that cannot normally have their cost modified.",
+          },
+          {
+            sourceDefinitionId: "race-trait-androids-power-core",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 3,
+            sourceText: "If you choose this trait, you cannot have the Power Absorption trait.",
+          },
+        ],
+        coveredClauseOrders: [2, 3],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            minimum: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 3,
+                },
+              },
+              sourceText:
+                "Your techniques with a KI Point cost of 3 or higher cost -1 KI Points to perform, to a minimum of 1 KI Point.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Your techniques with a KI Point cost of 3 or higher cost -1 KI Points to perform, to a minimum of 1 KI Point.",
+            allowUnmodifiable: true,
+          },
+        ],
         source: {
           path: "reference/races.transformations/androids/race.md",
           text: 'Androids\r\n\r\n[center][img]https://images-ext-2.discordapp.net/external/aYQWmMDbdmVjspspuvZRHNrDgMQ0DbCKj6M3k_0WCuI/http/oi66.tinypic.com/2aaa7m8.jpg?width=344&height=516[/img][/center][hr]\r\nSkin Color: Any color\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Any appearance\r\nPlanet of Origin: N/A\r\nBiography: One of earth\'s crowning achievements, the creation of Android soldiers increased the Humans power ten fold. Proliferating, adopting many tasks and models, Androids now are produced for a varying range of needs and uses, not all militaristic. While their production has made their inventors obscenely rich, advanced artificial intelligence programs and hackers has resulted in a large number of Androids deviating from their intended class and taking up a life of their own in an effort to actually \'live\' amongst the universe. Though usually swept under the rug, the issue has been related to the proliferation and release of weapons of mass destruction and feel that something must be done to quell the growing threat.\r\n\r\nSTARTING ITEMS[hr] [list]\r\n[*]Normal Red Ribbon Vest\r\n[*]Spare Parts \r\n[/list]\r\n\r\n\r\n[color=#ee4a2d]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=#ee4a2d]Power Core[/color] - Your techniques with a KI Point cost of 3 or higher cost -1 KI Points to perform, to a minimum of 1 KI Point. This ability can affect attacks that cannot normally have their cost modified. If you choose this trait, you cannot have the Power Absorption trait.\r\n\r\n[color=#ee4a2d]Power Absorption[/color] - When you STOP an energy attack with a defensive dice result of 25 or more, gain 1 KI Point. Your single dice physical Advance Attacks gain "SUCCESSFUL - If your attack roll result was 28 or more, your opponent loses 1 KI Point and you gain 1 KI Point". If you choose this trait, you cannot have the Power Core trait.\r\n[color=#ee4a2d]\r\nAndroid Signature[/color] - You are considered to know "Hidden Power Level" for all effects and purposes. Your opponent does not gain bonus sides if their bukujutsu level is two levels higher than yours or lower.\r\n\r\n[color=#ee4a2d]Classes[/color]\r\n[hr]\r\n[color=#ee4a2d]Annihilation Protocol [/color] - Taking damage from a critical attack or signature attack increases your damage by +15% for the remainder of combat, stacking indefinitely. Upon reaching 0HP for the first time, you may perform any non-restrcted single dice Advanced Attack or a single dice signature attack in your moveset for 0 Ki. This attack may CRITICAL with result modifications.\r\n\r\n[color=#ee4a2d]The Marvelous (Wo)Man-chine[/color] - You take -10% damage from all sources and have a maximum Ki pool of 12.\r\n[color=#ee4a2d]\r\nCyborg[/color] - You may choose one of the [url=http://s15.zetaboards.com/DragonBallLegacy/topic/10043899/1/#new]Human [/url]classes instead.\r\n',
@@ -84,6 +140,128 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-androids-power-absorption",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When you STOP an energy attack with a defensive dice result of 25 or more, gain 1 KI Point.",
+          },
+          {
+            sourceDefinitionId: "race-trait-androids-power-absorption",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 2,
+            sourceText:
+              'Your single dice physical Advance Attacks gain "SUCCESSFUL - If your attack roll result was 28 or more, your opponent loses 1 KI Point and you gain 1 KI Point".',
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                tags: ["energy"],
+                sourceText: "energy attack",
+              },
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 25,
+                },
+                sourceText: "a defensive dice result of 25 or more",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "When you STOP an energy attack with a defensive dice result of 25 or more, gain 1 KI Point.",
+          },
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "lose",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                category: "advanced-attack",
+                tags: ["physical"],
+                attackRoll: {
+                  dice: 1,
+                },
+                sourceText: "single dice physical Advance Attacks",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 28,
+                },
+                sourceText: "an attack roll result of 28 or more",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              'Your single dice physical Advance Attacks gain "SUCCESSFUL - If your attack roll result was 28 or more, your opponent loses 1 KI Point and you gain 1 KI Point".',
+          },
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                category: "advanced-attack",
+                tags: ["physical"],
+                attackRoll: {
+                  dice: 1,
+                },
+                sourceText: "single dice physical Advance Attacks",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 28,
+                },
+                sourceText: "an attack roll result of 28 or more",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              'Your single dice physical Advance Attacks gain "SUCCESSFUL - If your attack roll result was 28 or more, your opponent loses 1 KI Point and you gain 1 KI Point".',
+          },
+        ],
         source: {
           path: "reference/races.transformations/androids/race.md",
           text: 'Androids\r\n\r\n[center][img]https://images-ext-2.discordapp.net/external/aYQWmMDbdmVjspspuvZRHNrDgMQ0DbCKj6M3k_0WCuI/http/oi66.tinypic.com/2aaa7m8.jpg?width=344&height=516[/img][/center][hr]\r\nSkin Color: Any color\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Any appearance\r\nPlanet of Origin: N/A\r\nBiography: One of earth\'s crowning achievements, the creation of Android soldiers increased the Humans power ten fold. Proliferating, adopting many tasks and models, Androids now are produced for a varying range of needs and uses, not all militaristic. While their production has made their inventors obscenely rich, advanced artificial intelligence programs and hackers has resulted in a large number of Androids deviating from their intended class and taking up a life of their own in an effort to actually \'live\' amongst the universe. Though usually swept under the rug, the issue has been related to the proliferation and release of weapons of mass destruction and feel that something must be done to quell the growing threat.\r\n\r\nSTARTING ITEMS[hr] [list]\r\n[*]Normal Red Ribbon Vest\r\n[*]Spare Parts \r\n[/list]\r\n\r\n\r\n[color=#ee4a2d]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=#ee4a2d]Power Core[/color] - Your techniques with a KI Point cost of 3 or higher cost -1 KI Points to perform, to a minimum of 1 KI Point. This ability can affect attacks that cannot normally have their cost modified. If you choose this trait, you cannot have the Power Absorption trait.\r\n\r\n[color=#ee4a2d]Power Absorption[/color] - When you STOP an energy attack with a defensive dice result of 25 or more, gain 1 KI Point. Your single dice physical Advance Attacks gain "SUCCESSFUL - If your attack roll result was 28 or more, your opponent loses 1 KI Point and you gain 1 KI Point". If you choose this trait, you cannot have the Power Core trait.\r\n[color=#ee4a2d]\r\nAndroid Signature[/color] - You are considered to know "Hidden Power Level" for all effects and purposes. Your opponent does not gain bonus sides if their bukujutsu level is two levels higher than yours or lower.\r\n\r\n[color=#ee4a2d]Classes[/color]\r\n[hr]\r\n[color=#ee4a2d]Annihilation Protocol [/color] - Taking damage from a critical attack or signature attack increases your damage by +15% for the remainder of combat, stacking indefinitely. Upon reaching 0HP for the first time, you may perform any non-restrcted single dice Advanced Attack or a single dice signature attack in your moveset for 0 Ki. This attack may CRITICAL with result modifications.\r\n\r\n[color=#ee4a2d]The Marvelous (Wo)Man-chine[/color] - You take -10% damage from all sources and have a maximum Ki pool of 12.\r\n[color=#ee4a2d]\r\nCyborg[/color] - You may choose one of the [url=http://s15.zetaboards.com/DragonBallLegacy/topic/10043899/1/#new]Human [/url]classes instead.\r\n',
@@ -104,6 +282,40 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "Your opponent does not gain bonus sides if their bukujutsu level is two levels higher than yours or lower.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-androids-android-signature",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Your opponent does not gain bonus sides if their bukujutsu level is two levels higher than yours or lower.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "prevent-roll-modification",
+            roll: "attack",
+            modifier: "sides",
+            conditions: [
+              {
+                type: "level-comparison",
+                left: "opponent",
+                comparison: "higher-than",
+                right: "self",
+                difference: {
+                  type: "literal",
+                  value: 1,
+                },
+                sourceText: "their bukujutsu level is two levels higher than yours or lower",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "Your opponent does not gain bonus sides if their bukujutsu level is two levels higher than yours or lower.",
           },
         ],
         source: {
@@ -135,6 +347,36 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["critical"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-androids-annihilation-protocol",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 3,
+            sourceText: "This attack may CRITICAL with result modifications.",
+          },
+          {
+            sourceDefinitionId: "race-class-androids-annihilation-protocol",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Taking damage from a critical attack or signature attack increases your damage by +15% for the remainder of combat, stacking indefinitely.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-critical-threshold",
+            threshold: {
+              type: "literal",
+              value: 30,
+            },
+            basis: "final-result",
+            sourceClauseOrder: 3,
+            sourceText: "This attack may CRITICAL with result modifications.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/androids/race.md",
           text: 'Androids\r\n\r\n[center][img]https://images-ext-2.discordapp.net/external/aYQWmMDbdmVjspspuvZRHNrDgMQ0DbCKj6M3k_0WCuI/http/oi66.tinypic.com/2aaa7m8.jpg?width=344&height=516[/img][/center][hr]\r\nSkin Color: Any color\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Any appearance\r\nPlanet of Origin: N/A\r\nBiography: One of earth\'s crowning achievements, the creation of Android soldiers increased the Humans power ten fold. Proliferating, adopting many tasks and models, Androids now are produced for a varying range of needs and uses, not all militaristic. While their production has made their inventors obscenely rich, advanced artificial intelligence programs and hackers has resulted in a large number of Androids deviating from their intended class and taking up a life of their own in an effort to actually \'live\' amongst the universe. Though usually swept under the rug, the issue has been related to the proliferation and release of weapons of mass destruction and feel that something must be done to quell the growing threat.\r\n\r\nSTARTING ITEMS[hr] [list]\r\n[*]Normal Red Ribbon Vest\r\n[*]Spare Parts \r\n[/list]\r\n\r\n\r\n[color=#ee4a2d]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=#ee4a2d]Power Core[/color] - Your techniques with a KI Point cost of 3 or higher cost -1 KI Points to perform, to a minimum of 1 KI Point. This ability can affect attacks that cannot normally have their cost modified. If you choose this trait, you cannot have the Power Absorption trait.\r\n\r\n[color=#ee4a2d]Power Absorption[/color] - When you STOP an energy attack with a defensive dice result of 25 or more, gain 1 KI Point. Your single dice physical Advance Attacks gain "SUCCESSFUL - If your attack roll result was 28 or more, your opponent loses 1 KI Point and you gain 1 KI Point". If you choose this trait, you cannot have the Power Core trait.\r\n[color=#ee4a2d]\r\nAndroid Signature[/color] - You are considered to know "Hidden Power Level" for all effects and purposes. Your opponent does not gain bonus sides if their bukujutsu level is two levels higher than yours or lower.\r\n\r\n[color=#ee4a2d]Classes[/color]\r\n[hr]\r\n[color=#ee4a2d]Annihilation Protocol [/color] - Taking damage from a critical attack or signature attack increases your damage by +15% for the remainder of combat, stacking indefinitely. Upon reaching 0HP for the first time, you may perform any non-restrcted single dice Advanced Attack or a single dice signature attack in your moveset for 0 Ki. This attack may CRITICAL with result modifications.\r\n\r\n[color=#ee4a2d]The Marvelous (Wo)Man-chine[/color] - You take -10% damage from all sources and have a maximum Ki pool of 12.\r\n[color=#ee4a2d]\r\nCyborg[/color] - You may choose one of the [url=http://s15.zetaboards.com/DragonBallLegacy/topic/10043899/1/#new]Human [/url]classes instead.\r\n',
@@ -149,6 +391,35 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 1,
             text: "You take -10% damage from all sources and have a maximum Ki pool of 12.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-androids-the-marvelous-wo-man-chine",
+            sourcePath: "reference/races.transformations/androids/race.md",
+            clauseOrder: 1,
+            sourceText: "You take -10% damage from all sources and have a maximum Ki pool of 12.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -10,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "You take -10% damage from all sources and have a maximum Ki pool of 12.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You take -10% damage from all sources and have a maximum Ki pool of 12.",
           },
         ],
         source: {
@@ -260,6 +531,52 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["break", "negate"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-bio-androids-regeneration",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 1,
+            sourceText: "You heal from SEVER effects immediately.",
+          },
+          {
+            sourceDefinitionId: "race-trait-bio-androids-regeneration",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 2,
+            sourceText: "RESTRICTEDx1.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "on-combat-result",
+            target: "self",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "gain",
+            amount: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 100,
+            },
+            conditions: [
+              {
+                type: "combat-outcome",
+                actor: "self",
+                outcome: "sever",
+                sourceText: "SEVER effects",
+              },
+            ],
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "RESTRICTEDx1.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You heal from SEVER effects immediately.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/bio-androids/race.md",
           text: "Bio-Android\r\n\r\n[center][img]https://images-ext-1.discordapp.net/external/K34wmx2HXXJJ4eP0eEjlPJWrv4u2F8hsxZXUA5Wpl6g/http/oi66.tinypic.com/2efjqtt.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Any color\r\nAppearance: Any appearance w/ Retractable Tail\r\nPlanet of Origin: Earth\r\nBiography: The next step of the Android program, the Bio-Android Creation Initiative has been labeled everything from a godsend to the highest form of sacrilege. Despite this, Earth is committed to their production. Actual life forms in every sense of the word, they possess actual intelligence and a free will that is capable of overriding its basic programming. Though still in development, a confidential issue occurred several years ago, involving the loss of a series of Bio-Android embryo's. Sold on the black market and grown in a variety of different ways, 'knockoffs' are now readily available for sale and purchase. Most important, however, is the degree of free will present in every Bio-Android. Some diligently follow their duties, some succumb to faulty creation and die in a few years. And a few, a very, very select few, are still at large.\r\n\r\nSTARTING ITEMS[hr]\r\n[list][*]Nanomachines\r\n[*]Self-Destruct Device[/list]\r\n\r\n[color=darkgreen]RACIAL TRAITS[/color]\r\n[hr]\r\n[color=darkgreen]Genetic Composition[/color] – At the start of the game, choose one Racial Trait from any race to claim as your own.\r\n\r\n[color=darkgreen]Regeneration[/color] - You heal from SEVER effects immediately. RESTRICTEDx1. You may skip your turn to negate one BREAK against yourself.You RECOVER an extra (5% Total) HP per day.\r\n\r\n[color=darkgreen]CLASSES[/color]\r\n[hr]\r\n[color=darkgreen]Genetic Masterpiece[/color] - Your opponent's non-Mastery effects cannot prevent you from performing attacks on your turn, unless you are STUNNED. Your opponent's non-Mastery effects cannot prevent you from performing a COUNTER, CRITICAL, BREAK, STUN, or Escape. \r\n\r\n[color=darkgreen]Mad Science Experiment[/color] - You may choose one additional RACIAL TRAIT from any race to add to your Genetic Composition.\r\n\r\n[color=darkgreen]Noble Scientific Endeavor [/color]– Quests take -250 WPD, to a minimum of 100 WPD. Whenever you win a Quest Battle, gain +50% EXP.\r\n\r\n[color=darkgreen]Power Seeker[/color] - After achieving a new Transformation, you start Mastered with a 1d100 Transformation Roll. While Transformed, your attacks gain +1 dice side. RESTRICTEDx1. You may add +5 to your opponent's attack roll result on an Advanced Attack that you do not know. Reduce the damage of that attack by 25%. This effect can be used after your defense roll is made.\r\n\r\n[color=darkgreen]Legendary DNA[/color] - At the start of the game, choose a  Signature Technique from the Afterlife, regardless of your Alignment. You are able to use and know that move regardless of requirements. That move is added to your moveset and gains + 2 to the results.\r\n",
@@ -282,6 +599,26 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "Your opponent's non-Mastery effects cannot prevent you from performing a COUNTER, CRITICAL, BREAK, STUN, or Escape.",
             ruleTokens: ["break", "counter", "critical", "stun"],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-bio-androids-genetic-masterpiece",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Your opponent's non-Mastery effects cannot prevent you from performing attacks on your turn, unless you are STUNNED.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "action-phase",
+            target: "opponent",
+            type: "negate",
+            aspects: ["prevent-attack"],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Your opponent's non-Mastery effects cannot prevent you from performing attacks on your turn, unless you are STUNNED.",
           },
         ],
         source: {
@@ -341,6 +678,103 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 6,
             text: "This effect can be used after your defense roll is made.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-bio-androids-power-seeker",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 2,
+            sourceText: "While Transformed, your attacks gain +1 dice side.",
+          },
+          {
+            sourceDefinitionId: "race-class-bio-androids-power-seeker",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 4,
+            sourceText:
+              "You may add +5 to your opponent's attack roll result on an Advanced Attack that you do not know.",
+          },
+          {
+            sourceDefinitionId: "race-class-bio-androids-power-seeker",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 5,
+            sourceText: "Reduce the damage of that attack by 25%.",
+          },
+          {
+            sourceDefinitionId: "race-class-bio-androids-power-seeker",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 3,
+            sourceText: "RESTRICTEDx1.",
+          },
+          {
+            sourceDefinitionId: "race-class-bio-androids-power-seeker",
+            sourcePath: "reference/races.transformations/bio-androids/race.md",
+            clauseOrder: 6,
+            sourceText: "This effect can be used after your defense roll is made.",
+          },
+        ],
+        coveredClauseOrders: [3, 6],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "While Transformed, your attacks gain +1 dice side.",
+          },
+          {
+            trigger: "after-defense-roll",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 5,
+            },
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "RESTRICTEDx1.",
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                category: "advanced-attack",
+                sourceText: "an Advanced Attack that you do not know",
+              },
+            ],
+            sourceClauseOrder: 4,
+            sourceText:
+              "You may add +5 to your opponent's attack roll result on an Advanced Attack that you do not know.",
+          },
+          {
+            trigger: "on-damage",
+            target: "opponent",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -25,
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                category: "advanced-attack",
+                sourceText: "that attack",
+              },
+            ],
+            sourceClauseOrder: 5,
+            sourceText: "Reduce the damage of that attack by 25%.",
           },
         ],
         source: {
@@ -477,6 +911,50 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-changeling-power-hungerer",
+            sourcePath: "reference/races.transformations/changeling/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When your opponent transforms in a Battle, you gain an additional +1d10 to your Transformation roll from that Battle.",
+          },
+          {
+            sourceDefinitionId: "race-class-changeling-power-hungerer",
+            sourcePath: "reference/races.transformations/changeling/race.md",
+            clauseOrder: 2,
+            sourceText: "When your opponent transforms in Battle, you gain +2 KI Points.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "modify-roll",
+            roll: "transformation",
+            modifier: "dice",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "When your opponent transforms in a Battle, you gain an additional +1d10 to your Transformation roll from that Battle.",
+          },
+          {
+            trigger: "on-roll-result",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "When your opponent transforms in Battle, you gain +2 KI Points.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/changeling/race.md",
           text: "Changeling\r\n\r\n\r\n\r\n[center][img]https://images-ext-1.discordapp.net/external/0-Zi1mFaLYAOyy0GQ_Zi688YvUe29rLPlqy6qbcog14/http/oi64.tinypic.com/16awe9u.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Any, normally white and purple\r\nAppearance: Humanoid w/ Tail\r\nPlanet of Origin: Alpha Collective\r\nBiography: Once the largest and most powerful galactic empire in the known universe, the Changelings are a bold race, at one point commanding massive militaries capable of decimating entire civilizations in seconds. While originally it appeared it would be all but a matter of time before they set their sights on Earth, the Changeling government was devastated by civil unrest and rebellion after the death of Frieza. The Rebellion caused dozens of planets to secede and dozens more were destroyed in the conflict, specifically the capital planets that the Changeling Empire was based out of. Since that time the  Changeling race has adapted, taking the mineral-rich debris and creating a new \"home world\" through massive asteroid fields made of hollowed out planet remains, the Alpha Collective. Hundreds of years have given the Changelings time to repopulate and replace their lost empire with a monopoly on black market dealings; the massive collection of city-state asteroids forming the Alpha Collective is akin to a mafia-controlled planet.\r\n\r\nSTARTING ITEMS[hr] [list]\r\n[*]Changeling Reflective Vest\r\n[*]2X Enriched Serum[/list]\r\n\r\n\r\n[color=#000]RACIAL TRAITS[/color]\r\n[hr]\r\n[color=black]Tyranny [/color]- When your opponent would choose one of your moves due to any kind of effect, you choose the move instead.\r\n[color=black]\r\nHenchmen[/color] - Your quests take 1/2 of the listed WPD. Whenever somebody would take your place in a Battle due to a race's class effect, both players gain experience, and an additional +50% EXP if that player wins their Battle without any escape being made.\r\n\r\n[color=#000]CLASSES[/color]\r\n[hr]\r\n[color=black]Planet Trade Organization Soldier[/color] – Planet Trade Organization Soldier – You may start the game with +1 Firearm Item in your Inventory. Your Skills that require a Firearm cost -1 KI Point to a minimum of 1 to use ot activate. When you kill an opponent of a race other than Changeling, you gain +25% EXP.\r\n\r\n[color=black]Merchant of War[/color] – Once per week, after killing an opponent in Battle, you may remove one non-custom, non-space ship Item from their Inventory and add it to your own. Once per Saga, a purchasable item you sell back to the Marketplace can be sold for 100% its original value. All weapons cost 50% less.\r\n\r\n[color=black]Power Hungerer[/color] - When your opponent transforms in a Battle, you gain an additional +1d10 to your Transformation roll from that Battle. When your opponent transforms in Battle, you gain +2 KI Points.\r\n\r\n[color=black]Self-Proclaimed Royalty[/color] - You start the game with +500z. Whenever somebody would take your place in a Battle due to a race's class effect, both players gain +50%EXP if that player kills their opponent.\r\n\r\n[color=black]Planet Conqueror [/color]- At the start of the game and then at the start of every even numbered week, choose a planet. While on that planet, your attacks do +(5 % Power) Damage.While on that planet, your quests cost an additional -100 WPD.\r\n",
@@ -582,6 +1060,72 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-humans-where-there-s-life-there-s-hope",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When your Health drops below 0 for the first time in combat, you may roll 1d30.",
+          },
+          {
+            sourceDefinitionId: "race-trait-humans-where-there-s-life-there-s-hope",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 2,
+            sourceText: "If the result is 10 or higher, you may set your Health to 1.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-damage",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 30,
+            storageKey: "race-trait-humans-where-there-s-life-there-s-hope-survival-roll",
+            conditions: [
+              {
+                type: "incoming-damage",
+                subject: "self",
+                comparison: "at-least",
+                value: {
+                  type: "current-resource",
+                  subject: "self",
+                  resource: "hp",
+                },
+                sourceText: "Health drops below 0",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "When your Health drops below 0 for the first time in combat, you may roll 1d30.",
+          },
+          {
+            trigger: "on-damage",
+            target: "self",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "set",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "stored-roll-threshold",
+                storageKey: "race-trait-humans-where-there-s-life-there-s-hope-survival-roll",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 10,
+                },
+                sourceText: "If the result is 10 or higher",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText: "If the result is 10 or higher, you may set your Health to 1.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/humans/race.md",
           text: "[center][img]https://images-ext-1.discordapp.net/external/6unX7f3T-WnNkonOvdGOvTiRMMbxwNA9U4G9zXKlvfI/http/oi65.tinypic.com/iyo485.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Traditional human skin tones\r\nHair Color: Any\r\nAppearance: Humanoid\r\nPlanet of Origin: Earth\r\nBiography: Alongside Animals, Humans are the primary sentient lifeform on planet Earth. Humans are regarded as a technologically advanced race of strong-willed beings, a reputation stemming from the formation of Capsule Corporation as well as a long history of near destruction and last minute triumph. Though a lot of these instances were led by a Saiyan, Goku, his human allies were valuable assets who would later go onto spread the popularity of martial arts amongst the race and cinch a future where Humans would take their own self-defense and survival seriously. They have built a standing as a race whom one does not wish to back into a corner without lasting repercussions.\r\n\r\n[color=#fff]STARTING ITEMS[/color][hr] [list]\r\n[*]Cargo Pants\r\n[*]Hercule Drink DX[/list]\r\n\r\n[color=#fff]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=#fff]Mentorship[/color] - When learning a move, you gain 5x the Move Learning Experience.\r\n[color=#fff]\r\nWhere There's Life, There's Hope [/color]- When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\r\n\r\n[color=#fff]CLASSES[/color]\r\n[hr]\r\n[color=#fff]Dedicated Martial Artist[/color] - You start the game with +3 Training Days. Whenever you have no non-custom Freestyle Advanced Attacks in your moveset, your styled attacks with a base cost of 3 or more ki cannot be BLOCKED or COUNTERED.\r\n\r\n[color=#fff]Average in the Extreme[/color] - Once per turn, you may reroll an attack or defense roll that is between 13-17. Twice per week, you may have a joint quest that you participate in take -1 day to a minimum of 1 for all players.\r\n\r\n[color=#fff]Will of Iron[/color] - When your attacks are manipulated by your opponent in any way your next advanced attack gains ADVANTAGE and becomes UNBLOCKABLE. Restricted x1: Activate when powering up, you may pay 1 ki point to erase all negative floating effects on yourself.\r\n\r\n[color=#fff]Monk[/color] - Your escape rolls gain +3 to the results. Whenever you COUNTER, your opponent must have a defensive roll of 10 or more to STOP your attack. Your defense rolls can COUNTER when landing on a natural roll result of 1 lower than normal COUNTER requirements.\r\n\r\n[color=#fff]Weaponmaster[/color] - You may start the game with +1 Weapon item in your Inventory. Your attacks that require a Weapon gain +2 dice sides. Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to\r\n\r\n",
@@ -628,6 +1172,107 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-humans-average-in-the-extreme",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-roll-result",
+            target: "self",
+            type: "reroll",
+            roll: "attack",
+            rerollScope: "entire-attack",
+            optional: true,
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 13,
+                },
+                sourceText:
+                  "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-most",
+                value: {
+                  type: "literal",
+                  value: 17,
+                },
+                sourceText:
+                  "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+              },
+            ],
+            useLimit: {
+              scope: "turn",
+              count: {
+                type: "literal",
+                value: 1,
+              },
+              group: "average-in-the-extreme-reroll",
+              sourceText:
+                "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+          },
+          {
+            trigger: "on-roll-result",
+            target: "self",
+            type: "reroll",
+            roll: "defense",
+            rerollScope: "single-result",
+            optional: true,
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 13,
+                },
+                sourceText:
+                  "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+              },
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-most",
+                value: {
+                  type: "literal",
+                  value: 17,
+                },
+                sourceText:
+                  "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+              },
+            ],
+            useLimit: {
+              scope: "turn",
+              count: {
+                type: "literal",
+                value: 1,
+              },
+              group: "average-in-the-extreme-reroll",
+              sourceText:
+                "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Once per turn, you may reroll an attack or defense roll that is between 13-17.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/humans/race.md",
           text: "[center][img]https://images-ext-1.discordapp.net/external/6unX7f3T-WnNkonOvdGOvTiRMMbxwNA9U4G9zXKlvfI/http/oi65.tinypic.com/iyo485.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Traditional human skin tones\r\nHair Color: Any\r\nAppearance: Humanoid\r\nPlanet of Origin: Earth\r\nBiography: Alongside Animals, Humans are the primary sentient lifeform on planet Earth. Humans are regarded as a technologically advanced race of strong-willed beings, a reputation stemming from the formation of Capsule Corporation as well as a long history of near destruction and last minute triumph. Though a lot of these instances were led by a Saiyan, Goku, his human allies were valuable assets who would later go onto spread the popularity of martial arts amongst the race and cinch a future where Humans would take their own self-defense and survival seriously. They have built a standing as a race whom one does not wish to back into a corner without lasting repercussions.\r\n\r\n[color=#fff]STARTING ITEMS[/color][hr] [list]\r\n[*]Cargo Pants\r\n[*]Hercule Drink DX[/list]\r\n\r\n[color=#fff]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=#fff]Mentorship[/color] - When learning a move, you gain 5x the Move Learning Experience.\r\n[color=#fff]\r\nWhere There's Life, There's Hope [/color]- When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\r\n\r\n[color=#fff]CLASSES[/color]\r\n[hr]\r\n[color=#fff]Dedicated Martial Artist[/color] - You start the game with +3 Training Days. Whenever you have no non-custom Freestyle Advanced Attacks in your moveset, your styled attacks with a base cost of 3 or more ki cannot be BLOCKED or COUNTERED.\r\n\r\n[color=#fff]Average in the Extreme[/color] - Once per turn, you may reroll an attack or defense roll that is between 13-17. Twice per week, you may have a joint quest that you participate in take -1 day to a minimum of 1 for all players.\r\n\r\n[color=#fff]Will of Iron[/color] - When your attacks are manipulated by your opponent in any way your next advanced attack gains ADVANTAGE and becomes UNBLOCKABLE. Restricted x1: Activate when powering up, you may pay 1 ki point to erase all negative floating effects on yourself.\r\n\r\n[color=#fff]Monk[/color] - Your escape rolls gain +3 to the results. Whenever you COUNTER, your opponent must have a defensive roll of 10 or more to STOP your attack. Your defense rolls can COUNTER when landing on a natural roll result of 1 lower than normal COUNTER requirements.\r\n\r\n[color=#fff]Weaponmaster[/color] - You may start the game with +1 Weapon item in your Inventory. Your attacks that require a Weapon gain +2 dice sides. Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to\r\n\r\n",
@@ -648,6 +1293,34 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "Restricted x1: Activate when powering up, you may pay 1 ki point to erase all negative floating effects on yourself.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-humans-will-of-iron",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Restricted x1: Activate when powering up, you may pay 1 ki point to erase all negative floating effects on yourself.",
+          },
+          {
+            sourceDefinitionId: "race-class-humans-will-of-iron",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When your attacks are manipulated by your opponent in any way your next advanced attack gains ADVANTAGE and becomes UNBLOCKABLE.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "on-power-up",
+            target: "self",
+            type: "end-floating-effect",
+            selector: "self",
+            sourceClauseOrder: 2,
+            sourceText:
+              "Restricted x1: Activate when powering up, you may pay 1 ki point to erase all negative floating effects on yourself.",
           },
         ],
         source: {
@@ -677,6 +1350,46 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["counter"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-humans-monk",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever you COUNTER, your opponent must have a defensive roll of 10 or more to STOP your attack.",
+          },
+          {
+            sourceDefinitionId: "race-class-humans-monk",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 1,
+            sourceText: "Your escape rolls gain +3 to the results.",
+          },
+          {
+            sourceDefinitionId: "race-class-humans-monk",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 3,
+            sourceText:
+              "Your defense rolls can COUNTER when landing on a natural roll result of 1 lower than normal COUNTER requirements.",
+          },
+        ],
+        coveredClauseOrders: [1, 3],
+        effects: [
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "set-resolution-threshold",
+            outcome: "stop",
+            roll: "defense",
+            comparison: "at-least",
+            value: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever you COUNTER, your opponent must have a defensive roll of 10 or more to STOP your attack.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/humans/race.md",
           text: "[center][img]https://images-ext-1.discordapp.net/external/6unX7f3T-WnNkonOvdGOvTiRMMbxwNA9U4G9zXKlvfI/http/oi65.tinypic.com/iyo485.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Traditional human skin tones\r\nHair Color: Any\r\nAppearance: Humanoid\r\nPlanet of Origin: Earth\r\nBiography: Alongside Animals, Humans are the primary sentient lifeform on planet Earth. Humans are regarded as a technologically advanced race of strong-willed beings, a reputation stemming from the formation of Capsule Corporation as well as a long history of near destruction and last minute triumph. Though a lot of these instances were led by a Saiyan, Goku, his human allies were valuable assets who would later go onto spread the popularity of martial arts amongst the race and cinch a future where Humans would take their own self-defense and survival seriously. They have built a standing as a race whom one does not wish to back into a corner without lasting repercussions.\r\n\r\n[color=#fff]STARTING ITEMS[/color][hr] [list]\r\n[*]Cargo Pants\r\n[*]Hercule Drink DX[/list]\r\n\r\n[color=#fff]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=#fff]Mentorship[/color] - When learning a move, you gain 5x the Move Learning Experience.\r\n[color=#fff]\r\nWhere There's Life, There's Hope [/color]- When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\r\n\r\n[color=#fff]CLASSES[/color]\r\n[hr]\r\n[color=#fff]Dedicated Martial Artist[/color] - You start the game with +3 Training Days. Whenever you have no non-custom Freestyle Advanced Attacks in your moveset, your styled attacks with a base cost of 3 or more ki cannot be BLOCKED or COUNTERED.\r\n\r\n[color=#fff]Average in the Extreme[/color] - Once per turn, you may reroll an attack or defense roll that is between 13-17. Twice per week, you may have a joint quest that you participate in take -1 day to a minimum of 1 for all players.\r\n\r\n[color=#fff]Will of Iron[/color] - When your attacks are manipulated by your opponent in any way your next advanced attack gains ADVANTAGE and becomes UNBLOCKABLE. Restricted x1: Activate when powering up, you may pay 1 ki point to erase all negative floating effects on yourself.\r\n\r\n[color=#fff]Monk[/color] - Your escape rolls gain +3 to the results. Whenever you COUNTER, your opponent must have a defensive roll of 10 or more to STOP your attack. Your defense rolls can COUNTER when landing on a natural roll result of 1 lower than normal COUNTER requirements.\r\n\r\n[color=#fff]Weaponmaster[/color] - You may start the game with +1 Weapon item in your Inventory. Your attacks that require a Weapon gain +2 dice sides. Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to\r\n\r\n",
@@ -702,6 +1415,65 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 3,
             text: "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-humans-weaponmaster",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "race-class-humans-weaponmaster",
+            sourcePath: "reference/races.transformations/humans/race.md",
+            clauseOrder: 3,
+            sourceText: "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              requirementIncludes: ["Weapon"],
+              sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            minimum: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              requirementIncludes: ["Weapon"],
+              sourceText:
+                "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
+            },
+            sourceClauseOrder: 3,
+            sourceText: "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to",
           },
         ],
         source: {
@@ -771,6 +1543,73 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-hybrid-saiyan-where-there-s-life-there-s-hope",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When your Health drops below 0 for the first time in combat, you may roll 1d30.",
+          },
+          {
+            sourceDefinitionId: "race-trait-hybrid-saiyan-where-there-s-life-there-s-hope",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 2,
+            sourceText: "If the result is 10 or higher, you may set your Health to 1.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-damage",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 30,
+            storageKey: "race-trait-hybrid-saiyan-where-there-s-life-there-s-hope-survival-roll",
+            conditions: [
+              {
+                type: "incoming-damage",
+                subject: "self",
+                comparison: "at-least",
+                value: {
+                  type: "current-resource",
+                  subject: "self",
+                  resource: "hp",
+                },
+                sourceText: "Health drops below 0",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "When your Health drops below 0 for the first time in combat, you may roll 1d30.",
+          },
+          {
+            trigger: "on-damage",
+            target: "self",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "set",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "stored-roll-threshold",
+                storageKey:
+                  "race-trait-hybrid-saiyan-where-there-s-life-there-s-hope-survival-roll",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 10,
+                },
+                sourceText: "If the result is 10 or higher",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText: "If the result is 10 or higher, you may set your Health to 1.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/hybridSaiyan/race.md",
           text: "Hybrid-Saiyans\r\n[center][img]https://images-ext-2.discordapp.net/external/izBGtLOGEcXHVKmRB2SIcveDHtJVcqS8EK1HvmnLZpY/http/oi66.tinypic.com/fm5iyb.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Traditional human skin tones\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Humanoid w/ or w/o Monkey-like Tail\r\nPlanet of Origin: Vegeta/Earth\r\nBiography: Hybrid Saiyans are the offspring and/or descendants of offspring from one Saiyan parent and one Human parent. At one point, when the Saiyans were all but extinct, the mixing of the two races was the only thing that could be done to keep the Saiyan bloodline going. Since then, time has proven that the mixing of two Hybrid Saiyans produces a full-blooded offspring. Because of this, despite their half-blood status, most first generation Hybrid Saiyans are very surprised to learn that they are welcomed with open arms by the ruthless Saiyan race. Hybrid Saiyans share traits of both of their ancestry races and sometimes can surprise those who take them for human with their sudden bursts of rage and power.\r\nStarting Items: First Aid Kit x2, Capsule Corp. Fighting Jacket \r\n\r\n[color=lightgoldenrodyellow]RACIAL TRAITS[/color]\r\n============\r\n[color=lightgoldenrodyellow]Zenkai Power[/color] - After defeating an opponent in Battle, you gain +50% EXP. If you were at 15% or less Health at the end of that Battle, you gain +100% EXP instead. \r\nNote: Please don't collude to cheat the system. It will lead to repercussions.\r\n\r\n[color=lightgoldenrodyellow]Where There's Life, There's Hope[/color] - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\r\n\r\n[color=lightgoldenrodyellow]CLASSES[/color]\r\n=======\r\n[color=lightgoldenrodyellow]Dedicated Martial Artist[/color] - You start the game with +3 Training Days. Whenever you have no non-custom Freestyle Advanced Attacks in your moveset, your styled attacks with a base cost of 3 or more ki cannot be BLOCKED or COUNTERED.\r\n\r\n[color=lightgoldenrodyellow]Ruthless Brawler[/color] -Gain 3 Ki Points when you fall below (50% HP). Your Punch-Type and Kick-Type attacks cannot be STOPPED by a defensive roll of 12 or less. RESTRICTEDx1. Activate when your opponent BLOCKS or otherwise modifies the damage of one of your CRITICAL attacks. BREAK.\r\n\r\n[color=lightgoldenrodyellow]Weaponmaster[/color]- You may start the game with +1 Weapon item in your Inventory. Your attacks that require a Weapon gain +2 dice sides. Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.\r\n\r\n[color=lightgoldenrodyellow]Human Heart, Saiyan Pride [/color]- After achieving a new Transformation, you start Mastered with a 1d80 Transformation Roll. Whenever you would gain EXP due to 'Zenkai Power', you gain an additional +10% EXP. If your Health is (50% Total HP) HP or less, you cannot lose Health to your opponent's non-damage effects.\r\n\r\n[color=lightgoldenrodyellow]Mixed Blood Potential[/color] - Your Transformation Rolls all begin at 1d50. You may transform without spending your turn.\r\n",
@@ -832,6 +1671,99 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["break"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-ruthless-brawler",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 1,
+            sourceText: "Gain 3 Ki Points when you fall below (50% HP).",
+          },
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-ruthless-brawler",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Your Punch-Type and Kick-Type attacks cannot be STOPPED by a defensive roll of 12 or less.",
+          },
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-ruthless-brawler",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 3,
+            sourceText: "RESTRICTEDx1.",
+          },
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-ruthless-brawler",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 4,
+            sourceText:
+              "Activate when your opponent BLOCKS or otherwise modifies the damage of one of your CRITICAL attacks.",
+          },
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-ruthless-brawler",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 5,
+            sourceText: "BREAK.",
+          },
+        ],
+        coveredClauseOrders: [3, 4, 5],
+        effects: [
+          {
+            trigger: "on-resource-threshold",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 3,
+            },
+            conditions: [
+              {
+                type: "resource-threshold",
+                subject: "self",
+                resource: "hp",
+                basis: "current",
+                comparison: "at-most",
+                value: {
+                  type: "resource-percent",
+                  subject: "self",
+                  resource: "hp",
+                  basis: "total",
+                  percent: 50,
+                },
+                sourceText: "Gain 3 Ki Points when you fall below (50% HP).",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText: "Gain 3 Ki Points when you fall below (50% HP).",
+          },
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "prevent-low-roll-stop",
+            roll: "defense",
+            comparison: "at-most",
+            value: {
+              type: "literal",
+              value: 12,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Your Punch-Type and Kick-Type attacks",
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                tags: ["punch", "kick"],
+                sourceText: "Punch-Type and Kick-Type attacks",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "Your Punch-Type and Kick-Type attacks cannot be STOPPED by a defensive roll of 12 or less.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/hybridSaiyan/race.md",
           text: "Hybrid-Saiyans\r\n[center][img]https://images-ext-2.discordapp.net/external/izBGtLOGEcXHVKmRB2SIcveDHtJVcqS8EK1HvmnLZpY/http/oi66.tinypic.com/fm5iyb.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Traditional human skin tones\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Humanoid w/ or w/o Monkey-like Tail\r\nPlanet of Origin: Vegeta/Earth\r\nBiography: Hybrid Saiyans are the offspring and/or descendants of offspring from one Saiyan parent and one Human parent. At one point, when the Saiyans were all but extinct, the mixing of the two races was the only thing that could be done to keep the Saiyan bloodline going. Since then, time has proven that the mixing of two Hybrid Saiyans produces a full-blooded offspring. Because of this, despite their half-blood status, most first generation Hybrid Saiyans are very surprised to learn that they are welcomed with open arms by the ruthless Saiyan race. Hybrid Saiyans share traits of both of their ancestry races and sometimes can surprise those who take them for human with their sudden bursts of rage and power.\r\nStarting Items: First Aid Kit x2, Capsule Corp. Fighting Jacket \r\n\r\n[color=lightgoldenrodyellow]RACIAL TRAITS[/color]\r\n============\r\n[color=lightgoldenrodyellow]Zenkai Power[/color] - After defeating an opponent in Battle, you gain +50% EXP. If you were at 15% or less Health at the end of that Battle, you gain +100% EXP instead. \r\nNote: Please don't collude to cheat the system. It will lead to repercussions.\r\n\r\n[color=lightgoldenrodyellow]Where There's Life, There's Hope[/color] - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\r\n\r\n[color=lightgoldenrodyellow]CLASSES[/color]\r\n=======\r\n[color=lightgoldenrodyellow]Dedicated Martial Artist[/color] - You start the game with +3 Training Days. Whenever you have no non-custom Freestyle Advanced Attacks in your moveset, your styled attacks with a base cost of 3 or more ki cannot be BLOCKED or COUNTERED.\r\n\r\n[color=lightgoldenrodyellow]Ruthless Brawler[/color] -Gain 3 Ki Points when you fall below (50% HP). Your Punch-Type and Kick-Type attacks cannot be STOPPED by a defensive roll of 12 or less. RESTRICTEDx1. Activate when your opponent BLOCKS or otherwise modifies the damage of one of your CRITICAL attacks. BREAK.\r\n\r\n[color=lightgoldenrodyellow]Weaponmaster[/color]- You may start the game with +1 Weapon item in your Inventory. Your attacks that require a Weapon gain +2 dice sides. Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.\r\n\r\n[color=lightgoldenrodyellow]Human Heart, Saiyan Pride [/color]- After achieving a new Transformation, you start Mastered with a 1d80 Transformation Roll. Whenever you would gain EXP due to 'Zenkai Power', you gain an additional +10% EXP. If your Health is (50% Total HP) HP or less, you cannot lose Health to your opponent's non-damage effects.\r\n\r\n[color=lightgoldenrodyellow]Mixed Blood Potential[/color] - Your Transformation Rolls all begin at 1d50. You may transform without spending your turn.\r\n",
@@ -857,6 +1789,67 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 3,
             text: "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-weaponmaster",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-weaponmaster",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 3,
+            sourceText:
+              "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              requirementIncludes: ["Weapon"],
+              sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            minimum: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              requirementIncludes: ["Weapon"],
+              sourceText:
+                "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
+            },
+            sourceClauseOrder: 3,
+            sourceText:
+              "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
           },
         ],
         source: {
@@ -886,6 +1879,45 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-human-heart-saiyan-pride",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 3,
+            sourceText:
+              "If your Health is (50% Total HP) HP or less, you cannot lose Health to your opponent's non-damage effects.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-resource-modification",
+            resource: "hp",
+            operation: "lose",
+            sourceActor: "opponent",
+            conditions: [
+              {
+                type: "resource-threshold",
+                subject: "self",
+                resource: "hp",
+                basis: "total",
+                comparison: "at-most",
+                value: {
+                  type: "resource-percent",
+                  subject: "self",
+                  resource: "hp",
+                  basis: "total",
+                  percent: 50,
+                },
+                sourceText: "50% Total HP or less",
+              },
+            ],
+            sourceClauseOrder: 3,
+            sourceText:
+              "If your Health is (50% Total HP) HP or less, you cannot lose Health to your opponent's non-damage effects.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/hybridSaiyan/race.md",
           text: "Hybrid-Saiyans\r\n[center][img]https://images-ext-2.discordapp.net/external/izBGtLOGEcXHVKmRB2SIcveDHtJVcqS8EK1HvmnLZpY/http/oi66.tinypic.com/fm5iyb.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Traditional human skin tones\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Humanoid w/ or w/o Monkey-like Tail\r\nPlanet of Origin: Vegeta/Earth\r\nBiography: Hybrid Saiyans are the offspring and/or descendants of offspring from one Saiyan parent and one Human parent. At one point, when the Saiyans were all but extinct, the mixing of the two races was the only thing that could be done to keep the Saiyan bloodline going. Since then, time has proven that the mixing of two Hybrid Saiyans produces a full-blooded offspring. Because of this, despite their half-blood status, most first generation Hybrid Saiyans are very surprised to learn that they are welcomed with open arms by the ruthless Saiyan race. Hybrid Saiyans share traits of both of their ancestry races and sometimes can surprise those who take them for human with their sudden bursts of rage and power.\r\nStarting Items: First Aid Kit x2, Capsule Corp. Fighting Jacket \r\n\r\n[color=lightgoldenrodyellow]RACIAL TRAITS[/color]\r\n============\r\n[color=lightgoldenrodyellow]Zenkai Power[/color] - After defeating an opponent in Battle, you gain +50% EXP. If you were at 15% or less Health at the end of that Battle, you gain +100% EXP instead. \r\nNote: Please don't collude to cheat the system. It will lead to repercussions.\r\n\r\n[color=lightgoldenrodyellow]Where There's Life, There's Hope[/color] - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\r\n\r\n[color=lightgoldenrodyellow]CLASSES[/color]\r\n=======\r\n[color=lightgoldenrodyellow]Dedicated Martial Artist[/color] - You start the game with +3 Training Days. Whenever you have no non-custom Freestyle Advanced Attacks in your moveset, your styled attacks with a base cost of 3 or more ki cannot be BLOCKED or COUNTERED.\r\n\r\n[color=lightgoldenrodyellow]Ruthless Brawler[/color] -Gain 3 Ki Points when you fall below (50% HP). Your Punch-Type and Kick-Type attacks cannot be STOPPED by a defensive roll of 12 or less. RESTRICTEDx1. Activate when your opponent BLOCKS or otherwise modifies the damage of one of your CRITICAL attacks. BREAK.\r\n\r\n[color=lightgoldenrodyellow]Weaponmaster[/color]- You may start the game with +1 Weapon item in your Inventory. Your attacks that require a Weapon gain +2 dice sides. Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.\r\n\r\n[color=lightgoldenrodyellow]Human Heart, Saiyan Pride [/color]- After achieving a new Transformation, you start Mastered with a 1d80 Transformation Roll. Whenever you would gain EXP due to 'Zenkai Power', you gain an additional +10% EXP. If your Health is (50% Total HP) HP or less, you cannot lose Health to your opponent's non-damage effects.\r\n\r\n[color=lightgoldenrodyellow]Mixed Blood Potential[/color] - Your Transformation Rolls all begin at 1d50. You may transform without spending your turn.\r\n",
@@ -906,6 +1938,47 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "You may transform without spending your turn.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-mixed-blood-potential",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 1,
+            sourceText: "Your Transformation Rolls all begin at 1d50.",
+          },
+          {
+            sourceDefinitionId: "race-class-hybrid-saiyan-mixed-blood-potential",
+            sourcePath: "reference/races.transformations/hybridSaiyan/race.md",
+            clauseOrder: 2,
+            sourceText: "You may transform without spending your turn.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "modify-roll",
+            roll: "transformation",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 30,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your Transformation Rolls all begin at 1d50.",
+          },
+          {
+            trigger: "action-phase",
+            target: "self",
+            type: "grant-transformation-action",
+            turnCost: "none",
+            scope: {
+              type: "next-action",
+              sourceText: "without spending your turn",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You may transform without spending your turn.",
           },
         ],
         source: {
@@ -949,6 +2022,56 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["stun"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-kaizoku-jin-chou-no-ryoku",
+            sourcePath: "reference/races.transformations/kaizoku-jin/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When using a single dice attacks with a base roll of 32 or lower, if your attack roll is 27 or higher, you may lose 1 KI Point to STUN your opponent.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "apply-status",
+            statusId: "stun",
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                attackRoll: {
+                  dice: 1,
+                  maximumSides: 32,
+                },
+                sourceText: "single dice attacks with a base roll of 32 or lower",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 27,
+                },
+                sourceText: "attack roll is 27 or higher",
+              },
+            ],
+            activationCost: {
+              timing: "activation",
+              resource: "ki",
+              amount: {
+                type: "literal",
+                value: 1,
+              },
+              operation: "lose",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "When using a single dice attacks with a base roll of 32 or lower, if your attack roll is 27 or higher, you may lose 1 KI Point to STUN your opponent.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/kaizoku-jin/race.md",
           text: 'Kaizoku-Jins\r\n\r\n[center][img]https://images-ext-2.discordapp.net/external/_jhT5hY3R8NBPU3uhfXqok0n6Qtja7WInLy0stwFRVM/http/oi64.tinypic.com/2010doy.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Powder Blue / Baby Blue\r\nHair Color: Orange or Brown\r\nEye Color: Black or Blue\r\nAppearance: Humanoid w/ Pointed ears, commonly with a gypsy-pirate look\r\nPlanet of Origin: Unknown, presumably a roaming star-planet named Kaizokusen\r\nBiography: A once nearly extinct race, the Kaizoku-jins have since reproduced and now have a small, but stable population of approximately one to two thousand Kaizoku-jins roaming the galaxy. Known throughout the galaxy for their shady personalities, they are often met with distrust by other cultures, and often it is within reason. Kaizoku-jins are not without honor, but the difficulty comes in the fact that each one makes up their own set of laws to live by. Some are cutthroat while other live by a warped, but solid moral code. The majority of Kaizoku-jin have taken up roles as pirates, bounty hunters, and skill traders throughout the galaxy. They have no home to call their own anymore, though some suggest they were originally from a destroyed star-planet named Kaizokusen.\r\n\r\nSTARTING ITEMS[hr] \r\n[list][*]Duelist\'s Vest\r\n[*]Small Storage Capsule[/list]\r\n\r\n[color=aqua]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=aqua]Chou no Ryoku [/color]- When using a single dice attacks with a base roll of 32 or lower, if your attack roll is 27 or higher, you may lose 1 KI Point to STUN your opponent.\r\n\r\n[color=aqua]Cross & Bones[/color] - You gain +150z for each quest completed. You gain an additional 50z if that was a saga quest.\r\n\r\n[color=aqua]CLASSES[/color]\r\n[hr]\r\n\r\n[color=aqua]"String" Theorist [/color]- Chou No Ryoku can be activated on a 25 or higher and deals (10% power)HP damage to the target. \r\n\r\n[color=aqua]Dirty Rotten Rogue[/color] - You no longer need to roll for interference. Your attacks while interfering in another combat gain +3 to the results. Once every 2 weeks you can interfere in a fight between players outside of the normal rules and throw a single advanced attack, should this attack kill the target you may claim all rewards as if you had won the battle.\r\n\r\n[color=aqua]Starjammer [/color]- Space travel takes -1 day to a minimum of 1 for any ship you own. Space quest take half as many wpd. Spaceship addons cost 25% less and any combat you initiate from space starts you at 10 KI.\r\n\r\n[color=aqua]Galactic Merchant[/color] – Once per Saga, a purchasable item you sell back to the Marketplace can be sold for 100% its original value. All Technology items costs 25% less.\r\n\r\n[color=aqua]Known Throughout The Galaxies [/color]- At the start of the game, you may create a Skill or Signature Technique to be balanced by an administrator. RESTRICTEDx2. Activate when using a Technique you created. The Ki cost is lowered by 1 to a minimum of 0.\r\n',
@@ -988,6 +2111,45 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 1,
             text: "Chou No Ryoku can be activated on a 25 or higher and deals (10% power)HP damage to the target.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-kaizoku-jin-string-theorist",
+            sourcePath: "reference/races.transformations/kaizoku-jin/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Chou No Ryoku can be activated on a 25 or higher and deals (10% power)HP damage to the target.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "lose",
+            amount: {
+              type: "stat-percent",
+              subject: "self",
+              stat: "power",
+              percent: 10,
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 25,
+                },
+                sourceText: "activated on a 25 or higher",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Chou No Ryoku can be activated on a 25 or higher and deals (10% power)HP damage to the target.",
           },
         ],
         source: {
@@ -1076,6 +2238,16 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-kaizoku-jin-known-throughout-the-galaxies",
+            sourcePath: "reference/races.transformations/kaizoku-jin/race.md",
+            clauseOrder: 2,
+            sourceText: "RESTRICTEDx2.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [],
         source: {
           path: "reference/races.transformations/kaizoku-jin/race.md",
           text: 'Kaizoku-Jins\r\n\r\n[center][img]https://images-ext-2.discordapp.net/external/_jhT5hY3R8NBPU3uhfXqok0n6Qtja7WInLy0stwFRVM/http/oi64.tinypic.com/2010doy.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Powder Blue / Baby Blue\r\nHair Color: Orange or Brown\r\nEye Color: Black or Blue\r\nAppearance: Humanoid w/ Pointed ears, commonly with a gypsy-pirate look\r\nPlanet of Origin: Unknown, presumably a roaming star-planet named Kaizokusen\r\nBiography: A once nearly extinct race, the Kaizoku-jins have since reproduced and now have a small, but stable population of approximately one to two thousand Kaizoku-jins roaming the galaxy. Known throughout the galaxy for their shady personalities, they are often met with distrust by other cultures, and often it is within reason. Kaizoku-jins are not without honor, but the difficulty comes in the fact that each one makes up their own set of laws to live by. Some are cutthroat while other live by a warped, but solid moral code. The majority of Kaizoku-jin have taken up roles as pirates, bounty hunters, and skill traders throughout the galaxy. They have no home to call their own anymore, though some suggest they were originally from a destroyed star-planet named Kaizokusen.\r\n\r\nSTARTING ITEMS[hr] \r\n[list][*]Duelist\'s Vest\r\n[*]Small Storage Capsule[/list]\r\n\r\n[color=aqua]RACIAL TRAITS [/color]\r\n[hr]\r\n[color=aqua]Chou no Ryoku [/color]- When using a single dice attacks with a base roll of 32 or lower, if your attack roll is 27 or higher, you may lose 1 KI Point to STUN your opponent.\r\n\r\n[color=aqua]Cross & Bones[/color] - You gain +150z for each quest completed. You gain an additional 50z if that was a saga quest.\r\n\r\n[color=aqua]CLASSES[/color]\r\n[hr]\r\n\r\n[color=aqua]"String" Theorist [/color]- Chou No Ryoku can be activated on a 25 or higher and deals (10% power)HP damage to the target. \r\n\r\n[color=aqua]Dirty Rotten Rogue[/color] - You no longer need to roll for interference. Your attacks while interfering in another combat gain +3 to the results. Once every 2 weeks you can interfere in a fight between players outside of the normal rules and throw a single advanced attack, should this attack kill the target you may claim all rewards as if you had won the battle.\r\n\r\n[color=aqua]Starjammer [/color]- Space travel takes -1 day to a minimum of 1 for any ship you own. Space quest take half as many wpd. Spaceship addons cost 25% less and any combat you initiate from space starts you at 10 KI.\r\n\r\n[color=aqua]Galactic Merchant[/color] – Once per Saga, a purchasable item you sell back to the Marketplace can be sold for 100% its original value. All Technology items costs 25% less.\r\n\r\n[color=aqua]Known Throughout The Galaxies [/color]- At the start of the game, you may create a Skill or Signature Technique to be balanced by an administrator. RESTRICTEDx2. Activate when using a Technique you created. The Ki cost is lowered by 1 to a minimum of 0.\r\n',
@@ -1126,6 +2298,50 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-konatsian-bravery",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 2,
+            sourceText: "You may negate a SUCCESSFUL effect.",
+          },
+          {
+            sourceDefinitionId: "race-trait-konatsian-bravery",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 1,
+            sourceText: "RESTRICTEDx1.",
+          },
+          {
+            sourceDefinitionId: "race-trait-konatsian-bravery",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 3,
+            sourceText: "This cannot effect RESTRICTED attacks.",
+          },
+        ],
+        coveredClauseOrders: [1, 3],
+        effects: [
+          {
+            trigger: "on-combat-result",
+            target: "opponent",
+            type: "negate",
+            aspects: ["prevent-damage"],
+            conditions: [
+              {
+                type: "combat-outcome",
+                actor: "opponent",
+                outcome: "stun",
+                sourceText: "a SUCCESSFUL effect",
+              },
+            ],
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "RESTRICTEDx1.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You may negate a SUCCESSFUL effect.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/konatsian/race.md",
           text: 'Konatsians\r\n[center][img]https://images-ext-1.discordapp.net/external/4xHfO2WEvNmohHpeogJsEIZisFdnVe-Au5ejTiCyTek/http/oi68.tinypic.com/2rgypdt.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Pale human skin tones\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Humanoid\r\nPlanet of Origin: Konos\r\nBiography: A mix of stern tradition and generational advancement, the Konatsian race is under constant revision. While the elder members of society run the actual planet, the younger generation has been calling for a change from this oligarchy for some time. Of course, it\'s hard to distinguish between old and young within the planet: Konats are revered for their longevity, easily living up to two centuries needing little to no medical attention. As a result, societal progression is mind-numbingly slow. Konatsians are also known for their codes of honor, which they will live and die by.\r\nStarting Items: Cargo Pants, Modern Konats Ocarina\r\n[color=#9300C4]\r\nRACIAL TRAITS [/color]\r\n=============\r\n[color=#9300C4]Bravery [/color]- RESTRICTEDx1. You may negate a SUCCESSFUL effect. This cannot effect RESTRICTED attacks.\r\n\r\n[color=#9300C4]Enhanced Hearing [/color]- Your attack rolls or defense rolls gain +2 to the results. This choice is made at character creation and can be changed at the beginning of each Saga.\r\n[color=#9300C4]\r\nCLASSES[/color]\r\n=======\r\n[color=#9300C4]Paladin[/color] - Your first single dice attack of the match is UNBLOCKABLE and gains "SUCCESSFUL - You may activate one of your Constant Skills". You first defense roll of the match gains +3 to the result.\r\n\r\n[color=#9300C4]Honor-Bound Duelist [/color] - Whenever you kill an opponent in battle, you may choose mercy. This spares their life and ends combat. If used on a player, they are set to (10% Total) HP. You receive all normal rewards and +50% EXP for the battle, and the opponent shown mercy may not challenge or interfere against you for two weeks. You may call an opponent to whom you have shown mercy into battle as an interference without a roll, but doing so removes the mercy effect. If used on an NPC, they have access to their moveset but use your stats.\n\r\n[color=#9300C4]Mixed Martial Artist[/color] - You start the game with +2 Training Days. Once per Saga, you may choose to remove your Styled moves from your moveset. If you do, total up the Training Days and you may add moves to your moveset of equal or lesser Training Days from another Martial Arts Style. The moves you add must be from planets you have already visited, and your official Style changes to match the new moveset. You may recreate any and all customs.\r\n\r\n[color=#9300C4]Konatsian Wizard[/color] - Nothing can increase the cost of your Skills or prevent you from using your Skills. If you have a Konats Ocarina in your Inventory, its effect is RESTRICTEDx2 instead. Your Konats Ocarinas stop UNRESTRICTED attacks with a roll of 15 or less.\r\n\r\n',
@@ -1146,6 +2362,42 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "This choice is made at character creation and can be changed at the beginning of each Saga.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-konatsian-enhanced-hearing",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 1,
+            sourceText: "Your attack rolls or defense rolls gain +2 to the results.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your attack rolls or defense rolls gain +2 to the results.",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your attack rolls or defense rolls gain +2 to the results.",
           },
         ],
         source: {
@@ -1170,6 +2422,81 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "You first defense roll of the match gains +3 to the result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-konatsian-paladin",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 2,
+            sourceText: "You first defense roll of the match gains +3 to the result.",
+          },
+          {
+            sourceDefinitionId: "race-class-konatsian-paladin",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 1,
+            sourceText:
+              'Your first single dice attack of the match is UNBLOCKABLE and gains "SUCCESSFUL - You may activate one of your Constant Skills".',
+          },
+        ],
+        effects: [
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 3,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You first defense roll of the match gains +3 to the result.",
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "You first defense roll of the match gains +3 to the result.",
+            },
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "prevent-resolution",
+            prevention: "block",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              attackRoll: {
+                dice: 1,
+              },
+              sourceText: "first single dice attack of the match",
+            },
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "first ... attack of the match",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your first single dice attack of the match is UNBLOCKABLE.",
+          },
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "activate",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              constant: true,
+              sourceText: "one of your Constant Skills",
+            },
+            selectionSpec: {
+              type: "one",
+            },
+            optional: true,
+            sourceClauseOrder: 1,
+            sourceText:
+              'Your first single dice attack of the match is UNBLOCKABLE and gains "SUCCESSFUL - You may activate one of your Constant Skills".',
           },
         ],
         source: {
@@ -1212,6 +2539,32 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 6,
             text: "If used on an NPC, they have access to their moveset but use your stats.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-konatsian-honor-bound-duelist",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 3,
+            sourceText: "If used on a player, they are set to (10% Total) HP.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "set",
+            amount: {
+              type: "resource-percent",
+              subject: "opponent",
+              resource: "hp",
+              basis: "total",
+              percent: 10,
+            },
+            sourceClauseOrder: 3,
+            sourceText: "If used on a player, they are set to (10% Total) HP.",
           },
         ],
         source: {
@@ -1278,6 +2631,51 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-konatsian-konatsian-wizard",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 3,
+            sourceText: "Your Konats Ocarinas stop UNRESTRICTED attacks with a roll of 15 or less.",
+          },
+          {
+            sourceDefinitionId: "race-class-konatsian-konatsian-wizard",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "If you have a Konats Ocarina in your Inventory, its effect is RESTRICTEDx2 instead.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "prevent-resolution",
+            prevention: "stop",
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              category: "advanced-attack",
+              restriction: "unrestricted",
+              sourceText: "Konats Ocarinas",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-most",
+                value: {
+                  type: "literal",
+                  value: 15,
+                },
+                sourceText: "with a roll of 15 or less",
+              },
+            ],
+            sourceClauseOrder: 3,
+            sourceText: "Your Konats Ocarinas stop UNRESTRICTED attacks with a roll of 15 or less.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/konatsian/race.md",
           text: 'Konatsians\r\n[center][img]https://images-ext-1.discordapp.net/external/4xHfO2WEvNmohHpeogJsEIZisFdnVe-Au5ejTiCyTek/http/oi68.tinypic.com/2rgypdt.jpg?width=344&height=516[/img][/center]\r\n[hr]\r\nSkin Color: Pale human skin tones\r\nHair Color: Any color\r\nEye Color: Any color\r\nAppearance: Humanoid\r\nPlanet of Origin: Konos\r\nBiography: A mix of stern tradition and generational advancement, the Konatsian race is under constant revision. While the elder members of society run the actual planet, the younger generation has been calling for a change from this oligarchy for some time. Of course, it\'s hard to distinguish between old and young within the planet: Konats are revered for their longevity, easily living up to two centuries needing little to no medical attention. As a result, societal progression is mind-numbingly slow. Konatsians are also known for their codes of honor, which they will live and die by.\r\nStarting Items: Cargo Pants, Modern Konats Ocarina\r\n[color=#9300C4]\r\nRACIAL TRAITS [/color]\r\n=============\r\n[color=#9300C4]Bravery [/color]- RESTRICTEDx1. You may negate a SUCCESSFUL effect. This cannot effect RESTRICTED attacks.\r\n\r\n[color=#9300C4]Enhanced Hearing [/color]- Your attack rolls or defense rolls gain +2 to the results. This choice is made at character creation and can be changed at the beginning of each Saga.\r\n[color=#9300C4]\r\nCLASSES[/color]\r\n=======\r\n[color=#9300C4]Paladin[/color] - Your first single dice attack of the match is UNBLOCKABLE and gains "SUCCESSFUL - You may activate one of your Constant Skills". You first defense roll of the match gains +3 to the result.\r\n\r\n[color=#9300C4]Honor-Bound Duelist [/color] - Whenever you kill an opponent in battle, you may choose mercy. This spares their life and ends combat. If used on a player, they are set to (10% Total) HP. You receive all normal rewards and +50% EXP for the battle, and the opponent shown mercy may not challenge or interfere against you for two weeks. You may call an opponent to whom you have shown mercy into battle as an interference without a roll, but doing so removes the mercy effect. If used on an NPC, they have access to their moveset but use your stats.\n\r\n[color=#9300C4]Mixed Martial Artist[/color] - You start the game with +2 Training Days. Once per Saga, you may choose to remove your Styled moves from your moveset. If you do, total up the Training Days and you may add moves to your moveset of equal or lesser Training Days from another Martial Arts Style. The moves you add must be from planets you have already visited, and your official Style changes to match the new moveset. You may recreate any and all customs.\r\n\r\n[color=#9300C4]Konatsian Wizard[/color] - Nothing can increase the cost of your Skills or prevent you from using your Skills. If you have a Konats Ocarina in your Inventory, its effect is RESTRICTEDx2 instead. Your Konats Ocarinas stop UNRESTRICTED attacks with a roll of 15 or less.\r\n\r\n',
@@ -1316,6 +2714,30 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 1,
             text: "Opponents pay +1 Ki when a non-damage effect costs or loses Ki; HP-paid non-damage effects cost an additional 5% of the opponent’s Total HP.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-maguma-jin-maguma-pressure",
+            sourcePath: "reference/races.transformations/maguma-jin/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Opponents pay +1 Ki when a non-damage effect costs or loses Ki; HP-paid non-damage effects cost an additional 5% of the opponent’s Total HP.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Opponents pay +1 Ki when a non-damage effect costs or loses Ki; HP-paid non-damage effects cost an additional 5% of the opponent’s Total HP.",
           },
         ],
         source: {
@@ -1362,6 +2784,35 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "Signature Techniques gain +2 dice sides.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-maguma-jin-maguma-jin-with-style",
+            sourcePath: "reference/races.transformations/maguma-jin/race.md",
+            clauseOrder: 2,
+            sourceText: "Signature Techniques gain +2 dice sides.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "signature",
+              sourceText: "Signature Techniques gain +2 dice sides.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Signature Techniques gain +2 dice sides.",
           },
         ],
         source: {
@@ -1425,6 +2876,53 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-maguma-jin-hot-blooded-check-it-and-see",
+            sourcePath: "reference/races.transformations/maguma-jin/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "When Powering Up puts you above the opponent’s Ki total, that opponent loses 1 Ki.",
+          },
+          {
+            sourceDefinitionId: "race-class-maguma-jin-hot-blooded-check-it-and-see",
+            sourcePath: "reference/races.transformations/maguma-jin/race.md",
+            clauseOrder: 2,
+            sourceText: "It cannot trigger again until your Ki has first fallen below theirs.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "lose",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "resource-comparison",
+                resource: "ki",
+                basis: "current",
+                left: "self",
+                comparison: "higher-than",
+                right: "opponent",
+                sourceText: "puts you above the opponent’s Ki total",
+              },
+            ],
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText: "It cannot trigger again until your Ki has first fallen below theirs.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "When Powering Up puts you above the opponent’s Ki total, that opponent loses 1 Ki.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/maguma-jin/race.md",
           text: "Maguma-jin\n\n[hr]\nSource: Older Aliens race post • Official 2017 changes • Current race index\nSource Note: The Oct. 5, 2017 standalone Maguma-Jin page currently returns HTTP 429 to the site reader. Profile/transformation data are therefore taken from the earlier Aliens post, with the Oct. 10, 2017 official class changes applied as the newer rule set.\nBiography: Heat-resistant humanoids from volcanic Magumar. Their culture is associated with magma surfing, a carefree youth scene, and a close political relationship with the Taifuu-jins.\n\nSTARTING ITEMS[hr] [list]\n[*]Battle Scouter\n[*]Junkyard Ginyu Pod (older Aliens listing)\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Maguma Pressure[/color] - Opponents pay +1 Ki when a non-damage effect costs or loses Ki; HP-paid non-damage effects cost an additional 5% of the opponent’s Total HP.\n[color=#ee4a2d]Phoenix Rising[/color] - When reduced to 0 HP, make an Advanced or Basic attack. Under the later Undying Flame class, the trigger succeeds on a 20+ and can occur up to three times.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Maguma-Jin With Style[/color] - Once per combat, a stopped Advanced Attack can restore 2 Ki; once per week, a stopped Signature Technique can restore 4 Ki. Signature Techniques gain +2 dice sides.\n[color=#ee4a2d]Teammate, Mate![/color] - Official 2017 version: interference made by you or on your behalf starts the interfering fighter at 10 Ki and permits Signature Techniques. The interfering fighter can attempt another interference roll each time they would normally exit, continuing until a roll fails.\n[color=#ee4a2d]Undying Flame[/color] - Phoenix Rising triggers on 20+ and may be used up to three times; each revival makes the opponent lose 5% Total HP.\n[color=#ee4a2d]Hot Blooded, Check it and See[/color] - When Powering Up puts you above the opponent’s Ki total, that opponent loses 1 Ki. It cannot trigger again until your Ki has first fallen below theirs.\n[color=#ee4a2d]It's The Accent[/color] - Your first two attacks each match gain a successful effect that removes 1 Ki from the opponent. Once per Saga, one escape roll may gain +20 combined result and cannot be prevented.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Red\nHair: White, blonde, or black\nEyes: Black\nAppearance: Humanoid\nOrigin: Magumar\n",
@@ -1445,6 +2943,37 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "Once per Saga, one escape roll may gain +20 combined result and cannot be prevented.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-maguma-jin-it-s-the-accent",
+            sourcePath: "reference/races.transformations/maguma-jin/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Your first two attacks each match gain a successful effect that removes 1 Ki from the opponent.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "lose",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            useLimit: {
+              scope: "combat",
+              count: 2,
+              sourceText:
+                "Your first two attacks each match gain a successful effect that removes 1 Ki from the opponent.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Your first two attacks each match gain a successful effect that removes 1 Ki from the opponent.",
           },
         ],
         source: {
@@ -1502,6 +3031,51 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["break", "negate", "sever"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-majins-regeneration",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-combat-result",
+            target: "self",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "gain",
+            amount: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "total",
+              percent: 100,
+            },
+            conditions: [
+              {
+                type: "combat-outcome",
+                actor: "self",
+                outcome: "sever",
+                sourceText: "SEVER heals immediately",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-status",
+            statusId: "break",
+            sourceClauseOrder: 1,
+            sourceText:
+              "SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/majins/race.md",
           text: "Majin\n\n[hr]\nSource: Majins\nBiography: The forum describes modern Majins as products of mystics following the legacy of Bibidi/Babidi. After a devastating conflict with the Changeling empire, surviving mystics often create comparatively weak Majins that may outlive or turn on their creators.\n\nSTARTING ITEMS[hr] [list]\n[*]Basic Mystic Pants\n[*]Majin Cookie\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Bubblegum Flesh[/color] - RESTRICTEDx1: lose 2 Ki after defense is rolled to prevent all damage from an UNRESTRICTED attack.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Fatty, Fatty 2x4[/color] - Requires 250+ lbs. Bubblegum Flesh becomes RESTRICTEDx2; stopping a SEVER/BREAK attack makes the opponent lose 1 Ki.\n[color=#ee4a2d]Thin Is In[/color] - Requires 150 lbs or less. Defensive dice +2 sides; near-tie defense results (+1/-1/equal) may force both sides to reroll.\n[color=#ee4a2d]Average Pink Blob[/color] - Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.\n[color=#ee4a2d]Pain Bringer[/color] - Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.\n[color=#ee4a2d]Made From Finer Magic[/color] - BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any\nHair: Any\nEyes: Any\nAppearance: Humanoid\nOrigin: Unknown\n",
@@ -1526,6 +3100,46 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["break", "sever"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-majins-fatty-fatty-2x4",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Bubblegum Flesh becomes RESTRICTEDx2; stopping a SEVER/BREAK attack makes the opponent lose 1 Ki.",
+          },
+          {
+            sourceDefinitionId: "race-class-majins-fatty-fatty-2x4",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 1,
+            sourceText: "Requires 250+ lbs.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "lose",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "combat-result",
+                actor: "self",
+                result: "stopped",
+                sourceText: "stopping a SEVER/BREAK attack",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "Bubblegum Flesh becomes RESTRICTEDx2; stopping a SEVER/BREAK attack makes the opponent lose 1 Ki.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/majins/race.md",
           text: "Majin\n\n[hr]\nSource: Majins\nBiography: The forum describes modern Majins as products of mystics following the legacy of Bibidi/Babidi. After a devastating conflict with the Changeling empire, surviving mystics often create comparatively weak Majins that may outlive or turn on their creators.\n\nSTARTING ITEMS[hr] [list]\n[*]Basic Mystic Pants\n[*]Majin Cookie\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Bubblegum Flesh[/color] - RESTRICTEDx1: lose 2 Ki after defense is rolled to prevent all damage from an UNRESTRICTED attack.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Fatty, Fatty 2x4[/color] - Requires 250+ lbs. Bubblegum Flesh becomes RESTRICTEDx2; stopping a SEVER/BREAK attack makes the opponent lose 1 Ki.\n[color=#ee4a2d]Thin Is In[/color] - Requires 150 lbs or less. Defensive dice +2 sides; near-tie defense results (+1/-1/equal) may force both sides to reroll.\n[color=#ee4a2d]Average Pink Blob[/color] - Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.\n[color=#ee4a2d]Pain Bringer[/color] - Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.\n[color=#ee4a2d]Made From Finer Magic[/color] - BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any\nHair: Any\nEyes: Any\nAppearance: Humanoid\nOrigin: Unknown\n",
@@ -1548,6 +3162,38 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-majins-thin-is-in",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Defensive dice +2 sides; near-tie defense results (+1/-1/equal) may force both sides to reroll.",
+          },
+          {
+            sourceDefinitionId: "race-class-majins-thin-is-in",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 1,
+            sourceText: "Requires 150 lbs or less.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Defensive dice +2 sides; near-tie defense results (+1/-1/equal) may force both sides to reroll.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/majins/race.md",
           text: "Majin\n\n[hr]\nSource: Majins\nBiography: The forum describes modern Majins as products of mystics following the legacy of Bibidi/Babidi. After a devastating conflict with the Changeling empire, surviving mystics often create comparatively weak Majins that may outlive or turn on their creators.\n\nSTARTING ITEMS[hr] [list]\n[*]Basic Mystic Pants\n[*]Majin Cookie\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Bubblegum Flesh[/color] - RESTRICTEDx1: lose 2 Ki after defense is rolled to prevent all damage from an UNRESTRICTED attack.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Fatty, Fatty 2x4[/color] - Requires 250+ lbs. Bubblegum Flesh becomes RESTRICTEDx2; stopping a SEVER/BREAK attack makes the opponent lose 1 Ki.\n[color=#ee4a2d]Thin Is In[/color] - Requires 150 lbs or less. Defensive dice +2 sides; near-tie defense results (+1/-1/equal) may force both sides to reroll.\n[color=#ee4a2d]Average Pink Blob[/color] - Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.\n[color=#ee4a2d]Pain Bringer[/color] - Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.\n[color=#ee4a2d]Made From Finer Magic[/color] - BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any\nHair: Any\nEyes: Any\nAppearance: Humanoid\nOrigin: Unknown\n",
@@ -1563,6 +3209,59 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 1,
             text: "Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-majins-average-pink-blob",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            minimum: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "first physical attack each match",
+            },
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "first physical attack each match costs -1 Ki, minimum 1.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.",
           },
         ],
         source: {
@@ -1582,6 +3281,68 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["negate", "successful"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-majins-pain-bringer",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "modify-resource",
+            resource: "hp",
+            operation: "gain",
+            amount: {
+              type: "resource-percent",
+              subject: "self",
+              resource: "hp",
+              basis: "current",
+              percent: 5,
+            },
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                tags: ["physical"],
+                baseKiCost: {
+                  comparison: "at-least",
+                  value: {
+                    type: "literal",
+                    value: 3,
+                  },
+                },
+                sourceText: "successful physical attacks with base cost 3+",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-resource-modification",
+            resource: "hp",
+            operation: "gain",
+            sourceActor: "opponent",
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                effectKinds: ["resource-loss"],
+                sourceText: "opponent’s move-effect healing",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/majins/race.md",
           text: "Majin\n\n[hr]\nSource: Majins\nBiography: The forum describes modern Majins as products of mystics following the legacy of Bibidi/Babidi. After a devastating conflict with the Changeling empire, surviving mystics often create comparatively weak Majins that may outlive or turn on their creators.\n\nSTARTING ITEMS[hr] [list]\n[*]Basic Mystic Pants\n[*]Majin Cookie\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Bubblegum Flesh[/color] - RESTRICTEDx1: lose 2 Ki after defense is rolled to prevent all damage from an UNRESTRICTED attack.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 allows skipping a turn to negate one BREAK; RECOVER is increased by 5% Total HP.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Fatty, Fatty 2x4[/color] - Requires 250+ lbs. Bubblegum Flesh becomes RESTRICTEDx2; stopping a SEVER/BREAK attack makes the opponent lose 1 Ki.\n[color=#ee4a2d]Thin Is In[/color] - Requires 150 lbs or less. Defensive dice +2 sides; near-tie defense results (+1/-1/equal) may force both sides to reroll.\n[color=#ee4a2d]Average Pink Blob[/color] - Bubblegum Flesh costs 1 Ki; dice +2 sides; first physical attack each match costs -1 Ki, minimum 1.\n[color=#ee4a2d]Pain Bringer[/color] - Successful physical attacks with base cost 3+ heal 5% Current HP; pay 1 Ki to negate an opponent’s move-effect healing.\n[color=#ee4a2d]Made From Finer Magic[/color] - BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any\nHair: Any\nEyes: Any\nAppearance: Humanoid\nOrigin: Unknown\n",
@@ -1596,6 +3357,35 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 1,
             text: "BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.",
             ruleTokens: ["break", "negate", "stun"],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-majins-made-from-finer-magic",
+            sourcePath: "reference/races.transformations/majins/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-status",
+            statusId: "break",
+            sourceClauseOrder: 1,
+            sourceText:
+              "BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-status",
+            statusId: "stun",
+            sourceClauseOrder: 1,
+            sourceText:
+              "BREAK has no effect; may negate STUN effects from opposing Advanced Attacks.",
           },
         ],
         source: {
@@ -1648,6 +3438,86 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-makaioshin-demonic-potential",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 1,
+            sourceText: "At match start roll 1d10; 5+ allows starting at 10 Ki.",
+          },
+          {
+            sourceDefinitionId: "race-trait-makaioshin-demonic-potential",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 2,
+            sourceText: "Opponents cannot reduce starting Ki.",
+          },
+          {
+            sourceDefinitionId: "race-trait-makaioshin-demonic-potential",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 3,
+            sourceText: "If delayed, gain 5 Ki when it activates.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "start-combat",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 10,
+            storageKey: "demonic-potential-start-roll",
+            sourceClauseOrder: 1,
+            sourceText: "At match start roll 1d10; 5+ allows starting at 10 Ki.",
+          },
+          {
+            trigger: "start-combat",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "set",
+            amount: {
+              type: "literal",
+              value: 10,
+            },
+            conditions: [
+              {
+                type: "stored-roll-threshold",
+                storageKey: "demonic-potential-start-roll",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 5,
+                },
+                sourceText: "5+",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText: "At match start roll 1d10; 5+ allows starting at 10 Ki.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-resource-modification",
+            resource: "ki",
+            operation: "lose",
+            sourceActor: "opponent",
+            sourceClauseOrder: 2,
+            sourceText: "Opponents cannot reduce starting Ki.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 3,
+            sourceText: "If delayed, gain 5 Ki when it activates.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/makaioshin/race.md",
           text: "Makaioshin\n\n[hr]\nSource: Makaioshin\nBiography: Evil-hearted Shin-jin cast from Kaishin into the Demon Realm. They function as dark counterparts to divine Kais and possess petrifying magic.\n\nSTARTING ITEMS[hr] [list]\n[*]Demon Realm Cape\n[*]Yema Fruit\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Demonic Potential[/color] - At match start roll 1d10; 5+ allows starting at 10 Ki. Opponents cannot reduce starting Ki. If delayed, gain 5 Ki when it activates.\n[color=#ee4a2d]Petrifying Spit[/color] - RESTRICTEDx1 after a successful single-die attack: pay 1 Ki to STUN. If you attack next turn, the opponent cannot BLOCK and suffers -5 defensive result.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Aspiring King[/color] - New transformations start Mastered at 1d100; Ki gains cannot be prevented or reduced.\n[color=#ee4a2d]Magic Materializer[/color] - Start with +1 Weapon. Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.\n[color=#ee4a2d]Meditative Evil[/color] - Demonic Potential succeeds on 3+. RESTRICTEDx1 at 0 Ki: gain 2 Ki without using the turn.\n[color=#ee4a2d]Feared By The Gods[/color] - Opponent transformation rolls fail on 10 or less, even with 1d100. RESTRICTEDx1: revert opponent one transformation level without using your turn.\n[color=#ee4a2d]The Baddest Seed of the Kaiju Tree[/color] - Kills outside quest battles grant +25% EXP, or +50% if opponent had higher PL. Attack rolls costing 2+ Ki gain +1 result.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Red or blue\nHair: Any\nEyes: Any\nAppearance: Any\nOrigin: Kaishin / Demon Realm\n",
@@ -1668,6 +3538,86 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "If you attack next turn, the opponent cannot BLOCK and suffers -5 defensive result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-makaioshin-petrifying-spit",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 1,
+            sourceText: "RESTRICTEDx1 after a successful single-die attack: pay 1 Ki to STUN.",
+          },
+          {
+            sourceDefinitionId: "race-trait-makaioshin-petrifying-spit",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "If you attack next turn, the opponent cannot BLOCK and suffers -5 defensive result.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "apply-status",
+            statusId: "stun",
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                attackRoll: {
+                  dice: 1,
+                },
+                sourceText: "successful single-die attack",
+              },
+            ],
+            activationCost: {
+              timing: "activation",
+              resource: "ki",
+              amount: {
+                type: "literal",
+                value: 1,
+              },
+              operation: "lose",
+            },
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "RESTRICTEDx1",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "RESTRICTEDx1 after a successful single-die attack: pay 1 Ki to STUN.",
+          },
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "prevent-resolution",
+            prevention: "block",
+            scope: {
+              type: "next-turn",
+              subject: "self",
+              sourceText: "If you attack next turn",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "If you attack next turn, the opponent cannot BLOCK.",
+          },
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -5,
+            },
+            scope: {
+              type: "next-turn",
+              subject: "self",
+              sourceText: "If you attack next turn",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "If you attack next turn, the opponent ... suffers -5 defensive result.",
           },
         ],
         source: {
@@ -1711,6 +3661,63 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-makaioshin-magic-materializer",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              requirementIncludes: ["Weapon"],
+              sourceText:
+                "Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.",
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            minimum: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "skill",
+              requirementIncludes: ["Weapon"],
+              sourceText:
+                "Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.",
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/makaioshin/race.md",
           text: "Makaioshin\n\n[hr]\nSource: Makaioshin\nBiography: Evil-hearted Shin-jin cast from Kaishin into the Demon Realm. They function as dark counterparts to divine Kais and possess petrifying magic.\n\nSTARTING ITEMS[hr] [list]\n[*]Demon Realm Cape\n[*]Yema Fruit\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Demonic Potential[/color] - At match start roll 1d10; 5+ allows starting at 10 Ki. Opponents cannot reduce starting Ki. If delayed, gain 5 Ki when it activates.\n[color=#ee4a2d]Petrifying Spit[/color] - RESTRICTEDx1 after a successful single-die attack: pay 1 Ki to STUN. If you attack next turn, the opponent cannot BLOCK and suffers -5 defensive result.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Aspiring King[/color] - New transformations start Mastered at 1d100; Ki gains cannot be prevented or reduced.\n[color=#ee4a2d]Magic Materializer[/color] - Start with +1 Weapon. Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.\n[color=#ee4a2d]Meditative Evil[/color] - Demonic Potential succeeds on 3+. RESTRICTEDx1 at 0 Ki: gain 2 Ki without using the turn.\n[color=#ee4a2d]Feared By The Gods[/color] - Opponent transformation rolls fail on 10 or less, even with 1d100. RESTRICTEDx1: revert opponent one transformation level without using your turn.\n[color=#ee4a2d]The Baddest Seed of the Kaiju Tree[/color] - Kills outside quest battles grant +25% EXP, or +50% if opponent had higher PL. Attack rolls costing 2+ Ki gain +1 result.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Red or blue\nHair: Any\nEyes: Any\nAppearance: Any\nOrigin: Kaishin / Demon Realm\n",
@@ -1731,6 +3738,55 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "RESTRICTEDx1 at 0 Ki: gain 2 Ki without using the turn.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-makaioshin-meditative-evil",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 2,
+            sourceText: "RESTRICTEDx1 at 0 Ki: gain 2 Ki without using the turn.",
+          },
+          {
+            sourceDefinitionId: "race-class-makaioshin-meditative-evil",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 1,
+            sourceText: "Demonic Potential succeeds on 3+.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "action-phase",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            conditions: [
+              {
+                type: "resource-threshold",
+                subject: "self",
+                resource: "ki",
+                basis: "current",
+                comparison: "at-most",
+                value: {
+                  type: "literal",
+                  value: 0,
+                },
+                sourceText: "at 0 Ki",
+              },
+            ],
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "RESTRICTEDx1.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "RESTRICTEDx1 at 0 Ki: gain 2 Ki without using the turn.",
           },
         ],
         source: {
@@ -1755,6 +3811,55 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-makaioshin-feared-by-the-gods",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "RESTRICTEDx1: revert opponent one transformation level without using your turn.",
+          },
+          {
+            sourceDefinitionId: "race-class-makaioshin-feared-by-the-gods",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 1,
+            sourceText: "Opponent transformation rolls fail on 10 or less, even with 1d100.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "revert-transformation",
+            conditions: [
+              {
+                type: "combat-state",
+                subject: "opponent",
+                state: "transformed",
+                sourceText: "opponent transformation",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 10,
+                },
+                sourceText: "even with 1d100",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "RESTRICTEDx1: revert opponent one transformation level without using your turn.",
+            useLimit: {
+              scope: "combat",
+              count: 1,
+              sourceText: "RESTRICTEDx1.",
+            },
+          },
+        ],
         source: {
           path: "reference/races.transformations/makaioshin/race.md",
           text: "Makaioshin\n\n[hr]\nSource: Makaioshin\nBiography: Evil-hearted Shin-jin cast from Kaishin into the Demon Realm. They function as dark counterparts to divine Kais and possess petrifying magic.\n\nSTARTING ITEMS[hr] [list]\n[*]Demon Realm Cape\n[*]Yema Fruit\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Demonic Potential[/color] - At match start roll 1d10; 5+ allows starting at 10 Ki. Opponents cannot reduce starting Ki. If delayed, gain 5 Ki when it activates.\n[color=#ee4a2d]Petrifying Spit[/color] - RESTRICTEDx1 after a successful single-die attack: pay 1 Ki to STUN. If you attack next turn, the opponent cannot BLOCK and suffers -5 defensive result.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Aspiring King[/color] - New transformations start Mastered at 1d100; Ki gains cannot be prevented or reduced.\n[color=#ee4a2d]Magic Materializer[/color] - Start with +1 Weapon. Weapon attacks +2 dice sides; Weapon-required Skills cost -1 Ki, minimum 1.\n[color=#ee4a2d]Meditative Evil[/color] - Demonic Potential succeeds on 3+. RESTRICTEDx1 at 0 Ki: gain 2 Ki without using the turn.\n[color=#ee4a2d]Feared By The Gods[/color] - Opponent transformation rolls fail on 10 or less, even with 1d100. RESTRICTEDx1: revert opponent one transformation level without using your turn.\n[color=#ee4a2d]The Baddest Seed of the Kaiju Tree[/color] - Kills outside quest battles grant +25% EXP, or +50% if opponent had higher PL. Attack rolls costing 2+ Ki gain +1 result.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Red or blue\nHair: Any\nEyes: Any\nAppearance: Any\nOrigin: Kaishin / Demon Realm\n",
@@ -1775,6 +3880,41 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "Attack rolls costing 2+ Ki gain +1 result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-makaioshin-the-baddest-seed-of-the-kaiju-tree",
+            sourcePath: "reference/races.transformations/makaioshin/race.md",
+            clauseOrder: 2,
+            sourceText: "Attack rolls costing 2+ Ki gain +1 result.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 2,
+                },
+              },
+              sourceText: "Attack rolls costing 2+ Ki gain +1 result.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Attack rolls costing 2+ Ki gain +1 result.",
           },
         ],
         source: {
@@ -1999,6 +4139,48 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-namek-meditative-preparation",
+            sourcePath: "reference/races.transformations/namek/race.md",
+            clauseOrder: 1,
+            sourceText: "Start combat with +1 Ki.",
+          },
+          {
+            sourceDefinitionId: "race-trait-namek-meditative-preparation",
+            sourcePath: "reference/races.transformations/namek/race.md",
+            clauseOrder: 2,
+            sourceText: "Power Up grants +1 additional Ki.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "start-combat",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Start combat with +1 Ki.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Power Up grants +1 additional Ki.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/namek/race.md",
           text: "Namekian\n\n[hr]\nSource: Namekians • Official 2017 changes\nSource Note: The current Namekian page visibly incorporates the 2017 class revisions.\nBiography: Modern Namekians retain regeneration, limb-stretching, clan/caste roles and a strong tradition of meditation. The setting also depicts asexual lineage and a historically passive role in galactic affairs.\n\nSTARTING ITEMS[hr] [list]\n[*]Namekian Uniform\n[*]Senzu Root\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Meditative Preparation[/color] - Start combat with +1 Ki. Power Up grants +1 additional Ki.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 skip a turn to negate one BREAK; RECOVER +5% Total HP per day.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Kami[/color] - After interfering, may swap into the battle if partner agrees; inherit their HP percentage and transformation level, enter at 5 Ki. Original player receives rewards/EXP.\n[color=#ee4a2d]Warrior Clan[/color] - Start +2 Training Days. Consecutive successful single-die attacks add +5% damage each, capped +25%; ignore opponent non-mastery damage reduction.\n[color=#ee4a2d]World Invader[/color] - New transformations start at 1d50. Pick an invasion planet at game start and every even week; on that planet act first and first five Advanced Attacks gain +2 results.\n[color=#ee4a2d]Dragon Clan[/color] - Cannot lose Meditative Preparation. At combat start declare Wish and roll 1d7 for one of seven effects: opponent 0 Ki; begin at chosen transformation level; force transformation rolls every turn; borrow one unknown style Advanced Attack once; opponent BLOCKS +1 Ki; one RESTRICTED move gains +1 restriction; or choose any result from the list.\n[color=#ee4a2d]Pokopen Reproduction[/color] - Once every 2 weeks when killed in Battle, replace the character with a new Namekian retaining stats/items/transformations/name and some/all memories. No zenni loss; most items cannot be stolen. No Afterlife trip. Cannot challenge for a week and starts combats at 2 Ki that week. Killing the opponent who forced Pokopen later grants +100% EXP.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any; normally green\nHair: Male: bald. Female: bald, black, or white\nEyes: Black\nAppearance: Humanoid\nOrigin: Namek\n",
@@ -2062,6 +4244,60 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["successful"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-namek-warrior-clan",
+            sourcePath: "reference/races.transformations/namek/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "Consecutive successful single-die attacks add +5% damage each, capped +25%; ignore opponent non-mastery damage reduction.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "stat-percent",
+              subject: "self",
+              stat: "power",
+              percent: 5,
+            },
+            conditions: [
+              {
+                type: "action-sequence",
+                actor: "self",
+                result: "successful",
+                count: 1,
+                differentTurns: true,
+                selector: {
+                  type: "move-selector",
+                  subject: "source",
+                  attackRoll: {
+                    dice: 1,
+                  },
+                  sourceText: "successful single-die attacks",
+                },
+                sourceText: "Consecutive successful single-die attacks",
+              },
+            ],
+            cap: {
+              type: "maximum",
+              value: {
+                type: "stat-percent",
+                subject: "self",
+                stat: "power",
+                percent: 25,
+              },
+              sourceText: "capped +25%",
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Consecutive successful single-die attacks add +5% damage each, capped +25%; ignore opponent non-mastery damage reduction.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/namek/race.md",
           text: "Namekian\n\n[hr]\nSource: Namekians • Official 2017 changes\nSource Note: The current Namekian page visibly incorporates the 2017 class revisions.\nBiography: Modern Namekians retain regeneration, limb-stretching, clan/caste roles and a strong tradition of meditation. The setting also depicts asexual lineage and a historically passive role in galactic affairs.\n\nSTARTING ITEMS[hr] [list]\n[*]Namekian Uniform\n[*]Senzu Root\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Meditative Preparation[/color] - Start combat with +1 Ki. Power Up grants +1 additional Ki.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 skip a turn to negate one BREAK; RECOVER +5% Total HP per day.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Kami[/color] - After interfering, may swap into the battle if partner agrees; inherit their HP percentage and transformation level, enter at 5 Ki. Original player receives rewards/EXP.\n[color=#ee4a2d]Warrior Clan[/color] - Start +2 Training Days. Consecutive successful single-die attacks add +5% damage each, capped +25%; ignore opponent non-mastery damage reduction.\n[color=#ee4a2d]World Invader[/color] - New transformations start at 1d50. Pick an invasion planet at game start and every even week; on that planet act first and first five Advanced Attacks gain +2 results.\n[color=#ee4a2d]Dragon Clan[/color] - Cannot lose Meditative Preparation. At combat start declare Wish and roll 1d7 for one of seven effects: opponent 0 Ki; begin at chosen transformation level; force transformation rolls every turn; borrow one unknown style Advanced Attack once; opponent BLOCKS +1 Ki; one RESTRICTED move gains +1 restriction; or choose any result from the list.\n[color=#ee4a2d]Pokopen Reproduction[/color] - Once every 2 weeks when killed in Battle, replace the character with a new Namekian retaining stats/items/transformations/name and some/all memories. No zenni loss; most items cannot be stolen. No Afterlife trip. Cannot challenge for a week and starts combats at 2 Ki that week. Killing the opponent who forced Pokopen later grants +100% EXP.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any; normally green\nHair: Male: bald. Female: bald, black, or white\nEyes: Black\nAppearance: Humanoid\nOrigin: Namek\n",
@@ -2106,6 +4342,16 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-namek-dragon-clan",
+            sourcePath: "reference/races.transformations/namek/race.md",
+            clauseOrder: 1,
+            sourceText: "Cannot lose Meditative Preparation.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [],
         source: {
           path: "reference/races.transformations/namek/race.md",
           text: "Namekian\n\n[hr]\nSource: Namekians • Official 2017 changes\nSource Note: The current Namekian page visibly incorporates the 2017 class revisions.\nBiography: Modern Namekians retain regeneration, limb-stretching, clan/caste roles and a strong tradition of meditation. The setting also depicts asexual lineage and a historically passive role in galactic affairs.\n\nSTARTING ITEMS[hr] [list]\n[*]Namekian Uniform\n[*]Senzu Root\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Meditative Preparation[/color] - Start combat with +1 Ki. Power Up grants +1 additional Ki.\n[color=#ee4a2d]Regeneration[/color] - SEVER heals immediately; RESTRICTEDx1 skip a turn to negate one BREAK; RECOVER +5% Total HP per day.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Kami[/color] - After interfering, may swap into the battle if partner agrees; inherit their HP percentage and transformation level, enter at 5 Ki. Original player receives rewards/EXP.\n[color=#ee4a2d]Warrior Clan[/color] - Start +2 Training Days. Consecutive successful single-die attacks add +5% damage each, capped +25%; ignore opponent non-mastery damage reduction.\n[color=#ee4a2d]World Invader[/color] - New transformations start at 1d50. Pick an invasion planet at game start and every even week; on that planet act first and first five Advanced Attacks gain +2 results.\n[color=#ee4a2d]Dragon Clan[/color] - Cannot lose Meditative Preparation. At combat start declare Wish and roll 1d7 for one of seven effects: opponent 0 Ki; begin at chosen transformation level; force transformation rolls every turn; borrow one unknown style Advanced Attack once; opponent BLOCKS +1 Ki; one RESTRICTED move gains +1 restriction; or choose any result from the list.\n[color=#ee4a2d]Pokopen Reproduction[/color] - Once every 2 weeks when killed in Battle, replace the character with a new Namekian retaining stats/items/transformations/name and some/all memories. No zenni loss; most items cannot be stolen. No Afterlife trip. Cannot challenge for a week and starts combats at 2 Ki that week. Killing the opponent who forced Pokopen later grants +100% EXP.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Any; normally green\nHair: Male: bald. Female: bald, black, or white\nEyes: Black\nAppearance: Humanoid\nOrigin: Namek\n",
@@ -2305,6 +4551,48 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-saiyans-legendary-super-saiyan",
+            sourcePath: "reference/races.transformations/saiyans/race.md",
+            clauseOrder: 3,
+            sourceText:
+              "Later addendum treats the LSSJ as DESTROY POTENTIAL and gives +5% attack damage while below 50% Total HP.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: 5,
+            },
+            conditions: [
+              {
+                type: "resource-threshold",
+                subject: "self",
+                resource: "hp",
+                basis: "current",
+                comparison: "at-most",
+                value: {
+                  type: "resource-percent",
+                  subject: "self",
+                  resource: "hp",
+                  basis: "total",
+                  percent: 50,
+                },
+                sourceText: "below 50% Total HP",
+              },
+            ],
+            sourceClauseOrder: 3,
+            sourceText:
+              "Later addendum treats the LSSJ as DESTROY POTENTIAL and gives +5% attack damage while below 50% Total HP.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/saiyans/race.md",
           text: "Saiyan\n\n[hr]\nSource: Saiyans\nBiography: A long-lived warrior race with dominant hybrid genetics, a restored caste system on New Vegeta, and historic hostility toward Arcosians.\n\nSTARTING ITEMS[hr] [list]\n[*]Speedo\n[*]Space Pod\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Zenkai Power[/color] - After defeating an opponent in Battle, +50% EXP; if at 15% Health or less at battle end, +100% EXP instead.\n[color=#ee4a2d]Saiyan Might[/color] - Permanent +10% to all stats.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Low Class Warrior[/color] - Automatically acquire transformations at minimum PL; first transformation each match grants 2 Ki.\n[color=#ee4a2d]Middle Class Warrior[/color] - Start +2 Training Days; transforming does not use your turn.\n[color=#ee4a2d]Elite Class Warrior[/color] - Start +1 Training Day; new transformations begin Mastered at 1d100. At Battle start, may surrender all escape rolls to gain +2 attack dice sides.\n[color=#ee4a2d]Savage Saiyan[/color] - Automatically acquire transformations. While transformed may randomly choose an Advanced Attack; if randomized, it deals +10% Power damage and can override Oozaru randomization.\n[color=#ee4a2d]Legendary Super Saiyan[/color] - Character creation roll 1d100 before an Administrator; 98+ unlocks the exclusive LSSJ transformation line. Only one active LSSJ character may hold the class; failed rolls impose the source’s retry restrictions. Later addendum treats the LSSJ as DESTROY POTENTIAL and gives +5% attack damage while below 50% Total HP.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Traditional human tones\nHair: Black or brown\nEyes: Black\nAppearance: Humanoid with monkey-like tail\nOrigin: Vegeta / New Vegeta in setting\n",
@@ -2359,6 +4647,30 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 1,
             text: "Defense rolls +1 die side; permanent +10% Dexterity.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-shamoians-size-matters",
+            sourcePath: "reference/races.transformations/shamoians/race.md",
+            clauseOrder: 1,
+            sourceText: "Defense rolls +1 die side; permanent +10% Dexterity.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Defense rolls +1 die side; permanent +10% Dexterity.",
           },
         ],
         source: {
@@ -2601,6 +4913,71 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-shikirian-eager-to-advance",
+            sourcePath: "reference/races.transformations/shikirian/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "While you have more Ki than any opponent, opponents cannot manipulate your costs/effects.",
+          },
+          {
+            sourceDefinitionId: "race-class-shikirian-eager-to-advance",
+            sourcePath: "reference/races.transformations/shikirian/race.md",
+            clauseOrder: 3,
+            sourceText:
+              "When a transformation effect grants you Ki, choose an opponent to lose the same amount.",
+          },
+          {
+            sourceDefinitionId: "race-class-shikirian-eager-to-advance",
+            sourcePath: "reference/races.transformations/shikirian/race.md",
+            clauseOrder: 1,
+            sourceText: "Must accept challenges.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-move-modification",
+            actor: "opponent",
+            aspects: ["cost", "damage", "dice-sides", "effects", "roll-results"],
+            selector: {
+              type: "move-selector",
+              subject: "target",
+              sourceText: "your costs and effects",
+            },
+            conditions: [
+              {
+                type: "resource-comparison",
+                resource: "ki",
+                basis: "current",
+                left: "self",
+                comparison: "higher-than",
+                right: "opponent",
+                sourceText: "more Ki than any opponent",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "While you have more Ki than any opponent, opponents cannot manipulate your costs/effects.",
+          },
+          {
+            trigger: "on-resource-gain",
+            target: "opponent",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "lose",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 3,
+            sourceText:
+              "When a transformation effect grants you Ki, choose an opponent to lose the same amount.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/shikirian/race.md",
           text: "Shikirian\n\n[hr]\nSource: Shikirian\nBiography: A militarized species drafted at age 16, renowned as soldiers and mercenaries. Their signature racial power swaps Ki levels with an opponent.\n\nSTARTING ITEMS[hr] [list]\n[*]Intergalactic War Manual\n[*]Space Pod\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Bred For War[/color] - Start +2 Training Days.\n[color=#ee4a2d]Power Swap[/color] - RESTRICTEDx1 at start of your turn: choose an opponent and swap how many Ki Points above 0 each has. Usable at 50% Total HP or less; does not use the turn.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Squad Leader[/color] - Joint quest +100z; every other week choose another character whose attacks gain +5% Power damage.\n[color=#ee4a2d]Powershifter[/color] - Power Swap becomes RESTRICTEDx2 and usable at 75% Total HP or less.\n[color=#ee4a2d]Mercenary[/color] - Start with +1 Weapon; once/week after killing in Battle, take one non-custom, non-spaceship item from victim.\n[color=#ee4a2d]Legacy of the Captain[/color] - Start with two Fighting Pose moves from Afterlife; one may not occupy a Skill slot.\n[color=#ee4a2d]Eager to Advance[/color] - Must accept challenges. While you have more Ki than any opponent, opponents cannot manipulate your costs/effects. When a transformation effect grants you Ki, choose an opponent to lose the same amount.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Purple or red\nHair: None\nEyes: Black\nAppearance: Humanoid with horns\nOrigin: Shiki'r\n",
@@ -2657,6 +5034,29 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-trait-taifuu-jins-runner-s-high",
+            sourcePath: "reference/races.transformations/taifuu-jins/race.md",
+            clauseOrder: 1,
+            sourceText: "Dexterity Bonus +1.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-stat",
+            stat: "dexterity-bonus",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Dexterity Bonus +1.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/taifuu-jins/race.md",
           text: "Taifuu-jin\n\n[hr]\nSource: Older Aliens race post • Current race index\nSource Note: The Oct. 5, 2017 standalone Taifuu-Jins page currently returns HTTP 429. The older Aliens post supplies the playable mechanics shown here.\nBiography: Naturally fast inhabitants of tropical Taifuu, politically close to Magumar and its Maguma-jins.\n\nSTARTING ITEMS[hr] [list]\n[*]Battle Scouter\n[*]Junkyard Ginyu Pod (older Aliens listing)\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Runner’s High[/color] - Dexterity Bonus +1.\n[color=#ee4a2d]Fastest in the Universe[/color] - Once/week reduce a normal Quest by 1 day, minimum 1. Does not apply to Quest Battles or Saga Quests and cannot be shared through Joint Quests.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Grease Lightning[/color] - Runner’s High becomes +2. When your Dex Bonus exceeds opponent’s, your Dexterity is treated as higher; single-die attacks with base 1d32 or lower gain a 33+ SUCCESSFUL STUN effect.\n[color=#ee4a2d]Dragon Ball Gatherer[/color] - Dragon Ball searches take -1 day. On death/escape, you may scatter selected Dragon Balls instead; stacks with Fastest in the Universe.\n[color=#ee4a2d]Speed Demon[/color] - Whenever you STUN, gain 1 Ki. After a STUN, if your next single-die attack is successful, gain another 1 Ki.\n[color=#ee4a2d]Azure Hurricane[/color] - When you initiate Battle, opponent cannot escape until at 20% Total HP or less; each escape attempt adds -3 to their combined escape result.\n[color=#ee4a2d]Teamwork Isn’t Cheating[/color] - Once/week bring a willing same-planet player into your turn in their highest transformation to perform one Advanced Attack costing 5 Ki or less for free, using their own mastery/racials/transformation effects; may instead spend the use to enter another character’s Battle. Not usable in Tournament Matches.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Blue\nHair: Any\nEyes: Fuchsia iris and sclera\nAppearance: Humanoid\nOrigin: Taifuu\n",
@@ -2703,6 +5103,98 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["stun", "successful"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-taifuu-jins-grease-lightning",
+            sourcePath: "reference/races.transformations/taifuu-jins/race.md",
+            clauseOrder: 1,
+            sourceText: "Runner’s High becomes +2.",
+          },
+          {
+            sourceDefinitionId: "race-class-taifuu-jins-grease-lightning",
+            sourcePath: "reference/races.transformations/taifuu-jins/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "When your Dex Bonus exceeds opponent’s, your Dexterity is treated as higher; single-die attacks with base 1d32 or lower gain a 33+ SUCCESSFUL STUN effect.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-stat",
+            stat: "dexterity-bonus",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Runner’s High becomes +2.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "set-stat-comparison",
+            left: "self",
+            stat: "dexterity",
+            comparison: "higher-than",
+            right: "opponent",
+            duration: {
+              type: "turns",
+              turns: {
+                type: "literal",
+                value: 1,
+              },
+              sourceText: "until the next upkeep",
+            },
+            conditions: [
+              {
+                type: "stat-comparison",
+                left: "self",
+                stat: "dexterity-bonus",
+                comparison: "higher-than",
+                right: "opponent",
+                rightStat: "dexterity-bonus",
+                sourceText: "When your Dex Bonus exceeds opponent’s",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "When your Dex Bonus exceeds opponent’s, your Dexterity is treated as higher.",
+          },
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "apply-status",
+            statusId: "stun",
+            conditions: [
+              {
+                type: "move-selector",
+                subject: "target",
+                category: "advanced-attack",
+                attackRoll: {
+                  dice: 1,
+                  maximumSides: 32,
+                },
+                sourceText: "single-die attacks with base 1d32 or lower",
+              },
+              {
+                type: "roll-threshold",
+                roll: "attack",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 33,
+                },
+                sourceText: "33+ SUCCESSFUL",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "When your Dex Bonus exceeds opponent’s, your Dexterity is treated as higher; single-die attacks with base 1d32 or lower gain a 33+ SUCCESSFUL STUN effect.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/taifuu-jins/race.md",
           text: "Taifuu-jin\n\n[hr]\nSource: Older Aliens race post • Current race index\nSource Note: The Oct. 5, 2017 standalone Taifuu-Jins page currently returns HTTP 429. The older Aliens post supplies the playable mechanics shown here.\nBiography: Naturally fast inhabitants of tropical Taifuu, politically close to Magumar and its Maguma-jins.\n\nSTARTING ITEMS[hr] [list]\n[*]Battle Scouter\n[*]Junkyard Ginyu Pod (older Aliens listing)\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Runner’s High[/color] - Dexterity Bonus +1.\n[color=#ee4a2d]Fastest in the Universe[/color] - Once/week reduce a normal Quest by 1 day, minimum 1. Does not apply to Quest Battles or Saga Quests and cannot be shared through Joint Quests.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Grease Lightning[/color] - Runner’s High becomes +2. When your Dex Bonus exceeds opponent’s, your Dexterity is treated as higher; single-die attacks with base 1d32 or lower gain a 33+ SUCCESSFUL STUN effect.\n[color=#ee4a2d]Dragon Ball Gatherer[/color] - Dragon Ball searches take -1 day. On death/escape, you may scatter selected Dragon Balls instead; stacks with Fastest in the Universe.\n[color=#ee4a2d]Speed Demon[/color] - Whenever you STUN, gain 1 Ki. After a STUN, if your next single-die attack is successful, gain another 1 Ki.\n[color=#ee4a2d]Azure Hurricane[/color] - When you initiate Battle, opponent cannot escape until at 20% Total HP or less; each escape attempt adds -3 to their combined escape result.\n[color=#ee4a2d]Teamwork Isn’t Cheating[/color] - Once/week bring a willing same-planet player into your turn in their highest transformation to perform one Advanced Attack costing 5 Ki or less for free, using their own mastery/racials/transformation effects; may instead spend the use to enter another character’s Battle. Not usable in Tournament Matches.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Blue\nHair: Any\nEyes: Fuchsia iris and sclera\nAppearance: Humanoid\nOrigin: Taifuu\n",
@@ -2745,6 +5237,75 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "After a STUN, if your next single-die attack is successful, gain another 1 Ki.",
             ruleTokens: ["stun", "successful"],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-taifuu-jins-speed-demon",
+            sourcePath: "reference/races.transformations/taifuu-jins/race.md",
+            clauseOrder: 1,
+            sourceText: "Whenever you STUN, gain 1 Ki.",
+          },
+          {
+            sourceDefinitionId: "race-class-taifuu-jins-speed-demon",
+            sourcePath: "reference/races.transformations/taifuu-jins/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "After a STUN, if your next single-die attack is successful, gain another 1 Ki.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-combat-result",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "combat-outcome",
+                actor: "self",
+                outcome: "stun",
+                sourceText: "Whenever you STUN, gain 1 Ki.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText: "Whenever you STUN, gain 1 Ki.",
+          },
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "modify-resource",
+            resource: "ki",
+            operation: "gain",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            conditions: [
+              {
+                type: "combat-outcome",
+                actor: "self",
+                outcome: "stun",
+                sourceText: "After a STUN",
+              },
+              {
+                type: "move-selector",
+                subject: "target",
+                category: "advanced-attack",
+                attackRoll: {
+                  dice: 1,
+                },
+                sourceText: "your next single-die attack",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText:
+              "After a STUN, if your next single-die attack is successful, gain another 1 Ki.",
           },
         ],
         source: {
@@ -2950,6 +5511,44 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-tuffles-tuffle-avenger",
+            sourcePath: "reference/races.transformations/tuffles/race.md",
+            clauseOrder: 3,
+            sourceText:
+              "RESTRICTEDx1 choose opponent’s next attack, preventing other moves/effects that turn.",
+          },
+          {
+            sourceDefinitionId: "race-class-tuffles-tuffle-avenger",
+            sourcePath: "reference/races.transformations/tuffles/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Kill Saiyan/Half-Saiyan: +200% EXP; those races cannot escape against you.",
+          },
+          {
+            sourceDefinitionId: "race-class-tuffles-tuffle-avenger",
+            sourcePath: "reference/races.transformations/tuffles/race.md",
+            clauseOrder: 2,
+            sourceText: "Killing someone who previously defeated you: +50% EXP.",
+          },
+        ],
+        coveredClauseOrders: [1, 2],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "opponent",
+            type: "skip-action",
+            blockedCategories: ["basic-attack", "advanced-attack", "signature"],
+            scope: {
+              type: "next-action",
+              sourceText: "opponent's next attack",
+            },
+            sourceClauseOrder: 3,
+            sourceText:
+              "RESTRICTEDx1 choose opponent's next attack, preventing other moves/effects that turn.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/tuffles/race.md",
           text: "Tuffle\n\n[hr]\nSource: Tuffles\nBiography: A technologically advanced people believed destroyed in the Saiyan takeover of Planet Plant. Surviving groups rebuilt and pursued vengeance; the Alpha Collective later aided Tuffle cloning using human-compatible DNA.\n\nSTARTING ITEMS[hr] [list]\n[*]Speedo\n[*]Vitality Y\n[/list]\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]In the Pursuit of Knowledge[/color] - Move learning grants 5× Move Learning Experience.\n[color=#ee4a2d]Know-It-All[/color] - Opponent racial abilities are disabled for the first 10 turns, except abilities substituting for/acting as Bukujutsu or Instant Transmission. Precombat racial activations begin on turn 11. No effect against another Tuffle/Know-It-All user.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Scientist[/color] - Start +5 inventory slots and one Technology item.\n[color=#ee4a2d]Geneticist[/color] - Automatically acquire transformations at minimum PL; all transformation rolls start 1d50; opponent cannot transform until turn 4.\n[color=#ee4a2d]Futurist[/color] - Create one custom admin-balanced item; each Saga may create another, while retaining at least one.\n[color=#ee4a2d]Tuffle Avenger[/color] - Kill Saiyan/Half-Saiyan: +200% EXP; those races cannot escape against you. Killing someone who previously defeated you: +50% EXP. RESTRICTEDx1 choose opponent’s next attack, preventing other moves/effects that turn.\n[color=#ee4a2d]Guerrilla Tactics[/color] - When you initiate Battle, opponent starts -2 Ki. If their Level is higher, you may act first regardless; if their Level is lower, defense results 6 or less are treated as 10.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nSkin: Traditional human tones\nHair: Any\nEyes: Any\nAppearance: Humanoid\nOrigin: Plant / Vegeta\n",
@@ -2970,6 +5569,49 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             order: 2,
             text: "If their Level is higher, you may act first regardless; if their Level is lower, defense results 6 or less are treated as 10.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-tuffles-guerrilla-tactics",
+            sourcePath: "reference/races.transformations/tuffles/race.md",
+            clauseOrder: 2,
+            sourceText:
+              "If their Level is higher, you may act first regardless; if their Level is lower, defense results 6 or less are treated as 10.",
+          },
+          {
+            sourceDefinitionId: "race-class-tuffles-guerrilla-tactics",
+            sourcePath: "reference/races.transformations/tuffles/race.md",
+            clauseOrder: 1,
+            sourceText: "When you initiate Battle, opponent starts -2 Ki.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "before-defense-roll",
+            target: "opponent",
+            type: "set-roll-result",
+            roll: "defense",
+            value: {
+              type: "literal",
+              value: 10,
+            },
+            resultScope: "matching-die",
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-most",
+                value: {
+                  type: "literal",
+                  value: 6,
+                },
+                sourceText: "defense results 6 or less",
+              },
+            ],
+            sourceClauseOrder: 2,
+            sourceText: "If their Level is lower, defense results 6 or less are treated as 10.",
           },
         ],
         source: {
@@ -3122,6 +5764,68 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             ruleTokens: ["successful"],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "race-class-wizards-war-mage",
+            sourcePath: "reference/races.transformations/wizards/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Physical attacks gain a SUCCESSFUL effect making the next Energy attack +10% Power damage; Energy attacks gain a SUCCESSFUL effect making the next physical attack cost -1 Ki, minimum 1.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: 10,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "the next Energy attack",
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["energy"],
+              sourceText: "the next Energy attack",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Physical attacks gain a SUCCESSFUL effect making the next Energy attack +10% Power damage; Energy attacks gain a SUCCESSFUL effect making the next physical attack cost -1 Ki, minimum 1.",
+          },
+          {
+            trigger: "on-success",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            minimum: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "the next physical attack",
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "the next physical attack",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Physical attacks gain a SUCCESSFUL effect making the next Energy attack +10% Power damage; Energy attacks gain a SUCCESSFUL effect making the next physical attack cost -1 Ki, minimum 1.",
+          },
+        ],
         source: {
           path: "reference/races.transformations/wizards/race.md",
           text: "Wizard\n\n[hr]\nSource: Official 2017 changes • Race index\nSource Note: The official update is newer than the original 2016 Wizard thread and explicitly supplies the Wizard transformation replacement.\nBiography: The official 2017 balance post contains the current Wizard racial change, current classes, and a complete replacement transformation tree. Because the original Wizard page is inaccessible, baseline profile/starting-item text is omitted rather than guessed.\n\n[color=#ee4a2d]RACIAL TRAITS[/color]\n[hr]\n[color=#ee4a2d]Majin Seal[/color] - After killing another player in Battle, may seal them instead for one week. The sealed player must obey, act as bodyguard, cannot attack you, challenge without approval, or leave the planet without approval. Forced quest rewards go to the Wizard while the sealed player still receives EXP; those quests do not count against the sealed player after the seal ends.\n\n[color=#ee4a2d]Classes[/color]\n[hr]\n[color=#ee4a2d]Majin Minion Summoning[/color] - Majin Seal may be accepted willingly; immediately heals 50% and grants +10% all stats. Once/week Instant Transmission a minion to you without consuming either character’s IT use. Seals last 2 weeks; max 2 minions; minions do not roll interference for your battles.\n[color=#ee4a2d]Summoner[/color] - Maximum 3 disposable minions; each may BLOCK an attack for 0 Ki and is permanently consumed. Gain 1 minion/week and 1 whenever you defeat an NPC. Each current minion gives +1 attack-roll result.\n[color=#ee4a2d]War Mage[/color] - Physical attacks gain a SUCCESSFUL effect making the next Energy attack +10% Power damage; Energy attacks gain a SUCCESSFUL effect making the next physical attack cost -1 Ki, minimum 1.\n\n[color=#ee4a2d]Profile[/color]\n[hr]\nRule source: Official Oct. 10, 2017 replacement/update\nOriginal race thread: Exists but currently returns HTTP 429 to reader\n",
@@ -3162,6 +5866,67 @@ export const GENERIC_CLASS_DEFINITIONS: readonly GenericClassDefinition[] = [
         order: 3,
         text: "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
         ruleTokens: [],
+      },
+    ],
+    sourceClauses: [
+      {
+        sourceDefinitionId: "generic-class-weaponmaster",
+        sourcePath: "reference/races.transformations/ExtraReferences/genericClassOptions.md",
+        clauseOrder: 2,
+        sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+      },
+      {
+        sourceDefinitionId: "generic-class-weaponmaster",
+        sourcePath: "reference/races.transformations/ExtraReferences/genericClassOptions.md",
+        clauseOrder: 3,
+        sourceText:
+          "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
+      },
+    ],
+    effects: [
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-roll",
+        roll: "attack",
+        modifier: "sides",
+        amount: {
+          type: "literal",
+          value: 2,
+        },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          requirementIncludes: ["Weapon"],
+          sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+        },
+        sourceClauseOrder: 2,
+        sourceText: "Your attacks that require a Weapon gain +2 dice sides.",
+      },
+      {
+        trigger: "passive",
+        target: "self",
+        type: "modify-cost",
+        operation: "add",
+        amount: {
+          type: "literal",
+          value: -1,
+        },
+        minimum: {
+          type: "literal",
+          value: 1,
+        },
+        selector: {
+          type: "move-selector",
+          subject: "source",
+          category: "skill",
+          requirementIncludes: ["Weapon"],
+          sourceText:
+            "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
+        },
+        sourceClauseOrder: 3,
+        sourceText:
+          "Your Skills that require a Weapon cost -1 KI Point to a minimum of 1 to use or activate.",
       },
     ],
     source: {

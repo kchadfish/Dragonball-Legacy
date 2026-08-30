@@ -316,15 +316,20 @@ Items must not grow a parallel combat runtime.
   capability matrix with supported, unsupported, noncombat,
   narrative/administrator-mediated, or deferred classifications.
 
-### Phase 10 — Explicit scope boundary
+### Phase 10 — Explicit scope boundary (complete)
 
-- CE-1000: classify multiplayer, ally, interferer, and spectator mechanics.
-- CE-1010: classify remote and relationship targets.
-- CE-1020: keep body swap and identity mutation separate from stat swapping.
-- CE-1030: retain spaceship mechanics outside this delivery scope unless
-  explicitly approved.
+- CE-1000: complete. Multiplayer, ally, joint-attack, interferer, and
+  spectator mechanics use registered scope decisions.
+- CE-1010: complete. Remote and relationship targets are distinct from
+  in-fight allies and use registered scope decisions.
+- CE-1020: complete. Body, ownership, racial-trait, moveset, style, mastery,
+  and identity mutation remain separate from supported stat calculations.
+- CE-1030: complete. Spaceship combat is distinct from spaceship travel,
+  storage, capacity, operation, and raid mechanics; all remain outside this
+  local 1v1 delivery scope.
 
-Excluded mechanics must remain visible in the matrix with approved reasons.
+Excluded mechanics remain visible in the generated matrix with approved
+versioned decisions from ADR 0006. The next resume point is Phase 11 / CE-1100.
 
 ### Phase 11 — Catalog closure
 

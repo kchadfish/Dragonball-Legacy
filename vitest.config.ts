@@ -9,7 +9,11 @@ export default defineConfig({
       reporter: ["text", "html", "lcov"],
       // Only executable domain logic is gated. Catalogs and generated game data are
       // validated structurally by validate:game-data rather than through coverage.
-      include: ["packages/combat-engine/src/**/*.ts", "packages/game-data/src/validation.ts"],
+      include: [
+        "packages/combat-engine/src/**/*.ts",
+        "packages/ai-engine/src/**/*.ts",
+        "packages/game-data/src/validation.ts",
+      ],
       exclude: ["**/index.ts", "**/testing/**"],
       thresholds: {
         lines: 80,

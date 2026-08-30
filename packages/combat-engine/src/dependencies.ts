@@ -34,6 +34,63 @@ export interface RandomSource {
   integer(minimum: number, maximum: number): number;
 }
 
+const hashSeedParts = (parts: readonly string[]): number => {
+  let hash = 2_166_136_261;
+  for (const part of parts) {
+    for (let index = 0; index < part.length; index += 1) {
+      hash ^= part.charCodeAt(index);
+      hash = Math.imul(hash, 16_777_619) >>> 0;
+    }
+    hash ^= 0;
+    hash = Math.imul(hash, 16_777_619) >>> 0;
+  }
+  return hash >>> 0;
+};
+
+/** Derives a stable unsigned seed from semantic inputs, independent of call order. */
+export const deriveDeterministicSeed = (parts: readonly (string | number)[]): number =>
+  hashSeedParts(parts.map(String));
+
+export interface KeyedRandomSource {
+  readonly rootSeed: number;
+  seedFor(key: string): number;
+  integer(key: string, minimum: number, maximum: number): number;
+}
+
+/** AI-only keyed randomness; each operation is derived afresh from its semantic key. */
+export class DerivedKeyedRandomSource implements KeyedRandomSource {
+  readonly rootSeed: number;
+  readonly #namespace: readonly string[];
+
+  constructor(rootSeed: number, namespace: readonly string[] = []) {
+    if (!Number.isInteger(rootSeed) || rootSeed < 0 || rootSeed >= maximumUint32)
+      throw new RangeError("Root seed must be an unsigned 32-bit integer.");
+    this.rootSeed = rootSeed;
+    this.#namespace = [...namespace];
+  }
+
+  seedFor(key: string): number {
+    return deriveDeterministicSeed([this.rootSeed, ...this.#namespace, key]);
+  }
+
+  integer(key: string, minimum: number, maximum: number): number {
+    return new SeededRandomSource(this.seedFor(key)).integer(minimum, maximum);
+  }
+}
+
+export const createAiRandomSource = (input: {
+  readonly rootSeed: number;
+  readonly profileVersion: string;
+  readonly evaluatorVersion: string;
+  readonly purpose: string;
+}): DerivedKeyedRandomSource =>
+  new DerivedKeyedRandomSource(input.rootSeed, [
+    "ai",
+    input.profileVersion,
+    input.evaluatorVersion,
+    input.purpose,
+  ]);
+
 /** Cryptographically backed randomness for production composition only. */
 export class SystemRandomSource implements RandomSource {
   integer(minimum: number, maximum: number): number {
@@ -72,6 +129,20 @@ export class SeededRandomSource implements RandomSource {
 
 export interface Clock {
   now(): Date;
+}
+
+/** A branch-local clock whose value cannot drift with wall time. */
+export class FixedClock implements Clock {
+  readonly #value: Date;
+
+  constructor(value: Date) {
+    this.#value = new Date(value);
+    if (Number.isNaN(this.#value.valueOf())) throw new RangeError("Clock value must be valid.");
+  }
+
+  now(): Date {
+    return new Date(this.#value);
+  }
 }
 
 /** Production wall clock, kept behind an injectable boundary. */
@@ -130,6 +201,58 @@ export class SystemCombatIdSource implements CombatIdSource {
   }
 }
 
+const branchId = (branchPath: readonly string[]) =>
+  deriveDeterministicSeed(["branch-id", ...branchPath]).toString(36);
+
+/** Branch-local deterministic IDs; no production fight ID source is shared. */
+export class BranchCombatIdSource implements CombatIdSource {
+  readonly #prefix: string;
+  readonly #counts = new Map<string, number>();
+
+  constructor(branchPath: readonly string[]) {
+    const path = branchPath.length === 0 ? ["root"] : branchPath;
+    this.#prefix = `analysis-${branchId(path)}`;
+  }
+
+  #next(prefix: string): string {
+    const count = this.#counts.get(prefix) ?? 0;
+    this.#counts.set(prefix, count + 1);
+    return `${prefix}:${this.#prefix}-${count}`;
+  }
+
+  nextFightId(): FightId {
+    return this.#next("fight") as FightId;
+  }
+
+  nextCombatantId(): CombatantId {
+    return this.#next("combatant") as CombatantId;
+  }
+
+  nextDecisionId(): CombatDecisionId {
+    return this.#next("decision") as CombatDecisionId;
+  }
+
+  nextEventId(): CombatEventId {
+    return this.#next("event") as CombatEventId;
+  }
+
+  nextPendingDecisionId(): PendingDecisionId {
+    return this.#next("pending-decision") as PendingDecisionId;
+  }
+
+  nextActiveEffectId(): ActiveEffectId {
+    return this.#next("active-effect") as ActiveEffectId;
+  }
+
+  nextResolutionFrameId(): ResolutionFrameId {
+    return this.#next("resolution-frame") as ResolutionFrameId;
+  }
+
+  nextScheduledWorkId(): ScheduledWorkId {
+    return this.#next("scheduled-work") as ScheduledWorkId;
+  }
+}
+
 export interface CombatDependencies {
   readonly random: RandomSource;
   readonly clock: Clock;
@@ -139,5 +262,40 @@ export interface CombatDependencies {
   /** Ephemeral sink installed by a public transition while diagnostics are requested. */
   readonly diagnosticTraceSink?: CalculationTraceSink;
 }
+
+export interface BranchCombatDependencies extends CombatDependencies {
+  readonly branchPath: readonly string[];
+  readonly branchSeed: number;
+  readonly workBudget: {
+    readonly maxNodes: number;
+    readonly maxProbes: number;
+  };
+}
+
+/** Creates isolated dependencies for one speculative branch. */
+export const createBranchCombatDependencies = (input: {
+  readonly rootSeed: number;
+  readonly branchPath: readonly string[];
+  readonly fixedTime: Date;
+  readonly workBudget: { readonly maxNodes: number; readonly maxProbes: number };
+}): BranchCombatDependencies => {
+  if (
+    !Number.isInteger(input.workBudget.maxNodes) ||
+    input.workBudget.maxNodes < 0 ||
+    !Number.isInteger(input.workBudget.maxProbes) ||
+    input.workBudget.maxProbes < 0
+  )
+    throw new RangeError("Branch work budgets must be non-negative integers.");
+  const branchPath = [...input.branchPath];
+  const branchSeed = deriveDeterministicSeed(["combat-branch", input.rootSeed, ...branchPath]);
+  return {
+    random: new SeededRandomSource(branchSeed),
+    clock: new FixedClock(input.fixedTime),
+    ids: new BranchCombatIdSource(branchPath),
+    branchPath,
+    branchSeed,
+    workBudget: { ...input.workBudget },
+  };
+};
 
 export type CombatDiagnosticTrace = readonly CalculationTraceEntry[];

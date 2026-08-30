@@ -1,4 +1,4 @@
-import { MOVE_DEFINITIONS } from "@dragonball-resurgence/game-data";
+import { MOVE_DEFINITIONS, RACE_DEFINITIONS } from "@dragonball-resurgence/game-data";
 import type { MoveDefinition } from "@dragonball-resurgence/game-data";
 import { describe, expect, it } from "vitest";
 
@@ -614,6 +614,51 @@ describe("converted move effects", () => {
         useLimit: { scope: "combat", count: 1 },
       }),
     ]);
+  });
+
+  it("resolves Human Average's shared once-per-turn attack or defense reroll", () => {
+    const classDefinition = RACE_DEFINITIONS.flatMap((race) => race.classes).find(
+      (candidate) => candidate.id === "race-class-humans-average-in-the-extreme",
+    );
+    if (classDefinition?.effects === undefined)
+      throw new Error("Expected Human Average in the Extreme effects.");
+    const move = {
+      id: classDefinition.id,
+      effects: classDefinition.effects,
+    } as MoveDefinition;
+    const roll = {
+      attackNaturalResult: 15,
+      attackResult: 15,
+      defenseNaturalResult: 5,
+      defenseResult: 5,
+      outcome: "successful" as const,
+    };
+
+    expect(rerollEffectsOnRollResult(move, { ...context, rolls: [roll] })).toEqual([
+      expect.objectContaining({
+        roll: "attack",
+        useLimit: { scope: "turn", count: 1 },
+        useLimitGroup: "average-in-the-extreme-reroll",
+      }),
+    ]);
+    expect(
+      rerollEffectsOnRollResult(move, {
+        ...context,
+        rolls: [{ ...roll, attackResult: 5, defenseResult: 15 }],
+      }),
+    ).toEqual([expect.objectContaining({ roll: "defense" })]);
+    expect(
+      rerollEffectsOnRollResult(move, {
+        ...context,
+        self: {
+          ...self,
+          effectUseTurns: {
+            "race-class-humans-average-in-the-extreme:average-in-the-extreme-reroll": 5,
+          },
+        },
+        rolls: [roll],
+      }),
+    ).toEqual([]);
   });
 
   it("resolves deferred successful rerolls with typed future lifecycles", () => {

@@ -15,13 +15,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 1 to the result.",
         effectText:
-          "Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 1 to the result.",
+          "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 1 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 2 to the result.",
+            text: "TBD- Your afterlife techniques gain + 2 to the result.",
             ruleTokens: [],
           },
           {
@@ -37,13 +37,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
         ],
       },
       intermediate: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
         effectText:
-          "Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
+          "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 2 to the result.",
+            text: "TBD- Your afterlife techniques gain + 2 to the result.",
             ruleTokens: [],
           },
           {
@@ -59,13 +59,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
         ],
       },
       mastered: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
         effectText:
-          "Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
+          "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 2 to the result.",
+            text: "TBD- Your afterlife techniques gain + 2 to the result.",
             ruleTokens: [],
           },
           {
@@ -102,13 +102,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
         effectText:
-          "Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
+          "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 2 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 2 to the result.",
+            text: "TBD- Your afterlife techniques gain + 2 to the result.",
             ruleTokens: [],
           },
           {
@@ -124,13 +124,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
         ],
       },
       intermediate: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectText:
-          "Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
+          "TBD- Your afterlife techniques gain + 2 to the result. In the event of a multi-dice roll, you gain +2 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 2 to the result.",
+            text: "TBD- Your afterlife techniques gain + 2 to the result.",
             ruleTokens: [],
           },
           {
@@ -146,13 +146,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
         ],
       },
       mastered: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.\n\nNote(s): When you unlock this Transformation you may choose one non-signature afterlife technique to add to your moveset. You do not have to pay the training days for that move.",
         effectText:
-          "Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
+          "TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.\n\nNote(s): When you unlock this Transformation you may choose one non-signature afterlife technique to add to your moveset. You do not have to pay the training days for that move.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 3 to the result.",
+            text: "TBD- Your afterlife techniques gain + 3 to the result.",
             ruleTokens: [],
           },
           {
@@ -163,6 +163,16 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
           {
             order: 3,
             text: "Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
+            ruleTokens: [],
+          },
+          {
+            order: 4,
+            text: "Note(s): When you unlock this Transformation you may choose one non-signature afterlife technique to add to your moveset.",
+            ruleTokens: [],
+          },
+          {
+            order: 5,
+            text: "You do not have to pay the training days for that move.",
             ruleTokens: [],
           },
         ],
@@ -188,13 +198,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectText:
-          "Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
+          "TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first two dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 3 to the result.",
+            text: "TBD- Your afterlife techniques gain + 3 to the result.",
             ruleTokens: [],
           },
           {
@@ -210,13 +220,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
         ],
       },
       intermediate: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first half of the dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectText:
-          "Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first half of the dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
+          "TBD- Your afterlife techniques gain + 3 to the result. In the event of a multi-dice roll, you gain +3 to the result of the first half of the dice only. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 3 to the result.",
+            text: "TBD- Your afterlife techniques gain + 3 to the result.",
             ruleTokens: [],
           },
           {
@@ -232,13 +242,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
         ],
       },
       mastered: {
-        name: "TBD",
+        name: "TBD- Your afterlife techniques gain + 4 to the results. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectText:
-          "Your afterlife techniques gain + 4 to the results. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
+          "TBD- Your afterlife techniques gain + 4 to the results. Your defensive rolls against non-afterlife techniques gain + 3 to the result.",
         effectClauses: [
           {
             order: 1,
-            text: "Your afterlife techniques gain + 4 to the results.",
+            text: "TBD- Your afterlife techniques gain + 4 to the results.",
             ruleTokens: [],
           },
           {
@@ -888,11 +898,23 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Whenever you gain a dice side or result bonus from something other than Dexterity, increase that bonus by +1.",
         effectText:
-          "[INTERMEDIATE] Whenever you gain a dice side or result bonus, increase that bonus by +1.\n[MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +2 from this Transformation ability.\nNote: Bas-Jin TF ability does not affect the Four Eyes ability.",
+          "Whenever you gain a dice side or result bonus from something other than Dexterity, increase that bonus by +1.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Whenever you gain a dice side or result bonus, increase that bonus by +1.",
+            text: "Whenever you gain a dice side or result bonus from something other than Dexterity, increase that bonus by +1.",
+            ruleTokens: [],
+          },
+        ],
+      },
+      intermediate: {
+        name: "Whenever you gain a dice side or result bonus, increase that bonus by +1.\n[MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +2 from this Transformation ability.\nNote: Bas-Jin TF ability does not affect the Four Eyes ability.",
+        effectText:
+          "Whenever you gain a dice side or result bonus, increase that bonus by +1.\n[MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +2 from this Transformation ability.\nNote: Bas-Jin TF ability does not affect the Four Eyes ability.",
+        effectClauses: [
+          {
+            order: 1,
+            text: "Whenever you gain a dice side or result bonus, increase that bonus by +1.",
             ruleTokens: [],
           },
           {
@@ -903,16 +925,6 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
           {
             order: 3,
             text: "Note: Bas-Jin TF ability does not affect the Four Eyes ability.",
-            ruleTokens: [],
-          },
-        ],
-      },
-      intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
-        effectClauses: [
-          {
-            order: 1,
-            text: "Source does not define this Transformation Ability.",
             ruleTokens: [],
           },
         ],
@@ -951,11 +963,28 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Whenever you gain a dice side or result bonus, double that bonus to a maximum of +3 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation..",
         effectText:
-          "[INTERMEDIATE] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation.\n[MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +2 to your result before applying the double bonus from this Transformation.\nNote: Bas-Jin TF ability does not affect the Four Eyes ability.",
+          "Whenever you gain a dice side or result bonus, double that bonus to a maximum of +3 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation..",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability.",
+            text: "Whenever you gain a dice side or result bonus, double that bonus to a maximum of +3 from this Transformation ability.",
+            ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation..",
+            ruleTokens: [],
+          },
+        ],
+      },
+      intermediate: {
+        name: "Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation.\n[MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +2 to your result before applying the double bonus from this Transformation.\nNote: Bas-Jin TF ability does not affect the Four Eyes ability.",
+        effectText:
+          "Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +1 to your result before applying the double bonus from this Transformation.\n[MASTER] Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability. When you use the Kinesis racial ability, add +2 to your result before applying the double bonus from this Transformation.\nNote: Bas-Jin TF ability does not affect the Four Eyes ability.",
+        effectClauses: [
+          {
+            order: 1,
+            text: "Whenever you gain a dice side or result bonus, double that bonus to a maximum of +4 from this Transformation ability.",
             ruleTokens: [],
           },
           {
@@ -976,16 +1005,6 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
           {
             order: 5,
             text: "Note: Bas-Jin TF ability does not affect the Four Eyes ability.",
-            ruleTokens: [],
-          },
-        ],
-      },
-      intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
-        effectClauses: [
-          {
-            order: 1,
-            text: "Source does not define this Transformation Ability.",
             ruleTokens: [],
           },
         ],
@@ -1022,19 +1041,46 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "The Anti",
+        name: "The Anti-Machinist",
         effectText:
-          "Machinist - Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead.",
+          "Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style. Any effects referring to style now refer to your style instead.",
         effectClauses: [
           {
             order: 1,
-            text: "Machinist - Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            text: "Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style.",
             ruleTokens: [],
           },
           {
             order: 2,
             text: "Any effects referring to style now refer to your style instead.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-1-semi-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
           },
         ],
       },
@@ -1062,6 +1108,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "If you do, you may add that attack to your Extra Moves List.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-1-semi-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Your Freestyle attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
           },
         ],
       },
@@ -1094,6 +1167,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 5,
             text: "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-1-semi-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
           },
         ],
       },
@@ -1149,6 +1249,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-2-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
       },
       intermediate: {
         name: "Perfection Believed",
@@ -1181,6 +1308,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-2-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
       },
       mastered: {
         name: "Perfection Achieved",
@@ -1211,6 +1365,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 5,
             text: "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-2-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
           },
         ],
       },
@@ -1276,6 +1457,104 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 7,
+            sourceText: "Your copied attacks gain +1 dice side.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Any effects referring to style now refer to your style instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 25 or higher, you may lose 1 KI Point.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "If you do, you may add that attack to your moveset (even if you do not have enough slots).",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
+          },
+        ],
+        coveredClauseOrders: [2, 3, 4, 5, 8],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText: "Your copied attacks gain +1 dice side.",
+            },
+            sourceClauseOrder: 7,
+            sourceText: "Your copied attacks gain +1 dice side.",
+          },
+        ],
       },
       intermediate: {
         name: "Cellular Powerhouse",
@@ -1316,6 +1595,104 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 7,
             text: "Your copied attacks gain +1 dice side.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 7,
+            sourceText: "Your copied attacks gain +1 dice side.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Any effects referring to style now refer to your style instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 24 or higher, you may lose 1 KI Points.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "If you do, you may add that attack to your moveset (even if you do not have enough slots).",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
+          },
+        ],
+        coveredClauseOrders: [2, 3, 4, 5, 8],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText: "Your copied attacks gain +1 dice side.",
+            },
+            sourceClauseOrder: 7,
+            sourceText: "Your copied attacks gain +1 dice side.",
           },
         ],
       },
@@ -1363,6 +1740,110 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 8,
             text: "You gain +1 dice side to your defense rolls against your copied attacks.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 7,
+            sourceText: "Your copied attacks gain +1 dice side.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Any effects referring to style now refer to your style instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll result of 23 or higher, you may lose 1 KI Points.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "If you do, you may add that attack to your moveset (even if you do not have enough slots).",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-3-buff-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 8,
+            sourceText: "You gain +1 dice side to your defense rolls against your copied attacks.",
+          },
+        ],
+        coveredClauseOrders: [2, 3, 4, 5, 8],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText: "Your copied attacks gain +1 dice side.",
+            },
+            sourceClauseOrder: 7,
+            sourceText: "Your copied attacks gain +1 dice side.",
           },
         ],
       },
@@ -1433,6 +1914,130 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 7,
+            sourceText: "Your copied attacks gain +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 8,
+            sourceText: "You gain +1 dice side to your defense rolls against your copied attacks.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Any effects referring to style now refer to your style instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll of 22 result or higher, you may lose 1 KI Point.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "If you do, you may add that attack to your moveset (even if you do not have enough slots).",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:novice",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
+          },
+        ],
+        coveredClauseOrders: [2, 3, 4, 5, 8],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText: "Your copied attacks gain +2 dice sides.",
+            },
+            sourceClauseOrder: 7,
+            sourceText: "Your copied attacks gain +2 dice sides.",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText:
+                "You gain +1 dice side to your defense rolls against your copied attacks.",
+            },
+            sourceClauseOrder: 8,
+            sourceText: "You gain +1 dice side to your defense rolls against your copied attacks.",
+          },
+        ],
       },
       intermediate: {
         name: "Superior Genetics",
@@ -1480,6 +2085,130 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 7,
+            sourceText: "Your copied attacks gain +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 8,
+            sourceText: "You gain +1 dice side to your defense rolls against your copied attacks.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Any effects referring to style now refer to your style instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll of 21 result or higher, you may lose 1 KI Point.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "If you do, you may add that attack to your moveset (even if you do not have enough slots).",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:intermediate",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
+          },
+        ],
+        coveredClauseOrders: [2, 3, 4, 5, 8],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText: "Your copied attacks gain +2 dice sides.",
+            },
+            sourceClauseOrder: 7,
+            sourceText: "Your copied attacks gain +2 dice sides.",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText:
+                "You gain +1 dice side to your defense rolls against your copied attacks.",
+            },
+            sourceClauseOrder: 8,
+            sourceText: "You gain +1 dice side to your defense rolls against your copied attacks.",
+          },
+        ],
       },
       mastered: {
         name: "Beyond Perfection",
@@ -1525,6 +2254,130 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 8,
             text: "You gain +2 dice sides to your defense rolls against your copied attacks.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 7,
+            sourceText: "Your copied attacks gain +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 8,
+            sourceText: "You gain +2 dice sides to your defense rolls against your copied attacks.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Any effects referring to style now refer to your style instead.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "After receiving damage from a SUCCESSFUL, non-custom, Advanced Attack that you do not already know in Battle with a roll of 20 result or higher, you may lose 1 KI Point.",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "If you do, you may add that attack to your moveset (even if you do not have enough slots).",
+          },
+          {
+            sourceDefinitionId: "transformation-bio-androids-4-super-perfect-form:mastered",
+            sourcePath: "reference/races.transformations/bio-androids/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "At the end of combat, if you exceed your Advanced Attack slots, move the attack to your Extra Moves List instead.",
+          },
+        ],
+        coveredClauseOrders: [2, 3, 4, 5, 8],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-move-classification",
+            replaceStyle: "declared-style",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              styleId: "style-freestyle",
+              sourceText:
+                "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "All of your attacks count as Martial Arts Styled attacks, matching your declared Style.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 6,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText: "Your copied attacks gain +2 dice sides.",
+            },
+            sourceClauseOrder: 7,
+            sourceText: "Your copied attacks gain +2 dice sides.",
+          },
+          {
+            trigger: "before-defense-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "defense",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              effectTextIncludes: "copied",
+              sourceText:
+                "You gain +2 dice sides to your defense rolls against your copied attacks.",
+            },
+            sourceClauseOrder: 8,
+            sourceText: "You gain +2 dice sides to your defense rolls against your copied attacks.",
           },
         ],
       },
@@ -1745,13 +2598,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "The Element of Fear – Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.",
+        name: "The Element of Fear",
         effectText:
-          "[INTERMEDIATE] The Power of Intimidation - Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.",
+          "Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] The Power of Intimidation - Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            text: "Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
             ruleTokens: [],
           },
           {
@@ -1765,14 +2618,184 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 26,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 26 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+        ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "The Power of Intimidation",
+        effectText:
+          "Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it. Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage. This effect does not stack with itself.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
             ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            ruleTokens: [],
+          },
+          {
+            order: 3,
+            text: "This effect does not stack with itself.",
+            ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 25,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 25 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
           },
         ],
       },
@@ -1795,6 +2818,85 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 3,
             text: "This effect does not stack with itself.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-1-form-2:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 24,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
           },
         ],
       },
@@ -1840,6 +2942,85 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 24,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+        ],
       },
       intermediate: {
         name: "The Boogeyman",
@@ -1860,6 +3041,109 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 3,
             text: "This effect does not stack with itself.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +1 dice side.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 24,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +1 dice side.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 24 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
           },
         ],
       },
@@ -1887,6 +3171,116 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "You are considered to have the [DESTROY] effect for the sake of planetary destruction.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText: "This effect does not stack with itself.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-2-form-3:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText:
+              "You are considered to have the [DESTROY] effect for the sake of planetary destruction.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 23,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
           },
         ],
       },
@@ -1942,6 +3336,114 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 23,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 23 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+        ],
       },
       intermediate: {
         name: "Arcosian's True Power",
@@ -1974,6 +3476,114 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 22,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+        ],
       },
       mastered: {
         name: "Pushed To The Limits",
@@ -2004,6 +3614,114 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 5,
             text: "You are considered to have the [DESTROY] effect for the sake of planetary destruction.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-3-final-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 22,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 22 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
           },
         ],
       },
@@ -2059,6 +3777,114 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +2 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:novice",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 21,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+        ],
       },
       intermediate: {
         name: "The Destroyer of Galaxies",
@@ -2091,6 +3917,114 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +3 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:intermediate",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 21,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 3,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 21 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+        ],
       },
       mastered: {
         name: "The Destroyer of Universes",
@@ -2121,6 +4055,114 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 5,
             text: "You are considered to have the [DESTROY] effect for the sake of planetary destruction.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 20 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage and gains +3 dice sides.",
+          },
+          {
+            sourceDefinitionId: "transformation-changeling-4-golden-form:mastered",
+            sourcePath: "reference/races.transformations/changeling/transformation.md",
+            clauseOrder: 4,
+            sourceText: "This effect does not stack with itself.",
+          },
+        ],
+        coveredClauseOrders: [1, 2, 3, 4],
+        effects: [
+          {
+            trigger: "on-stopped",
+            target: "opponent",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever you STOP an attack with a Block or a defense roll of 20 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            },
+            conditions: [
+              {
+                type: "roll-threshold",
+                roll: "defense",
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 20,
+                },
+                sourceText:
+                  "Whenever you STOP an attack with a Block or a defense roll of 20 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+              },
+            ],
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 20 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+          },
+          {
+            trigger: "on-stopped",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 3,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Whenever you STOP an attack with a Block or a defense roll of 20 or higher, that attack costs +1 KI Point the next time your opponent uses it.",
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
+            conflictPolicy: {
+              type: "prevent-duplicate",
+              sourceText:
+                "Whenever your opponent STOPS one of your attacks, your next attack does +(5% Power) Damage.",
+            },
           },
         ],
       },
@@ -2161,6 +4203,28 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-1-high-tension:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+        ],
       },
       intermediate: {
         name: "Strenuous Transformation",
@@ -2183,11 +4247,51 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-1-high-tension:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-1-high-tension:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 3,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 3,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       mastered: {
         name: "Adrenaline Junkie",
         effectText:
-          "You do not have to roll a Transformation Roll to stay in this form. You gain +1 Advanced Attack slot. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. Your attacks do +(5% Power) Damage.",
+          "You do not have to roll a Transformation Roll to stay in this form. You gain +1 Advanced Attack slot. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. Your attacks do +(5% Power) Damage.\n\nNote: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Move List. You do not have to pay the training days for that move. This move is considered your style for all effects and purposes.Any effects that refer to style now refer to your style.",
         effectClauses: [
           {
             order: 1,
@@ -2208,6 +4312,74 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "Your attacks do +(5% Power) Damage.",
             ruleTokens: [],
+          },
+          {
+            order: 5,
+            text: "Note: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Move List.",
+            ruleTokens: [],
+          },
+          {
+            order: 6,
+            text: "You do not have to pay the training days for that move.",
+            ruleTokens: [],
+          },
+          {
+            order: 7,
+            text: "This move is considered your style for all effects and purposes.Any effects that refer to style now refer to your style.",
+            ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-1-high-tension:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-1-high-tension:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-1-high-tension:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -2255,6 +4427,46 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 3,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 3,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       intermediate: {
         name: "Super Power",
@@ -2280,6 +4492,59 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "Your attacks do +(5% Power) Damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -2312,6 +4577,59 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 5,
             text: "Your attacks do +(5% Power) Damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-2-super-human:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -2360,6 +4678,59 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       intermediate: {
         name: "Power Unlocked",
@@ -2392,11 +4763,64 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       mastered: {
         name: "Power Unleashed",
         effectText:
-          "You do not have to roll a Transformation Roll to stay in this form. You gain +2 Advanced Attack slots. You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset. Those attacks cost -1 Ki to use, to a minimum of 1. Your attacks do +(5% Power) Damage.",
+          "You do not have to roll a Transformation Roll to stay in this form. You gain +2 Advanced Attack slots. You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset. Those attacks cost -1 Ki to use, to a minimum of 1. Your attacks do +(5% Power) Damage.\n\nNote: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Moves List. You do not have to pay the training days for that move. This move is considered your style for all effects and purposes.Any effects that refer to style now refer to your style.",
         effectClauses: [
           {
             order: 1,
@@ -2422,6 +4846,74 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 5,
             text: "Your attacks do +(5% Power) Damage.",
             ruleTokens: [],
+          },
+          {
+            order: 6,
+            text: "Note: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Moves List.",
+            ruleTokens: [],
+          },
+          {
+            order: 7,
+            text: "You do not have to pay the training days for that move.",
+            ruleTokens: [],
+          },
+          {
+            order: 8,
+            text: "This move is considered your style for all effects and purposes.Any effects that refer to style now refer to your style.",
+            ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-3-unlocked-potential:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -2467,9 +4959,59 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-4-mythic-form:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-4-mythic-form:novice",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 3,
+            sourceText: "Your attacks do +(10% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 3,
+            sourceText: "Your attacks do +(10% Power) Damage.",
+          },
+        ],
       },
       intermediate: {
-        name: "– Champion’s Channel",
+        name: "Champion’s Channel",
         effectText:
           "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots. You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset. Those attacks cost -1 Ki to use, to a minimum of 1. Your attacks do +(10% Power) Damage.",
         effectClauses: [
@@ -2494,11 +5036,61 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-4-mythic-form:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-4-mythic-form:intermediate",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(10% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(10% Power) Damage.",
+          },
+        ],
       },
       mastered: {
         name: "Earth's Finest",
         effectText:
-          "You do not have to roll a Transformation Roll to stay in this form.You gain +3 Advanced Attack slots. You may choose 3 Advanced Attacks in your Extra Moves list to add to your moveset. Those attacks cost -1 Ki to use, to a minimum of 1. Your attacks do +(10% Power) Damage.",
+          "You do not have to roll a Transformation Roll to stay in this form.You gain +3 Advanced Attack slots. You may choose 3 Advanced Attacks in your Extra Moves list to add to your moveset. Those attacks cost -1 Ki to use, to a minimum of 1. Your attacks do +(10% Power) Damage.\n\nNote: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Moves List. You do not have to pay the training days for that move. This move is considered your style for all effects and purposes.Any effects that refer to style now refer to your style.",
         effectClauses: [
           {
             order: 1,
@@ -2519,6 +5111,71 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "Your attacks do +(10% Power) Damage.",
             ruleTokens: [],
+          },
+          {
+            order: 5,
+            text: "Note: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Moves List.",
+            ruleTokens: [],
+          },
+          {
+            order: 6,
+            text: "You do not have to pay the training days for that move.",
+            ruleTokens: [],
+          },
+          {
+            order: 7,
+            text: "This move is considered your style for all effects and purposes.Any effects that refer to style now refer to your style.",
+            ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-humans-4-mythic-form:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +3 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId: "transformation-humans-4-mythic-form:mastered",
+            sourcePath: "reference/races.transformations/humans/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(10% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +3 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "You do not have to roll a Transformation Roll to stay in this form.You gain +3 Advanced Attack slots.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(10% Power) Damage.",
           },
         ],
       },
@@ -2559,6 +5216,28 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+        ],
       },
       intermediate: {
         name: "Strenuous Transformation",
@@ -2576,11 +5255,53 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "You may choose an Advanced Attack in your Extra Moves list to add to your moveset.Your attacks do +(2% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 2,
+            sourceText:
+              "You may choose an Advanced Attack in your Extra Moves list to add to your moveset.Your attacks do +(2% Power) Damage.",
+          },
+        ],
       },
       mastered: {
         name: "Adrenaline Junkie",
         effectText:
-          "You do not have to roll a Transformation Roll to stay in this form. You gain +1 Advanced Attack slot. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. Your attacks do +(2% Power) Damage.",
+          "You do not have to roll a Transformation Roll to stay in this form. You gain +1 Advanced Attack slot. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. Your attacks do +(2% Power) Damage.\n\nNote: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Move List. You do not have to pay the training days for that move. This move is considered your style for all effects and purposes. Any effects that refer to style now refer to your style.",
         effectClauses: [
           {
             order: 1,
@@ -2601,6 +5322,79 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "Your attacks do +(2% Power) Damage.",
             ruleTokens: [],
+          },
+          {
+            order: 5,
+            text: "Note: When you unlock this Transformation, you may choose one non-restricted Advanced Attack to add to your Extra Move List.",
+            ruleTokens: [],
+          },
+          {
+            order: 6,
+            text: "You do not have to pay the training days for that move.",
+            ruleTokens: [],
+          },
+          {
+            order: 7,
+            text: "This move is considered your style for all effects and purposes.",
+            ruleTokens: [],
+          },
+          {
+            order: 8,
+            text: "Any effects that refer to style now refer to your style.",
+            ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-high-tension:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(2% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "prevent-transformation-reversion",
+            sourceClauseOrder: 1,
+            sourceText: "You do not have to roll a Transformation Roll to stay in this form.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "You gain +1 Advanced Attack slot.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 2,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(2% Power) Damage.",
           },
         ],
       },
@@ -2658,6 +5452,92 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Your opponent's physical attacks do -20% Damage against you.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "On your turn, you roll 1d2.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "The result corresponds to the order of the moves in your moveset.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText: "You must perform that attack or pass.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -20,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Your opponent's physical attacks do -20% Damage against you.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your opponent's physical attacks do -20% Damage against you.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 2,
+            storageKey: "hybrid-oozaru-novice-trigger-roll",
+            sourceClauseOrder: 2,
+            sourceText:
+              "On your turn, roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "select-move-by-stored-roll",
+            storageKey: "hybrid-oozaru-novice-trigger-roll",
+            selectionKey: "hybrid-oozaru-novice-selected-attack",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              sourceText: "Advanced Attack in your moveset.",
+            },
+            ordering: "character-sheet-top-to-bottom",
+            reindex: "on-moveset-change",
+            sourceClauseOrder: 4,
+            sourceText: "The result corresponds to the order of the moves in your moveset.",
+          },
+          {
+            trigger: "action-phase",
+            target: "self",
+            type: "force-action",
+            allowedCategories: ["advanced-attack"],
+            allowPass: true,
+            selectedMoveStorageKey: "hybrid-oozaru-novice-selected-attack",
+            sourceClauseOrder: 5,
+            sourceText: "You must perform that attack or pass.",
+          },
+        ],
       },
       intermediate: {
         name: "Raging Ape",
@@ -2690,6 +5570,92 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Your opponent's physical attacks do -25% Damage against you.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "On your turn, you roll 1d2.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "The result corresponds to the order of the moves in your moveset.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText: "You must perform that attack or pass.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -25,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Your opponent's physical attacks do -25% Damage against you.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your opponent's physical attacks do -25% Damage against you.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 2,
+            storageKey: "hybrid-oozaru-intermediate-trigger-roll",
+            sourceClauseOrder: 2,
+            sourceText:
+              "On your turn, roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "select-move-by-stored-roll",
+            storageKey: "hybrid-oozaru-intermediate-trigger-roll",
+            selectionKey: "hybrid-oozaru-intermediate-selected-attack",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              sourceText: "Advanced Attack in your moveset.",
+            },
+            ordering: "character-sheet-top-to-bottom",
+            reindex: "on-moveset-change",
+            sourceClauseOrder: 4,
+            sourceText: "The result corresponds to the order of the moves in your moveset.",
+          },
+          {
+            trigger: "action-phase",
+            target: "self",
+            type: "force-action",
+            allowedCategories: ["advanced-attack"],
+            allowPass: true,
+            selectedMoveStorageKey: "hybrid-oozaru-intermediate-selected-attack",
+            sourceClauseOrder: 5,
+            sourceText: "You must perform that attack or pass.",
+          },
+        ],
       },
       mastered: {
         name: "Controlled Ape",
@@ -2710,6 +5676,53 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 3,
             text: "Note: While in Oozaru Form, you lose the effect of all worn items, with the exception of Weapons, Saiyan Battle Armor, Changeling Reflective Vest, Forces Armor, Special Forces Armor and Armored Boots.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Your opponent's physical attacks do -25% Damage against you.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-1-oozaru:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -25,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Your opponent's physical attacks do -25% Damage against you.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Your opponent's physical attacks do -25% Damage against you.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -2762,6 +5775,70 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You may have your attack roll gain +1 to the result.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only.",
+          },
+        ],
+        coveredClauseOrders: [3],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +1 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       intermediate: {
         name: "Ultra Super Saiyan",
@@ -2794,15 +5871,86 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 to the result.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "When transforming, you may choose to gain +65% Power, +45% Endurance, and -10% Dexterity instead.",
+          },
+        ],
+        coveredClauseOrders: [3, 5],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       mastered: {
-        name: "Full",
+        name: "Full-Power Super Saiyan",
         effectText:
-          "Power Super Saiyan -You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage. Your Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform. This effect can modify attacks that cannot normally have their cost modified.You may still use Ultra Super Saiyan even when Mastered",
+          "You may have your attack roll gain +2 to the result. You cannot SEVER with that roll. In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only. Your attacks do +(5% Power) Damage. Your Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform. This effect can modify attacks that cannot normally have their cost modified.You may still use Ultra Super Saiyan even when Mastered",
         effectClauses: [
           {
             order: 1,
-            text: "Power Super Saiyan -You may have your attack roll gain +2 to the result.",
+            text: "You may have your attack roll gain +2 to the result.",
             ruleTokens: [],
           },
           {
@@ -2829,6 +5977,112 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 6,
             text: "This effect can modify attacks that cannot normally have their cost modified.You may still use Ultra Super Saiyan even when Mastered",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 to the result.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "Your Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 6,
+            sourceText:
+              "This effect can modify attacks that cannot normally have their cost modified.You may still use Ultra Super Saiyan even when Mastered",
+          },
+        ],
+        coveredClauseOrders: [3, 6],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 4,
+                },
+              },
+              sourceText:
+                "Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform.",
+            },
+            sourceClauseOrder: 5,
+            sourceText:
+              "Your Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform.",
+            allowUnmodifiable: true,
           },
         ],
       },
@@ -2879,6 +6133,84 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You may have your attack roll gain +1 dice side and +1 to the result.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "In the event of a multi-dice roll, you gain +1 to the result of the first dice roll only.",
+          },
+        ],
+        coveredClauseOrders: [3],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +1 dice side and +1 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +1 dice side and +1 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       intermediate: {
         name: "Relentless Super Saiyan",
@@ -2904,6 +6236,84 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 4,
             text: "Your attacks do +(5% Power) Damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 dice sides and +1 to the result.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "In the event of a multi-dice roll, you gain +2 to the result of the first dice roll only.",
+          },
+        ],
+        coveredClauseOrders: [3],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 dice sides and +1 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 dice sides and +1 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -2941,6 +6351,125 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             order: 6,
             text: "This effect can modify attacks that cannot normally have their cost modified.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 dice sides and +2 to the result.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText:
+              "Your Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText:
+              "In the event of a multi-dice roll, you gain +2 to the result and dice sides of the first dice roll only.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 6,
+            sourceText:
+              "This effect can modify attacks that cannot normally have their cost modified.",
+          },
+        ],
+        coveredClauseOrders: [3, 6],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 dice sides and +2 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText: "You may have your attack roll gain +2 dice sides and +2 to the result.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 4,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 4,
+                },
+              },
+              sourceText: "Advanced base-cost 4+ costs -1 Ki.",
+            },
+            sourceClauseOrder: 5,
+            sourceText:
+              "Your Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform.",
+            allowUnmodifiable: true,
           },
         ],
       },
@@ -2996,14 +6525,111 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText: "You may have your attack roll gain +1 dice sides and +1 to the results.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 3,
+            sourceText: "You may have your attack roll gain +1 dice sides and +1 to the results.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 3,
+            sourceText: "You may have your attack roll gain +1 dice sides and +1 to the results.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 4,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       intermediate: {
+        name: "Mixed Blood's Power",
         effectText:
-          "Mixed Blood's Power - You gain +2 Advanced Attack slots. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. You may have your attack roll gain +2 dice sides and +1 to the results. You cannot SEVER with that roll. Your attacks do +(5% Power) Damage.",
+          "You gain +2 Advanced Attack slots. You may choose an Advanced Attack in your Extra Moves list to add to your moveset. You may have your attack roll gain +2 dice sides and +1 to the results. You cannot SEVER with that roll. Your attacks do +(5% Power) Damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Mixed Blood's Power - You gain +2 Advanced Attack slots.",
+            text: "You gain +2 Advanced Attack slots.",
             ruleTokens: [],
           },
           {
@@ -3027,15 +6653,233 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId:
+              "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId:
+              "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText: "You may have your attack roll gain +2 dice sides and +1 to the results.",
+          },
+          {
+            sourceDefinitionId:
+              "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId:
+              "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId:
+              "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "You may choose an Advanced Attack in your Extra Moves list to add to your moveset.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 3,
+            sourceText: "You may have your attack roll gain +2 dice sides and +1 to the results.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 3,
+            sourceText: "You may have your attack roll gain +2 dice sides and +1 to the results.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 4,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+        ],
       },
       mastered: {
-        name: "form.",
-        effectText: "Stats: +90% Power. +60% HP. +50% Dexterity.",
+        name: "Mixed Blood's Absolute Potential",
+        effectText:
+          "You gain +2 Advanced Attack slots. You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset. You may have your attack roll gain +2 dice sides and +2 to the results. You cannot SEVER with that roll. Your attacks do +(5% Power) Damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Stats: +90% Power. +60% HP. +50% Dexterity.",
+            text: "You gain +2 Advanced Attack slots.",
             ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset.",
+            ruleTokens: [],
+          },
+          {
+            order: 3,
+            text: "You may have your attack roll gain +2 dice sides and +2 to the results.",
+            ruleTokens: [],
+          },
+          {
+            order: 4,
+            text: "You cannot SEVER with that roll.",
+            ruleTokens: ["sever"],
+          },
+          {
+            order: 5,
+            text: "Your attacks do +(5% Power) Damage.",
+            ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 1,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 3,
+            sourceText: "You may have your attack roll gain +2 dice sides and +2 to the results.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 4,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
+          },
+          {
+            sourceDefinitionId: "transformation-hybrid-saiyan-4-ascended-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/hybridSaiyan/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "You may choose 2 Advanced Attacks in your Extra Moves list to add to your moveset.",
+          },
+        ],
+        coveredClauseOrders: [2],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-slot-capacity",
+            slot: "advanced-attack",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "You gain +2 Advanced Attack slots.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 3,
+            sourceText: "You may have your attack roll gain +2 dice sides and +2 to the results.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 3,
+            sourceText: "You may have your attack roll gain +2 dice sides and +2 to the results.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 4,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 5,
+            sourceText: "Your attacks do +(5% Power) Damage.",
           },
         ],
       },
@@ -3961,11 +7805,28 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Successful physical attacks against you with roll 20+ make the attacker lose 10% Power HP. Stopping an Energy Advanced Attack lets your next Energy attack replace its SUCCESSFUL effect with the stopped attack’s SUCCESSFUL effect.",
         effectText:
-          "[INTERMEDIATE] The retaliation threshold drops to 15+. Stopping an Energy attack also adds +5% Power damage to your next Energy attack; the Advanced-Attack effect-copy remains.",
+          "Successful physical attacks against you with roll 20+ make the attacker lose 10% Power HP. Stopping an Energy Advanced Attack lets your next Energy attack replace its SUCCESSFUL effect with the stopped attack’s SUCCESSFUL effect.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] The retaliation threshold drops to 15+.",
+            text: "Successful physical attacks against you with roll 20+ make the attacker lose 10% Power HP.",
+            ruleTokens: ["successful"],
+          },
+          {
+            order: 2,
+            text: "Stopping an Energy Advanced Attack lets your next Energy attack replace its SUCCESSFUL effect with the stopped attack’s SUCCESSFUL effect.",
+            ruleTokens: ["stopped", "successful"],
+          },
+        ],
+      },
+      intermediate: {
+        name: "The retaliation threshold drops to 15+. Stopping an Energy attack also adds +5% Power damage to your next Energy attack; the Advanced-Attack effect-copy remains.",
+        effectText:
+          "The retaliation threshold drops to 15+. Stopping an Energy attack also adds +5% Power damage to your next Energy attack; the Advanced-Attack effect-copy remains.",
+        effectClauses: [
+          {
+            order: 1,
+            text: "The retaliation threshold drops to 15+.",
             ruleTokens: [],
           },
           {
@@ -3975,24 +7836,20 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
           },
         ],
       },
-      intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
-        effectClauses: [
-          {
-            order: 1,
-            text: "Source does not define this Transformation Ability.",
-            ruleTokens: [],
-          },
-        ],
-      },
       mastered: {
-        name: "Any successful physical attack against you triggers the 10% Power HP retaliation. The stopped Energy Advanced Attack effect",
-        effectText: "copy remains.",
+        name: "Any successful physical attack against you triggers the 10% Power HP retaliation. The stopped Energy Advanced Attack effect-copy remains.",
+        effectText:
+          "Any successful physical attack against you triggers the 10% Power HP retaliation. The stopped Energy Advanced Attack effect-copy remains.",
         effectClauses: [
           {
             order: 1,
-            text: "copy remains.",
-            ruleTokens: [],
+            text: "Any successful physical attack against you triggers the 10% Power HP retaliation.",
+            ruleTokens: ["successful"],
+          },
+          {
+            order: 2,
+            text: "The stopped Energy Advanced Attack effect-copy remains.",
+            ruleTokens: ["stopped"],
           },
         ],
       },
@@ -4020,32 +7877,39 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Physical attackers suffer the form’s heat retaliation. On a successful physical attack roll of 28+, you may pay 1 Ki to strip its SUCCESSFUL effects; stopped Energy Advanced Attacks can still feed their SUCCESSFUL effect to your next Energy attack.",
         effectText:
-          "[INTERMEDIATE] As Novice, but the physical-attack roll threshold for the 1-Ki SUCCESSFUL-effect removal is 26+.",
+          "Physical attackers suffer the form’s heat retaliation. On a successful physical attack roll of 28+, you may pay 1 Ki to strip its SUCCESSFUL effects; stopped Energy Advanced Attacks can still feed their SUCCESSFUL effect to your next Energy attack.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] As Novice, but the physical-attack roll threshold for the 1-Ki SUCCESSFUL-effect removal is 26+.",
-            ruleTokens: ["successful"],
+            text: "Physical attackers suffer the form’s heat retaliation.",
+            ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "On a successful physical attack roll of 28+, you may pay 1 Ki to strip its SUCCESSFUL effects; stopped Energy Advanced Attacks can still feed their SUCCESSFUL effect to your next Energy attack.",
+            ruleTokens: ["stopped", "successful"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "As Novice, but the physical-attack roll threshold for the 1-Ki SUCCESSFUL-effect removal is 26+.",
+        effectText:
+          "As Novice, but the physical-attack roll threshold for the 1-Ki SUCCESSFUL-effect removal is 26+.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
-            ruleTokens: [],
+            text: "As Novice, but the physical-attack roll threshold for the 1-Ki SUCCESSFUL-effect removal is 26+.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       mastered: {
-        name: "As above, with the physical",
-        effectText: "attack roll threshold reduced to 24+.",
+        name: "As above, with the physical-attack roll threshold reduced to 24+.",
+        effectText: "As above, with the physical-attack roll threshold reduced to 24+.",
         effectClauses: [
           {
             order: 1,
-            text: "attack roll threshold reduced to 24+.",
+            text: "As above, with the physical-attack roll threshold reduced to 24+.",
             ruleTokens: [],
           },
         ],
@@ -4072,36 +7936,37 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Successful single",
+        name: "Successful single-die attack roll 26+ heals 5% Current HP once per turn; attacks +2% Power damage.",
         effectText:
-          "die attack roll 26+ heals 5% Current HP once per turn; attacks +2% Power damage.",
+          "Successful single-die attack roll 26+ heals 5% Current HP once per turn; attacks +2% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die attack roll 26+ heals 5% Current HP once per turn; attacks +2% Power damage.",
-            ruleTokens: [],
+            text: "Successful single-die attack roll 26+ heals 5% Current HP once per turn; attacks +2% Power damage.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
         name: "Same 26+ healing trigger; attacks +3% Power damage.",
-        effectText:
-          "[MASTERED] Successful attack roll 25+ heals 5% Current HP once per turn; attacks +4% Power damage.",
+        effectText: "Same 26+ healing trigger; attacks +3% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[MASTERED] Successful attack roll 25+ heals 5% Current HP once per turn; attacks +4% Power damage.",
-            ruleTokens: ["successful"],
+            text: "Same 26+ healing trigger; attacks +3% Power damage.",
+            ruleTokens: [],
           },
         ],
       },
       mastered: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Successful attack roll 25+ heals 5% Current HP once per turn; attacks +4% Power damage.",
+        effectText:
+          "Successful attack roll 25+ heals 5% Current HP once per turn; attacks +4% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
-            ruleTokens: [],
+            text: "Successful attack roll 25+ heals 5% Current HP once per turn; attacks +4% Power damage.",
+            ruleTokens: ["successful"],
           },
         ],
       },
@@ -4128,32 +7993,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Successful attack roll 25+ heals 5% Current HP once/turn; attacks +5% Power damage.",
-        effectText: "[INTERMEDIATE] Threshold 24+; heal 6% Current HP once/turn; +5% Power damage.",
+        effectText:
+          "Successful attack roll 25+ heals 5% Current HP once/turn; attacks +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Threshold 24+; heal 6% Current HP once/turn; +5% Power damage.",
-            ruleTokens: [],
+            text: "Successful attack roll 25+ heals 5% Current HP once/turn; attacks +5% Power damage.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Threshold 24+; heal 6% Current HP once/turn; +5% Power damage.",
+        effectText: "Threshold 24+; heal 6% Current HP once/turn; +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Threshold 24+; heal 6% Current HP once/turn; +5% Power damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Threshold 24+; heal 7% Current HP once/turn; +5% Power damage",
-        effectText: ".",
+        name: "Threshold 24+; heal 7% Current HP once/turn; +5% Power damage.",
+        effectText: "Threshold 24+; heal 7% Current HP once/turn; +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Threshold 24+; heal 7% Current HP once/turn; +5% Power damage.",
             ruleTokens: [],
           },
         ],
@@ -4180,39 +8047,46 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "On successful roll 24+, heal 7% Current HP once/turn; +5% damage. Absorbing a defeated opponent grants one of their equipped items slot",
-        effectText: "free until another absorption or higher form.",
+        name: "On successful roll 24+, heal 7% Current HP once/turn; +5% damage. Absorbing a defeated opponent grants one of their equipped items slot-free until another absorption or higher form.",
+        effectText:
+          "On successful roll 24+, heal 7% Current HP once/turn; +5% damage. Absorbing a defeated opponent grants one of their equipped items slot-free until another absorption or higher form.",
         effectClauses: [
           {
             order: 1,
-            text: "free until another absorption or higher form.",
+            text: "On successful roll 24+, heal 7% Current HP once/turn; +5% damage.",
+            ruleTokens: ["successful"],
+          },
+          {
+            order: 2,
+            text: "Absorbing a defeated opponent grants one of their equipped items slot-free until another absorption or higher form.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
         name: "Same, but healing can trigger twice/turn.",
-        effectText:
-          "[MASTERED] Heal 8% Current HP up to twice/turn; same item-copy effect. Absorbed race bonus: Saiyan/Half-Saiyan/Changeling +30% Power; Namekian/Majin +30% Endurance; Android/Bio-Android +30% Dexterity; Human/Other +10% all stats.",
+        effectText: "Same, but healing can trigger twice/turn.",
         effectClauses: [
           {
             order: 1,
-            text: "[MASTERED] Heal 8% Current HP up to twice/turn; same item-copy effect.",
-            ruleTokens: [],
-          },
-          {
-            order: 2,
-            text: "Absorbed race bonus: Saiyan/Half-Saiyan/Changeling +30% Power; Namekian/Majin +30% Endurance; Android/Bio-Android +30% Dexterity; Human/Other +10% all stats.",
+            text: "Same, but healing can trigger twice/turn.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Heal 8% Current HP up to twice/turn; same item-copy effect. Absorbed race bonus: Saiyan/Half-Saiyan/Changeling +30% Power; Namekian/Majin +30% Endurance; Android/Bio-Android +30% Dexterity; Human/Other +10% all stats.",
+        effectText:
+          "Heal 8% Current HP up to twice/turn; same item-copy effect. Absorbed race bonus: Saiyan/Half-Saiyan/Changeling +30% Power; Namekian/Majin +30% Endurance; Android/Bio-Android +30% Dexterity; Human/Other +10% all stats.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Heal 8% Current HP up to twice/turn; same item-copy effect.",
+            ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "Absorbed race bonus: Saiyan/Half-Saiyan/Changeling +30% Power; Namekian/Majin +30% Endurance; Android/Bio-Android +30% Dexterity; Human/Other +10% all stats.",
             ruleTokens: [],
           },
         ],
@@ -4241,32 +8115,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Successful attack roll 23+ heals 9% Current HP up to twice/turn; attacks +6% Power damage.",
         effectText:
-          "[INTERMEDIATE] Roll 22+ heals 10% Current HP; source wording limits it to once per turn with different dice rolls; attacks +8% Power damage.",
+          "Successful attack roll 23+ heals 9% Current HP up to twice/turn; attacks +6% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Roll 22+ heals 10% Current HP; source wording limits it to once per turn with different dice rolls; attacks +8% Power damage.",
-            ruleTokens: [],
+            text: "Successful attack roll 23+ heals 9% Current HP up to twice/turn; attacks +6% Power damage.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Roll 22+ heals 10% Current HP; source wording limits it to once per turn with different dice rolls; attacks +8% Power damage.",
+        effectText:
+          "Roll 22+ heals 10% Current HP; source wording limits it to once per turn with different dice rolls; attacks +8% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Roll 22+ heals 10% Current HP; source wording limits it to once per turn with different dice rolls; attacks +8% Power damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Roll 20+ heals 10% Current HP up to twice/turn; attacks +10% Power damage",
-        effectText: ".",
+        name: "Roll 20+ heals 10% Current HP up to twice/turn; attacks +10% Power damage.",
+        effectText: "Roll 20+ heals 10% Current HP up to twice/turn; attacks +10% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Roll 20+ heals 10% Current HP up to twice/turn; attacks +10% Power damage.",
             ruleTokens: [],
           },
         ],
@@ -4293,33 +8169,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Successful single",
-        effectText: "die attack roll 30+ on base 1d32 or lower STUNs.",
+        name: "Successful single-die attack roll 30+ on base 1d32 or lower STUNs.",
+        effectText: "Successful single-die attack roll 30+ on base 1d32 or lower STUNs.",
         effectClauses: [
           {
             order: 1,
-            text: "die attack roll 30+ on base 1d32 or lower STUNs.",
-            ruleTokens: [],
+            text: "Successful single-die attack roll 30+ on base 1d32 or lower STUNs.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
         name: "Same; when opponent rolls natural 1 to attack you, pay 1 Ki to STUN them.",
-        effectText: "[MASTERED] Primary threshold becomes 29+; natural-1 retaliation remains.",
+        effectText: "Same; when opponent rolls natural 1 to attack you, pay 1 Ki to STUN them.",
         effectClauses: [
           {
             order: 1,
-            text: "[MASTERED] Primary threshold becomes 29+; natural-1 retaliation remains.",
-            ruleTokens: [],
+            text: "Same; when opponent rolls natural 1 to attack you, pay 1 Ki to STUN them.",
+            ruleTokens: ["stun"],
           },
         ],
       },
       mastered: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Primary threshold becomes 29+; natural-1 retaliation remains.",
+        effectText: "Primary threshold becomes 29+; natural-1 retaliation remains.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Primary threshold becomes 29+; natural-1 retaliation remains.",
             ruleTokens: [],
           },
         ],
@@ -4347,32 +8224,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Successful 29+ (base 1d32 or lower) STUNs; a 27 may spend 3 Ki to STUN; opponent natural 1 may be answered with 1 Ki STUN.",
         effectText:
-          "[INTERMEDIATE] Primary threshold 28+; 27 may spend 3 Ki; natural-1 response remains.",
+          "Successful 29+ (base 1d32 or lower) STUNs; a 27 may spend 3 Ki to STUN; opponent natural 1 may be answered with 1 Ki STUN.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Primary threshold 28+; 27 may spend 3 Ki; natural-1 response remains.",
-            ruleTokens: [],
+            text: "Successful 29+ (base 1d32 or lower) STUNs; a 27 may spend 3 Ki to STUN; opponent natural 1 may be answered with 1 Ki STUN.",
+            ruleTokens: ["stun", "successful"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Primary threshold 28+; 27 may spend 3 Ki; natural-1 response remains.",
+        effectText: "Primary threshold 28+; 27 may spend 3 Ki; natural-1 response remains.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Primary threshold 28+; 27 may spend 3 Ki; natural-1 response remains.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Primary threshold 28+; 27 may spend 2 Ki; opponent natural 1 automatically STUNs",
-        effectText: ".",
+        name: "Primary threshold 28+; 27 may spend 2 Ki; opponent natural 1 automatically STUNs.",
+        effectText:
+          "Primary threshold 28+; 27 may spend 2 Ki; opponent natural 1 automatically STUNs.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Primary threshold 28+; 27 may spend 2 Ki; opponent natural 1 automatically STUNs.",
             ruleTokens: [],
           },
         ],
@@ -4398,34 +8277,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Successful 28+ STUNs; 26",
-        effectText: "27 may spend 2 Ki; opponent natural 1 auto-STUNs.",
+        name: "Successful 28+ STUNs; 26-27 may spend 2 Ki; opponent natural 1 auto-STUNs.",
+        effectText: "Successful 28+ STUNs; 26-27 may spend 2 Ki; opponent natural 1 auto-STUNs.",
         effectClauses: [
           {
             order: 1,
-            text: "27 may spend 2 Ki; opponent natural 1 auto-STUNs.",
-            ruleTokens: [],
+            text: "Successful 28+ STUNs; 26-27 may spend 2 Ki; opponent natural 1 auto-STUNs.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        name: "26",
-        effectText: "27 STUN cost drops to 1 Ki.",
+        name: "26-27 STUN cost drops to 1 Ki.",
+        effectText: "26-27 STUN cost drops to 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "27 STUN cost drops to 1 Ki.",
+            text: "26-27 STUN cost drops to 1 Ki.",
             ruleTokens: ["stun"],
           },
         ],
       },
       mastered: {
-        name: "As Intermediate; when this transformation effect STUNs, roll 30+ to gain 1 Ki",
-        effectText: ".",
+        name: "As Intermediate; when this transformation effect STUNs, roll 30+ to gain 1 Ki.",
+        effectText:
+          "As Intermediate; when this transformation effect STUNs, roll 30+ to gain 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "As Intermediate; when this transformation effect STUNs, roll 30+ to gain 1 Ki.",
             ruleTokens: [],
           },
         ],
@@ -4451,36 +8331,36 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Successful 28+ STUNs; 26",
+        name: "Successful 28+ STUNs; 26-27 may spend 1 Ki; natural-1 attacks auto-STUN; after a transformation-effect STUN, roll 29+ to gain 1 Ki.",
         effectText:
-          "27 may spend 1 Ki; natural-1 attacks auto-STUN; after a transformation-effect STUN, roll 29+ to gain 1 Ki.",
+          "Successful 28+ STUNs; 26-27 may spend 1 Ki; natural-1 attacks auto-STUN; after a transformation-effect STUN, roll 29+ to gain 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "27 may spend 1 Ki; natural-1 attacks auto-STUN; after a transformation-effect STUN, roll 29+ to gain 1 Ki.",
-            ruleTokens: ["stun"],
+            text: "Successful 28+ STUNs; 26-27 may spend 1 Ki; natural-1 attacks auto-STUN; after a transformation-effect STUN, roll 29+ to gain 1 Ki.",
+            ruleTokens: ["stun", "successful"],
           },
         ],
       },
       intermediate: {
-        name: "Ki",
-        effectText: "gain check improves to 28+.",
+        name: "Ki-gain check improves to 28+.",
+        effectText: "Ki-gain check improves to 28+.",
         effectClauses: [
           {
             order: 1,
-            text: "gain check improves to 28+.",
+            text: "Ki-gain check improves to 28+.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Ki",
+        name: "Ki-gain check remains 28+ and STUNs caused by this transformation cannot be negated.",
         effectText:
-          "gain check remains 28+ and STUNs caused by this transformation cannot be negated.",
+          "Ki-gain check remains 28+ and STUNs caused by this transformation cannot be negated.",
         effectClauses: [
           {
             order: 1,
-            text: "gain check remains 28+ and STUNs caused by this transformation cannot be negated.",
+            text: "Ki-gain check remains 28+ and STUNs caused by this transformation cannot be negated.",
             ruleTokens: [],
           },
         ],
@@ -4506,34 +8386,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "When Makyo Megastar triggers, opponent attack results",
-        effectText: "2 until their next successful single-die attack; does not stack.",
+        name: "When Makyo Megastar triggers, opponent attack results -2 until their next successful single-die attack; does not stack.",
+        effectText:
+          "When Makyo Megastar triggers, opponent attack results -2 until their next successful single-die attack; does not stack.",
         effectClauses: [
           {
             order: 1,
-            text: "2 until their next successful single-die attack; does not stack.",
+            text: "When Makyo Megastar triggers, opponent attack results -2 until their next successful single-die attack; does not stack.",
             ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        name: "Choose a second Makyo Megastar number; same",
-        effectText: "2 effect.",
+        name: "Choose a second Makyo Megastar number; same -2 effect.",
+        effectText: "Choose a second Makyo Megastar number; same -2 effect.",
         effectClauses: [
           {
             order: 1,
-            text: "2 effect.",
+            text: "Choose a second Makyo Megastar number; same -2 effect.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Two numbers; each triggers within ±1 of the chosen values; same",
-        effectText: "2 effect.",
+        name: "Two numbers; each triggers within ±1 of the chosen values; same -2 effect.",
+        effectText: "Two numbers; each triggers within ±1 of the chosen values; same -2 effect.",
         effectClauses: [
           {
             order: 1,
-            text: "2 effect.",
+            text: "Two numbers; each triggers within ±1 of the chosen values; same -2 effect.",
             ruleTokens: [],
           },
         ],
@@ -4559,34 +8440,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Two Makyo numbers, trigger within ±1; opponent",
-        effectText: "3 attack results until next successful single-die attack.",
+        name: "Two Makyo numbers, trigger within ±1; opponent -3 attack results until next successful single-die attack.",
+        effectText:
+          "Two Makyo numbers, trigger within ±1; opponent -3 attack results until next successful single-die attack.",
         effectClauses: [
           {
             order: 1,
-            text: "3 attack results until next successful single-die attack.",
+            text: "Two Makyo numbers, trigger within ±1; opponent -3 attack results until next successful single-die attack.",
             ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        name: "Trigger window expands to within 2 of chosen numbers;",
-        effectText: "3.",
+        name: "Trigger window expands to within 2 of chosen numbers; -3.",
+        effectText: "Trigger window expands to within 2 of chosen numbers; -3.",
         effectClauses: [
           {
             order: 1,
-            text: "3.",
+            text: "Trigger window expands to within 2 of chosen numbers; -3.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Choose two additional numbers; within",
-        effectText: "2 trigger; -3.",
+        name: "Choose two additional numbers; within-2 trigger; -3.",
+        effectText: "Choose two additional numbers; within-2 trigger; -3.",
         effectClauses: [
           {
             order: 1,
-            text: "2 trigger; -3.",
+            text: "Choose two additional numbers; within-2 trigger; -3.",
             ruleTokens: [],
           },
         ],
@@ -4612,34 +8494,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Choose two more numbers; trigger within 2; opponent",
-        effectText: "4.",
+        name: "Choose two more numbers; trigger within 2; opponent -4.",
+        effectText: "Choose two more numbers; trigger within 2; opponent -4.",
         effectClauses: [
           {
             order: 1,
-            text: "4.",
+            text: "Choose two more numbers; trigger within 2; opponent -4.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        name: "Choose two more numbers; trigger within 3; opponent",
-        effectText: "4.",
+        name: "Choose two more numbers; trigger within 3; opponent -4.",
+        effectText: "Choose two more numbers; trigger within 3; opponent -4.",
         effectClauses: [
           {
             order: 1,
-            text: "4.",
+            text: "Choose two more numbers; trigger within 3; opponent -4.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Choose three more numbers; trigger within 3; opponent",
-        effectText: "4.",
+        name: "Choose three more numbers; trigger within 3; opponent -4.",
+        effectText: "Choose three more numbers; trigger within 3; opponent -4.",
         effectClauses: [
           {
             order: 1,
-            text: "4.",
+            text: "Choose three more numbers; trigger within 3; opponent -4.",
             ruleTokens: [],
           },
         ],
@@ -4665,34 +8547,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Choose three more numbers; trigger within 3; opponent",
-        effectText: "5.",
+        name: "Choose three more numbers; trigger within 3; opponent -5.",
+        effectText: "Choose three more numbers; trigger within 3; opponent -5.",
         effectClauses: [
           {
             order: 1,
-            text: "5.",
+            text: "Choose three more numbers; trigger within 3; opponent -5.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        name: "Choose three more; trigger within 4; opponent",
-        effectText: "5.",
+        name: "Choose three more; trigger within 4; opponent -5.",
+        effectText: "Choose three more; trigger within 4; opponent -5.",
         effectClauses: [
           {
             order: 1,
-            text: "5.",
+            text: "Choose three more; trigger within 4; opponent -5.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Choose four more; trigger within 4; opponent",
-        effectText: "4 (as written in the source).",
+        name: "Choose four more; trigger within 4; opponent -4 (as written in the source).",
+        effectText: "Choose four more; trigger within 4; opponent -4 (as written in the source).",
         effectClauses: [
           {
             order: 1,
-            text: "4 (as written in the source).",
+            text: "Choose four more; trigger within 4; opponent -4 (as written in the source).",
             ruleTokens: [],
           },
         ],
@@ -4718,35 +8600,160 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Opponent physical attacks",
-        effectText: "10% damage; Meditative Preparation is lost in form.",
+        name: "Opponent physical attacks -10% damage; Meditative Preparation is lost in form.",
+        effectText:
+          "Opponent physical attacks -10% damage; Meditative Preparation is lost in form.",
         effectClauses: [
           {
             order: 1,
-            text: "10% damage; Meditative Preparation is lost in form.",
+            text: "Opponent physical attacks -10% damage; Meditative Preparation is lost in form.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-1-giant-form:novice",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Opponent physical attacks -10% damage; Meditative Preparation is lost in form.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -10,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText:
+                "Opponent physical attacks -10% damage; Meditative Preparation is lost in form.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Opponent physical attacks -10% damage; Meditative Preparation is lost in form.",
           },
         ],
       },
       intermediate: {
-        name: "Physical attacks against you",
-        effectText: "15%; your attacks +5% Power damage; Meditative Preparation lost.",
+        name: "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
+        effectText:
+          "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
         effectClauses: [
           {
             order: 1,
-            text: "15%; your attacks +5% Power damage; Meditative Preparation lost.",
+            text: "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-1-giant-form:intermediate",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText:
+                "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation lost.",
           },
         ],
       },
       mastered: {
-        name: "Physical attacks against you",
-        effectText: "15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
+        name: "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
+        effectText:
+          "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
         effectClauses: [
           {
             order: 1,
-            text: "15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
+            text: "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-1-giant-form:mastered",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText:
+                "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Physical attacks against you -15%; your attacks +5% Power damage; Meditative Preparation no longer removed.",
           },
         ],
       },
@@ -4771,13 +8778,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Opponent attacks",
+        name: "Opponent attacks -10% damage; this prevention cannot be stopped. Power Up gives opponent next attack -1 result.",
         effectText:
-          "10% damage; this prevention cannot be stopped. Power Up gives opponent next attack -1 result.",
+          "Opponent attacks -10% damage; this prevention cannot be stopped. Power Up gives opponent next attack -1 result.",
         effectClauses: [
           {
             order: 1,
-            text: "10% damage; this prevention cannot be stopped.",
+            text: "Opponent attacks -10% damage; this prevention cannot be stopped.",
             ruleTokens: ["stopped"],
           },
           {
@@ -4786,26 +8793,173 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-2-super-namek:novice",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Power Up gives opponent next attack -1 result.",
+          },
+          {
+            sourceDefinitionId: "transformation-namek-2-super-namek:novice",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Opponent attacks -10% damage; this prevention cannot be stopped.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -10,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText:
+                "Opponent attacks -10% damage; Power Up gives opponent next attack -1 result.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Power Up gives opponent next attack -1 result.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Opponent attacks -10% damage; Power Up gives opponent next attack -1 result.",
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Power Up gives opponent next attack -1 result.",
+          },
+        ],
       },
       intermediate: {
-        name: "Same, next attack",
-        effectText: "2 result.",
+        name: "Same, next attack -2 result.",
+        effectText: "Same, next attack -2 result.",
         effectClauses: [
           {
             order: 1,
-            text: "2 result.",
+            text: "Same, next attack -2 result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-2-super-namek:intermediate",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Same, next attack -2 result.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -10,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Same, next attack -2 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Same, next attack -2 result.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -2,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Same, next attack -2 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Same, next attack -2 result.",
           },
         ],
       },
       mastered: {
-        name: "Same, next attack",
-        effectText: "3 result.",
+        name: "Same, next attack -3 result.",
+        effectText: "Same, next attack -3 result.",
         effectClauses: [
           {
             order: 1,
-            text: "3 result.",
+            text: "Same, next attack -3 result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-2-super-namek:mastered",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Same, next attack -3 result.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Same -10% and -4.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Same, next attack -3 result.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -4,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Same -10% and -4.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Same, next attack -3 result.",
           },
         ],
       },
@@ -4830,35 +8984,176 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Opponent attacks",
-        effectText: "10%; Power Up gives opponent next attack -4 result.",
+        name: "Opponent attacks -10%; Power Up gives opponent next attack -4 result.",
+        effectText: "Opponent attacks -10%; Power Up gives opponent next attack -4 result.",
         effectClauses: [
           {
             order: 1,
-            text: "10%; Power Up gives opponent next attack -4 result.",
+            text: "Opponent attacks -10%; Power Up gives opponent next attack -4 result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-3-soul-alignment:novice",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Opponent attacks -10%; Power Up gives opponent next attack -4 result.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -10,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText:
+                "Opponent attacks -10% damage; Power Up gives opponent next attack -1 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent attacks -10%; Power Up gives opponent next attack -4 result.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Opponent attacks -10% damage; Power Up gives opponent next attack -1 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent attacks -10%; Power Up gives opponent next attack -4 result.",
           },
         ],
       },
       intermediate: {
-        name: "Same",
-        effectText: "10% and -4.",
+        name: "Same -10% and -4.",
+        effectText: "Same -10% and -4.",
         effectClauses: [
           {
             order: 1,
-            text: "10% and -4.",
+            text: "Same -10% and -4.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-3-soul-alignment:intermediate",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Same -10% and -4.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -10,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Same, next attack -2 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Same -10% and -4.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -2,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Same, next attack -2 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Same -10% and -4.",
           },
         ],
       },
       mastered: {
-        name: "Opponent attacks",
-        effectText: "15%; Power Up gives next attack -5 result.",
+        name: "Opponent attacks -15%; Power Up gives next attack -5 result.",
+        effectText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
         effectClauses: [
           {
             order: 1,
-            text: "15%; Power Up gives next attack -5 result.",
+            text: "Opponent attacks -15%; Power Up gives next attack -5 result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-3-soul-alignment:mastered",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Same -10% and -4.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -4,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Same -10% and -4.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
           },
         ],
       },
@@ -4883,17 +9178,67 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Opponent attacks",
-        effectText: "15%; Power Up gives next attack -5 result.",
+        name: "Opponent attacks -15%; Power Up gives next attack -5 result.",
+        effectText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
         effectClauses: [
           {
             order: 1,
-            text: "15%; Power Up gives next attack -5 result.",
+            text: "Opponent attacks -15%; Power Up gives next attack -5 result.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-4-planetary-master:novice",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
+          },
+        ],
+        coveredClauseOrders: [1],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText:
+                "Opponent attacks -10% damage; Power Up gives opponent next attack -1 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            scope: {
+              type: "next-action",
+              sourceText:
+                "Opponent attacks -10% damage; Power Up gives opponent next attack -1 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent attacks -15%; Power Up gives next attack -5 result.",
           },
         ],
       },
       intermediate: {
+        name: "-15%; Power Up makes next attack -6 to all dice results if multi-die.",
         effectText: "15%; Power Up makes next attack -6 to all dice results if multi-die.",
         effectClauses: [
           {
@@ -4902,14 +9247,107 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-4-planetary-master:intermediate",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "15%; Power Up makes next attack -6 to all dice results if multi-die.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Same, next attack -2 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "15%; Power Up makes next attack -6 to all dice results if multi-die.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -2,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Same, next attack -2 result.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "15%; Power Up makes next attack -6 to all dice results if multi-die.",
+          },
+        ],
       },
       mastered: {
+        name: "-15%; Power Up makes next attack -7 to all dice results if multi-die.",
         effectText: "15%; Power Up makes next attack -7 to all dice results if multi-die.",
         effectClauses: [
           {
             order: 1,
             text: "15%; Power Up makes next attack -7 to all dice results if multi-die.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-namek-4-planetary-master:mastered",
+            sourcePath: "reference/races.transformations/namek/transformation.md",
+            clauseOrder: 1,
+            sourceText: "15%; Power Up makes next attack -7 to all dice results if multi-die.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -15,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Same -10% and -4.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "15%; Power Up makes next attack -7 to all dice results if multi-die.",
+          },
+          {
+            trigger: "on-power-up",
+            target: "opponent",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: -4,
+            },
+            scope: {
+              type: "next-action",
+              sourceText: "Same -10% and -4.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "15%; Power Up makes next attack -7 to all dice results if multi-die.",
           },
         ],
       },
@@ -4934,13 +9372,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Opponent physical attacks",
+        name: "Opponent physical attacks -20%. Each turn roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
         effectText:
-          "20%. Each turn roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
+          "Opponent physical attacks -20%. Each turn roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
         effectClauses: [
           {
             order: 1,
-            text: "20%.",
+            text: "Opponent physical attacks -20%.",
             ruleTokens: [],
           },
           {
@@ -4949,32 +9387,215 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-1-oozaru:novice",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Opponent physical attacks -20%.",
+          },
+          {
+            sourceDefinitionId: "transformation-saiyans-1-oozaru:novice",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 2,
+            sourceText:
+              "Each turn roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -20,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Opponent physical attacks -20% damage.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Opponent physical attacks -20% damage.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 2,
+            storageKey: "saiyans-oozaru-novice-trigger-roll",
+            sourceClauseOrder: 2,
+            sourceText:
+              "On your turn, roll 1d2; on 2, randomly select an Advanced Attack and use it or pass.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "select-move-by-stored-roll",
+            storageKey: "saiyans-oozaru-novice-trigger-roll",
+            selectionKey: "saiyans-oozaru-novice-selected-attack",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              sourceText: "Advanced Attack in your moveset.",
+            },
+            ordering: "character-sheet-top-to-bottom",
+            reindex: "on-moveset-change",
+            sourceClauseOrder: 2,
+            sourceText: "The result corresponds to the order of the moves in your moveset.",
+          },
+          {
+            trigger: "action-phase",
+            target: "self",
+            type: "force-action",
+            allowedCategories: ["advanced-attack"],
+            allowPass: true,
+            selectedMoveStorageKey: "saiyans-oozaru-novice-selected-attack",
+            sourceClauseOrder: 2,
+            sourceText: "You must perform that attack or pass.",
+          },
+        ],
       },
       intermediate: {
-        name: "Physical damage reduction becomes",
-        effectText: "25%; random-attack rule remains.",
+        name: "Physical damage reduction becomes -25%; random-attack rule remains.",
+        effectText: "Physical damage reduction becomes -25%; random-attack rule remains.",
         effectClauses: [
           {
             order: 1,
-            text: "25%; random-attack rule remains.",
+            text: "Physical damage reduction becomes -25%; random-attack rule remains.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-1-oozaru:intermediate",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Physical damage reduction becomes -25%; random-attack rule remains.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -25,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Physical damage reduction becomes -25%; random-attack rule remains.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Physical damage reduction becomes -25%; random-attack rule remains.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "roll-and-store",
+            dice: 1,
+            sides: 2,
+            storageKey: "saiyans-oozaru-intermediate-trigger-roll",
+            sourceClauseOrder: 1,
+            sourceText: "Physical damage reduction becomes -25%; random-attack rule remains.",
+          },
+          {
+            trigger: "upkeep-phase",
+            target: "self",
+            type: "select-move-by-stored-roll",
+            storageKey: "saiyans-oozaru-intermediate-trigger-roll",
+            selectionKey: "saiyans-oozaru-intermediate-selected-attack",
+            subject: "self",
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              sourceText: "Advanced Attack in your moveset.",
+            },
+            ordering: "character-sheet-top-to-bottom",
+            reindex: "on-moveset-change",
+            sourceClauseOrder: 1,
+            sourceText: "Physical damage reduction becomes -25%; random-attack rule remains.",
+          },
+          {
+            trigger: "action-phase",
+            target: "self",
+            type: "force-action",
+            allowedCategories: ["advanced-attack"],
+            allowPass: true,
+            selectedMoveStorageKey: "saiyans-oozaru-intermediate-selected-attack",
+            sourceClauseOrder: 1,
+            sourceText: "Physical damage reduction becomes -25%; random-attack rule remains.",
           },
         ],
       },
       mastered: {
-        name: "Physical attacks",
+        name: "Physical attacks -25%; your attacks +5% Power damage. Worn-item effects are suppressed except the source’s listed armor/weapon exceptions.",
         effectText:
-          "25%; your attacks +5% Power damage. Worn-item effects are suppressed except the source’s listed armor/weapon exceptions.",
+          "Physical attacks -25%; your attacks +5% Power damage. Worn-item effects are suppressed except the source’s listed armor/weapon exceptions.",
         effectClauses: [
           {
             order: 1,
-            text: "25%; your attacks +5% Power damage.",
+            text: "Physical attacks -25%; your attacks +5% Power damage.",
             ruleTokens: [],
           },
           {
             order: 2,
             text: "Worn-item effects are suppressed except the source’s listed armor/weapon exceptions.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-1-oozaru:mastered",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText: "Physical attacks -25%; your attacks +5% Power damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "damage-percent",
+              subject: "current-action",
+              percent: -25,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              tags: ["physical"],
+              sourceText: "Physical attacks -25%; your attacks +5% Power damage.",
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Physical attacks -25%; your attacks +5% Power damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText: "Physical attacks -25%; your attacks +5% Power damage.",
           },
         ],
       },
@@ -4999,13 +9620,14 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "May add +1 attack result; that roll cannot SEVER; multi",
-        effectText: "die only first die gains it. Attacks +5% Power damage.",
+        name: "May add +1 attack result; that roll cannot SEVER; multi-die only first die gains it. Attacks +5% Power damage.",
+        effectText:
+          "May add +1 attack result; that roll cannot SEVER; multi-die only first die gains it. Attacks +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die only first die gains it.",
-            ruleTokens: [],
+            text: "May add +1 attack result; that roll cannot SEVER; multi-die only first die gains it.",
+            ruleTokens: ["sever"],
           },
           {
             order: 2,
@@ -5013,31 +9635,217 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
             ruleTokens: [],
           },
         ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-2-super-saiyan:novice",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "May add +1 attack result; that roll cannot SEVER; multi-die only first die gains it.",
+          },
+          {
+            sourceDefinitionId: "transformation-saiyans-2-super-saiyan:novice",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "Attacks +5% Power damage.",
+          },
+        ],
+        coveredClauseOrders: [3],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "May add +1 attack result; that roll cannot SEVER; multi-die only first die gains it.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 2,
+            sourceText: "Attacks +5% Power damage.",
+          },
+        ],
       },
       intermediate: {
-        name: "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP,",
-        effectText: "10% Dexterity. +5% damage.",
+        name: "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
+        effectText:
+          "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "10% Dexterity. +5% damage.",
+            text: "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-2-super-saiyan:intermediate",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
+          },
+        ],
+        coveredClauseOrders: [3, 5],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 1,
+            sourceText:
+              "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Bonus becomes +2 result; may instead enter Ultra Super Saiyan at +65% Power, +45% HP, -10% Dexterity. +5% damage.",
           },
         ],
       },
       mastered: {
-        name: "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost",
-        effectText: "1 Ki, including normally unmodifiable costs. USS option remains.",
+        name: "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs. USS option remains.",
+        effectText:
+          "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs. USS option remains.",
         effectClauses: [
           {
             order: 1,
-            text: "1 Ki, including normally unmodifiable costs.",
+            text: "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs.",
             ruleTokens: [],
           },
           {
             order: 2,
             text: "USS option remains.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs.",
+          },
+          {
+            sourceDefinitionId: "transformation-saiyans-2-super-saiyan:mastered",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 2,
+            sourceText: "USS option remains.",
+          },
+        ],
+        coveredClauseOrders: [3, 6],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 2,
+            sourceText: "You cannot SEVER with that roll.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 4,
+                },
+              },
+              sourceText:
+                "Advanced Attacks with a base cost of 4 or more cost -1 KI Point to perform.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 result; +5% damage; Advanced Attacks with base cost 4+ cost -1 Ki, including normally unmodifiable costs.",
+            allowUnmodifiable: true,
           },
         ],
       },
@@ -5062,35 +9870,257 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi",
-        effectText: "die bonus applies to first die. +5% damage.",
+        name: "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
+        effectText:
+          "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die bonus applies to first die. +5% damage.",
-            ruleTokens: [],
+            text: "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
+            ruleTokens: ["sever"],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-3-super-saiyan-2:novice",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
+          },
+        ],
+        coveredClauseOrders: [3],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll may gain +1 side and +1 result; cannot SEVER with that roll; multi-die bonus applies to first die. +5% damage.",
           },
         ],
       },
       intermediate: {
-        name: "+2 sides and +1 result; multi",
-        effectText: "die first result receives the stated bonus; +5% damage.",
+        name: "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
+        effectText:
+          "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die first result receives the stated bonus; +5% damage.",
+            text: "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-3-super-saiyan-2:intermediate",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
+          },
+        ],
+        coveredClauseOrders: [3],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +1 result; multi-die first result receives the stated bonus; +5% damage.",
           },
         ],
       },
       mastered: {
-        name: "+2 sides and +2 result; multi",
-        effectText: "die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+        name: "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+        effectText:
+          "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+            text: "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-3-super-saiyan-2:mastered",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+          },
+        ],
+        coveredClauseOrders: [3, 6],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "prevent-combat-result",
+            result: "sever",
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 5,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 4,
+                },
+              },
+              sourceText: "Advanced base-cost 4+ costs -1 Ki.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and +2 result; multi-die first die gains the bonus; +5% damage; Advanced base-cost 4+ costs -1 Ki.",
+            allowUnmodifiable: true,
           },
         ],
       },
@@ -5115,35 +10145,228 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Attack roll gains +1 side/result modification; multi",
-        effectText: "die first die only; attacks +10% Power damage.",
+        name: "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
+        effectText:
+          "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die first die only; attacks +10% Power damage.",
+            text: "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-4-super-saiyan-3:novice",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Attack roll gains +1 side/result modification; multi-die first die only; attacks +10% Power damage.",
           },
         ],
       },
       intermediate: {
-        name: "Up to +2 sides and +1 result; multi",
-        effectText: "die benefit expands as listed; +10% damage.",
+        name: "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
+        effectText:
+          "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die benefit expands as listed; +10% damage.",
+            text: "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-4-super-saiyan-3:intermediate",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
+          },
+        ],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 1,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Up to +2 sides and +1 result; multi-die benefit expands as listed; +10% damage.",
           },
         ],
       },
       mastered: {
-        name: "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost",
-        effectText: "1 Ki.",
+        name: "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
+        effectText:
+          "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "1 Ki.",
+            text: "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
             ruleTokens: [],
+          },
+        ],
+        sourceClauses: [
+          {
+            sourceDefinitionId: "transformation-saiyans-4-super-saiyan-3:mastered",
+            sourcePath: "reference/races.transformations/saiyans/transformation.md",
+            clauseOrder: 1,
+            sourceText:
+              "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
+          },
+        ],
+        coveredClauseOrders: [6],
+        effects: [
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "sides",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
+          },
+          {
+            trigger: "before-attack-roll",
+            target: "self",
+            type: "modify-roll",
+            roll: "attack",
+            modifier: "result",
+            amount: {
+              type: "literal",
+              value: 2,
+            },
+            dieIndex: 1,
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-damage",
+            operation: "add",
+            percent: {
+              type: "literal",
+              value: 10,
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
+          },
+          {
+            trigger: "passive",
+            target: "self",
+            type: "modify-cost",
+            operation: "add",
+            amount: {
+              type: "literal",
+              value: -1,
+            },
+            selector: {
+              type: "move-selector",
+              subject: "source",
+              category: "advanced-attack",
+              baseKiCost: {
+                comparison: "at-least",
+                value: {
+                  type: "literal",
+                  value: 4,
+                },
+              },
+              sourceText: "attacks with base cost 4+ cost -1 Ki.",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "+2 sides and/or +2 result; first two dice receive the listed bonus; +10% damage; attacks with base cost 4+ cost -1 Ki.",
+            allowUnmodifiable: true,
           },
         ],
       },
@@ -5169,32 +10392,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Opponent attack result must beat defense by 1; STOP with natural defense 27+ gains 1 Ki.",
-        effectText: "[INTERMEDIATE] Same beat-by-1 rule; Ki threshold 26+.",
+        effectText:
+          "Opponent attack result must beat defense by 1; STOP with natural defense 27+ gains 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Same beat-by-1 rule; Ki threshold 26+.",
+            text: "Opponent attack result must beat defense by 1; STOP with natural defense 27+ gains 1 Ki.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Same beat-by-1 rule; Ki threshold 26+.",
+        effectText: "Same beat-by-1 rule; Ki threshold 26+.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Same beat-by-1 rule; Ki threshold 26+.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Opponent must beat defense by 2; STOP with natural defense 26+ gains 1 Ki",
-        effectText: ".",
+        name: "Opponent must beat defense by 2; STOP with natural defense 26+ gains 1 Ki.",
+        effectText: "Opponent must beat defense by 2; STOP with natural defense 26+ gains 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Opponent must beat defense by 2; STOP with natural defense 26+ gains 1 Ki.",
             ruleTokens: [],
           },
         ],
@@ -5222,32 +10447,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Opponent must beat defense by 2; STOP natural defense 26+ gains 1 Ki.",
-        effectText: "[INTERMEDIATE] Same; threshold 25+.",
+        effectText: "Opponent must beat defense by 2; STOP natural defense 26+ gains 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Same; threshold 25+.",
+            text: "Opponent must beat defense by 2; STOP natural defense 26+ gains 1 Ki.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Same; threshold 25+.",
+        effectText: "Same; threshold 25+.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Same; threshold 25+.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Same beat",
-        effectText: "by-2 rule; STOP defense result 25+ gains 1 Ki.",
+        name: "Same beat-by-2 rule; STOP defense result 25+ gains 1 Ki.",
+        effectText: "Same beat-by-2 rule; STOP defense result 25+ gains 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "by-2 rule; STOP defense result 25+ gains 1 Ki.",
+            text: "Same beat-by-2 rule; STOP defense result 25+ gains 1 Ki.",
             ruleTokens: [],
           },
         ],
@@ -5275,32 +10501,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Successful Freestyle Advanced Attack 25+ gains 1 Ki, max 1/turn.",
-        effectText: "[INTERMEDIATE] Threshold 23+, max 1/turn.",
+        effectText: "Successful Freestyle Advanced Attack 25+ gains 1 Ki, max 1/turn.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Threshold 23+, max 1/turn.",
-            ruleTokens: [],
+            text: "Successful Freestyle Advanced Attack 25+ gains 1 Ki, max 1/turn.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Threshold 23+, max 1/turn.",
+        effectText: "Threshold 23+, max 1/turn.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Threshold 23+, max 1/turn.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Threshold 22+, max 1/turn; multi",
-        effectText: "die effect only first die; attacks +5% Power damage.",
+        name: "Threshold 22+, max 1/turn; multi-die effect only first die; attacks +5% Power damage.",
+        effectText:
+          "Threshold 22+, max 1/turn; multi-die effect only first die; attacks +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die effect only first die; attacks +5% Power damage.",
+            text: "Threshold 22+, max 1/turn; multi-die effect only first die; attacks +5% Power damage.",
             ruleTokens: [],
           },
         ],
@@ -5328,32 +10556,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Successful Freestyle Advanced Attack 20+ gains 1 Ki, max 1/turn; attacks +5% damage.",
         effectText:
-          "[INTERMEDIATE] Threshold 19+, max 2/turn; multi-die first two dice; +5% damage.",
+          "Successful Freestyle Advanced Attack 20+ gains 1 Ki, max 1/turn; attacks +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Threshold 19+, max 2/turn; multi-die first two dice; +5% damage.",
-            ruleTokens: [],
+            text: "Successful Freestyle Advanced Attack 20+ gains 1 Ki, max 1/turn; attacks +5% damage.",
+            ruleTokens: ["successful"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Threshold 19+, max 2/turn; multi-die first two dice; +5% damage.",
+        effectText: "Threshold 19+, max 2/turn; multi-die first two dice; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Threshold 19+, max 2/turn; multi-die first two dice; +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Threshold 19+, max 2/turn; multi",
-        effectText: "die first four dice; +5% damage.",
+        name: "Threshold 19+, max 2/turn; multi-die first four dice; +5% damage.",
+        effectText: "Threshold 19+, max 2/turn; multi-die first four dice; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die first four dice; +5% damage.",
+            text: "Threshold 19+, max 2/turn; multi-die first four dice; +5% damage.",
             ruleTokens: [],
           },
         ],
@@ -5379,33 +10608,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Threshold 18+, max 2 Ki/turn; first four dice on multi",
-        effectText: "die; +5% damage.",
+        name: "Threshold 18+, max 2 Ki/turn; first four dice on multi-die; +5% damage.",
+        effectText: "Threshold 18+, max 2 Ki/turn; first four dice on multi-die; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "die; +5% damage.",
+            text: "Threshold 18+, max 2 Ki/turn; first four dice on multi-die; +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
         name: "Threshold 18+, max 2; first six dice; +5%.",
-        effectText: "[MASTERED] Threshold 18+, max 3; first six dice; +5%.",
+        effectText: "Threshold 18+, max 2; first six dice; +5%.",
         effectClauses: [
           {
             order: 1,
-            text: "[MASTERED] Threshold 18+, max 3; first six dice; +5%.",
+            text: "Threshold 18+, max 2; first six dice; +5%.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Threshold 18+, max 3; first six dice; +5%.",
+        effectText: "Threshold 18+, max 3; first six dice; +5%.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Threshold 18+, max 3; first six dice; +5%.",
             ruleTokens: [],
           },
         ],
@@ -5433,32 +10663,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Threshold 17+, max 3 Ki/turn; first six dice; +5% damage.",
-        effectText: "[INTERMEDIATE] Threshold 16+, max 3; first six dice; +5%.",
+        effectText: "Threshold 17+, max 3 Ki/turn; first six dice; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Threshold 16+, max 3; first six dice; +5%.",
+            text: "Threshold 17+, max 3 Ki/turn; first six dice; +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Threshold 16+, max 3; first six dice; +5%.",
+        effectText: "Threshold 16+, max 3; first six dice; +5%.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Threshold 16+, max 3; first six dice; +5%.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Threshold 16+, max 3; first six dice; +5%",
-        effectText: ".",
+        name: "Threshold 16+, max 3; first six dice; +5%.",
+        effectText: "Threshold 16+, max 3; first six dice; +5%.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Threshold 16+, max 3; first six dice; +5%.",
             ruleTokens: [],
           },
         ],
@@ -5485,35 +10716,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Multi",
+        name: "Multi-die attacks may CRITICAL if the first die qualifies; effects referring to 1d critical parameters apply to the first die; multi-die attacks +1 side.",
         effectText:
-          "die attacks may CRITICAL if the first die qualifies; effects referring to 1d critical parameters apply to the first die; multi-die attacks +1 side.",
+          "Multi-die attacks may CRITICAL if the first die qualifies; effects referring to 1d critical parameters apply to the first die; multi-die attacks +1 side.",
         effectClauses: [
           {
             order: 1,
-            text: "die attacks may CRITICAL if the first die qualifies; effects referring to 1d critical parameters apply to the first die; multi-die attacks +1 side.",
+            text: "Multi-die attacks may CRITICAL if the first die qualifies; effects referring to 1d critical parameters apply to the first die; multi-die attacks +1 side.",
             ruleTokens: ["critical"],
           },
         ],
       },
       intermediate: {
-        name: "Same, multi",
-        effectText: "die attacks +2 sides.",
+        name: "Same, multi-die attacks +2 sides.",
+        effectText: "Same, multi-die attacks +2 sides.",
         effectClauses: [
           {
             order: 1,
-            text: "die attacks +2 sides.",
+            text: "Same, multi-die attacks +2 sides.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Same, multi",
-        effectText: "die attacks +3 sides.",
+        name: "Same, multi-die attacks +3 sides.",
+        effectText: "Same, multi-die attacks +3 sides.",
         effectClauses: [
           {
             order: 1,
-            text: "die attacks +3 sides.",
+            text: "Same, multi-die attacks +3 sides.",
             ruleTokens: [],
           },
         ],
@@ -5539,35 +10770,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Same first",
-        effectText: "die CRITICAL rule; multi-die attack results +1 each.",
+        name: "Same first-die CRITICAL rule; multi-die attack results +1 each.",
+        effectText: "Same first-die CRITICAL rule; multi-die attack results +1 each.",
         effectClauses: [
           {
             order: 1,
-            text: "die CRITICAL rule; multi-die attack results +1 each.",
+            text: "Same first-die CRITICAL rule; multi-die attack results +1 each.",
             ruleTokens: ["critical"],
           },
         ],
       },
       intermediate: {
-        name: "Multi",
-        effectText: "die results +2 each.",
+        name: "Multi-die results +2 each.",
+        effectText: "Multi-die results +2 each.",
         effectClauses: [
           {
             order: 1,
-            text: "die results +2 each.",
+            text: "Multi-die results +2 each.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Multi",
+        name: "Multi-die results +2 each; before a single-die Advanced Attack, spend 2 Ki to make it unable to be COUNTERED or BLOCKED.",
         effectText:
-          "die results +2 each; before a single-die Advanced Attack, spend 2 Ki to make it unable to be COUNTERED or BLOCKED.",
+          "Multi-die results +2 each; before a single-die Advanced Attack, spend 2 Ki to make it unable to be COUNTERED or BLOCKED.",
         effectClauses: [
           {
             order: 1,
-            text: "die results +2 each; before a single-die Advanced Attack, spend 2 Ki to make it unable to be COUNTERED or BLOCKED.",
+            text: "Multi-die results +2 each; before a single-die Advanced Attack, spend 2 Ki to make it unable to be COUNTERED or BLOCKED.",
             ruleTokens: [],
           },
         ],
@@ -5594,32 +10825,39 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Pool of 6 Timeshifts. Spend 1 after a roll for +1 result, max 3 Timeshifts per roll.",
-        effectText: "[INTERMEDIATE] Pool 7; max 3 per roll.",
+        effectText:
+          "Pool of 6 Timeshifts. Spend 1 after a roll for +1 result, max 3 Timeshifts per roll.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Pool 7; max 3 per roll.",
+            text: "Pool of 6 Timeshifts.",
+            ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "Spend 1 after a roll for +1 result, max 3 Timeshifts per roll.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Pool 7; max 3 per roll.",
+        effectText: "Pool 7; max 3 per roll.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Pool 7; max 3 per roll.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Pool 7; max 3; attacks +5% Power damage",
-        effectText: ".",
+        name: "Pool 7; max 3; attacks +5% Power damage.",
+        effectText: "Pool 7; max 3; attacks +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Pool 7; max 3; attacks +5% Power damage.",
             ruleTokens: [],
           },
         ],
@@ -5646,32 +10884,45 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Pool 7, max 3/roll. At match start swap one Technique for one Extra Moves technique. Attacks +5% damage.",
-        effectText: "[INTERMEDIATE] Pool 8; same swap; +5% damage.",
+        effectText:
+          "Pool 7, max 3/roll. At match start swap one Technique for one Extra Moves technique. Attacks +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Pool 8; same swap; +5% damage.",
+            text: "Pool 7, max 3/roll.",
+            ruleTokens: [],
+          },
+          {
+            order: 2,
+            text: "At match start swap one Technique for one Extra Moves technique.",
+            ruleTokens: [],
+          },
+          {
+            order: 3,
+            text: "Attacks +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Pool 8; same swap; +5% damage.",
+        effectText: "Pool 8; same swap; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Pool 8; same swap; +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Pool 8; swap one Technique for an Extra Move or any move of your Style; +5% damage",
-        effectText: ".",
+        name: "Pool 8; swap one Technique for an Extra Move or any move of your Style; +5% damage.",
+        effectText:
+          "Pool 8; swap one Technique for an Extra Move or any move of your Style; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Pool 8; swap one Technique for an Extra Move or any move of your Style; +5% damage.",
             ruleTokens: [],
           },
         ],
@@ -5698,32 +10949,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Pool 9, max 4/roll; swap one Technique for Extra Move/Style move; +5% damage.",
-        effectText: "[INTERMEDIATE] Pool 9; swap up to two; +5% damage.",
+        effectText: "Pool 9, max 4/roll; swap one Technique for Extra Move/Style move; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Pool 9; swap up to two; +5% damage.",
+            text: "Pool 9, max 4/roll; swap one Technique for Extra Move/Style move; +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Pool 9; swap up to two; +5% damage.",
+        effectText: "Pool 9; swap up to two; +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Pool 9; swap up to two; +5% damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Pool 9; swap up to two; +10% damage",
-        effectText: ".",
+        name: "Pool 9; swap up to two; +10% damage.",
+        effectText: "Pool 9; swap up to two; +10% damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Pool 9; swap up to two; +10% damage.",
             ruleTokens: [],
           },
         ],
@@ -5750,32 +11002,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Pool 9, max 5/roll; swap up to two Techniques for Extra Move/Style moves; +10% damage.",
-        effectText: "[INTERMEDIATE] Pool 10, max 5; same swap; +10%.",
+        effectText:
+          "Pool 9, max 5/roll; swap up to two Techniques for Extra Move/Style moves; +10% damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Pool 10, max 5; same swap; +10%.",
+            text: "Pool 9, max 5/roll; swap up to two Techniques for Extra Move/Style moves; +10% damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Pool 10, max 5; same swap; +10%.",
+        effectText: "Pool 10, max 5; same swap; +10%.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Pool 10, max 5; same swap; +10%.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Pool 10, max 5; swap up to two for Extra Move, Style, or Freestyle moves; +10% damage",
-        effectText: ".",
+        name: "Pool 10, max 5; swap up to two for Extra Move, Style, or Freestyle moves; +10% damage.",
+        effectText:
+          "Pool 10, max 5; swap up to two for Extra Move, Style, or Freestyle moves; +10% damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Pool 10, max 5; swap up to two for Extra Move, Style, or Freestyle moves; +10% damage.",
             ruleTokens: [],
           },
         ],
@@ -5803,33 +11058,35 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       novice: {
         name: "Immediately after transforming, deactivate one opponent active skill, ignoring normal deactivation requirements.",
         effectText:
-          "[INTERMEDIATE] Same; first transformation also lets you activate a CONSTANT base-cost 2 or less by paying its cost.",
+          "Immediately after transforming, deactivate one opponent active skill, ignoring normal deactivation requirements.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Same; first transformation also lets you activate a CONSTANT base-cost 2 or less by paying its cost.",
-            ruleTokens: [],
+            text: "Immediately after transforming, deactivate one opponent active skill, ignoring normal deactivation requirements.",
+            ruleTokens: ["deactivate"],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Same; first transformation also lets you activate a CONSTANT base-cost 2 or less by paying its cost.",
+        effectText:
+          "Same; first transformation also lets you activate a CONSTANT base-cost 2 or less by paying its cost.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Same; first transformation also lets you activate a CONSTANT base-cost 2 or less by paying its cost.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "First transformation may activate CONSTANT base",
+        name: "First transformation may activate CONSTANT base-cost 2 or less free. RESTRICTEDx1 deactivate an active opponent skill ignoring requirements, no turn used.",
         effectText:
-          "cost 2 or less free. RESTRICTEDx1 deactivate an active opponent skill ignoring requirements, no turn used.",
+          "First transformation may activate CONSTANT base-cost 2 or less free. RESTRICTEDx1 deactivate an active opponent skill ignoring requirements, no turn used.",
         effectClauses: [
           {
             order: 1,
-            text: "cost 2 or less free.",
+            text: "First transformation may activate CONSTANT base-cost 2 or less free.",
             ruleTokens: [],
           },
           {
@@ -5860,13 +11117,13 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Once/combat activate CONSTANT base",
+        name: "Once/combat activate CONSTANT base-cost 3 or less free without using turn. If you have more active skills, opponent defense -1. RESTRICTEDx1 deactivate active skill ignoring requirements.",
         effectText:
-          "cost 3 or less free without using turn. If you have more active skills, opponent defense -1. RESTRICTEDx1 deactivate active skill ignoring requirements.",
+          "Once/combat activate CONSTANT base-cost 3 or less free without using turn. If you have more active skills, opponent defense -1. RESTRICTEDx1 deactivate active skill ignoring requirements.",
         effectClauses: [
           {
             order: 1,
-            text: "cost 3 or less free without using turn.",
+            text: "Once/combat activate CONSTANT base-cost 3 or less free without using turn.",
             ruleTokens: [],
           },
           {
@@ -5883,21 +11140,22 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
       },
       intermediate: {
         name: "Same as Novice.",
-        effectText: "[MASTERED] Same, but opponent defense -2 when you have more active skills.",
+        effectText: "Same as Novice.",
         effectClauses: [
           {
             order: 1,
-            text: "[MASTERED] Same, but opponent defense -2 when you have more active skills.",
+            text: "Same as Novice.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Same, but opponent defense -2 when you have more active skills.",
+        effectText: "Same, but opponent defense -2 when you have more active skills.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Same, but opponent defense -2 when you have more active skills.",
             ruleTokens: [],
           },
         ],
@@ -5924,36 +11182,36 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "Once/combat free CONSTANT <=3; if more active skills, opponent defense",
+        name: "Once/combat free CONSTANT <=3; if more active skills, opponent defense -2; choose one opponent non-CONSTANT skill to cost +1 Ki; RESTRICTEDx1 deactivate active skill.",
         effectText:
-          "2; choose one opponent non-CONSTANT skill to cost +1 Ki; RESTRICTEDx1 deactivate active skill.",
+          "Once/combat free CONSTANT <=3; if more active skills, opponent defense -2; choose one opponent non-CONSTANT skill to cost +1 Ki; RESTRICTEDx1 deactivate active skill.",
         effectClauses: [
           {
             order: 1,
-            text: "2; choose one opponent non-CONSTANT skill to cost +1 Ki; RESTRICTEDx1 deactivate active skill.",
+            text: "Once/combat free CONSTANT <=3; if more active skills, opponent defense -2; choose one opponent non-CONSTANT skill to cost +1 Ki; RESTRICTEDx1 deactivate active skill.",
             ruleTokens: ["deactivate"],
           },
         ],
       },
       intermediate: {
-        name: "Defense penalty becomes",
-        effectText: "3.",
+        name: "Defense penalty becomes -3.",
+        effectText: "Defense penalty becomes -3.",
         effectClauses: [
           {
             order: 1,
-            text: "3.",
+            text: "Defense penalty becomes -3.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "First transformation activates a CONSTANT <=4 free; if more active skills, defense",
+        name: "First transformation activates a CONSTANT <=4 free; if more active skills, defense -3; all opponent non-CONSTANT and CONSTANT skills cost +1 Ki; RESTRICTEDx1 deactivation.",
         effectText:
-          "3; all opponent non-CONSTANT and CONSTANT skills cost +1 Ki; RESTRICTEDx1 deactivation.",
+          "First transformation activates a CONSTANT <=4 free; if more active skills, defense -3; all opponent non-CONSTANT and CONSTANT skills cost +1 Ki; RESTRICTEDx1 deactivation.",
         effectClauses: [
           {
             order: 1,
-            text: "3; all opponent non-CONSTANT and CONSTANT skills cost +1 Ki; RESTRICTEDx1 deactivation.",
+            text: "First transformation activates a CONSTANT <=4 free; if more active skills, defense -3; all opponent non-CONSTANT and CONSTANT skills cost +1 Ki; RESTRICTEDx1 deactivation.",
             ruleTokens: [],
           },
         ],
@@ -5979,35 +11237,36 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     },
     abilities: {
       novice: {
-        name: "First transformation free CONSTANT <=3; if more active skills, opponent defense",
-        effectText: "3; opponent non-CONSTANT +1 Ki and CONSTANT +1 Ki; RESTRICTEDx1 deactivation.",
+        name: "First transformation free CONSTANT <=3; if more active skills, opponent defense -3; opponent non-CONSTANT +1 Ki and CONSTANT +1 Ki; RESTRICTEDx1 deactivation.",
+        effectText:
+          "First transformation free CONSTANT <=3; if more active skills, opponent defense -3; opponent non-CONSTANT +1 Ki and CONSTANT +1 Ki; RESTRICTEDx1 deactivation.",
         effectClauses: [
           {
             order: 1,
-            text: "3; opponent non-CONSTANT +1 Ki and CONSTANT +1 Ki; RESTRICTEDx1 deactivation.",
+            text: "First transformation free CONSTANT <=3; if more active skills, opponent defense -3; opponent non-CONSTANT +1 Ki and CONSTANT +1 Ki; RESTRICTEDx1 deactivation.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        name: "Defense penalty becomes",
-        effectText: "4; other costs remain.",
+        name: "Defense penalty becomes -4; other costs remain.",
+        effectText: "Defense penalty becomes -4; other costs remain.",
         effectClauses: [
           {
             order: 1,
-            text: "4; other costs remain.",
+            text: "Defense penalty becomes -4; other costs remain.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Defense",
+        name: "Defense -4; opponent non-CONSTANT skills +2 Ki and CONSTANT +1 Ki; other effects remain.",
         effectText:
-          "4; opponent non-CONSTANT skills +2 Ki and CONSTANT +1 Ki; other effects remain.",
+          "Defense -4; opponent non-CONSTANT skills +2 Ki and CONSTANT +1 Ki; other effects remain.",
         effectClauses: [
           {
             order: 1,
-            text: "4; opponent non-CONSTANT skills +2 Ki and CONSTANT +1 Ki; other effects remain.",
+            text: "Defense -4; opponent non-CONSTANT skills +2 Ki and CONSTANT +1 Ki; other effects remain.",
             ruleTokens: [],
           },
         ],
@@ -6034,32 +11293,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Opponent natural attack roll 5 or less gives you 1 Ki.",
-        effectText: "[INTERMEDIATE] Same 5-or-less trigger; Energy attacks +5% Power damage.",
+        effectText: "Opponent natural attack roll 5 or less gives you 1 Ki.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Same 5-or-less trigger; Energy attacks +5% Power damage.",
+            text: "Opponent natural attack roll 5 or less gives you 1 Ki.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Same 5-or-less trigger; Energy attacks +5% Power damage.",
+        effectText: "Same 5-or-less trigger; Energy attacks +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Same 5-or-less trigger; Energy attacks +5% Power damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Trigger expands to natural 6 or less; Energy attacks +5% damage",
-        effectText: ".",
+        name: "Trigger expands to natural 6 or less; Energy attacks +5% damage.",
+        effectText: "Trigger expands to natural 6 or less; Energy attacks +5% damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Trigger expands to natural 6 or less; Energy attacks +5% damage.",
             ruleTokens: [],
           },
         ],
@@ -6086,32 +11346,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Opponent natural attack <=6 gives 1 Ki; Energy attacks +10% Power damage.",
-        effectText: "[INTERMEDIATE] Trigger <=7; +10% Energy damage.",
+        effectText: "Opponent natural attack <=6 gives 1 Ki; Energy attacks +10% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Trigger <=7; +10% Energy damage.",
+            text: "Opponent natural attack <=6 gives 1 Ki; Energy attacks +10% Power damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Trigger <=7; +10% Energy damage.",
+        effectText: "Trigger <=7; +10% Energy damage.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Trigger <=7; +10% Energy damage.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Trigger <=8; +10% Energy damage",
-        effectText: ".",
+        name: "Trigger <=8; +10% Energy damage.",
+        effectText: "Trigger <=8; +10% Energy damage.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Trigger <=8; +10% Energy damage.",
             ruleTokens: [],
           },
         ],
@@ -6139,32 +11400,34 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Opponent natural attack <=8 gives 1 Ki; Energy attacks +10%; allied Advanced Attacks +5% Power damage.",
-        effectText: "[INTERMEDIATE] Trigger <=9; same damage bonuses.",
+        effectText:
+          "Opponent natural attack <=8 gives 1 Ki; Energy attacks +10%; allied Advanced Attacks +5% Power damage.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Trigger <=9; same damage bonuses.",
+            text: "Opponent natural attack <=8 gives 1 Ki; Energy attacks +10%; allied Advanced Attacks +5% Power damage.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Trigger <=9; same damage bonuses.",
+        effectText: "Trigger <=9; same damage bonuses.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Trigger <=9; same damage bonuses.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Trigger <=10; same bonuses",
-        effectText: ".",
+        name: "Trigger <=10; same bonuses.",
+        effectText: "Trigger <=10; same bonuses.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Trigger <=10; same bonuses.",
             ruleTokens: [],
           },
         ],
@@ -6192,32 +11455,33 @@ export const TRANSFORMATION_DEFINITIONS: readonly TransformationDefinition[] = [
     abilities: {
       novice: {
         name: "Opponent natural attack <=10 gives 1 Ki; Energy +10%; ally Advanced +5%.",
-        effectText: "[INTERMEDIATE] Trigger <=11; Energy +10%; ally Advanced +10%.",
+        effectText: "Opponent natural attack <=10 gives 1 Ki; Energy +10%; ally Advanced +5%.",
         effectClauses: [
           {
             order: 1,
-            text: "[INTERMEDIATE] Trigger <=11; Energy +10%; ally Advanced +10%.",
+            text: "Opponent natural attack <=10 gives 1 Ki; Energy +10%; ally Advanced +5%.",
             ruleTokens: [],
           },
         ],
       },
       intermediate: {
-        effectText: "Source does not define this Transformation Ability.",
+        name: "Trigger <=11; Energy +10%; ally Advanced +10%.",
+        effectText: "Trigger <=11; Energy +10%; ally Advanced +10%.",
         effectClauses: [
           {
             order: 1,
-            text: "Source does not define this Transformation Ability.",
+            text: "Trigger <=11; Energy +10%; ally Advanced +10%.",
             ruleTokens: [],
           },
         ],
       },
       mastered: {
-        name: "Trigger <=12; Energy +10%; ally Advanced +10%",
-        effectText: ".",
+        name: "Trigger <=12; Energy +10%; ally Advanced +10%.",
+        effectText: "Trigger <=12; Energy +10%; ally Advanced +10%.",
         effectClauses: [
           {
             order: 1,
-            text: ".",
+            text: "Trigger <=12; Energy +10%; ally Advanced +10%.",
             ruleTokens: [],
           },
         ],

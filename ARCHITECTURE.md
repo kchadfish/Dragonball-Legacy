@@ -366,7 +366,7 @@ families may remain outside the active delivery scope until explicitly added.
 
 ---
 
-### `@dragonball-resurgence/ai-engine` (planned)
+### `@dragonball-resurgence/ai-engine`
 
 Provides the shared, platform-neutral decision system used by NPCs, bosses,
 simulations, and diagnostic tests. This package is intentionally distinct from
@@ -671,11 +671,11 @@ game-data
 combat-engine
   └── may depend on shared, game-config, and game-data
 
-ai-engine (planned)
+ai-engine
   -> may depend on shared, game-config, game-data, and combat-engine
 
 npc-ai
-  -> may also depend on ai-engine when that planned package is introduced
+  -> may also depend on ai-engine
   └── may depend on shared, game-data, and combat-engine
 
 simulation (planned)

@@ -254,3 +254,4 @@ end-to-end flows, not replace focused assertions everywhere.
 - [ADR 0003: Effect ordering and calculation pipelines](../adr/0003-effect-ordering-and-calculation-pipelines.md)
 - [ADR 0004: Fight versioning and persistence boundary](../adr/0004-fight-versioning-and-persistence-boundary.md)
 - [ADR 0005: Counter-chain engineering safeguard](../adr/0005-counter-chain-engineering-safeguard.md)
+- [ADR 0006: Explicit combat scope boundary](../adr/0006-explicit-combat-scope-boundary.md)

@@ -267,10 +267,11 @@ const durableExpressionHandlers: Partial<
     const value = count * expression.perMove;
     return expression.maximum === undefined ? value : Math.min(value, expression.maximum);
   },
-  "current-resource": (expression, context) =>
-    isType(expression, "current-resource")
-      ? combatantForSubject(context, expression.subject).ki.current
-      : undefined,
+  "current-resource": (expression, context) => {
+    if (!isType(expression, "current-resource")) return undefined;
+    const resource = expression.resource === "hp" ? "hitPoints" : "ki";
+    return combatantForSubject(context, expression.subject)[resource].current;
+  },
   "resource-from-threshold": (expression, context) =>
     isType(expression, "resource-from-threshold")
       ? expression.sign *

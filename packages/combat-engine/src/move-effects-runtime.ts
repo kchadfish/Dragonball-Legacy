@@ -21,6 +21,7 @@ import type {
   ActiveStatus,
   CombatActionRecord,
   CombatantState,
+  CombatSourceReference,
 } from "./contracts.js";
 import type { AttackDieRoll, ResolutionThresholdRule } from "./attack-rolls.js";
 import type { CombatantId } from "./ids.js";
@@ -85,6 +86,8 @@ export interface MoveEffectRuntimeContext {
   readonly combatOutcomeActor?: "self" | "opponent";
   /** The declarative source currently dispatching a resource event. */
   readonly sourceDefinitionId?: string;
+  /** Stable catalog identity for an innate source; move IDs remain the fallback. */
+  readonly sourceReference?: CombatSourceReference;
   /** Effect index used for combat-scoped activation accounting. */
   readonly sourceEffectIndex?: number;
   /** The resource state immediately before the current threshold transition. */
@@ -367,6 +370,7 @@ export interface RerollApplication {
         readonly remaining: number;
       };
   readonly useLimit?: { readonly scope: "combat" | "turn"; readonly count: number };
+  readonly useLimitGroup?: string;
   readonly activationResource?: "ki" | "hp";
   readonly activationCost?: number;
   readonly requiresPriorSourceResult?: "successful";
@@ -743,6 +747,7 @@ export interface RollModification {
   /** Source provenance is required by modifier-transforming effects. */
   readonly sourceDefinitionId?: MoveDefinition["id"];
   readonly sourceEffectIndex?: number;
+  readonly sourceReference?: CombatSourceReference;
 }
 
 export interface RollModificationTransformerApplication {
@@ -772,6 +777,7 @@ export interface SlotCapacityModificationApplication {
   readonly sourceCombatantId: CombatantState["id"];
   readonly sourceDefinitionId: MoveDefinition["id"];
   readonly sourceEffectIndex: number;
+  readonly sourceReference?: CombatSourceReference;
   readonly slot: "mastery" | "skill" | "advanced-attack" | "signature" | "block";
   readonly amount: number;
 }
@@ -782,6 +788,7 @@ export interface DamageModification {
   /** Provenance for immediate response effects that may require a choice. */
   readonly sourceCombatantId?: CombatantState["id"];
   readonly sourceDefinitionId?: MoveDefinition["id"];
+  readonly sourceReference?: CombatSourceReference;
   readonly operation: "add" | "multiply" | "set";
   /** Resolved damage amount, or the percentage for a multiplicative change. */
   readonly amount: number;
@@ -925,6 +932,7 @@ export interface CurrentActionCostModification {
   readonly sourceDefinitionId?: string;
   readonly sourceEffectIndex?: number;
   readonly sourceCombatantId?: CombatantId;
+  readonly allowUnmodifiable?: true;
   readonly activationCost?: {
     readonly resource: "hp" | "ki";
     readonly amount: number;
@@ -2463,6 +2471,7 @@ const resolvedDamageModification = (
     effectIndex,
     sourceCombatantId: context.self.id,
     sourceDefinitionId: move.id,
+    ...(context.sourceReference === undefined ? {} : { sourceReference: context.sourceReference }),
     amount: damageModificationAmount(effect, value.resolvedAmount, context),
     basis: effect.percent === undefined ? "power-percent" : damageBasis(effect.percent),
     ...(lifecycle.cap === undefined ? {} : { cap: lifecycle.cap }),
@@ -2549,6 +2558,9 @@ const statModificationEffectChanges = (
           ? { roll: effect.scope.roll as "attack" | "defense" }
           : {}),
         ...(duration === undefined ? {} : { duration }),
+        ...(context.sourceReference === undefined
+          ? {}
+          : { sourceReference: context.sourceReference }),
       },
     ],
   };
@@ -2571,6 +2583,9 @@ const slotCapacityModificationEffectChanges = (
         sourceCombatantId: context.self.id,
         sourceDefinitionId: move.id,
         sourceEffectIndex: effectIndex,
+        ...(context.sourceReference === undefined
+          ? {}
+          : { sourceReference: context.sourceReference }),
         slot: effect.slot,
         amount,
       },
@@ -4104,6 +4119,7 @@ const currentActionCostEffectChanges = (
       sourceDefinitionId: move.id,
       sourceEffectIndex: effectIndex,
       sourceCombatantId: context.self.id,
+      ...(effect.allowUnmodifiable === true ? { allowUnmodifiable: true as const } : {}),
       ...(activationCost === undefined ? {} : { activationCost }),
     },
   ],
@@ -5550,7 +5566,11 @@ const resolvedRerollUseLimit = (
   count: number | undefined,
 ) => {
   if (effect.useLimit === undefined || count === undefined) return undefined;
-  return { scope: effect.useLimit.scope, count };
+  return {
+    scope: effect.useLimit.scope,
+    count,
+    ...(effect.useLimit.group === undefined ? {} : { group: effect.useLimit.group }),
+  };
 };
 
 const rerollEffectChanges = (
@@ -5597,6 +5617,7 @@ const rerollEffectChanges = (
           : { activationResource: effect.activationCost.resource }),
         duration: duration.duration,
         ...(resolvedUseLimit === undefined ? {} : { useLimit: resolvedUseLimit }),
+        ...(effect.useLimit?.group === undefined ? {} : { useLimitGroup: effect.useLimit.group }),
         ...(activationCost === undefined ? {} : { activationCost }),
       },
     ],
@@ -6030,6 +6051,7 @@ const triggeredEffectHandlers: Partial<Record<EffectDefinition["type"], Triggere
       target,
       effectIndex,
     ),
+  "prevent-transformation-reversion": () => emptyEffectChanges(),
   "exchange-constant-skill": (...[effect, move]: Parameters<TriggeredEffectHandler>) =>
     exchangeConstantSkillEffectChanges(
       effect as Extract<EffectDefinition, { readonly type: "exchange-constant-skill" }>,
@@ -6458,26 +6480,58 @@ export const rerollEffectsOnRollResult = (
     });
     if (!compiled.ok || compiled.value.type !== "reroll") return [];
     const resolved = executeCompiledEffect(compiled.value, { move, target: "self" });
-    const condition = resolved.effect.conditions?.[0];
+    const resolvedEffect = resolved.effect as Extract<
+      EffectDefinition,
+      { readonly type: "reroll" }
+    >;
+    const conditions = resolvedEffect.conditions ?? [];
+    const condition = conditions[0];
+    const storedRollMatch =
+      conditions.length === 1 &&
+      condition?.type === "stored-roll-match" &&
+      condition.roll === resolvedEffect.roll &&
+      condition.natural === true;
+    const averageRange =
+      conditions.length === 2 &&
+      conditions.every((candidate) => candidate.type === "roll-threshold") &&
+      conditions.some(
+        (candidate) =>
+          candidate.type === "roll-threshold" &&
+          candidate.roll === resolvedEffect.roll &&
+          candidate.comparison === "at-least" &&
+          candidate.value.type === "literal" &&
+          candidate.value.value === 13,
+      ) &&
+      conditions.some(
+        (candidate) =>
+          candidate.type === "roll-threshold" &&
+          candidate.roll === resolvedEffect.roll &&
+          candidate.comparison === "at-most" &&
+          candidate.value.type === "literal" &&
+          candidate.value.value === 17,
+      );
     if (
-      resolved.effect.type !== "reroll" ||
-      resolved.effect.trigger !== "on-roll-result" ||
-      resolved.effect.target !== "self" ||
-      resolved.effect.conditions?.length !== 1 ||
-      condition?.type !== "stored-roll-match" ||
-      condition.roll !== resolved.effect.roll ||
-      condition.natural !== true ||
-      resolved.effect.scope !== undefined ||
-      resolved.effect.duration !== undefined ||
-      resolved.effect.useLimit?.scope !== "combat" ||
-      resolved.effect.activationCost !== undefined ||
-      !effectMatches(resolved.effect, context)
+      resolvedEffect.trigger !== "on-roll-result" ||
+      resolvedEffect.target !== "self" ||
+      (!storedRollMatch && !averageRange) ||
+      resolvedEffect.scope !== undefined ||
+      resolvedEffect.duration !== undefined ||
+      (resolvedEffect.useLimit?.scope !== "combat" && resolvedEffect.useLimit?.scope !== "turn") ||
+      resolvedEffect.activationCost !== undefined ||
+      !effectMatches(resolvedEffect, context)
     )
       return [];
-    const resultModifierExpression = resolved.effect.resultModifier ?? resolved.effect.bonus;
+    const useLimitGroup = resolvedEffect.useLimit?.group;
+    const useKey = `${move.id}:${useLimitGroup ?? effectIndex}`;
+    if (
+      resolvedEffect.useLimit?.scope === "turn" &&
+      context.self.effectUseTurns?.[useKey] === context.turnNumber
+    )
+      return [];
+    const resultModifierExpression = resolvedEffect.resultModifier ?? resolvedEffect.bonus;
     const resultModifier =
       resultModifierExpression === undefined ? 0 : numeric(resultModifierExpression, context);
-    const useLimitExpression = resolved.effect.useLimit.count;
+    const useLimitExpression = resolvedEffect.useLimit.count;
     let useLimitCount: number | undefined;
     if (typeof useLimitExpression === "number") useLimitCount = useLimitExpression;
     else useLimitCount = numeric(useLimitExpression, context);
@@ -6494,13 +6548,17 @@ export const rerollEffectsOnRollResult = (
         sourceDefinitionId: move.id,
         effectIndex,
         trigger: "on-roll-result" as const,
-        roll: resolved.effect.roll,
-        rerollScope: resolved.effect.rerollScope ?? "single-result",
+        roll: resolvedEffect.roll,
+        rerollScope: resolvedEffect.rerollScope ?? "single-result",
         resultModifier,
-        conditions: resolved.effect.conditions,
-        optional: resolved.effect.optional === true,
+        conditions: resolvedEffect.conditions,
+        optional: resolvedEffect.optional === true,
         duration: "combat" as const,
-        useLimit: { scope: "combat" as const, count: useLimitCount },
+        useLimit: {
+          scope: resolvedEffect.useLimit.scope,
+          count: useLimitCount,
+        },
+        ...(useLimitGroup === undefined ? {} : { useLimitGroup }),
       },
     ];
   });

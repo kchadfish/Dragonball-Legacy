@@ -5,6 +5,7 @@
     { "path": "./apps/discord-bot" },
     { "path": "./apps/forum-scanner" },
     { "path": "./packages/combat-engine" },
+    { "path": "./packages/ai-engine" },
     { "path": "./packages/game-config" },
     { "path": "./packages/game-data" },
     { "path": "./packages/npc-ai" },

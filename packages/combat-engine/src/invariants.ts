@@ -1,5 +1,6 @@
 import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 import {
+  GENERIC_CLASS_DEFINITIONS,
   MOVE_DEFINITIONS,
   RACE_DEFINITIONS,
   TRANSFORMATION_DEFINITIONS,
@@ -21,6 +22,7 @@ import type {
   AttackDieCandidateSnapshot,
   CombatActionRecord,
   CombatResources,
+  CombatSourceReference,
   CombatantState,
   CombatantTransformationProfile,
   CompletedFightState,
@@ -51,6 +53,14 @@ const validCounter = (value: number, minimum: number) =>
   Number.isFinite(value) && Number.isInteger(value) && value >= minimum;
 
 const validNonnegativeNumber = (value: number) => Number.isFinite(value) && value >= 0;
+
+const knownRaceTraitIds = new Set(
+  RACE_DEFINITIONS.flatMap((race) => race.racialTraits.map((trait) => trait.id)),
+);
+const knownClassIds = new Set([
+  ...RACE_DEFINITIONS.flatMap((race) => race.classes.map((classDefinition) => classDefinition.id)),
+  ...GENERIC_CLASS_DEFINITIONS.map((classDefinition) => classDefinition.id),
+]);
 
 const addViolation = (
   violations: FightStateInvariantViolation[],
@@ -126,6 +136,37 @@ const validateCombatantStats = (
   }
 };
 
+const validateInnateSelections = (
+  combatant: CombatantState,
+  recordId: string,
+  violations: FightStateInvariantViolation[],
+) => {
+  if (combatant.raceTraitIds !== undefined) {
+    if (new Set(combatant.raceTraitIds).size !== combatant.raceTraitIds.length)
+      addViolation(
+        violations,
+        "invalid-combatant-identity",
+        "Combatant race trait IDs must not contain duplicates.",
+        recordId,
+      );
+    for (const traitId of combatant.raceTraitIds)
+      if (!knownRaceTraitIds.has(traitId))
+        addViolation(
+          violations,
+          "invalid-combatant-identity",
+          `Combatant references an unknown race trait ID: ${traitId}.`,
+          recordId,
+        );
+  }
+  if (combatant.classId !== undefined && !knownClassIds.has(combatant.classId))
+    addViolation(
+      violations,
+      "invalid-combatant-identity",
+      `Combatant references an unknown class ID: ${combatant.classId}.`,
+      recordId,
+    );
+};
+
 const combatSlots = ["mastery", "skill", "advanced-attack", "signature", "block"] as const;
 
 const validateSlotCapacities = (
@@ -148,13 +189,29 @@ const validateSlotCapacities = (
     }
   }
   for (const modification of combatant.slotCapacityModifications ?? []) {
-    const sourceMove = MOVE_DEFINITIONS.find(
-      (candidate) => candidate.id === modification.sourceDefinitionId,
-    );
-    const sourceEffect = sourceMove?.effects?.[modification.sourceEffectIndex];
+    const sourceReference = modification.sourceReference;
+    const sourceMove =
+      sourceReference?.kind === "move" || sourceReference === undefined
+        ? MOVE_DEFINITIONS.find((candidate) => candidate.id === modification.sourceDefinitionId)
+        : undefined;
+    const sourceEffect =
+      sourceMove?.effects?.[modification.sourceEffectIndex] ??
+      sourceEffectForReference(sourceReference, modification.sourceEffectIndex);
+    const validInnateReference =
+      sourceReference !== undefined &&
+      sourceReference.kind !== "move" &&
+      sourceReference.definitionId === modification.sourceDefinitionId &&
+      sourceEffect?.type === "modify-slot-capacity";
     if (
       modification.sourceCombatantId !== combatant.id ||
-      !combatant.moveIds.includes(modification.sourceDefinitionId) ||
+      (sourceReference === undefined &&
+        !combatant.moveIds.includes(modification.sourceDefinitionId)) ||
+      (sourceReference !== undefined &&
+        !validInnateReference &&
+        !(
+          sourceReference.kind === "move" &&
+          combatant.moveIds.includes(modification.sourceDefinitionId)
+        )) ||
       sourceEffect?.type !== "modify-slot-capacity" ||
       sourceEffect.slot !== modification.slot ||
       sourceEffect.amount.type !== "literal" ||
@@ -171,6 +228,28 @@ const validateSlotCapacities = (
       );
     }
   }
+};
+
+const sourceEffectForReference = (reference: CombatSourceReference | undefined, index: number) => {
+  if (reference?.kind === "race-trait")
+    return RACE_DEFINITIONS.flatMap((race) => race.racialTraits).find(
+      (trait) => trait.id === reference.definitionId,
+    )?.effects?.[index];
+  if (reference?.kind === "race-class")
+    return RACE_DEFINITIONS.flatMap((race) => race.classes).find(
+      (classDefinition) => classDefinition.id === reference.definitionId,
+    )?.effects?.[index];
+  if (reference?.kind === "generic-class")
+    return GENERIC_CLASS_DEFINITIONS.find(
+      (classDefinition) => classDefinition.id === reference.definitionId,
+    )?.effects?.[index];
+  if (reference?.kind === "transformation-ability") {
+    const [transformationId] = reference.definitionId.split(/:(?=[^:]+$)/u);
+    return TRANSFORMATION_DEFINITIONS.find(
+      (transformation) => transformation.id === transformationId,
+    )?.abilities[reference.mastery].effects?.[index];
+  }
+  return undefined;
 };
 
 const validateMoveUses = (
@@ -259,11 +338,19 @@ const validateStoredRolls = (
     const sourceMove = MOVE_DEFINITIONS.find(
       (candidate) => candidate.id === storedRoll.sourceDefinitionId,
     );
-    const sourceEffect = sourceMove?.effects?.find(
+    const sourceInnate = [
+      ...RACE_DEFINITIONS.flatMap((race) => [...race.racialTraits, ...race.classes]),
+      ...GENERIC_CLASS_DEFINITIONS,
+    ].find((candidate) => candidate.id === storedRoll.sourceDefinitionId);
+    const sourceEffect = (sourceMove?.effects ?? sourceInnate?.effects)?.find(
       (effect) => effect.type === "roll-and-store" && effect.storageKey === storageKey,
     );
     const validSourceEffect =
       sourceEffect?.type === "roll-and-store" && sourceEffect.target === "self";
+    const sourceIsOwned =
+      combatant.moveIds.includes(storedRoll.sourceDefinitionId as never) ||
+      combatant.raceTraitIds?.includes(storedRoll.sourceDefinitionId) === true ||
+      combatant.classId === storedRoll.sourceDefinitionId;
     const validResults =
       storedRoll.naturalResults.length > 0 &&
       storedRoll.naturalResults.every(
@@ -272,7 +359,7 @@ const validateStoredRolls = (
     if (
       storedRoll.storageKey !== storageKey ||
       !storedRollKeyPattern.test(storageKey) ||
-      !combatant.moveIds.includes(storedRoll.sourceDefinitionId) ||
+      !sourceIsOwned ||
       !validSourceEffect ||
       storedRoll.naturalResults.length !==
         (runtimeValue(sourceEffect.type) === "roll-and-store" ? sourceEffect.dice : 0) ||
@@ -417,6 +504,7 @@ const validateCombatant = (
   validateResource("ki", combatant.ki, recordId, violations);
 
   validateCombatantStats(combatant, recordId, violations);
+  validateInnateSelections(combatant, recordId, violations);
   validateSlotCapacities(combatant, recordId, violations);
 
   if (new Set(combatant.moveIds).size !== combatant.moveIds.length) {
@@ -2796,12 +2884,13 @@ const validateFightMetadata = (
     state.schemaVersion !== undefined &&
     state.schemaVersion !== 1 &&
     state.schemaVersion !== 2 &&
-    state.schemaVersion !== 3
+    state.schemaVersion !== 3 &&
+    state.schemaVersion !== 4
   ) {
     addViolation(
       violations,
       "invalid-schema-version",
-      "Fight state schema version must be 1, 2, or 3 when present.",
+      "Fight state schema version must be 1, 2, 3, or 4 when present.",
     );
   }
   if (!validCounter(state.version, 0)) {

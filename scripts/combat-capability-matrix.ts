@@ -1,6 +1,9 @@
 import { ITEM_DEFINITIONS } from "../packages/game-data/src/item-definitions.js";
 import { MOVE_DEFINITIONS } from "../packages/game-data/src/move-definitions.js";
-import { RACE_DEFINITIONS } from "../packages/game-data/src/race-definitions.js";
+import {
+  GENERIC_CLASS_DEFINITIONS,
+  RACE_DEFINITIONS,
+} from "../packages/game-data/src/race-definitions.js";
 import { TRANSFORMATION_DEFINITIONS } from "../packages/game-data/src/transformation-definitions.js";
 import type { EffectDefinition } from "../packages/game-data/src/shared/effects.js";
 
@@ -14,6 +17,12 @@ import {
   isSelectedMoveUntilAttackThresholdDamageModifier,
 } from "../packages/combat-engine/src/damage-modifier-capabilities.js";
 import { staticSelectionLimit } from "../packages/combat-engine/src/effect-selection.js";
+import {
+  scopeDecisionForEffect,
+  scopeDecisionForSourceText,
+  type ScopeDecisionCategory,
+  type ScopeDecisionId,
+} from "../packages/combat-engine/src/scope-decisions.js";
 
 // Capability audits inspect runtime-shaped effect data independently of its narrowed type.
 const runtimeValue = (value: unknown): unknown => value;
@@ -77,7 +86,7 @@ interface SourceEffect {
 
 interface Occurrence {
   readonly sourceDefinitionId: string;
-  readonly origin: "move" | "item" | "transformation" | "race";
+  readonly origin: "move" | "item" | "transformation" | "race" | "generic-class";
   readonly effectIndex: number;
   readonly effect: SourceEffect;
 }
@@ -102,6 +111,8 @@ export interface CombatCapabilityMatrixRow {
   readonly reason: string;
   readonly prerequisite: string | null;
   readonly approvedExclusion: string | null;
+  readonly scopeDecisionId: ScopeDecisionId | null;
+  readonly scopeDecisionCategory: ScopeDecisionCategory | null;
   readonly classification: ClauseClassification;
   readonly sourceText: string | null;
 }
@@ -121,22 +132,6 @@ const activeTransformationRaceIds = new Set([
   "race-changeling",
   "race-bio-androids",
 ]);
-
-const sourceOnlyRaceClassificationFor = (sourceText: string): ClauseClassification => {
-  if (
-    /choose|claim|learn|player|planet|afterlife|story|saga|week|day|travel|quest|roleplay|guardian|interfere|exchange|inventory|training|EXP|marketplace/iu.test(
-      sourceText,
-    )
-  )
-    return "narrative-or-administrator-mediated";
-  if (
-    /attack|damage|HP|KI|cost|roll|dice|stat|power|dexterity|block|defen[cs]e|transformation/iu.test(
-      sourceText,
-    )
-  )
-    return "unsupported";
-  return "deferred";
-};
 
 const genericExecutors: Readonly<
   Record<string, { executor: string; test: string; capabilityId?: string }>
@@ -309,6 +304,11 @@ const genericExecutors: Readonly<
     test: "block-mechanics.test.ts, effect-executors.test.ts",
     capabilityId: "override-resolution-immunity.v1",
   },
+  "override-skill-activation-prevention": {
+    executor: "skill-activation-prevention-override",
+    test: "effect-executors.test.ts, progress-fight.test.ts",
+    capabilityId: "override-skill-activation-prevention.v1",
+  },
   "remove-move-from-combat": {
     executor: "combat-local-moveset-removal",
     test: "progress-fight.test.ts, move-effects-runtime.test.ts, effect-executors.test.ts",
@@ -383,6 +383,11 @@ const genericExecutors: Readonly<
     test: "transformation-activation.test.ts, effect-executors.test.ts",
     capabilityId: "require-transformation-roll.v1",
   },
+  "prevent-transformation-reversion": {
+    executor: "transformation-stability",
+    test: "transformation-activation.test.ts, effect-executors.test.ts",
+    capabilityId: "prevent-transformation-reversion.v1",
+  },
   "set-roll-selection": {
     executor: "roll-selection",
     test: "attack-rolls.test.ts, progress-fight.test.ts, move-effects-runtime.test.ts",
@@ -408,46 +413,147 @@ const genericExecutors: Readonly<
   },
 };
 
-const approvedItemExclusions: Readonly<Record<string, string>> = {
-  "item-grant-travel-permission": "travel and permission rules are outside combat scope",
-  "item-modify-experience-percent": "progression economy is outside combat scope",
-  "item-modify-inventory-capacity": "inventory capacity is outside combat scope",
-  "item-modify-marketplace-price": "marketplace economy is outside combat scope",
-  "item-modify-ship-capacity": "spaceship mechanics are outside combat scope",
-  "item-reduce-duration": "quest and travel duration is outside combat scope",
-  "item-space-combat": "spaceship combat is outside the active scope",
+const namedCatalogMechanics: Readonly<
+  Record<
+    string,
+    {
+      readonly executor: string;
+      readonly test: string;
+      readonly capabilityId: string;
+      readonly reason: string;
+    }
+  >
+> = {
+  "race-changeling:trait:race-trait-changeling-tyranny#0": {
+    executor: "innate-move-selection-controller",
+    test: "progress-fight.test.ts, combat-trigger-dispatch.test.ts",
+    capabilityId: "innate-move-selection-controller.v1",
+    reason: "The selected Changeling trait owns serialized opponent move selections.",
+  },
+  "race-konatsian:trait:race-trait-konatsian-bravery#0": {
+    executor: "successful-effect-negation-reaction",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "successful-effect-negation-reaction.v1",
+    reason: "The restricted Bravery reaction negates one eligible successful effect.",
+  },
+  "race-konatsian:class:race-class-konatsian-konatsian-wizard#0": {
+    executor: "skill-activation-prevention-override",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "override-skill-activation-prevention.v1",
+    reason: "Konatsian Wizard supplies the skill-cost and skill-prevention immunity boundary.",
+  },
+  "race-maguma-jin:trait:race-trait-maguma-jin-phoenix-rising#0": {
+    executor: "defeat-interrupt-action",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "defeat-interrupt-action.v1",
+    reason: "Phoenix Rising schedules an eligible attack at the defeat boundary.",
+  },
+  "race-maguma-jin:trait:race-trait-maguma-jin-phoenix-rising#1": {
+    executor: "defeat-interrupt-action",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "defeat-interrupt-action.v1",
+    reason: "Undying Flame modifies the Phoenix Rising defeat interrupt threshold and uses.",
+  },
+  "race-maguma-jin:class:race-class-maguma-jin-undying-flame#0": {
+    executor: "defeat-interrupt-action",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "defeat-interrupt-action.v1",
+    reason: "Undying Flame adds the bounded revival damage consequence.",
+  },
+  "race-majins:trait:race-trait-majins-bubblegum-flesh#0": {
+    executor: "post-defense-damage-negation",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "post-defense-damage-negation.v1",
+    reason: "Bubblegum Flesh exposes a restricted post-defense all-damage negation reaction.",
+  },
+  "race-makaioshin:trait:race-trait-makaioshin-demonic-potential#0": {
+    executor: "stored-roll-state",
+    test: "progress-fight.test.ts, move-effects-runtime.test.ts",
+    capabilityId: "roll-and-store.v2",
+    reason: "Demonic Potential resolves its start-combat roll before its thresholded Ki setup.",
+  },
+  "race-makyans:trait:race-trait-makyans-makyo-megastar#1": {
+    executor: "natural-roll-number-reaction",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "natural-roll-number-reaction.v1",
+    reason: "Makyo Megastar resolves the selected natural single-die number at roll completion.",
+  },
+  "race-saiyans:class:race-class-saiyans-savage-saiyan#1": {
+    executor: "transformed-random-attack-selection",
+    test: "progress-fight.test.ts, transformation-activation.test.ts",
+    capabilityId: "transformed-random-attack-selection.v1",
+    reason:
+      "Savage Saiyan participates in transformed random Advanced Attack selection and damage calculation.",
+  },
+  "race-shamoians:trait:race-trait-shamoians-history-of-slavery#0": {
+    executor: "innate-move-selection-controller",
+    test: "progress-fight.test.ts, combat-trigger-dispatch.test.ts",
+    capabilityId: "innate-move-selection-controller.v1",
+    reason: "The selected Shamoian trait owns serialized opponent move selections.",
+  },
+  "race-shamoians:class:race-class-shamoians-unbreakable-spirit#0": {
+    executor: "consecutive-roll-result-modifier",
+    test: "progress-fight.test.ts, attack-rolls.test.ts",
+    capabilityId: "consecutive-roll-result-modifier.v1",
+    reason:
+      "Unbreakable Spirit derives attack and defense bonuses from consecutive combat history.",
+  },
+  "race-shikirian:trait:race-trait-shikirian-power-swap#0": {
+    executor: "above-zero-ki-swap",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "above-zero-ki-swap.v1",
+    reason: "Power Swap exchanges only the combatants' Ki amounts above zero.",
+  },
+  "race-shikirian:trait:race-trait-shikirian-power-swap#1": {
+    executor: "above-zero-ki-swap",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "above-zero-ki-swap.v1",
+    reason:
+      "Power Swap gates the reaction at the declared Total HP threshold without consuming the turn.",
+  },
+  "race-shikirian:class:race-class-shikirian-powershifter#0": {
+    executor: "above-zero-ki-swap",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "above-zero-ki-swap.v1",
+    reason: "Powershifter replaces the Power Swap restricted-use and HP threshold parameters.",
+  },
+  "race-taifuu-jins:class:race-class-taifuu-jins-speed-demon#1": {
+    executor: "post-stun-next-single-die-reward",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "post-stun-next-single-die-reward.v1",
+    reason: "Speed Demon carries the prior STUN state into the next successful single-die attack.",
+  },
+  "race-tuffles:trait:race-trait-tuffles-know-it-all#0": {
+    executor: "racial-ability-suppression-window",
+    test: "progress-fight.test.ts, combat-trigger-dispatch.test.ts",
+    capabilityId: "racial-ability-suppression-window.v1",
+    reason:
+      "Know-It-All suppresses opposing racial sources during the first ten turns with named exceptions.",
+  },
+  "race-tuffles:trait:race-trait-tuffles-know-it-all#1": {
+    executor: "racial-ability-suppression-window",
+    test: "progress-fight.test.ts, combat-trigger-dispatch.test.ts",
+    capabilityId: "racial-ability-suppression-window.v1",
+    reason: "Know-It-All releases precombat racial activations at the turn-eleven boundary.",
+  },
+  "race-tuffles:trait:race-trait-tuffles-know-it-all#2": {
+    executor: "racial-ability-suppression-window",
+    test: "progress-fight.test.ts, combat-trigger-dispatch.test.ts",
+    capabilityId: "racial-ability-suppression-window.v1",
+    reason:
+      "Know-It-All excludes another Tuffle or Know-It-All user from its suppression target set.",
+  },
+  "race-tuffles:class:race-class-tuffles-tuffle-avenger#0": {
+    executor: "next-turn-attack-restriction",
+    test: "progress-fight.test.ts, effect-executors.test.ts",
+    capabilityId: "next-turn-attack-restriction.v1",
+    reason:
+      "Tuffle Avenger restricts the opponent's next attack turn after its reaction is selected.",
+  },
 };
 
 const approvedMoveExclusions: Readonly<Record<string, string>> = {
-  "join-attack": "multiplayer and remote-target combat are outside the active 1v1 scope",
   travel: "out-of-combat travel is outside the combat-engine scope",
-  "grant-defense-response": "interferer and spectator responses are outside the active 1v1 scope",
-  "swap-combatant-state": "body-swap identity mutation is outside the active combat scope",
-  "grant-racial-traits":
-    "temporary identity and racial-trait mutation is outside the active combat scope",
-};
-
-const approvedMoveOccurrenceExclusions: Readonly<Record<string, string>> = {
-  "move-afterlife-energy-blade:0":
-    "equipment loadout mutation is outside the active combat state boundary",
-  "move-afterlife-energy-blade:1":
-    "move requirement loadout mutation is outside the active combat state boundary",
-  "move-haokiru-healing-ray:2":
-    "ally-targeted resource changes are outside the active 1v1 and remote-target scope",
-  "move-haokiru-karmic-chameleon-mastery:0":
-    "temporary opponent-mastery acquisition is identity and ability mutation outside the active combat scope",
-  "move-haokiru-karmic-chameleon-mastery:1":
-    "temporary opponent-technique acquisition is identity and ability mutation outside the active combat scope",
-  "move-haokiru-karmic-chameleon-mastery:2":
-    "temporary opponent-technique acquisition is identity and ability mutation outside the active combat scope",
-  "move-haokiru-karmic-chameleon-mastery:3":
-    "temporary technique style reassignment is identity and ability mutation outside the active combat scope",
-  "move-haokiru-karmic-chameleon-mastery:4":
-    "temporary technique style reassignment is identity and ability mutation outside the active combat scope",
-  "move-haokiru-karmic-chameleon-mastery:5":
-    "temporary opponent-technique acquisition is identity and ability mutation outside the active combat scope",
-  "move-midorikatai-raining-bombs:1":
-    "escape-roll decisions are outside the active fight transition scope",
 };
 
 const stringValue = (value: unknown): string | null => (typeof value === "string" ? value : null);
@@ -781,6 +887,39 @@ const isSupportedCombatOutcomeOccurrence = (occurrence: Occurrence) => {
 
 const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
   const effect = occurrence.effect;
+  const averageRangeChoice =
+    effect.type === "reroll" &&
+    effect.trigger === "on-roll-result" &&
+    effect.target === "self" &&
+    ((effect.roll === "attack" && effect.rerollScope === "entire-attack") ||
+      (effect.roll === "defense" &&
+        (effect.rerollScope === undefined || effect.rerollScope === "single-result"))) &&
+    effect.conditions?.length === 2 &&
+    effect.conditions.every((condition) => condition.type === "roll-threshold") &&
+    effect.conditions.some(
+      (condition) =>
+        condition.type === "roll-threshold" &&
+        condition.roll === effect.roll &&
+        condition.comparison === "at-least" &&
+        condition.value.type === "literal" &&
+        condition.value.value === 13,
+    ) &&
+    effect.conditions.some(
+      (condition) =>
+        condition.type === "roll-threshold" &&
+        condition.roll === effect.roll &&
+        condition.comparison === "at-most" &&
+        condition.value.type === "literal" &&
+        condition.value.value === 17,
+    ) &&
+    effect.scope === undefined &&
+    effect.duration === undefined &&
+    effect.optional === true &&
+    effect.useLimit?.scope === "turn" &&
+    effect.useLimit.count.type === "literal" &&
+    effect.useLimit.count.value === 1 &&
+    effect.useLimit.group !== undefined &&
+    effect.activationCost === undefined;
   const storedRollMatchChoice =
     effect.type === "reroll" &&
     effect.trigger === "on-roll-result" &&
@@ -812,12 +951,13 @@ const isSupportedRerollOccurrence = (occurrence: Occurrence) => {
     (effect.trigger === "after-defense-roll" ||
       effect.trigger === "on-success" ||
       beforeDefenseChoice ||
-      storedRollMatchChoice) &&
+      storedRollMatchChoice ||
+      averageRangeChoice) &&
     (effect.target === undefined || effect.target === "self" || effect.target === "opponent") &&
     (effect.trigger === "before-defense-roll"
       ? beforeDefenseChoice
       : effect.trigger === "on-roll-result"
-        ? storedRollMatchChoice
+        ? storedRollMatchChoice || averageRangeChoice
         : effect.trigger === "after-defense-roll"
           ? effect.scope === undefined
           : (effect.scope?.type === "next-action" ||
@@ -1731,23 +1871,58 @@ const isExactPendingChoiceVariant = (
 
 const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) => {
   const effectType = stringValue(occurrence.effect.type) ?? "unknown";
-  if (occurrence.origin === "race") {
-    const sourceText = stringValue(occurrence.effect.sourceText) ?? "";
-    const classification = sourceOnlyRaceClassificationFor(sourceText);
-    const external = classification !== "unsupported";
+  const namedCatalogMechanic =
+    namedCatalogMechanics[`${occurrence.sourceDefinitionId}#${occurrence.effectIndex}`];
+  if (namedCatalogMechanic !== undefined)
     return {
-      status: external ? ("audited-out-of-scope" as const) : ("unsupported-in-scope" as const),
+      status: "supported-named" as const,
+      capabilityId: namedCatalogMechanic.capabilityId,
+      executor: namedCatalogMechanic.executor,
+      focusedCoverage: namedCatalogMechanic.test,
+      reason: namedCatalogMechanic.reason,
+      prerequisite: null,
+      approvedExclusion: null,
+    };
+  if (
+    (occurrence.origin === "race" || occurrence.origin === "generic-class") &&
+    effectType === "source-text-only"
+  ) {
+    const sourceText = stringValue(occurrence.effect.sourceText) ?? "";
+    const scopeDecision = scopeDecisionForSourceText(sourceText);
+    if (scopeDecision !== undefined)
+      return {
+        status: "audited-out-of-scope" as const,
+        capabilityId: null,
+        executor: null,
+        focusedCoverage: null,
+        reason: scopeDecision.reason,
+        prerequisite: null,
+        approvedExclusion: scopeDecision.reason,
+      };
+    return {
+      status: "unsupported-in-scope" as const,
       capabilityId: null,
       executor: null,
       focusedCoverage: null,
-      reason: external
-        ? `Race or class clause is ${classification} and has no combat-state executor.`
-        : "Race or class clause describes combat behavior without a structured combat executor.",
+      reason: "Race or class clause has no structured combat-state executor.",
       prerequisite: "CE-920 structured race/class mechanics",
-      approvedExclusion: external ? "CE-920 race/class source-only clause" : null,
+      approvedExclusion: null,
     };
   }
   if (occurrence.origin === "transformation" && effectType === "source-text-only") {
+    const scopeDecision = scopeDecisionForSourceText(
+      stringValue(occurrence.effect.sourceText) ?? "",
+    );
+    if (scopeDecision !== undefined)
+      return {
+        status: "audited-out-of-scope" as const,
+        capabilityId: null,
+        executor: null,
+        focusedCoverage: null,
+        reason: scopeDecision.reason,
+        prerequisite: null,
+        approvedExclusion: scopeDecision.reason,
+      };
     return {
       status: "unsupported-in-scope" as const,
       capabilityId: null,
@@ -1758,35 +1933,17 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
       approvedExclusion: null,
     };
   }
-  const approvedOccurrenceExclusion =
-    occurrence.origin === "move"
-      ? approvedMoveOccurrenceExclusions[
-          `${occurrence.sourceDefinitionId}:${occurrence.effectIndex}`
-        ]
-      : undefined;
-  if (approvedOccurrenceExclusion !== undefined) {
+  const scopeDecision =
+    occurrence.origin === "move" ? scopeDecisionForEffect(occurrence.effect) : undefined;
+  if (scopeDecision !== undefined) {
     return {
       status: "audited-out-of-scope" as const,
       capabilityId: null,
       executor: null,
       focusedCoverage: null,
-      reason: approvedOccurrenceExclusion,
+      reason: scopeDecision.reason,
       prerequisite: null,
-      approvedExclusion: approvedOccurrenceExclusion,
-    };
-  }
-  if (
-    occurrence.origin === "item" &&
-    runtimeValue(approvedItemExclusions[effectType]) !== undefined
-  ) {
-    return {
-      status: "audited-out-of-scope" as const,
-      capabilityId: null,
-      executor: null,
-      focusedCoverage: null,
-      reason: approvedItemExclusions[effectType],
-      prerequisite: null,
-      approvedExclusion: approvedItemExclusions[effectType],
+      approvedExclusion: scopeDecision.reason,
     };
   }
   if (
@@ -1990,6 +2147,7 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
   const deferredMoveSupported = isSupportedDeferredMoveOccurrence(occurrence);
   const pendingChoiceSupported =
     lifecycleDeactivationSupported ||
+    isSupportedRerollOccurrence(occurrence) ||
     isSupportedPendingChoiceOccurrence(occurrence, occurrences) ||
     isExactPendingChoiceVariant(occurrence, occurrences) ||
     (occurrence.sourceDefinitionId === "move-freestyle-nullifying-sphere" &&
@@ -2023,6 +2181,28 @@ const classify = (occurrence: Occurrence, occurrences: readonly Occurrence[]) =>
           effect: occurrence.effect as EffectDefinition,
           allowPendingChoice: pendingChoiceSupported || activationSupported,
         });
+  if (
+    compilation?.ok === true &&
+    occurrence.origin === "race" &&
+    ((occurrence.sourceDefinitionId === "race-class-konatsian-konatsian-wizard" &&
+      effectType === "override-skill-activation-prevention") ||
+      (occurrence.sourceDefinitionId === "race-trait-makaioshin-demonic-potential" &&
+        effectType === "roll-and-store" &&
+        occurrence.effectIndex === 0))
+  ) {
+    const executor = genericExecutors[effectType];
+    if (executor !== undefined)
+      return {
+        status: "supported-generic" as const,
+        capabilityId: executor.capabilityId ?? `${effectType}.v1`,
+        executor: executor.executor,
+        focusedCoverage: executor.test,
+        reason:
+          "The innate occurrence is dispatched through the existing typed executor at the combat setup or skill-activation boundary.",
+        prerequisite: null,
+        approvedExclusion: null,
+      };
+  }
   if (
     occurrence.sourceDefinitionId === "move-freestyle-nullifying-sphere" &&
     occurrence.effectIndex === 2
@@ -2708,19 +2888,57 @@ const collectOccurrences = (): readonly Occurrence[] => {
   for (const move of MOVE_DEFINITIONS) add("move", move.id, move.effects);
   for (const item of ITEM_DEFINITIONS) add("item", item.id, item.effects);
   for (const race of RACE_DEFINITIONS) {
-    for (const trait of race.racialTraits)
+    for (const trait of race.racialTraits) {
+      add("race", `${race.id}:trait:${trait.id}`, trait.effects);
+      const structuredClauses = new Set([
+        ...(trait.effects ?? [])
+          .map((effect) => effect.sourceClauseOrder)
+          .filter((order): order is number => order !== undefined),
+        ...(trait.sourceClauses ?? []).map((sourceClause) => sourceClause.clauseOrder),
+        ...(trait.coveredClauseOrders ?? []),
+      ]);
       for (const clause of trait.effectClauses)
-        occurrences.push({
-          origin: "race",
-          sourceDefinitionId: `${race.id}:trait:${trait.id}`,
-          effectIndex: clause.order - 1,
-          effect: { type: "source-text-only", sourceText: clause.text },
-        });
-    for (const classDefinition of race.classes)
+        if (!structuredClauses.has(clause.order))
+          occurrences.push({
+            origin: "race",
+            sourceDefinitionId: `${race.id}:trait:${trait.id}`,
+            effectIndex: clause.order - 1,
+            effect: { type: "source-text-only", sourceText: clause.text },
+          });
+    }
+    for (const classDefinition of race.classes) {
+      add("race", `${race.id}:class:${classDefinition.id}`, classDefinition.effects);
+      const structuredClauses = new Set([
+        ...(classDefinition.effects ?? [])
+          .map((effect) => effect.sourceClauseOrder)
+          .filter((order): order is number => order !== undefined),
+        ...(classDefinition.sourceClauses ?? []).map((sourceClause) => sourceClause.clauseOrder),
+        ...(classDefinition.coveredClauseOrders ?? []),
+      ]);
       for (const clause of classDefinition.effectClauses)
+        if (!structuredClauses.has(clause.order))
+          occurrences.push({
+            origin: "race",
+            sourceDefinitionId: `${race.id}:class:${classDefinition.id}`,
+            effectIndex: clause.order - 1,
+            effect: { type: "source-text-only", sourceText: clause.text },
+          });
+    }
+  }
+  for (const classDefinition of GENERIC_CLASS_DEFINITIONS) {
+    add("generic-class", classDefinition.id, classDefinition.effects);
+    const structuredClauses = new Set([
+      ...(classDefinition.effects ?? [])
+        .map((effect) => effect.sourceClauseOrder)
+        .filter((order): order is number => order !== undefined),
+      ...(classDefinition.sourceClauses ?? []).map((sourceClause) => sourceClause.clauseOrder),
+      ...(classDefinition.coveredClauseOrders ?? []),
+    ]);
+    for (const clause of classDefinition.effectClauses)
+      if (!structuredClauses.has(clause.order))
         occurrences.push({
-          origin: "race",
-          sourceDefinitionId: `${race.id}:class:${classDefinition.id}`,
+          origin: "generic-class",
+          sourceDefinitionId: classDefinition.id,
           effectIndex: clause.order - 1,
           effect: { type: "source-text-only", sourceText: clause.text },
         });
@@ -2729,13 +2947,21 @@ const collectOccurrences = (): readonly Occurrence[] => {
     if (!activeTransformationRaceIds.has(transformation.raceId)) continue;
     for (const [abilityName, ability] of Object.entries(transformation.abilities)) {
       add("transformation", `${transformation.id}:${abilityName}`, ability.effects);
+      const structuredClauses = new Set([
+        ...(ability.effects ?? [])
+          .map((effect) => effect.sourceClauseOrder)
+          .filter((order): order is number => order !== undefined),
+        ...(ability.sourceClauses ?? []).map((sourceClause) => sourceClause.clauseOrder),
+        ...(ability.coveredClauseOrders ?? []),
+      ]);
       for (const clause of ability.effectClauses ?? [])
-        occurrences.push({
-          origin: "transformation",
-          sourceDefinitionId: `${transformation.id}:${abilityName}`,
-          effectIndex: clause.order - 1,
-          effect: { type: "source-text-only", sourceText: clause.text },
-        });
+        if (!structuredClauses.has(clause.order))
+          occurrences.push({
+            origin: "transformation",
+            sourceDefinitionId: `${transformation.id}:${abilityName}`,
+            effectIndex: clause.order - 1,
+            effect: { type: "source-text-only", sourceText: clause.text },
+          });
     }
   }
   return occurrences;
@@ -2745,6 +2971,10 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
   const sourceOccurrences = collectOccurrences();
   const occurrences = sourceOccurrences.map((occurrence) => {
     const classification = classify(occurrence, sourceOccurrences);
+    const scopeDecision =
+      occurrence.effect.type === "source-text-only"
+        ? scopeDecisionForSourceText(stringValue(occurrence.effect.sourceText) ?? "")
+        : scopeDecisionForEffect(occurrence.effect);
     return {
       sourceDefinitionId: occurrence.sourceDefinitionId,
       origin: occurrence.origin,
@@ -2758,16 +2988,14 @@ export const createCombatCapabilityMatrix = (): CombatCapabilityMatrix => {
       conflictPolicy: conflictPolicyFor(occurrence.effect),
       selection: selectionFor(occurrence.effect),
       costTiming: stringValue(occurrence.effect.activationCost?.timing),
+      scopeDecisionId: scopeDecision?.id ?? null,
+      scopeDecisionCategory: scopeDecision?.category ?? null,
       classification:
-        occurrence.origin === "race" || occurrence.effect.type === "source-text-only"
-          ? occurrence.origin === "race"
-            ? sourceOnlyRaceClassificationFor(stringValue(occurrence.effect.sourceText) ?? "")
-            : "unsupported"
-          : classification.status === "audited-out-of-scope"
-            ? "narrative-or-administrator-mediated"
-            : classification.status === "unsupported-in-scope"
-              ? "unsupported"
-              : "supported",
+        classification.status === "audited-out-of-scope"
+          ? "noncombat/permanent-state"
+          : classification.status === "unsupported-in-scope"
+            ? "unsupported"
+            : "supported",
       sourceText: stringValue(occurrence.effect.sourceText),
       ...classification,
     } satisfies CombatCapabilityMatrixRow;
@@ -2864,12 +3092,12 @@ export const renderCombatCapabilityMatrix = (matrix = createCombatCapabilityMatr
     "",
     "## Occurrences",
     "",
-    "| Source definition | Origin | Effect index | Effect type | Variant | Selection | Cost timing | Conflict policy | Status | Classification | Capability | Executor | Coverage | Source text | Reason | Prerequisite | Approved exclusion |",
-    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Source definition | Origin | Effect index | Effect type | Variant | Selection | Cost timing | Conflict policy | Status | Classification | Capability | Executor | Coverage | Source text | Reason | Prerequisite | Approved exclusion | Scope decision ID | Scope category |",
+    "| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of matrix.occurrences) {
     lines.push(
-      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.selection ?? "-"} | ${row.costTiming ?? "-"} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.classification} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.sourceText ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} |`,
+      `| ${row.sourceDefinitionId} | ${row.origin} | ${row.effectIndex} | ${row.effectType} | ${row.variant} | ${row.selection ?? "-"} | ${row.costTiming ?? "-"} | ${row.conflictPolicy ?? "-"} | ${row.status} | ${row.classification} | ${row.capabilityId ?? "-"} | ${row.executor ?? "-"} | ${row.focusedCoverage ?? "-"} | ${row.sourceText ?? "-"} | ${row.reason} | ${row.prerequisite ?? "-"} | ${row.approvedExclusion ?? "-"} | ${row.scopeDecisionId ?? "-"} | ${row.scopeDecisionCategory ?? "-"} |`,
     );
   }
   return `${lines.join("\n")}\n`;

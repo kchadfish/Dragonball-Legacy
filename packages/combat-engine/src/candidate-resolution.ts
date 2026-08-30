@@ -9,6 +9,7 @@ import type {
   CombatActionRecord,
   CombatantState,
   FightState,
+  LegalDecision,
   PendingDecision,
   PendingDecisionOption,
   RespondToPendingDecision,
@@ -269,6 +270,68 @@ export const pendingOptionIdsFor = (
   (decision.selectedOptionIds ?? [decision.optionId, ...(decision.optionIds ?? [])]).filter(
     (optionId): optionId is string => optionId !== undefined,
   );
+
+const pendingSelectionOptionIds = (pending: PendingDecision): readonly string[] =>
+  pending.options.filter((option) => option.type !== "decline").map((option) => option.id);
+
+const combinationsOf = (
+  values: readonly string[],
+  size: number,
+): readonly (readonly string[])[] => {
+  if (size === 0) return [[]];
+  if (size > values.length) return [];
+  const combinations: string[][] = [];
+  const visit = (start: number, current: string[]) => {
+    if (current.length === size) {
+      combinations.push([...current]);
+      return;
+    }
+    for (let index = start; index <= values.length - (size - current.length); index += 1) {
+      current.push(values[index]!);
+      visit(index + 1, current);
+      current.pop();
+    }
+  };
+  visit(0, []);
+  return combinations;
+};
+
+/** Enumerates complete, submit-ready responses for a persisted pending choice. */
+export const enumeratePendingLegalDecisions = (
+  pending: PendingDecision,
+): readonly Extract<LegalDecision, { readonly type: "respond-to-pending-decision" }>[] => {
+  const optionIds = pendingSelectionOptionIds(pending);
+  const canDecline =
+    pending.optional === true || pending.options.some((option) => option.id === "decline");
+  let selections: readonly (readonly string[])[];
+  if (pending.candidates === undefined || pending.selection === undefined) {
+    selections = optionIds.map((optionId) => [optionId]);
+  } else if (pending.selection.type === "one") {
+    selections = combinationsOf(optionIds, 1);
+  } else if (pending.selection.type === "all") {
+    selections = combinationsOf(optionIds, optionIds.length);
+  } else {
+    const limit = Math.min(
+      pending.selection.limit.type === "literal" ? pending.selection.limit.value : optionIds.length,
+      optionIds.length,
+    );
+    selections = Array.from({ length: limit }, (_, index) => index + 1).flatMap((size) =>
+      combinationsOf(optionIds, size),
+    );
+  }
+  const completeSelections = [...selections, ...(canDecline ? ([[]] as const) : [])];
+  return completeSelections.map((selectedOptionIds) => {
+    const canonicalOptionIds = selectedOptionIds.length === 0 ? ["decline"] : selectedOptionIds;
+    return {
+      type: "respond-to-pending-decision" as const,
+      actorId: pending.combatantId,
+      pendingDecisionId: pending.id,
+      optionId: canonicalOptionIds[0]!,
+      ...(canonicalOptionIds.length > 1 ? { optionIds: canonicalOptionIds.slice(1) } : {}),
+      selectedOptionIds: canonicalOptionIds,
+    };
+  });
+};
 
 /**
  * Validates a generic response against the exact persisted candidate set.
