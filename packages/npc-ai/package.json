@@ -17,5 +17,10 @@
   "scripts": {
     "build": "tsc --build",
     "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@dragonball-resurgence/ai-engine": "0.1.0",
+    "@dragonball-resurgence/combat-engine": "0.1.0",
+    "@dragonball-resurgence/game-data": "0.1.0"
   }
 }

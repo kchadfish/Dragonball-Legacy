@@ -8,5 +8,10 @@
     "outDir": "./dist",
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../ai-engine" },
+    { "path": "../combat-engine" },
+    { "path": "../game-data" }
+  ]
 }

@@ -15,6 +15,7 @@ import type {
 } from "@dragonball-resurgence/game-data";
 
 import type { AiRandomSource } from "./random.js";
+import type { AiAdvisoryPriorities } from "./advisory.js";
 
 export type DiagnosticRetention = "none" | "selection-only" | "ranked-summary" | "full";
 
@@ -349,6 +350,7 @@ export interface AiDecisionRequest {
   readonly diagnosticRetention?: DiagnosticRetention;
   readonly workLimits?: Partial<AiWorkLimits>;
   readonly opponentProfile?: AiProfile;
+  readonly advisoryPriorities?: AiAdvisoryPriorities;
 }
 
 export interface AiImmediateUtilityRequest extends Omit<AiDecisionRequest, "analysis"> {

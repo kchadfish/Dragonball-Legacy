@@ -13,6 +13,7 @@ const protectedBySemantics = (evaluation: CandidateEvaluation): boolean =>
       (factor.code === "defeat-prevention" && factor.value > 0) ||
       (factor.code === "guaranteed-self-loss" && factor.value < 0) ||
       (factor.code.startsWith("personality-adjustment:") && factor.value !== 0) ||
+      (factor.code.startsWith("tactical-priority:") && factor.value !== 0) ||
       (factor.code === "setup-combo-value" && factor.value !== 0),
   );
 

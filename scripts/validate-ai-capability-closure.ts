@@ -63,6 +63,16 @@ const checkRows = (
       if (row.proofTarget === undefined || row.proofTarget.length === 0)
         issues.push(`${row.id}: unsupported entry needs a proof target.`);
     }
+    if (
+      kind === "pending-decision" &&
+      (row.surface === "select-source-action" || row.surface === "select-source-effect") &&
+      (row.classification !== "baseline" ||
+        row.proofTarget === undefined ||
+        row.proofTarget.length === 0)
+    )
+      issues.push(
+        `${row.id}: source selection remains an explicitly documented baseline limitation.`,
+      );
   }
 };
 
@@ -72,7 +82,7 @@ export const validateAiCapabilityClosure = (
   const issues: string[] = [];
   const schemaVersion: string = matrix.schemaVersion;
   const scopeVersion: string = matrix.scopeVersion;
-  if (schemaVersion !== "ai-engine-capability-matrix:v4")
+  if (schemaVersion !== "ai-engine-capability-matrix:v5")
     issues.push("Invalid AI capability matrix schema version.");
   if (scopeVersion !== "ai-combat-scope:v1")
     issues.push("AI capability matrix must use ai-combat-scope:v1.");
@@ -122,6 +132,15 @@ export const validateAiCapabilityClosure = (
         !(kind === "pending-decision" && row.surface.startsWith("select-source-"))
       )
         issues.push(`${row.id}: missing focused coverage evidence.`);
+  if (matrix.consumerProofs.length === 0)
+    issues.push("Consumer proof accounting must not be empty.");
+  for (const proof of matrix.consumerProofs)
+    if (proof.status !== "verified" || proof.evidence.length === 0)
+      issues.push(`${proof.id}: consumer proof must be verified with evidence.`);
+  if (matrix.invariants.length < 11)
+    issues.push("All required determinism/isolation invariants must be accounted for.");
+  if (matrix.autonomousScenarios.length < 7)
+    issues.push("All representative autonomous scenarios must be accounted for.");
   return issues;
 };
 

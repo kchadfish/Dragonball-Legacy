@@ -14,38 +14,38 @@ Generated from scope `ai-combat-scope:v1` on 2026-08-30. This is an accounting a
 
 ## Legal decision surfaces
 
-| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| ai-evaluator:legal-pass | pass | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | ordinary action phase | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-power-up | power-up | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | ordinary action phase | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-surrender | surrender | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | terminal surrender choice | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-basic-attack | basic-attack | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | basic attack against local opponent | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-use-move | use-move | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | ordinary or counter move | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-activate-transformation | activate-transformation | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | available transformation activation | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-deactivate-transformation | deactivate-transformation | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | manual transformation reversion | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-use-item | use-item | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | combat item use | packages/ai-engine/src/safe-fallback.test.ts |
-| ai-evaluator:legal-respond-to-pending-decision | respond-to-pending-decision | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | complete pending response selection | packages/ai-engine/src/safe-fallback.test.ts |
+| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof | Proof target |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ai-evaluator:legal-pass | pass | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | ordinary action phase | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-power-up | power-up | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | ordinary action phase | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-surrender | surrender | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | terminal surrender choice | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-basic-attack | basic-attack | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | basic attack against local opponent | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-use-move | use-move | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | ordinary or counter move | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-activate-transformation | activate-transformation | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | available transformation activation | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-deactivate-transformation | deactivate-transformation | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | manual transformation reversion | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-use-item | use-item | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | combat item use | packages/ai-engine/src/safe-fallback.test.ts |  |
+| ai-evaluator:legal-respond-to-pending-decision | respond-to-pending-decision | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback | complete pending response selection | packages/ai-engine/src/safe-fallback.test.ts |  |
 
 ## Pending decision surfaces
 
-| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| ai-evaluator:pending-defense-response | defense-response | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | engine-authored roll or block response | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:pending-post-defense-roll | post-defense-roll | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | engine-authored post-defense reaction | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:pending-optional-effect | optional-effect | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | optional activation or decline | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:pending-select-combatant | select-combatant | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | one local combatant candidate | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:pending-select-move | select-move | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | one or more move candidates | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:pending-select-source-action | select-source-action | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | declared source-action candidate surface | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:pending-select-source-effect | select-source-effect | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | declared source-effect candidate surface | packages/ai-engine/src/feature-extraction.test.ts |
+| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof | Proof target |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ai-evaluator:pending-defense-response | defense-response | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | engine-authored roll or block response | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:pending-post-defense-roll | post-defense-roll | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | engine-authored post-defense reaction | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:pending-optional-effect | optional-effect | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | optional activation or decline | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:pending-select-combatant | select-combatant | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | one local combatant candidate | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:pending-select-move | select-move | supported | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | one or more move candidates | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:pending-select-source-action | select-source-action | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | declared source-action candidate surface | packages/ai-engine/src/feature-extraction.test.ts | combat-engine public transition fixture for complete source selection |
+| ai-evaluator:pending-select-source-effect | select-source-effect | baseline | AI-120 | ai-feature-extractor:v1 | AI-030 safe legal fallback; complete supplied LegalDecision response | declared source-effect candidate surface | packages/ai-engine/src/feature-extraction.test.ts | combat-engine public transition fixture for complete source selection |
 
 ## Response shapes
 
-| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| ai-evaluator:response-one | one | baseline | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | exactly one persisted candidate | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:response-up-to | up-to | baseline | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | bounded multi-selection | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:response-all | all | baseline | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | all persisted candidates | packages/ai-engine/src/feature-extraction.test.ts |
-| ai-evaluator:response-engine-authored-options | engine-authored-options | baseline | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | response options without declarative selection metadata | packages/ai-engine/src/feature-extraction.test.ts |
+| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof | Proof target |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ai-evaluator:response-one | one | supported | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | exactly one persisted candidate | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:response-up-to | up-to | supported | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | bounded multi-selection | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:response-all | all | supported | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | all persisted candidates | packages/ai-engine/src/feature-extraction.test.ts |  |
+| ai-evaluator:response-engine-authored-options | engine-authored-options | supported | AI-120 | ai-feature-extractor:v1 | complete supplied LegalDecision response | response options without declarative selection metadata | packages/ai-engine/src/feature-extraction.test.ts |  |
 
 ## Immediate utility evaluators
 
@@ -134,6 +134,45 @@ Generated from scope `ai-combat-scope:v1` on 2026-08-30. This is an accounting a
 | AI-600 through AI-640 | combat-owned outcome estimation, expected utility, and pruning | complete | PRE-030 and AI-500 through AI-540 | outcome classification, uncertainty, and pruning tests | verified: packages/ai-engine/src/phases-4-8.test.ts |
 | AI-700 through AI-750 | isolated bounded shallow lookahead and pending expansion | complete | PRE-040 and AI-600 through AI-640 | branch isolation and deterministic budget tests | verified: packages/ai-engine/src/phases-4-8.test.ts; packages/combat-engine/src/analysis.test.ts |
 | AI-800 through AI-840 | structured diagnostics, explanations, retention, and replay | complete | AI-700 through AI-750 | diagnostic retention and replay identity tests | verified: packages/ai-engine/src/phases-4-8.test.ts |
+| AI-900 through AI-930 | validated NPC policy phases, tactical priorities, and public transition adapter | complete | AI-840 | NPC consumer readiness and legal-object handoff | verified: packages/npc-ai/src/index.test.ts |
+| AI-1000 through AI-1040 | canonical selector, deterministic bounded consumer mode, reduced diagnostics, and AI-vs-AI proof | complete | AI-900 through AI-930 | consumer isolation and bounded autonomous driver | verified: packages/ai-engine/src/phases-9-11.test.ts |
+| AI-1100 through AI-1150 | decision-quality closure, deterministic invariants, scenarios, and final accounting | complete | AI-1000 through AI-1040 | closure validator and representative quality cases | verified: packages/ai-engine/src/phases-9-11.test.ts |
+
+## Consumer proofs
+
+| Consumer proof | Status | Evidence |
+| --- | --- | --- |
+| npc-adapter | verified | packages/npc-ai/src/index.test.ts |
+| canonical-ai-selector | verified | packages/ai-engine/src/phases-9-11.test.ts |
+| public-combat-handoff | verified | packages/npc-ai/src/index.test.ts |
+
+## Determinism and isolation invariants
+
+| Invariant | Evidence |
+| --- | --- |
+| legal-subset | packages/ai-engine/src/phases-9-11.test.ts |
+| empty-set | packages/ai-engine/src/safe-fallback.test.ts |
+| input-order | packages/ai-engine/src/contextual-utility.test.ts |
+| state-and-catalog-immutability | packages/ai-engine/src/phases-9-11.test.ts |
+| diagnostic-invariance | packages/ai-engine/src/phases-9-11.test.ts |
+| same-seed-replay | packages/ai-engine/src/phases-4-8.test.ts |
+| live-rng-isolation | packages/ai-engine/src/phases-9-11.test.ts |
+| branch-and-batch-isolation | packages/ai-engine/src/phases-4-8.test.ts |
+| id-independent-reasoning | packages/ai-engine/src/phases-9-11.test.ts |
+| safe-search-exhaustion | packages/ai-engine/src/phases-4-8.test.ts |
+| pending-choice-parity | packages/ai-engine/src/contextual-utility.test.ts |
+
+## Autonomous scenario coverage
+
+| Scenario | Evidence |
+| --- | --- |
+| balanced | packages/ai-engine/src/phases-9-11.test.ts |
+| power-vs-dexterity | packages/ai-engine/src/phases-9-11.test.ts |
+| defense-vs-burst | packages/ai-engine/src/phases-9-11.test.ts |
+| status-vs-damage | packages/ai-engine/src/phases-9-11.test.ts |
+| ki-denial-vs-efficient-offense | packages/ai-engine/src/phases-9-11.test.ts |
+| transformation-heavy | packages/ai-engine/src/phases-9-11.test.ts |
+| restricted-use-pressure | packages/ai-engine/src/phases-9-11.test.ts |
 
 ## Accounting totals
 

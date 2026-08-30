@@ -48,7 +48,7 @@ const legalEntry = (
 ): AiEvaluatorRegistryEntry => ({
   id: `ai-evaluator:legal-${type}`,
   surface: type,
-  classification: "baseline",
+  classification: "supported",
   roadmapOwner: "AI-120",
   featureExtractor: "ai-feature-extractor:v1",
   prerequisites: ["AI-030 safe legal fallback"],
@@ -106,12 +106,16 @@ const pendingEntry = (
 ): AiEvaluatorRegistryEntry => ({
   id: `ai-evaluator:pending-${type}`,
   surface: type,
-  classification: "baseline",
+  classification:
+    type === "select-source-action" || type === "select-source-effect" ? "baseline" : "supported",
   roadmapOwner: "AI-120",
   featureExtractor: "ai-feature-extractor:v1",
   prerequisites: ["AI-030 safe legal fallback", "complete supplied LegalDecision response"],
   representativeScenario: scenario,
   focusedProof: "packages/ai-engine/src/feature-extraction.test.ts",
+  ...(type === "select-source-action" || type === "select-source-effect"
+    ? { proofTarget: "combat-engine public transition fixture for complete source selection" }
+    : {}),
 });
 
 export const pendingDecisionEvaluatorRegistry = {
@@ -133,7 +137,7 @@ export const pendingDecisionEvaluatorRegistry = {
 const responseEntry = (
   type: ResponseShapeType,
   scenario: string,
-  classification: AiSurfaceClassification = "baseline",
+  classification: AiSurfaceClassification = "supported",
 ): AiEvaluatorRegistryEntry => ({
   id: `ai-evaluator:response-${type}`,
   surface: type,

@@ -55,7 +55,7 @@ export interface AiContextualEvaluatorRow {
 }
 
 export interface AiCapabilityMatrix {
-  readonly schemaVersion: "ai-engine-capability-matrix:v4";
+  readonly schemaVersion: "ai-engine-capability-matrix:v5";
   readonly scopeVersion: string;
   readonly generatedAt: string;
   readonly authority: Readonly<Record<string, string>>;
@@ -67,6 +67,13 @@ export interface AiCapabilityMatrix {
   readonly exclusions: readonly ScopeDecision[];
   readonly coverageEvidence: readonly AiCoverageEvidence[];
   readonly capabilityGaps: readonly AiCapabilityGap[];
+  readonly consumerProofs: readonly {
+    readonly id: string;
+    readonly status: "verified";
+    readonly evidence: string;
+  }[];
+  readonly invariants: readonly { readonly id: string; readonly evidence: string }[];
+  readonly autonomousScenarios: readonly { readonly id: string; readonly evidence: string }[];
 }
 
 interface AiFixture {
@@ -169,7 +176,7 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
       });
 
   return {
-    schemaVersion: "ai-engine-capability-matrix:v4",
+    schemaVersion: "ai-engine-capability-matrix:v5",
     scopeVersion: sourceFixture.scopeVersion,
     generatedAt: sourceFixture.generatedAt,
     authority: {
@@ -265,6 +272,77 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
         proofTarget: "diagnostic retention and replay identity tests",
         proof: { status: "verified", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
       },
+      {
+        roadmapId: "AI-900 through AI-930",
+        capability:
+          "validated NPC policy phases, tactical priorities, and public transition adapter",
+        status: "complete",
+        prerequisite: "AI-840",
+        proofTarget: "NPC consumer readiness and legal-object handoff",
+        proof: { status: "verified", evidence: "packages/npc-ai/src/index.test.ts" },
+      },
+      {
+        roadmapId: "AI-1000 through AI-1040",
+        capability:
+          "canonical selector, deterministic bounded consumer mode, reduced diagnostics, and AI-vs-AI proof",
+        status: "complete",
+        prerequisite: "AI-900 through AI-930",
+        proofTarget: "consumer isolation and bounded autonomous driver",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      },
+      {
+        roadmapId: "AI-1100 through AI-1150",
+        capability:
+          "decision-quality closure, deterministic invariants, scenarios, and final accounting",
+        status: "complete",
+        prerequisite: "AI-1000 through AI-1040",
+        proofTarget: "closure validator and representative quality cases",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      },
+    ],
+    consumerProofs: [
+      { id: "npc-adapter", status: "verified", evidence: "packages/npc-ai/src/index.test.ts" },
+      {
+        id: "canonical-ai-selector",
+        status: "verified",
+        evidence: "packages/ai-engine/src/phases-9-11.test.ts",
+      },
+      {
+        id: "public-combat-handoff",
+        status: "verified",
+        evidence: "packages/npc-ai/src/index.test.ts",
+      },
+    ],
+    invariants: [
+      { id: "legal-subset", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "empty-set", evidence: "packages/ai-engine/src/safe-fallback.test.ts" },
+      { id: "input-order", evidence: "packages/ai-engine/src/contextual-utility.test.ts" },
+      {
+        id: "state-and-catalog-immutability",
+        evidence: "packages/ai-engine/src/phases-9-11.test.ts",
+      },
+      { id: "diagnostic-invariance", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "same-seed-replay", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
+      { id: "live-rng-isolation", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "branch-and-batch-isolation", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
+      { id: "id-independent-reasoning", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "safe-search-exhaustion", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
+      {
+        id: "pending-choice-parity",
+        evidence: "packages/ai-engine/src/contextual-utility.test.ts",
+      },
+    ],
+    autonomousScenarios: [
+      { id: "balanced", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "power-vs-dexterity", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "defense-vs-burst", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "status-vs-damage", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      {
+        id: "ki-denial-vs-efficient-offense",
+        evidence: "packages/ai-engine/src/phases-9-11.test.ts",
+      },
+      { id: "transformation-heavy", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
+      { id: "restricted-use-pressure", evidence: "packages/ai-engine/src/phases-9-11.test.ts" },
     ],
   };
 };
@@ -276,12 +354,12 @@ const renderRows = (rows: readonly AiCapabilityMatrixRow[]): string =>
   rows
     .map(
       (row) =>
-        `| ${cell(row.id)} | ${cell(row.surface)} | ${cell(row.classification)} | ${cell(row.roadmapOwner)} | ${cell(row.featureExtractor)} | ${cell(row.prerequisites)} | ${cell(row.representativeScenario)} | ${cell(row.focusedProof)} |`,
+        `| ${cell(row.id)} | ${cell(row.surface)} | ${cell(row.classification)} | ${cell(row.roadmapOwner)} | ${cell(row.featureExtractor)} | ${cell(row.prerequisites)} | ${cell(row.representativeScenario)} | ${cell(row.focusedProof)} | ${cell(row.proofTarget ?? "")} |`,
     )
     .join("\n");
 
 const renderSection = (title: string, rows: readonly AiCapabilityMatrixRow[]): string =>
-  `## ${title}\n\n| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n${renderRows(rows)}`;
+  `## ${title}\n\n| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof | Proof target |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n${renderRows(rows)}`;
 
 export const renderAiCapabilityMatrix = (matrix = createAiCapabilityMatrix()): string => {
   const evidence = matrix.coverageEvidence
@@ -298,6 +376,15 @@ export const renderAiCapabilityMatrix = (matrix = createAiCapabilityMatrix()): s
       (entry) =>
         `| ${cell(entry.roadmapId)} | ${cell(entry.capability)} | ${cell(entry.status)} | ${cell(entry.prerequisite)} | ${cell(entry.proofTarget)} | ${cell(`${entry.proof.status}: ${entry.proof.evidence}`)} |`,
     )
+    .join("\n");
+  const consumerProofs = matrix.consumerProofs
+    .map((entry) => `| ${cell(entry.id)} | ${cell(entry.status)} | ${cell(entry.evidence)} |`)
+    .join("\n");
+  const invariants = matrix.invariants
+    .map((entry) => `| ${cell(entry.id)} | ${cell(entry.evidence)} |`)
+    .join("\n");
+  const scenarios = matrix.autonomousScenarios
+    .map((entry) => `| ${cell(entry.id)} | ${cell(entry.evidence)} |`)
     .join("\n");
   return `# AI-engine capability matrix
 
@@ -346,6 +433,24 @@ ${evidence}
 | Roadmap | Capability | Status | Prerequisite | Proof target | Proof |
 | --- | --- | --- | --- | --- | --- |
 ${gaps}
+
+## Consumer proofs
+
+| Consumer proof | Status | Evidence |
+| --- | --- | --- |
+${consumerProofs}
+
+## Determinism and isolation invariants
+
+| Invariant | Evidence |
+| --- | --- |
+${invariants}
+
+## Autonomous scenario coverage
+
+| Scenario | Evidence |
+| --- | --- |
+${scenarios}
 
 ## Accounting totals
 

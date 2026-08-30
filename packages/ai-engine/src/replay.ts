@@ -2,14 +2,16 @@
 import type {
   AiDecisionRequest,
   AiDecisionResult,
+  AiWorkLimits,
   CandidateEvaluation,
   DiagnosticRetention,
 } from "./contracts.js";
 import { canonicalDecisionKey } from "@dragonball-resurgence/combat-engine";
 import { canonicalHash, canonicalJson, canonicalLegalSetHash } from "./canonicalization.js";
-import { selectLegalDecision } from "./immediate-utility.js";
+import { selectAiDecision } from "./selection.js";
+import { resolveDifficultySettings } from "./profiles.js";
 
-export interface AiReplayRecord {
+export interface AiReplayRecordV1 {
   readonly schemaVersion: "ai-replay:v1";
   readonly fight: {
     readonly id: string;
@@ -32,6 +34,32 @@ export interface AiReplayRecord {
   readonly diagnostics?: AiDecisionResult["diagnostics"];
 }
 
+export interface AiReplayRecordV2 {
+  readonly schemaVersion: "ai-replay:v2";
+  readonly fight: AiReplayRecordV1["fight"];
+  readonly rulesVersion: unknown;
+  readonly actorId: string;
+  readonly legalSet: AiReplayRecordV1["legalSet"];
+  readonly mechanics: AiReplayRecordV1["mechanics"];
+  readonly pipeline: {
+    readonly id: "ai-engine";
+    readonly version: "ai-engine:v2";
+    readonly evaluator: string;
+  };
+  readonly profile: AiReplayRecordV1["profile"];
+  readonly opponentProfile?: AiReplayRecordV1["profile"];
+  readonly advisoryModifiers: { readonly version?: string; readonly hash: string };
+  readonly randomnessMode: "enabled" | "disabled";
+  readonly workLimits: AiWorkLimits;
+  readonly seed: number;
+  readonly selectedDecisionKey: string;
+  readonly rankingHash: string;
+  readonly diagnosticRetention: DiagnosticRetention;
+  readonly diagnostics?: AiDecisionResult["diagnostics"];
+}
+
+export type AiReplayRecord = AiReplayRecordV1 | AiReplayRecordV2;
+
 export type ReplayMismatchCode =
   | "schema-version"
   | "fight-id"
@@ -43,8 +71,12 @@ export type ReplayMismatchCode =
   | "legal-set"
   | "mechanics"
   | "profile"
+  | "pipeline"
+  | "opponent-profile"
+  | "advisory-modifiers"
+  | "randomness-mode"
   | "seed"
-  | "budgets"
+  | "work-limits"
   | "selected-decision"
   | "ranking";
 
@@ -74,11 +106,25 @@ export const createAiReplayRecord = (
   request: AiDecisionRequest,
   result: AiDecisionResult,
   options: { readonly includeSnapshot?: boolean } = {},
-): AiReplayRecord => {
-  const evaluations = result.diagnostics?.evaluations ?? result.evaluations;
+): AiReplayRecordV2 => {
+  const completeResult =
+    result.evaluations.length > 0 || result.diagnostics?.evaluations !== undefined
+      ? result
+      : (() => {
+          const rerun = selectAiDecision({ ...request, diagnosticRetention: "full" });
+          return rerun.ok ? rerun.value : result;
+        })();
+  const evaluations = completeResult.diagnostics?.evaluations ?? completeResult.evaluations;
   const state = request.state;
+  const difficulty = resolveDifficultySettings(request.profile.difficulty);
+  const workLimits: AiWorkLimits = {
+    candidateLimit: request.workLimits?.candidateLimit ?? difficulty.candidateLimit,
+    outcomeLimit: request.workLimits?.outcomeLimit ?? evaluations.length,
+    nodeLimit: request.workLimits?.nodeLimit ?? difficulty.maxNodes,
+    probeLimit: request.workLimits?.probeLimit ?? difficulty.maxProbes,
+  };
   return {
-    schemaVersion: "ai-replay:v1",
+    schemaVersion: "ai-replay:v2",
     fight: {
       id: state.id,
       snapshotSchemaVersion: state.schemaVersion ?? 0,
@@ -93,14 +139,34 @@ export const createAiReplayRecord = (
       hash: canonicalLegalSetHash(request.legalDecisions),
     },
     mechanics: { version: request.mechanics.version, hash: canonicalHash(request.mechanics) },
-    engine: { version: "ai-engine:v1", evaluator: result.diagnostics?.evaluator.id ?? "unknown" },
+    pipeline: {
+      id: "ai-engine",
+      version: "ai-engine:v2",
+      evaluator: completeResult.diagnostics?.evaluator.id ?? "unknown",
+    },
     profile: {
       id: request.profile.identity.id,
       version: request.profile.identity.version,
       hash: canonicalHash(request.profile),
     },
+    ...(request.opponentProfile === undefined
+      ? {}
+      : {
+          opponentProfile: {
+            id: request.opponentProfile.identity.id,
+            version: request.opponentProfile.identity.version,
+            hash: canonicalHash(request.opponentProfile),
+          },
+        }),
+    advisoryModifiers: {
+      ...(request.advisoryPriorities === undefined
+        ? {}
+        : { version: request.advisoryPriorities.version }),
+      hash: canonicalHash(request.advisoryPriorities ?? { modifiers: [] }),
+    },
+    randomnessMode: request.dependencies.randomness ?? "enabled",
+    workLimits,
     seed: request.dependencies.random.rootSeed,
-    budgets: request.workLimits,
     selectedDecisionKey: canonicalDecisionKey(result.selectedDecision),
     rankingHash: rankingHashFor(evaluations),
     diagnosticRetention: request.diagnosticRetention ?? "none",
@@ -122,14 +188,17 @@ export const verifyAiReplayRecord = (
   record: AiReplayRecord,
   request: AiDecisionRequest,
 ): ReplayVerificationResult => {
+  if (record.schemaVersion !== "ai-replay:v2")
+    return {
+      ok: false,
+      mismatches: [mismatch("schema-version", "ai-replay:v2", record.schemaVersion)],
+    };
   const expected = createAiReplayRecord(request, {
     decision: request.legalDecisions[0]!,
     selectedDecision: request.legalDecisions[0]!,
     evaluations: [],
   });
   const mismatches: ReplayMismatch[] = [];
-  if (record.schemaVersion !== "ai-replay:v1")
-    mismatches.push(mismatch("schema-version", "ai-replay:v1", record.schemaVersion));
   if (record.fight.id !== expected.fight.id)
     mismatches.push(mismatch("fight-id", record.fight.id, expected.fight.id));
   if (record.fight.snapshotSchemaVersion !== expected.fight.snapshotSchemaVersion)
@@ -162,11 +231,24 @@ export const verifyAiReplayRecord = (
     record.profile.version !== expected.profile.version
   )
     mismatches.push(mismatch("profile", record.profile, expected.profile));
+  if (
+    record.pipeline.id !== expected.pipeline.id ||
+    record.pipeline.version !== expected.pipeline.version
+  )
+    mismatches.push(mismatch("pipeline", record.pipeline, expected.pipeline));
+  if (canonicalJson(record.opponentProfile) !== canonicalJson(expected.opponentProfile))
+    mismatches.push(mismatch("opponent-profile", record.opponentProfile, expected.opponentProfile));
+  if (canonicalJson(record.advisoryModifiers) !== canonicalJson(expected.advisoryModifiers))
+    mismatches.push(
+      mismatch("advisory-modifiers", record.advisoryModifiers, expected.advisoryModifiers),
+    );
+  if (record.randomnessMode !== expected.randomnessMode)
+    mismatches.push(mismatch("randomness-mode", record.randomnessMode, expected.randomnessMode));
   if (record.seed !== expected.seed) mismatches.push(mismatch("seed", record.seed, expected.seed));
-  if (canonicalJson(record.budgets) !== canonicalJson(expected.budgets))
-    mismatches.push(mismatch("budgets", record.budgets, expected.budgets));
+  if (canonicalJson(record.workLimits) !== canonicalJson(expected.workLimits))
+    mismatches.push(mismatch("work-limits", record.workLimits, expected.workLimits));
   if (mismatches.length > 0) return { ok: false, mismatches };
-  const rerun = selectLegalDecision({ ...request, diagnosticRetention: "full" });
+  const rerun = selectAiDecision({ ...request, diagnosticRetention: "full" });
   if (!rerun.ok)
     return {
       ok: false,

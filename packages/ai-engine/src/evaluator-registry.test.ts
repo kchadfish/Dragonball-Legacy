@@ -28,9 +28,22 @@ describe("AI evaluator registry", () => {
     );
   });
 
-  it("keeps Phase 0 fallback accounting baseline and records proof for every entry", () => {
+  it("records strategic proof for supported surfaces and documents source-selection baselines", () => {
     expect(
-      allAiEvaluatorRegistryEntries.every((entry) => entry.classification === "baseline"),
+      allAiEvaluatorRegistryEntries
+        .filter(
+          (entry) =>
+            entry.surface !== "select-source-action" && entry.surface !== "select-source-effect",
+        )
+        .every((entry) => entry.classification === "supported"),
+    ).toBe(true);
+    expect(
+      allAiEvaluatorRegistryEntries
+        .filter(
+          (entry) =>
+            entry.surface === "select-source-action" || entry.surface === "select-source-effect",
+        )
+        .every((entry) => entry.classification === "baseline" && entry.proofTarget !== undefined),
     ).toBe(true);
     expect(
       allAiEvaluatorRegistryEntries.every(

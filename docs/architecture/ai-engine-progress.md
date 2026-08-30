@@ -1,5 +1,28 @@
 # AI-engine implementation progress
 
+## 2026-08-30 - Steps 9-11 complete: NPC, simulation-consumer readiness, and decision-quality closure
+
+Steps 9 through 11 are complete for `ai-combat-scope:v1`.
+
+- Step 9 adds explicit `npc-ai` dependencies, validated stable NPC policies,
+  deterministic boss-phase resolution, typed tactical priorities compiled into
+  bounded `ai-engine` advisory modifiers, representative policies, and the
+  public `selectNpcDecision` adapter.
+- Step 10 adds `selectAiDecision` as the canonical selector, replay v2 with
+  pipeline/profile/advisory/randomness/work-limit identity, reduced public
+  diagnostic retention, a reproducible benchmark command, and a non-exported
+  AI-through-combat transition driver with an external safeguard.
+- Step 11 upgrades the generated matrix and closure validator to schema v5,
+  records consumer proofs, invariant accounting, and seven autonomous scenario
+  classes, and adds focused deterministic, advisory, replay, immutability,
+  legal-subset, empty-set, and retention regressions.
+
+Focused evidence is in `packages/ai-engine/src/phases-9-11.test.ts` and
+`packages/npc-ai/src/index.test.ts`. The benchmark is `npm run benchmark:ai`.
+The canonical combat transition boundary remains authoritative; no production
+`simulation` package, batch runner, or combat-rule implementation was added.
+The dedicated simulation roadmap is the next workstream.
+
 ## 2026-08-30 - Phase 0 complete: AI-000 through AI-030
 
 Phase 0 is implemented in `@dragonball-resurgence/ai-engine`.

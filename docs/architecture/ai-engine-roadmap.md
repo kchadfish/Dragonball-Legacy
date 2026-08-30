@@ -23,11 +23,12 @@ This roadmap owns dependency order, not current implementation status.
 
 ## Current repository baseline
 
-As of 2026-08-29:
+As of 2026-08-30:
 
 - `packages/ai-engine` exists with Phase 0 (AI-000 through AI-030) implemented;
   `packages/simulation` does not exist.
-- `packages/npc-ai` is a package shell whose public source exports nothing.
+- `packages/npc-ai` provides the validated NPC policy and public AI-selection
+  adapter; representative normal and multi-phase boss policies are examples.
 - Combat Phase 10's explicit local-1v1 scope boundary is complete under ADR 0006.
 - Combat Phase 11 catalog closure is complete, with the closed scope recorded
   in `ai-engine-progress.md`.
@@ -40,8 +41,9 @@ As of 2026-08-29:
   completion, the analysis/probe boundary, and branch-local speculative
   dependencies. AI Phase 0 consumes only the isolated keyed AI source.
 
-AI-000 through AI-030 are complete. The next resume point is AI-100, which will
-create the generated capability matrix.
+AI-000 through AI-1150 are complete for the active local 1v1 scope. The next
+workstream is the dedicated simulation roadmap; production simulation
+infrastructure remains intentionally absent.
 
 Update this baseline from verified repository evidence when implementation
 begins. Do not use it as a substitute for the combat progress record or

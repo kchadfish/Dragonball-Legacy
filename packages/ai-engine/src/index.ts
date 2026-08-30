@@ -14,3 +14,5 @@ export * from "./canonicalization.js";
 export * from "./strategic-utility.js";
 export * from "./lookahead.js";
 export * from "./replay.js";
+export * from "./advisory.js";
+export * from "./selection.js";

@@ -26,6 +26,7 @@
     "report:combat-mechanics": "tsx scripts/combat-mechanics-inventory.ts",
     "report:combat-capabilities": "tsx scripts/combat-capability-matrix.ts > docs/architecture/combat-engine-capability-matrix.md",
     "report:ai-capabilities": "tsx scripts/ai-capability-matrix.ts > docs/architecture/ai-engine-capability-matrix.md",
+    "benchmark:ai": "tsx scripts/benchmark-ai.ts",
     "validate:combat-capability-closure": "tsx scripts/validate-combat-capability-closure.ts",
     "validate:ai-capability-closure": "tsx scripts/validate-ai-capability-closure.ts",
     "validate:combat-engine-boundaries": "tsx scripts/validate-combat-engine-boundaries.ts",

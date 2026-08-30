@@ -2,11 +2,10 @@
 
 ## Status, purpose, and assumptions
 
-This is the design for future player-facing NPC AI and balance simulation. It
-does not claim that `@dragonball-resurgence/ai-engine` or
-`@dragonball-resurgence/simulation` exists today. At the time of writing,
-`npc-ai` is a package shell and the combat engine supports an intentionally
-narrow but growing rules slice.
+This is the design for player-facing NPC AI and the future balance simulation.
+The AI engine and NPC consumer adapter are implemented for the verified local
+1v1 scope. `@dragonball-resurgence/simulation` remains intentionally planned;
+the dedicated simulation roadmap is the next workstream.
 
 The design preserves the existing ownership boundary: game data declares game
 content, the combat engine alone resolves combat, AI chooses from engine-legal
@@ -70,12 +69,13 @@ Required engine-readiness properties are:
 * Rule slices define finite resolution or surface a typed failure; they do not
   silently loop.
 
-The engine currently already provides immutable transition-style state,
+The engine provides immutable transition-style state,
 `enumerateLegalDecisions`, structured events, completed fight state, and
-`SeededRandomSource`. Remaining capability gaps are tracked below rather than
-being represented as implemented.
+`SeededRandomSource`. AI consumer readiness is tracked in the AI progress and
+capability records; the remaining work here is the dedicated simulation
+package and its batch/reporting capabilities.
 
-### `@dragonball-resurgence/ai-engine` (new, planned)
+### `@dragonball-resurgence/ai-engine`
 
 This package implements reusable decision quality. It consumes a snapshot of
 the fight, legal decisions from the engine, game-data facts, a profile, and an
@@ -90,10 +90,10 @@ packages/ai-engine/src/
   lookahead/ opponent-modeling/ state-evaluation/ diagnostics/
 ```
 
-`npc-ai` remains separate as the thin adapter for NPC profile selection,
-boss-phase changes, and any explicitly scripted priorities. That keeps NPC
-content concerns out of the generic evaluator and lets simulations use the
-same decision system with a simulation-quality profile.
+`npc-ai` is the thin adapter for NPC profile selection, boss-phase changes, and
+explicitly scripted priorities. That keeps NPC content concerns out of the
+generic evaluator and lets simulations use the same decision system with a
+simulation-quality profile.
 
 ### `@dragonball-resurgence/simulation` (new, planned)
 

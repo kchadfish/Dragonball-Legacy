@@ -15,6 +15,7 @@ import {
 } from "./contracts.js";
 import { extractDecisionFeatures } from "./feature-extraction.js";
 import { descriptorIsUsable, evaluateImmediateCandidate } from "./immediate-utility.js";
+import { advisoryFactorsFor, validateAiAdvisoryPriorities } from "./advisory.js";
 
 export const CONTEXTUAL_EVALUATOR = {
   id: "ai-evaluator:combat-context",
@@ -343,7 +344,11 @@ const contextualEvaluationFor = (
     ...entry,
     evaluator: CONTEXTUAL_EVALUATOR,
   }));
-  const scoreFactors = [...baseFactors, ...contextualFactorsFor(feature)];
+  const scoreFactors = [
+    ...baseFactors,
+    ...contextualFactorsFor(feature),
+    ...advisoryFactorsFor(feature, request.advisoryPriorities),
+  ];
   return {
     ...base,
     evaluator: CONTEXTUAL_EVALUATOR,
@@ -355,6 +360,20 @@ const contextualEvaluationFor = (
 export const selectContextualDecision = (
   request: AiDecisionRequest,
 ): AiResult<AiDecisionResult> => {
+  if (request.advisoryPriorities !== undefined) {
+    const advisory = validateAiAdvisoryPriorities(request.advisoryPriorities);
+    if (!advisory.ok)
+      return {
+        ok: false,
+        error: {
+          type: "invalid-request",
+          issues: advisory.issues.map((entry) => ({
+            path: `advisoryPriorities.${entry.path}`,
+            message: entry.message,
+          })),
+        },
+      };
+  }
   const failure = validateRequest(request);
   if (failure !== undefined) return { ok: false, error: failure };
   const features: AiDecisionFeature[] = [];
