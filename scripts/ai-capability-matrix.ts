@@ -9,6 +9,7 @@ import {
   IMMEDIATE_UTILITY_EVALUATOR,
   type AiEvaluatorRegistryEntry,
   type ResponseShapeType,
+  contextualEvaluatorRegistryEntries,
 } from "../packages/ai-engine/src/index.js";
 import {
   registeredScopeDecisions,
@@ -45,8 +46,16 @@ export interface AiImmediateEvaluatorRow {
   readonly proof: string;
 }
 
+export interface AiContextualEvaluatorRow {
+  readonly id: string;
+  readonly code: string;
+  readonly evaluator: { readonly id: string; readonly version: string };
+  readonly status: "complete";
+  readonly proof: string;
+}
+
 export interface AiCapabilityMatrix {
-  readonly schemaVersion: "ai-engine-capability-matrix:v2";
+  readonly schemaVersion: "ai-engine-capability-matrix:v3";
   readonly scopeVersion: string;
   readonly generatedAt: string;
   readonly authority: Readonly<Record<string, string>>;
@@ -54,6 +63,7 @@ export interface AiCapabilityMatrix {
   readonly pendingSurfaces: readonly AiCapabilityMatrixRow[];
   readonly responseShapes: readonly AiCapabilityMatrixRow[];
   readonly immediateEvaluators: readonly AiImmediateEvaluatorRow[];
+  readonly contextualEvaluators: readonly AiContextualEvaluatorRow[];
   readonly exclusions: readonly ScopeDecision[];
   readonly coverageEvidence: readonly AiCoverageEvidence[];
   readonly capabilityGaps: readonly AiCapabilityGap[];
@@ -159,7 +169,7 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
       });
 
   return {
-    schemaVersion: "ai-engine-capability-matrix:v2",
+    schemaVersion: "ai-engine-capability-matrix:v3",
     scopeVersion: sourceFixture.scopeVersion,
     generatedAt: sourceFixture.generatedAt,
     authority: {
@@ -176,6 +186,7 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
       status: "complete" as const,
       proof: "packages/ai-engine/src/immediate-utility.test.ts",
     })),
+    contextualEvaluators: contextualEvaluatorRegistryEntries,
     exclusions: registeredScopeDecisions,
     coverageEvidence: coverageEvidence.sort((left, right) => left.id.localeCompare(right.id)),
     capabilityGaps: [
@@ -198,10 +209,13 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
       {
         roadmapId: "AI-300 through AI-340",
         capability: "state, status, transformation, scarcity, and pending-choice context",
-        status: "ready",
+        status: "complete",
         prerequisite: "AI-200 through AI-240",
         proofTarget: "state-aware evaluator and pending parity tests",
-        proof: { status: "ready", evidence: "AI-200 through AI-240 complete" },
+        proof: {
+          status: "verified",
+          evidence: "packages/ai-engine/src/contextual-utility.test.ts",
+        },
       },
       {
         roadmapId: "AI-400 through AI-540",
@@ -276,6 +290,12 @@ ${renderSection("Response shapes", matrix.responseShapes)}
 | ID | Code | Evaluator | Status | Proof |
 | --- | --- | --- | --- | --- |
 ${matrix.immediateEvaluators.map((entry) => `| ${cell(entry.id)} | ${cell(entry.code)} | ${cell(`${entry.evaluator.id}@${entry.evaluator.version}`)} | ${cell(entry.status)} | ${cell(entry.proof)} |`).join("\n")}
+
+## Contextual evaluators
+
+| ID | Code | Evaluator | Status | Proof |
+| --- | --- | --- | --- | --- |
+${matrix.contextualEvaluators.map((entry) => `| ${cell(entry.id)} | ${cell(entry.code)} | ${cell(`${entry.evaluator.id}@${entry.evaluator.version}`)} | ${cell(entry.status)} | ${cell(entry.proof)} |`).join("\n")}
 
 ## Approved exclusions
 

@@ -17,6 +17,7 @@ describe("AI capability matrix", () => {
     expect(matrix.pendingSurfaces).toHaveLength(7);
     expect(matrix.responseShapes).toHaveLength(4);
     expect(matrix.immediateEvaluators).toHaveLength(9);
+    expect(matrix.contextualEvaluators).toHaveLength(9);
     expect(matrix.exclusions).toHaveLength(14);
     expect(matrix.capabilityGaps.find((gap) => gap.roadmapId === "AI-200")).toMatchObject({
       status: "complete",
@@ -58,6 +59,7 @@ describe("AI capability matrix", () => {
     expect(rendered).toContain("AI-200");
     expect(rendered).toContain("AI-600 through AI-750");
     expect(rendered).toContain("AI-300 through AI-340");
+    expect(rendered).toContain("Contextual evaluators");
     expect(rendered).toContain("complete");
   });
 });

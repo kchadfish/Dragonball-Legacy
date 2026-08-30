@@ -9,6 +9,7 @@ import {
   responseShapeEvaluatorRegistry,
   responseShapeTypes,
   immediateUtilityEvaluatorRegistry,
+  contextualEvaluatorRegistryEntries,
 } from "./index.js";
 
 describe("AI evaluator registry", () => {
@@ -53,5 +54,15 @@ describe("AI evaluator registry", () => {
       "tactical-clamp",
       "baseline-fallback",
     ]);
+  });
+
+  it("registers every Phase 3 context evaluator with focused proof", () => {
+    expect(contextualEvaluatorRegistryEntries).toHaveLength(9);
+    expect(
+      contextualEvaluatorRegistryEntries.every(
+        (entry) =>
+          entry.status === "complete" && entry.proof.includes("contextual-utility.test.ts"),
+      ),
+    ).toBe(true);
   });
 });

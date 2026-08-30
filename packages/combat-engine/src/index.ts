@@ -11,6 +11,7 @@ export * from "./create-fight.js";
 export * from "./dependencies.js";
 export * from "./declarative-runtime.js";
 export * from "./decision-descriptors.js";
+export * from "./strategic-context.js";
 export * from "./effect-lifecycle.js";
 export * from "./effect-executors.js";
 export * from "./fight-flow-scheduler.js";

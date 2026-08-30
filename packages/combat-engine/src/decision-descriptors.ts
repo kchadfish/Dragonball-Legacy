@@ -21,6 +21,7 @@ import {
 import type { CombatantId } from "./ids.js";
 import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
 import { calculateAttackDamage } from "./combat-mechanics.js";
+import { strategicContextFor, type StrategicContextSummary } from "./strategic-context.js";
 
 export type DecisionCategory =
   | "pass"
@@ -176,6 +177,8 @@ export interface CombatDecisionDescriptor {
   readonly selection?: DecisionSelectionFact;
   readonly terminal: "none" | "surrender-loss";
   readonly immediateOutcome: ImmediateOutcomeSummary;
+  /** Versioned non-authoritative context for strategic weighting. */
+  readonly strategicContext?: StrategicContextSummary;
   readonly outcomeProbe: DecisionOutcomeProbeReference;
 }
 
@@ -706,6 +709,12 @@ export const describeLegalDecision = (
     activeState === undefined ? "response" : actionConsumptionFor(activeState, decision);
   const costs = activeState === undefined ? [] : probeLegalDecisionCosts(activeState, decision);
   const effects = effectsFor(decision);
+  const effectiveScarcity =
+    activeState === undefined ? [] : probeLegalDecisionScarcity(activeState, decision);
+  const selection =
+    activeState === undefined || decision.type !== "respond-to-pending-decision"
+      ? undefined
+      : selectionFor(activeState, decision);
   const terminal = decision.type === "surrender" ? "surrender-loss" : "none";
   return {
     key,
@@ -713,11 +722,9 @@ export const describeLegalDecision = (
     actionConsumption,
     costs,
     effects,
-    scarcity: activeState === undefined ? [] : probeLegalDecisionScarcity(activeState, decision),
+    scarcity: effectiveScarcity,
     targets: activeState === undefined ? [] : targetFactsFor(activeState, decision),
-    ...(activeState === undefined || decision.type !== "respond-to-pending-decision"
-      ? {}
-      : { selection: selectionFor(activeState, decision) }),
+    ...(selection === undefined ? {} : { selection }),
     terminal,
     immediateOutcome:
       activeState === undefined
@@ -740,6 +747,19 @@ export const describeLegalDecision = (
             unknownFacts: ["state"],
           }
         : immediateOutcomeFor(activeState, decision, costs, actionConsumption),
+    ...(activeState === undefined
+      ? {}
+      : {
+          strategicContext: strategicContextFor(
+            activeState,
+            decision,
+            actionConsumption,
+            costs,
+            effects,
+            effectiveScarcity,
+            selection,
+          ),
+        }),
     outcomeProbe: { type: "combat-transition", decisionKey: key },
   };
 };

@@ -6,6 +6,7 @@ import type {
   FightState,
   LegalDecision,
   PendingDecision,
+  StrategicContextSummary,
 } from "@dragonball-resurgence/combat-engine";
 import type {
   ItemDefinition,
@@ -24,6 +25,35 @@ export interface AiEvaluatorIdentity {
 
 export type ScoreFactorBasis =
   | { readonly type: "none" }
+  | {
+      readonly type: "state";
+      readonly metric: "survival-pressure" | "resource-pressure" | "tempo" | "momentum" | "horizon";
+      readonly value: number;
+    }
+  | {
+      readonly type: "effect-control";
+      readonly executorType: string;
+      readonly affectedOptionCount: number;
+      readonly redundant: boolean;
+    }
+  | {
+      readonly type: "transformation";
+      readonly operation: "activate" | "deactivate";
+      readonly netCombatValue: number;
+      readonly horizon: number;
+    }
+  | {
+      readonly type: "scarcity";
+      readonly kind: string;
+      readonly remaining?: number;
+      readonly finalUse: boolean;
+    }
+  | {
+      readonly type: "pending";
+      readonly role: string;
+      readonly selected: boolean;
+      readonly optional: boolean;
+    }
   | {
       readonly type: "normalized-amount";
       readonly resource: "hp" | "ki";
@@ -153,6 +183,7 @@ export interface AiDecisionFeatureBase {
   readonly targets: CombatDecisionDescriptor["targets"];
   readonly terminal: CombatDecisionDescriptor["terminal"];
   readonly immediateOutcome: CombatDecisionDescriptor["immediateOutcome"];
+  readonly strategicContext?: StrategicContextSummary;
   readonly authoritative: {
     readonly costs: CombatDecisionDescriptor["costs"];
     readonly effects: CombatDecisionDescriptor["effects"];
@@ -160,6 +191,7 @@ export interface AiDecisionFeatureBase {
     readonly targets: CombatDecisionDescriptor["targets"];
     readonly terminal: CombatDecisionDescriptor["terminal"];
     readonly immediateOutcome: CombatDecisionDescriptor["immediateOutcome"];
+    readonly strategicContext?: StrategicContextSummary;
   };
   readonly state: AiAuthoritativeStateContext;
   readonly mechanics?: AiMechanicsReference;

@@ -258,7 +258,40 @@ simulate them from source prose.
 - Closed scope version: `ai-combat-scope:v1`.
 - Combat authority: `@dragonball-resurgence/combat-engine` public legal and
   transition boundaries.
-- AI implementation status: Phase 0 complete through AI-030.
-- Next resume point: AI-100, generated AI capability accounting. PRE-010 through
-  PRE-040 are complete prerequisites, and the fallback consumes only complete
-  supplied legal members.
+- AI implementation status: Phase 3 complete through AI-340.
+- Next resume point: AI-400, personality and difficulty weighting. PRE-010
+  through PRE-040 are complete prerequisites, and contextual selection consumes
+  only complete supplied legal members.
+
+## 2026-08-30 - Phase 3 complete: AI-300 through AI-340
+
+Phase 3 is complete for the combat-context slice. The AI now consumes the
+combat-engine-owned `strategic-context:v1` summary in a contextual policy whose
+evaluator identity is `ai-evaluator:combat-context@combat-context:v1`.
+
+- AI-300 adds deterministic HP/Ki pressure, turn/phase, recent-action,
+  pending-work, initiative, and bounded short/medium/long horizon facts.
+- AI-310 classifies active status/control facts by typed executor discriminants,
+  including locks, forced actions, prevention/immunity, defensive impairment,
+  buffs/debuffs, duration/expiry, stacks, redundancy, and affected option counts.
+- AI-320 records activation and deactivation deltas for HP, stats, action cost,
+  stability, cooldown, current duration, and gained/lost capability types.
+- AI-330 records move, item, effect, transformation-opportunity, reaction, and
+  cooldown scarcity. Final-use conservation is bounded and suppressed for
+  guaranteed wins or defeat prevention.
+- AI-340 sends pending responses through the same extraction, factor, ranking,
+  tie-break, and diagnostics pipeline as ordinary choices, retaining decline
+  semantics and selected option roles.
+
+`selectImmediateUtilityDecision` remains the explicit Phase 2 policy.
+`selectLegalDecision` uses the contextual policy when a descriptor facade is
+available and retains the safe fallback when it is absent. Exact supplied legal
+object identity, canonical order-independent ties, immutable state,
+diagnostic-retention invariance, and no combat-probe/live-RNG use remain
+preserved.
+
+Focused evidence is in `packages/combat-engine/src/analysis.test.ts` and
+`packages/ai-engine/src/contextual-utility.test.ts`. The generated AI
+capability matrix is schema v3, registers nine contextual evaluators, and marks
+AI-300 through AI-340 complete. The next resume point is AI-400; personality,
+difficulty, setup inference, lookahead, and NPC integration remain deferred.

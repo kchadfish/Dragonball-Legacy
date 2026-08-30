@@ -1,5 +1,7 @@
 import type { LegalDecision, PendingDecision } from "@dragonball-resurgence/combat-engine";
 
+import { CONTEXTUAL_EVALUATOR, contextualEvaluatorRegistry } from "./contextual-utility.js";
+
 export const legalDecisionTypes = [
   "pass",
   "power-up",
@@ -161,6 +163,14 @@ export const allAiEvaluatorRegistryEntries = [
   ...Object.values(pendingDecisionEvaluatorRegistry),
   ...Object.values(responseShapeEvaluatorRegistry),
 ] as const;
+
+export const contextualEvaluatorRegistryEntries = contextualEvaluatorRegistry.map((code) => ({
+  id: `ai-evaluator:${code}`,
+  code,
+  evaluator: CONTEXTUAL_EVALUATOR,
+  status: "complete" as const,
+  proof: "packages/ai-engine/src/contextual-utility.test.ts",
+}));
 
 export const legalDecisionEvaluatorFor = (type: LegalDecision["type"]): AiEvaluatorRegistryEntry =>
   legalDecisionEvaluatorRegistry[type];

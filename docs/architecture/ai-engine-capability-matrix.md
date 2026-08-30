@@ -61,6 +61,20 @@ Generated from scope `ai-combat-scope:v1` on 2026-08-30. This is an accounting a
 | ai-evaluator:tactical-clamp | tactical-clamp | ai-evaluator:baseline-immediate@baseline-immediate:v1 | complete | packages/ai-engine/src/immediate-utility.test.ts |
 | ai-evaluator:baseline-fallback | baseline-fallback | ai-evaluator:baseline-immediate@baseline-immediate:v1 | complete | packages/ai-engine/src/immediate-utility.test.ts |
 
+## Contextual evaluators
+
+| ID | Code | Evaluator | Status | Proof |
+| --- | --- | --- | --- | --- |
+| ai-evaluator:state-survival-pressure | state-survival-pressure | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:state-resource-pressure | state-resource-pressure | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:state-tempo | state-tempo | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:state-recent-momentum | state-recent-momentum | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:state-horizon | state-horizon | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:status-control | status-control | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:transformation-context | transformation-context | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:scarcity-conservation | scarcity-conservation | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+| ai-evaluator:pending-response | pending-response | ai-evaluator:combat-context@combat-context:v1 | complete | packages/ai-engine/src/contextual-utility.test.ts |
+
 ## Approved exclusions
 
 | Scope decision ID | Category | Reason |
@@ -114,7 +128,7 @@ Generated from scope `ai-combat-scope:v1` on 2026-08-30. This is an accounting a
 | --- | --- | --- | --- | --- | --- |
 | AI-200 | structured score-factor and diagnostic foundation | complete | Phase 1 accounting and AI-030 baseline | focused score-factor and diagnostic tests | verified: packages/ai-engine/src/immediate-utility.test.ts |
 | AI-210 through AI-240 | resource, terminal, action-economy utility, and baseline chooser | complete | AI-200 | authoritative feature and chooser behavior tests | verified: packages/ai-engine/src/immediate-utility.test.ts |
-| AI-300 through AI-340 | state, status, transformation, scarcity, and pending-choice context | ready | AI-200 through AI-240 | state-aware evaluator and pending parity tests | ready: AI-200 through AI-240 complete |
+| AI-300 through AI-340 | state, status, transformation, scarcity, and pending-choice context | complete | AI-200 through AI-240 | state-aware evaluator and pending parity tests | verified: packages/ai-engine/src/contextual-utility.test.ts |
 | AI-400 through AI-540 | personality, difficulty, and declarative setup inference | deferred | AI-200 through AI-340 | profile and setup-value evaluator tests | deferred: later phase |
 | AI-600 through AI-750 | authoritative outcome analysis, pruning, and lookahead | deferred | PRE-030 and AI-200 through AI-540 | budgeted branch and deterministic lookahead tests | deferred: later phase |
 

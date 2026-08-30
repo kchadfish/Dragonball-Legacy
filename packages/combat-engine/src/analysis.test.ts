@@ -98,6 +98,26 @@ describe("combat analysis boundary", () => {
     expect(JSON.stringify(fight)).toBe(before);
   });
 
+  it("includes a deterministic strategic context without changing the fight", () => {
+    const fight = state(["move-akaikaru-firestorm"]);
+    const before = JSON.stringify(fight);
+    const pass = { type: "pass" as const, actorId };
+    const first = describeLegalDecision(fight, pass);
+    const second = describeLegalDecision(fight, pass);
+
+    expect(first.strategicContext).toEqual(second.strategicContext);
+    expect(first.strategicContext).toMatchObject({
+      version: "strategic-context:v1",
+      completeness: "complete",
+      actor: { hp: { ratio: 1 }, ki: { ratio: 1 }, activeTransformation: false },
+      opponent: { hp: { ratio: 1 }, ki: { ratio: 1 } },
+      turn: { number: 1, phase: "action", actorHasInitiative: true },
+      pendingWork: { active: false, optionCount: 0 },
+      horizon: { short: 1, basis: "bounded-local-1v1-estimate" },
+    });
+    expect(JSON.stringify(fight)).toBe(before);
+  });
+
   it("probes a legal decision through the normal immutable transition boundary", () => {
     const fight = state();
     const pass = enumerateLegalDecisions(fight, actorId).find(

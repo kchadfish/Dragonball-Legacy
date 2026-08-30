@@ -185,6 +185,9 @@ export const extractDecisionFeatures = (
     targets: input.descriptor.targets,
     terminal: input.descriptor.terminal,
     immediateOutcome: input.descriptor.immediateOutcome,
+    ...(input.descriptor.strategicContext === undefined
+      ? {}
+      : { strategicContext: input.descriptor.strategicContext }),
     authoritative: {
       costs: input.descriptor.costs,
       effects: input.descriptor.effects,
@@ -192,6 +195,9 @@ export const extractDecisionFeatures = (
       targets: input.descriptor.targets,
       terminal: input.descriptor.terminal,
       immediateOutcome: input.descriptor.immediateOutcome,
+      ...(input.descriptor.strategicContext === undefined
+        ? {}
+        : { strategicContext: input.descriptor.strategicContext }),
     },
     state: {
       status: "active",

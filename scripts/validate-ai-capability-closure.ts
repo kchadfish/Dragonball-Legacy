@@ -72,7 +72,7 @@ export const validateAiCapabilityClosure = (
   const issues: string[] = [];
   const schemaVersion: string = matrix.schemaVersion;
   const scopeVersion: string = matrix.scopeVersion;
-  if (schemaVersion !== "ai-engine-capability-matrix:v2")
+  if (schemaVersion !== "ai-engine-capability-matrix:v3")
     issues.push("Invalid AI capability matrix schema version.");
   if (scopeVersion !== "ai-combat-scope:v1")
     issues.push("AI capability matrix must use ai-combat-scope:v1.");
@@ -85,6 +85,12 @@ export const validateAiCapabilityClosure = (
   if (evaluatorCodes.size !== matrix.immediateEvaluators.length)
     issues.push("Immediate utility evaluator codes must be unique.");
   for (const evaluator of matrix.immediateEvaluators) {
+    if (evaluator.status !== "complete") issues.push(`${evaluator.id}: evaluator is not complete.`);
+    if (evaluator.proof.length === 0) issues.push(`${evaluator.id}: missing proof.`);
+  }
+  if (matrix.contextualEvaluators.length === 0)
+    issues.push("Contextual evaluator registry must not be empty.");
+  for (const evaluator of matrix.contextualEvaluators) {
     if (evaluator.status !== "complete") issues.push(`${evaluator.id}: evaluator is not complete.`);
     if (evaluator.proof.length === 0) issues.push(`${evaluator.id}: missing proof.`);
   }

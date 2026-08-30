@@ -20,6 +20,7 @@ import {
 } from "./contracts.js";
 import { extractDecisionFeatures } from "./feature-extraction.js";
 import { selectSafeLegalDecision } from "./safe-fallback.js";
+import { selectContextualDecision } from "./contextual-utility.js";
 
 export const IMMEDIATE_UTILITY_EVALUATOR = {
   id: "ai-evaluator:baseline-immediate",
@@ -67,7 +68,7 @@ const analysisFailure = (
 
 // Runtime descriptor validation intentionally checks the complete required summary shape.
 // eslint-disable-next-line complexity
-const descriptorIsUsable = (descriptor: unknown): descriptor is CombatDecisionDescriptor => {
+export const descriptorIsUsable = (descriptor: unknown): descriptor is CombatDecisionDescriptor => {
   if (descriptor === null || typeof descriptor !== "object") return false;
   const summary = (descriptor as { readonly immediateOutcome?: unknown }).immediateOutcome;
   if (summary === null || typeof summary !== "object") return false;
@@ -241,7 +242,7 @@ const tacticalCodes = new Set([
   "action-economy",
 ]);
 
-const evaluateCandidate = (
+export const evaluateImmediateCandidate = (
   feature: AiDecisionFeature,
   state: FightState,
   hasPositiveAlternative: boolean,
@@ -438,7 +439,7 @@ export const selectImmediateUtilityDecision = (
 
   const hasViableAlternative = features.some((feature) => feature.decision.type !== "surrender");
   const preliminary = features.map((feature) =>
-    evaluateCandidate(
+    evaluateImmediateCandidate(
       feature,
       request.state,
       false,
@@ -450,7 +451,7 @@ export const selectImmediateUtilityDecision = (
     (evaluation) => evaluation.decision.type !== "surrender" && evaluation.totalScore > 0,
   );
   const evaluated = features.map((feature) =>
-    evaluateCandidate(
+    evaluateImmediateCandidate(
       feature,
       request.state,
       hasPositiveAlternative,
@@ -520,4 +521,4 @@ export const selectImmediateUtilityDecision = (
 export const selectLegalDecision = (request: AiDecisionRequest): AiResult<AiDecisionResult> =>
   request.analysis?.describeDecision === undefined
     ? selectSafeLegalDecision(request)
-    : selectImmediateUtilityDecision(request as AiImmediateUtilityRequest);
+    : selectContextualDecision(request);

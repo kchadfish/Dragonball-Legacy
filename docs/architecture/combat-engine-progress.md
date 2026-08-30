@@ -5819,3 +5819,22 @@ This contract is intentionally immediate and descriptive. It does not claim
 probabilities, resolve pending choices, or replace the later analysis/probe and
 lookahead phases. AI Phase 2 consumes it through the public descriptor facade;
 the combat engine remains authoritative for all formulas and transitions.
+
+## 2026-08-30 - Strategic context descriptor for AI Phase 3
+
+The combat-engine descriptor boundary now also emits an optional, versioned
+`strategic-context:v1` summary for active legal decisions. The summary is
+assembled from the immutable fight snapshot, compiled effect discriminants,
+selector-resolved active effects, pending candidates, and the existing
+cost/scarcity probes. It records actor/opponent resource and transformation
+state, turn/phase/recent action, pending workload, deterministic fight-horizon
+estimates, generic status/control impacts, transformation activation/reversion
+deltas, expanded scarcity, and selected pending-option roles with decline
+semantics.
+
+The summary is descriptive only. It does not alter `FightState`, snapshot
+schema, rules version, legal enumeration, transition behavior, randomness, or
+event output. Unknown transformation or lifecycle facts remain explicit in
+`completeness` and `unknownFacts`. Mechanic classification uses typed executor
+discriminants rather than definition IDs. The next combat-engine resume point
+is unchanged; the next AI resume point is AI-400.

@@ -4,3 +4,4 @@ export * from "./safe-fallback.js";
 export * from "./feature-extraction.js";
 export * from "./evaluator-registry.js";
 export * from "./immediate-utility.js";
+export * from "./contextual-utility.js";
