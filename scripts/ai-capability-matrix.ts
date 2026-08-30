@@ -1,0 +1,313 @@
+import {
+  legalDecisionEvaluatorRegistry,
+  legalDecisionTypes,
+  pendingDecisionEvaluatorRegistry,
+  pendingDecisionTypes,
+  responseShapeEvaluatorRegistry,
+  responseShapeTypes,
+  immediateUtilityEvaluatorRegistry,
+  IMMEDIATE_UTILITY_EVALUATOR,
+  type AiEvaluatorRegistryEntry,
+  type ResponseShapeType,
+} from "../packages/ai-engine/src/index.js";
+import {
+  registeredScopeDecisions,
+  type ScopeDecision,
+} from "../packages/combat-engine/src/index.js";
+import fixture from "../docs/architecture/ai-engine-legal-decision-fixtures.json" with { type: "json" };
+
+export interface AiCapabilityMatrixRow extends AiEvaluatorRegistryEntry {
+  readonly kind: "legal-decision" | "pending-decision" | "response-shape";
+}
+
+export interface AiCoverageEvidence {
+  readonly id: string;
+  readonly kind: "legal-decision" | "pending-decision" | "response-shape";
+  readonly surface: string;
+  readonly source: string;
+  readonly behavior: string;
+}
+
+export interface AiCapabilityGap {
+  readonly roadmapId: string;
+  readonly capability: string;
+  readonly status: "complete" | "ready" | "deferred";
+  readonly prerequisite: string;
+  readonly proofTarget: string;
+  readonly proof: { readonly status: "verified" | "ready" | "deferred"; readonly evidence: string };
+}
+
+export interface AiImmediateEvaluatorRow {
+  readonly id: string;
+  readonly code: string;
+  readonly evaluator: typeof IMMEDIATE_UTILITY_EVALUATOR;
+  readonly status: "complete";
+  readonly proof: string;
+}
+
+export interface AiCapabilityMatrix {
+  readonly schemaVersion: "ai-engine-capability-matrix:v2";
+  readonly scopeVersion: string;
+  readonly generatedAt: string;
+  readonly authority: Readonly<Record<string, string>>;
+  readonly legalSurfaces: readonly AiCapabilityMatrixRow[];
+  readonly pendingSurfaces: readonly AiCapabilityMatrixRow[];
+  readonly responseShapes: readonly AiCapabilityMatrixRow[];
+  readonly immediateEvaluators: readonly AiImmediateEvaluatorRow[];
+  readonly exclusions: readonly ScopeDecision[];
+  readonly coverageEvidence: readonly AiCoverageEvidence[];
+  readonly capabilityGaps: readonly AiCapabilityGap[];
+}
+
+interface AiFixture {
+  readonly scopeVersion: string;
+  readonly generatedAt: string;
+  readonly authority: Readonly<Record<string, string>>;
+  readonly ordinaryLegalDecisionFixtures: readonly {
+    readonly id: string;
+    readonly sourceTest: string;
+    readonly sourceBehavior: string;
+    readonly legalDecisions: readonly { readonly type: string }[];
+  }[];
+  readonly pendingDecisionFixtures: readonly {
+    readonly id: string;
+    readonly sourceTest: string;
+    readonly sourceBehavior: string;
+    readonly pendingDecision: { readonly type: string };
+  }[];
+  readonly selectionCardinalityFixtures: readonly {
+    readonly selection: { readonly type: string };
+    readonly sourceTest: string;
+    readonly responseStatus: string;
+  }[];
+  readonly declaredPendingTypesWithoutCurrentPublicTransitionFixture: readonly string[];
+}
+
+const sourceFixture = fixture as AiFixture;
+
+const entryRows = (
+  kind: AiCapabilityMatrixRow["kind"],
+  entries: readonly AiEvaluatorRegistryEntry[],
+): readonly AiCapabilityMatrixRow[] => entries.map((entry) => ({ ...entry, kind }));
+
+const responseEvidenceFor = (type: ResponseShapeType): AiCoverageEvidence => {
+  const source = sourceFixture.selectionCardinalityFixtures.find(
+    (candidate) => candidate.selection.type === type,
+  );
+  if (source !== undefined)
+    return {
+      id: `fixture:response-${type}`,
+      kind: "response-shape",
+      surface: type,
+      source: source.sourceTest,
+      behavior: source.responseStatus,
+    };
+  return {
+    id: "fixture:engine-authored-options",
+    kind: "response-shape",
+    surface: type,
+    source: "docs/architecture/ai-engine-legal-decision-fixtures.json",
+    behavior: "engine-authored options have no declarative selection metadata",
+  };
+};
+
+export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
+  const legalSurfaces = entryRows("legal-decision", Object.values(legalDecisionEvaluatorRegistry));
+  const pendingSurfaces = entryRows(
+    "pending-decision",
+    Object.values(pendingDecisionEvaluatorRegistry),
+  );
+  const responseShapes = entryRows("response-shape", Object.values(responseShapeEvaluatorRegistry));
+  const coverageEvidence: AiCoverageEvidence[] = [];
+  for (const fixtureEntry of sourceFixture.ordinaryLegalDecisionFixtures) {
+    for (const decision of fixtureEntry.legalDecisions) {
+      coverageEvidence.push({
+        id: `${fixtureEntry.id}:legal-${decision.type}`,
+        kind: "legal-decision",
+        surface: decision.type,
+        source: fixtureEntry.sourceTest,
+        behavior: fixtureEntry.sourceBehavior,
+      });
+    }
+  }
+  for (const fixtureEntry of sourceFixture.pendingDecisionFixtures)
+    coverageEvidence.push({
+      id: `${fixtureEntry.id}:pending-${fixtureEntry.pendingDecision.type}`,
+      kind: "pending-decision",
+      surface: fixtureEntry.pendingDecision.type,
+      source: fixtureEntry.sourceTest,
+      behavior: fixtureEntry.sourceBehavior,
+    });
+  coverageEvidence.push(...responseShapeTypes.map(responseEvidenceFor));
+  for (const row of legalSurfaces)
+    if (!coverageEvidence.some((entry) => entry.kind === row.kind && entry.surface === row.surface))
+      coverageEvidence.push({
+        id: `registry:${row.id}`,
+        kind: row.kind,
+        surface: row.surface,
+        source: row.focusedProof,
+        behavior: "public legal-decision union member accounted by the baseline evaluator",
+      });
+  for (const row of pendingSurfaces)
+    if (!coverageEvidence.some((entry) => entry.kind === row.kind && entry.surface === row.surface))
+      coverageEvidence.push({
+        id: `registry:${row.id}`,
+        kind: row.kind,
+        surface: row.surface,
+        source: row.focusedProof,
+        behavior: "closed pending-decision union member accounted by the baseline evaluator",
+      });
+
+  return {
+    schemaVersion: "ai-engine-capability-matrix:v2",
+    scopeVersion: sourceFixture.scopeVersion,
+    generatedAt: sourceFixture.generatedAt,
+    authority: {
+      ...sourceFixture.authority,
+      publicDescriptors: "packages/combat-engine/src/decision-descriptors.ts",
+    },
+    legalSurfaces,
+    pendingSurfaces,
+    responseShapes,
+    immediateEvaluators: immediateUtilityEvaluatorRegistry.map((code) => ({
+      id: `ai-evaluator:${code}`,
+      code,
+      evaluator: IMMEDIATE_UTILITY_EVALUATOR,
+      status: "complete" as const,
+      proof: "packages/ai-engine/src/immediate-utility.test.ts",
+    })),
+    exclusions: registeredScopeDecisions,
+    coverageEvidence: coverageEvidence.sort((left, right) => left.id.localeCompare(right.id)),
+    capabilityGaps: [
+      {
+        roadmapId: "AI-200",
+        capability: "structured score-factor and diagnostic foundation",
+        status: "complete",
+        prerequisite: "Phase 1 accounting and AI-030 baseline",
+        proofTarget: "focused score-factor and diagnostic tests",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/immediate-utility.test.ts" },
+      },
+      {
+        roadmapId: "AI-210 through AI-240",
+        capability: "resource, terminal, action-economy utility, and baseline chooser",
+        status: "complete",
+        prerequisite: "AI-200",
+        proofTarget: "authoritative feature and chooser behavior tests",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/immediate-utility.test.ts" },
+      },
+      {
+        roadmapId: "AI-300 through AI-340",
+        capability: "state, status, transformation, scarcity, and pending-choice context",
+        status: "ready",
+        prerequisite: "AI-200 through AI-240",
+        proofTarget: "state-aware evaluator and pending parity tests",
+        proof: { status: "ready", evidence: "AI-200 through AI-240 complete" },
+      },
+      {
+        roadmapId: "AI-400 through AI-540",
+        capability: "personality, difficulty, and declarative setup inference",
+        status: "deferred",
+        prerequisite: "AI-200 through AI-340",
+        proofTarget: "profile and setup-value evaluator tests",
+        proof: { status: "deferred", evidence: "later phase" },
+      },
+      {
+        roadmapId: "AI-600 through AI-750",
+        capability: "authoritative outcome analysis, pruning, and lookahead",
+        status: "deferred",
+        prerequisite: "PRE-030 and AI-200 through AI-540",
+        proofTarget: "budgeted branch and deterministic lookahead tests",
+        proof: { status: "deferred", evidence: "later phase" },
+      },
+    ],
+  };
+};
+
+const cell = (value: string | readonly string[]): string =>
+  (Array.isArray(value) ? value.join("; ") : value).replaceAll("|", "\\|");
+
+const renderRows = (rows: readonly AiCapabilityMatrixRow[]): string =>
+  rows
+    .map(
+      (row) =>
+        `| ${cell(row.id)} | ${cell(row.surface)} | ${cell(row.classification)} | ${cell(row.roadmapOwner)} | ${cell(row.featureExtractor)} | ${cell(row.prerequisites)} | ${cell(row.representativeScenario)} | ${cell(row.focusedProof)} |`,
+    )
+    .join("\n");
+
+const renderSection = (title: string, rows: readonly AiCapabilityMatrixRow[]): string =>
+  `## ${title}\n\n| ID | Surface | Classification | Roadmap owner | Feature extractor | Prerequisites | Representative scenario | Focused proof |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n${renderRows(rows)}`;
+
+export const renderAiCapabilityMatrix = (matrix = createAiCapabilityMatrix()): string => {
+  const evidence = matrix.coverageEvidence
+    .map(
+      (entry) =>
+        `| ${cell(entry.id)} | ${cell(entry.kind)} | ${cell(entry.surface)} | ${cell(entry.source)} | ${cell(entry.behavior)} |`,
+    )
+    .join("\n");
+  const exclusions = matrix.exclusions
+    .map((entry) => `| ${cell(entry.id)} | ${cell(entry.category)} | ${cell(entry.reason)} |`)
+    .join("\n");
+  const gaps = matrix.capabilityGaps
+    .map(
+      (entry) =>
+        `| ${cell(entry.roadmapId)} | ${cell(entry.capability)} | ${cell(entry.status)} | ${cell(entry.prerequisite)} | ${cell(entry.proofTarget)} | ${cell(`${entry.proof.status}: ${entry.proof.evidence}`)} |`,
+    )
+    .join("\n");
+  return `# AI-engine capability matrix
+
+Generated from scope \`${matrix.scopeVersion}\` on ${matrix.generatedAt}. This is an accounting artifact; combat-engine descriptors remain authoritative for mechanics.
+
+## Authority
+
+| Record | Path |
+| --- | --- |
+${Object.entries(matrix.authority)
+  .map(([key, value]) => `| ${cell(key)} | ${cell(value)} |`)
+  .join("\n")}
+
+${renderSection("Legal decision surfaces", matrix.legalSurfaces)}
+
+${renderSection("Pending decision surfaces", matrix.pendingSurfaces)}
+
+${renderSection("Response shapes", matrix.responseShapes)}
+
+## Immediate utility evaluators
+
+| ID | Code | Evaluator | Status | Proof |
+| --- | --- | --- | --- | --- |
+${matrix.immediateEvaluators.map((entry) => `| ${cell(entry.id)} | ${cell(entry.code)} | ${cell(`${entry.evaluator.id}@${entry.evaluator.version}`)} | ${cell(entry.status)} | ${cell(entry.proof)} |`).join("\n")}
+
+## Approved exclusions
+
+| Scope decision ID | Category | Reason |
+| --- | --- | --- |
+${exclusions}
+
+## Coverage evidence
+
+| ID | Kind | Surface | Source | Behavior |
+| --- | --- | --- | --- | --- |
+${evidence}
+
+## Capability gaps by reusable roadmap capability
+
+| Roadmap | Capability | Status | Prerequisite | Proof target | Proof |
+| --- | --- | --- | --- | --- | --- |
+${gaps}
+
+## Accounting totals
+
+| Surface group | Count |
+| --- | ---: |
+| Legal decisions | ${matrix.legalSurfaces.length} |
+| Pending decisions | ${matrix.pendingSurfaces.length} |
+| Response shapes | ${matrix.responseShapes.length} |
+| Approved exclusions | ${matrix.exclusions.length} |
+| Coverage evidence rows | ${matrix.coverageEvidence.length} |
+`;
+};
+
+if (!process.env.VITEST && process.argv[1]?.endsWith("ai-capability-matrix.ts"))
+  process.stdout.write(renderAiCapabilityMatrix());
+
+export { legalDecisionTypes, pendingDecisionTypes, responseShapeTypes };

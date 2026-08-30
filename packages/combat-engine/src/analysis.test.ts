@@ -74,10 +74,28 @@ describe("combat analysis boundary", () => {
     expect(descriptor.actionConsumption).toBe("action");
     expect(descriptor.costs[0]?.resource).toBe("ki");
     expect(descriptor.effects.length).toBeGreaterThan(0);
+    expect(descriptor.immediateOutcome.version).toBe("immediate-outcome:v1");
+    expect(descriptor.immediateOutcome.damage[0]?.possibleLethality).toBe(false);
+    expect(descriptor.immediateOutcome.damage[0]?.amount?.maximum).toBeGreaterThan(0);
     expect(descriptor.outcomeProbe).toEqual({
       type: "combat-transition",
       decisionKey: canonicalDecisionKey(move),
     });
+  });
+
+  it("describes capped power-up gains and overflow without consuming randomness", () => {
+    const fight = state();
+    const before = JSON.stringify(fight);
+    const powerUp = { type: "power-up" as const, actorId };
+    const descriptor = describeLegalDecision(fight, powerUp);
+    const gain = descriptor.immediateOutcome.resources.find(
+      (resource) => resource.resource === "ki" && resource.operation === "gain",
+    );
+
+    expect(gain?.declared).toBeGreaterThan(0);
+    expect(gain?.effective).toBeLessThanOrEqual(gain?.declared ?? 0);
+    expect(gain?.overflow?.maximum).toBeGreaterThanOrEqual(0);
+    expect(JSON.stringify(fight)).toBe(before);
   });
 
   it("probes a legal decision through the normal immutable transition boundary", () => {

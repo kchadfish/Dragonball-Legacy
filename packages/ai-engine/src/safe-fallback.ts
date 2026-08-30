@@ -179,11 +179,22 @@ const toEvaluation = (evaluation: InternalEvaluation, rank: number): CandidateEv
     provenance.push({ type: "canonical-key-fallback", key: evaluation.canonicalKey });
   }
   const scoreFactors: ScoreFactor[] = [
-    { key: "baseline", value: evaluation.baseline, provenance: baselineProvenance },
+    {
+      code: "baseline-fallback",
+      value: evaluation.baseline,
+      evaluator: { id: "ai-evaluator:baseline-fallback", version: "baseline-immediate:v1" },
+      basis: { type: "none" },
+    },
   ];
   return {
     decision: evaluation.decision,
     canonicalKey: evaluation.canonicalKey,
+    candidateIdentity: {
+      canonicalKey: evaluation.canonicalKey,
+      decisionType: evaluation.decision.type,
+    },
+    evaluator: { id: "ai-evaluator:baseline-fallback", version: "baseline-immediate:v1" },
+    profileVersion: "fallback",
     scoreFactors,
     provenance,
     totalScore: evaluation.baseline,
@@ -238,7 +249,11 @@ export const selectSafeLegalDecision = (request: AiDecisionRequest): AiResult<Ai
       ? {}
       : {
           diagnostics: {
+            schemaVersion: "ai-decision-diagnostics:v1",
             level,
+            stateVersion: request.state.version,
+            profileVersion: request.profile.identity.version,
+            evaluator: { id: "ai-evaluator:baseline-fallback", version: "baseline-immediate:v1" },
             selectedCanonicalKey: selectedEvaluation.canonicalKey,
             ...(level === "full" || level === "ranked-summary" ? { evaluations } : {}),
           },
@@ -246,5 +261,3 @@ export const selectSafeLegalDecision = (request: AiDecisionRequest): AiResult<Ai
   };
   return { ok: true, value: result };
 };
-
-export const selectLegalDecision = selectSafeLegalDecision;

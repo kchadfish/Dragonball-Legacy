@@ -29,6 +29,65 @@ The next resume point is AI-100: generate the AI capability matrix from the
 closed combat scope and public descriptors. Until then, no
 `ai-engine-capability-matrix.md` is created.
 
+## 2026-08-30 - Phase 1 complete: AI-100 through AI-130
+
+Phase 1 is complete. The generated [AI capability matrix](ai-engine-capability-matrix.md)
+accounts for all nine `LegalDecision` discriminants, all seven
+`PendingDecision` discriminants, all three declarative selection cardinalities,
+and engine-authored response options. The matrix also preserves all 14
+approved `ai-combat-scope:v1` exclusions and groups future strategic work by
+roadmap capability.
+
+- AI-100: `scripts/ai-capability-matrix.ts` generates the committed matrix from
+  the closed scope fixture, public combat descriptors/contracts, evaluator
+  registries, and registered exclusions. A parity test rejects stale manual
+  output.
+- AI-110: `extractDecisionFeatures` returns immutable, typed, non-authoritative
+  features. Costs, effects, scarcity, targets, action consumption, selection,
+  and terminal behavior are copied from combat descriptors; catalog data only
+  contributes advisory identity. Descriptor drift and missing catalog identity
+  fail with typed errors.
+- AI-120: exhaustive `satisfies Record<...>` registries account for every public
+  legal and pending union member and response shape. Phase 0's safe fallback is
+  explicitly the baseline evaluator for each surface.
+- AI-130: `validate:ai-capability-closure` rejects missing classifications or
+  proof, duplicate IDs, invalid exclusions, and registry/matrix drift; it runs
+  from `npm run check` and focused-check routing.
+
+The next and highest-priority ready capability is AI-200, the structured
+score-factor and diagnostic foundation. Strategic scoring, NPC integration,
+lookahead, and combat-rule changes remain deferred.
+
+## 2026-08-30 - Phase 2 complete: AI-200 through AI-240
+
+Phase 2 is complete for the deterministic immediate-utility slice. The AI now
+consumes a required combat-engine `immediate-outcome:v1` descriptor summary and
+selects only from the supplied legal decisions. The descriptor records
+conservative resource, damage, healing, lethality, overkill, self-harm,
+defeat-prevention, action-economy, delayed-work, and completeness facts without
+running a transition or consuming combat randomness.
+
+- AI-200: score factors are typed, signed, ordered, versioned, and backed by a
+  discriminated basis. Diagnostics use `ai-decision-diagnostics:v1` and retain
+  state/profile/evaluator versions, candidate identity, factors, totals, rank,
+  and tie-break provenance.
+- AI-210 through AI-230: the fixed `baseline-immediate:v1` registry scores
+  state-relative resources, damage, healing, survival, KO, terminal, and action
+  economy utility. Conditional ranges use the conservative first-quartile
+  estimate; delayed facts are discounted; tactical subtotal clamping is an
+  explicit factor.
+- AI-240: `selectImmediateUtilityDecision` is public and `selectLegalDecision`
+  routes to it when a descriptor facade is supplied, while
+  `selectSafeLegalDecision` remains the Phase 0 fallback. Selection retains the
+  exact legal object and does not invoke `probeCombatDecision`.
+
+Focused evidence is in `packages/ai-engine/src/immediate-utility.test.ts` and
+`packages/combat-engine/src/analysis.test.ts`. The generated capability matrix
+is schema v2: AI-200 through AI-240 are complete with verified proof,
+AI-300 through AI-340 are ready, and personality, difficulty, scarcity,
+lookahead, and later strategic phases remain deferred. No application, NPC, or
+persistence migration was required. The next resume point is AI-300.
+
 ## 2026-08-30 - PRE-010 through PRE-040 combat handoff contracts
 
 The first AI preflight contract slice is complete in the public

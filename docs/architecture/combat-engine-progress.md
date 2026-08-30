@@ -5803,3 +5803,19 @@ caller-declared work budgets. Live production combat dependencies are never
 passed into speculative branches. No application, NPC, or persistence consumer
 currently exists in this repository; the audit found only package shells and
 empty application exports.
+
+## 2026-08-30 - Immediate outcome descriptor for AI Phase 2
+
+The combat-engine descriptor boundary now includes a versioned
+`immediate-outcome:v1` summary. It is generated from authoritative state,
+compiled decision effects, the existing cost/calculation pipeline, pending
+frames, and static attack definitions without submitting a decision, consuming
+randomness, or mutating state. It conservatively reports HP/Ki costs and
+resource changes, capped gains and overflow, damage/healing bounds,
+possible/guaranteed lethality, overkill, self-harm, action economy, delayed
+work, and explicit unknown/completeness markers.
+
+This contract is intentionally immediate and descriptive. It does not claim
+probabilities, resolve pending choices, or replace the later analysis/probe and
+lookahead phases. AI Phase 2 consumes it through the public descriptor facade;
+the combat engine remains authoritative for all formulas and transitions.

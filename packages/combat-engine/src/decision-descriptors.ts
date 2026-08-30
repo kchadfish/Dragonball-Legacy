@@ -3,7 +3,9 @@ import {
   MOVE_DEFINITIONS,
   type ItemDefinition,
   type MoveDefinition,
+  type NumericExpression,
 } from "@dragonball-resurgence/game-data";
+import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 
 import type { ActiveFightState, FightState, LegalDecision, PendingDecision } from "./contracts.js";
 import { compileEffectPlan } from "./effect-executors.js";
@@ -17,6 +19,8 @@ import {
   type AuthoritativeDecisionScarcity,
 } from "./progress-fight.js";
 import type { CombatantId } from "./ids.js";
+import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
+import { calculateAttackDamage } from "./combat-mechanics.js";
 
 export type DecisionCategory =
   | "pass"
@@ -94,6 +98,70 @@ export interface DecisionOutcomeProbeReference {
   readonly decisionKey: string;
 }
 
+export type ImmediateOutcomeCertainty = "guaranteed" | "possible" | "unknown";
+export type ImmediateOutcomeTiming = "immediate" | "delayed";
+
+export interface ImmediateOutcomeRange {
+  readonly minimum: number;
+  readonly maximum: number;
+}
+
+export interface ImmediateResourceOutcome {
+  readonly target: "self" | "opponent";
+  readonly resource: "hp" | "ki";
+  readonly operation: "cost" | "gain" | "loss";
+  readonly declared?: number;
+  readonly effective?: number;
+  readonly amount?: ImmediateOutcomeRange;
+  readonly overflow?: ImmediateOutcomeRange;
+  readonly timing: ImmediateOutcomeTiming;
+  readonly certainty: ImmediateOutcomeCertainty;
+}
+
+export interface ImmediateDamageOutcome {
+  readonly target: "self" | "opponent";
+  readonly amount?: ImmediateOutcomeRange;
+  readonly guaranteedLethality: boolean;
+  readonly possibleLethality: boolean;
+  readonly overkill?: ImmediateOutcomeRange;
+  readonly selfHarm: boolean;
+  readonly timing: ImmediateOutcomeTiming;
+  readonly certainty: ImmediateOutcomeCertainty;
+}
+
+export interface ImmediateHealingOutcome {
+  readonly target: "self" | "opponent";
+  readonly amount?: ImmediateOutcomeRange;
+  readonly overflow?: ImmediateOutcomeRange;
+  readonly timing: ImmediateOutcomeTiming;
+  readonly certainty: ImmediateOutcomeCertainty;
+}
+
+export interface ImmediateActionOutcome {
+  readonly free: boolean;
+  readonly extraOwnActions: number;
+  readonly skippedOwnActions: number;
+  readonly skippedOpponentActions: number;
+  readonly response: boolean;
+  readonly delayed: boolean;
+  readonly certainty: ImmediateOutcomeCertainty;
+}
+
+export interface ImmediateOutcomeSummary {
+  readonly version: "immediate-outcome:v1";
+  readonly completeness: "complete" | "partial";
+  readonly resources: readonly ImmediateResourceOutcome[];
+  readonly damage: readonly ImmediateDamageOutcome[];
+  readonly healing: readonly ImmediateHealingOutcome[];
+  readonly defeatPrevention: {
+    readonly guaranteed: boolean;
+    readonly possible: boolean;
+    readonly certainty: ImmediateOutcomeCertainty;
+  };
+  readonly actions: ImmediateActionOutcome;
+  readonly unknownFacts: readonly string[];
+}
+
 export interface CombatDecisionDescriptor {
   readonly key: string;
   readonly identity: {
@@ -107,6 +175,7 @@ export interface CombatDecisionDescriptor {
   readonly targets: readonly DecisionTargetFact[];
   readonly selection?: DecisionSelectionFact;
   readonly terminal: "none" | "surrender-loss";
+  readonly immediateOutcome: ImmediateOutcomeSummary;
   readonly outcomeProbe: DecisionOutcomeProbeReference;
 }
 
@@ -316,6 +385,315 @@ const effectsFor = (decision: LegalDecision): readonly DecisionEffectFact[] => {
   return [];
 };
 
+type SummaryEffect = {
+  readonly type: string;
+  readonly trigger?: string;
+  readonly target?: "self" | "opponent";
+  readonly resource?: "hp" | "ki";
+  readonly operation?: string;
+  readonly amount?: NumericExpression | number;
+  readonly conditions?: readonly unknown[];
+  readonly aspects?: readonly string[];
+  readonly activationCost?: {
+    readonly resource: "hp" | "ki";
+    readonly amount: NumericExpression;
+    readonly timing:
+      "declaration" | "activation" | "pre-roll" | "post-resolution" | "per-selected-target";
+  };
+};
+
+const summaryEffectsFor = (decision: LegalDecision): readonly SummaryEffect[] => {
+  if (decision.type === "use-move") {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+    return (move?.effects ?? []) as readonly SummaryEffect[];
+  }
+  if (decision.type === "use-item") {
+    const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === decision.itemId);
+    return (item?.effects ?? []) as readonly SummaryEffect[];
+  }
+  return [];
+};
+
+const summaryNumericContextFor = (state: ActiveFightState, decision: LegalDecision) => {
+  const actor = state.combatants[decision.actorId];
+  const targetId =
+    decision.type === "basic-attack" || decision.type === "use-move"
+      ? decision.targetCombatantId
+      : decision.actorId;
+  const opponent = state.combatants[targetId] ?? actor;
+  return {
+    self: actor,
+    opponent,
+    turnNumber: state.turnNumber,
+    participantCount: Object.keys(state.combatants).length,
+    completedTurnCount: state.turnNumber - 1,
+    actionHistory: state.actionHistory,
+    activeEffects: state.activeEffects,
+    moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+    moveActivationCounts: new Map(
+      state.actionHistory
+        .filter((action) => action.type === "use-move")
+        .map((action) => [action.moveId, 1]),
+    ),
+  };
+};
+
+const summaryAmountFor = (
+  value: NumericExpression | number | undefined,
+  context: ReturnType<typeof summaryNumericContextFor>,
+): number | undefined => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (value === undefined) return undefined;
+  const resolved = evaluateDurableNumericExpression(value, context);
+  return resolved === undefined || !Number.isFinite(resolved) ? undefined : Math.max(0, resolved);
+};
+
+const rangeFor = (amount: number | undefined): ImmediateOutcomeRange | undefined =>
+  amount === undefined ? undefined : { minimum: amount, maximum: amount };
+
+const certaintyFor = (conditional: boolean, known: boolean): ImmediateOutcomeCertainty => {
+  if (!known) return "unknown";
+  return conditional ? "possible" : "guaranteed";
+};
+
+// Descriptor assembly intentionally keeps all conservative immediate facts at one transition boundary.
+/* eslint-disable sonarjs/cognitive-complexity, complexity, max-lines-per-function */
+const immediateOutcomeFor = (
+  state: ActiveFightState,
+  decision: LegalDecision,
+  costs: readonly AuthoritativeDecisionCost[],
+  actionConsumption: DecisionActionConsumption,
+): ImmediateOutcomeSummary => {
+  const context = summaryNumericContextFor(state, decision);
+  const actor = state.combatants[decision.actorId];
+  const targetId =
+    decision.type === "basic-attack" || decision.type === "use-move"
+      ? decision.targetCombatantId
+      : decision.actorId;
+  const target = state.combatants[targetId] ?? actor;
+  const unknownFacts: string[] = [];
+  const resources: ImmediateResourceOutcome[] = costs.map((cost) => ({
+    target: "self",
+    resource: cost.resource,
+    operation: "cost",
+    declared: cost.declared,
+    effective: cost.effective,
+    amount: { minimum: cost.effective, maximum: cost.effective },
+    overflow: { minimum: 0, maximum: 0 },
+    timing: cost.timing === "declaration" ? "immediate" : "delayed",
+    certainty: "guaranteed",
+  }));
+  if (decision.type === "power-up") {
+    const declared = GLOBAL_RULES.combat.powerUpKiGain;
+    const effective = Math.min(declared, Math.max(0, actor.ki.maximum - actor.ki.current));
+    resources.push({
+      target: "self",
+      resource: "ki",
+      operation: "gain",
+      declared,
+      effective,
+      amount: { minimum: effective, maximum: effective },
+      overflow: {
+        minimum: Math.max(0, declared - effective),
+        maximum: Math.max(0, declared - effective),
+      },
+      timing: "immediate",
+      certainty: "guaranteed",
+    });
+  }
+  const damage: ImmediateDamageOutcome[] = [];
+  const healing: ImmediateHealingOutcome[] = [];
+  let completeness: ImmediateOutcomeSummary["completeness"] = "complete";
+  const markUnknown = (fact: string) => {
+    completeness = "partial";
+    unknownFacts.push(fact);
+  };
+  // Effects are normalized here so every resource mutation shares the same certainty and overflow rules.
+  /* eslint-disable sonarjs/cognitive-complexity, complexity */
+  const addResourceFact = (
+    effect: SummaryEffect,
+    amount: number | undefined,
+    timing: ImmediateOutcomeTiming = "immediate",
+  ) => {
+    const resource = effect.resource;
+    if (
+      resource === undefined ||
+      (effect.operation !== "gain" &&
+        effect.operation !== "lose" &&
+        effect.operation !== "drain" &&
+        effect.operation !== "set")
+    )
+      return;
+    const targetKind = effect.target === "opponent" ? "opponent" : "self";
+    const subject = targetKind === "self" ? actor : target;
+    const range = rangeFor(amount);
+    const conditional = (effect.conditions?.length ?? 0) > 0;
+    const certainty = certaintyFor(conditional, range !== undefined);
+    if (range === undefined) markUnknown(`${effect.type}:${resource}`);
+    const current = resource === "hp" ? subject.hitPoints : subject.ki;
+    const gain = effect.operation === "gain";
+    const overflow =
+      range === undefined || !gain
+        ? undefined
+        : {
+            minimum: Math.max(0, range.minimum - (current.maximum - current.current)),
+            maximum: Math.max(0, range.maximum - (current.maximum - current.current)),
+          };
+    resources.push({
+      target: targetKind,
+      resource,
+      operation: gain ? "gain" : "loss",
+      ...(amount === undefined ? {} : { declared: amount, effective: amount }),
+      ...(range === undefined ? {} : { amount: range }),
+      ...(overflow === undefined ? {} : { overflow }),
+      timing,
+      certainty,
+    });
+    if (resource === "hp" && gain) {
+      healing.push({
+        target: targetKind,
+        ...(range === undefined ? {} : { amount: range }),
+        ...(overflow === undefined ? {} : { overflow }),
+        timing,
+        certainty,
+      });
+    }
+    if (resource === "hp" && !gain) {
+      const possibleDamage =
+        range === undefined
+          ? undefined
+          : {
+              minimum: 0,
+              maximum: Math.min(subject.hitPoints.current, range.maximum),
+            };
+      const overkill =
+        range === undefined
+          ? undefined
+          : { minimum: 0, maximum: Math.max(0, range.maximum - subject.hitPoints.current) };
+      damage.push({
+        target: targetKind,
+        ...(possibleDamage === undefined
+          ? {}
+          : {
+              amount: possibleDamage,
+              ...(overkill === undefined ? {} : { overkill }),
+            }),
+        guaranteedLethality: range !== undefined && range.minimum >= subject.hitPoints.current,
+        possibleLethality: range !== undefined && range.maximum >= subject.hitPoints.current,
+        selfHarm: targetKind === "self",
+        timing,
+        certainty,
+      });
+    }
+  };
+
+  const summaryEffects = summaryEffectsFor(decision);
+  for (const cost of summaryEffects) {
+    const amount = summaryAmountFor(cost.activationCost?.amount, context);
+    if (cost.activationCost !== undefined) {
+      if (amount === undefined) markUnknown(`${cost.type}:activation-cost`);
+      resources.push({
+        target: "self",
+        resource: cost.activationCost.resource,
+        operation: "cost",
+        ...(amount === undefined
+          ? {}
+          : {
+              declared: amount,
+              effective: amount,
+              amount: { minimum: amount, maximum: amount },
+              overflow: { minimum: 0, maximum: 0 },
+            }),
+        timing: cost.activationCost.timing === "declaration" ? "immediate" : "delayed",
+        certainty: certaintyFor((cost.conditions?.length ?? 0) > 0, amount !== undefined),
+      });
+    }
+    if (cost.type === "modify-resource")
+      addResourceFact(cost, summaryAmountFor(cost.amount, context));
+    else if (cost.type === "item-modify-resource")
+      addResourceFact(cost, summaryAmountFor(cost.amount, context));
+    else if (
+      cost.type === "schedule-effect" ||
+      cost.type === "defer-move" ||
+      cost.type === "delayed-deactivate"
+    )
+      markUnknown(`${cost.type}:delayed`);
+    else if (cost.type !== "grant-extra-action" && cost.type !== "skip-action")
+      markUnknown(`${cost.type}:unsupported`);
+  }
+
+  let directAttack: number | undefined;
+  if (decision.type === "basic-attack") {
+    directAttack = Math.round(
+      (actor.stats.power * GLOBAL_RULES.combat.basicAttackPowerDamagePercent) / 100,
+    );
+  } else if (decision.type === "use-move") {
+    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+    const percent = summaryAmountFor(move?.mechanics.attack?.baseDamagePercent, context);
+    if (percent !== undefined) directAttack = Math.round((actor.stats.power * percent) / 100);
+  }
+  if (directAttack !== undefined) {
+    const move =
+      decision.type === "use-move"
+        ? MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId)
+        : undefined;
+    const attack = move?.mechanics.attack;
+    const count = attack?.damagePerHit === true ? (attack.attackRoll?.dice ?? 1) : 1;
+    const minimum = 0;
+    const maximum = calculateAttackDamage(directAttack, true) * count;
+    damage.push({
+      target: "opponent",
+      amount: { minimum, maximum },
+      guaranteedLethality: minimum >= target.hitPoints.current,
+      possibleLethality: maximum >= target.hitPoints.current,
+      overkill: {
+        minimum: Math.max(0, minimum - target.hitPoints.current),
+        maximum: Math.max(0, maximum - target.hitPoints.current),
+      },
+      selfHarm: false,
+      timing: "immediate",
+      certainty: "possible",
+    });
+  } else if (decision.type === "basic-attack" || decision.type === "use-move")
+    markUnknown("attack-damage");
+
+  if (decision.type === "activate-transformation" || decision.type === "deactivate-transformation")
+    markUnknown("transformation-outcome");
+  if (decision.type === "respond-to-pending-decision" && state.pendingDecision !== undefined)
+    markUnknown("pending-response-outcome");
+  if (decision.type === "use-item" && summaryEffects.length === 0) markUnknown("item-outcome");
+  const summaryEffectTypes = summaryEffects.map((effect) => effect.type);
+  const extraOwnActions = summaryEffectTypes.filter((type) => type === "grant-extra-action").length;
+  const skippedOpponentActions = summaryEffectTypes.filter((type) => type === "skip-action").length;
+  const skippedOwnActions = summaryEffectTypes.filter(
+    (type) => type === "skip-action" && decision.actorId === targetId,
+  ).length;
+  const delayed = summaryEffectTypes.some((type) =>
+    ["schedule-effect", "defer-move", "delayed-deactivate"].includes(type),
+  );
+  const actions: ImmediateActionOutcome = {
+    free: actionConsumption === "free",
+    extraOwnActions,
+    skippedOwnActions,
+    skippedOpponentActions,
+    response: actionConsumption === "response",
+    delayed,
+    certainty: delayed ? "possible" : "guaranteed",
+  };
+  if (decision.type === "respond-to-pending-decision" && state.pendingDecision === undefined)
+    markUnknown("pending-decision");
+  return {
+    version: "immediate-outcome:v1",
+    completeness,
+    resources,
+    damage,
+    healing,
+    defeatPrevention: { guaranteed: false, possible: false, certainty: "unknown" },
+    actions,
+    unknownFacts,
+  };
+};
+
 /** Describes one engine-enumerated decision from compiled combat facts. */
 export const describeLegalDecision = (
   state: FightState,
@@ -324,19 +702,44 @@ export const describeLegalDecision = (
   const activeState = state.status === "active" ? state : undefined;
   const category = decisionCategoryFor(decision);
   const key = canonicalDecisionKey(decision);
+  const actionConsumption =
+    activeState === undefined ? "response" : actionConsumptionFor(activeState, decision);
+  const costs = activeState === undefined ? [] : probeLegalDecisionCosts(activeState, decision);
+  const effects = effectsFor(decision);
+  const terminal = decision.type === "surrender" ? "surrender-loss" : "none";
   return {
     key,
     identity: { type: decision.type, category },
-    actionConsumption:
-      activeState === undefined ? "response" : actionConsumptionFor(activeState, decision),
-    costs: activeState === undefined ? [] : probeLegalDecisionCosts(activeState, decision),
-    effects: effectsFor(decision),
+    actionConsumption,
+    costs,
+    effects,
     scarcity: activeState === undefined ? [] : probeLegalDecisionScarcity(activeState, decision),
     targets: activeState === undefined ? [] : targetFactsFor(activeState, decision),
     ...(activeState === undefined || decision.type !== "respond-to-pending-decision"
       ? {}
       : { selection: selectionFor(activeState, decision) }),
-    terminal: decision.type === "surrender" ? "surrender-loss" : "none",
+    terminal,
+    immediateOutcome:
+      activeState === undefined
+        ? {
+            version: "immediate-outcome:v1",
+            completeness: "partial",
+            resources: [],
+            damage: [],
+            healing: [],
+            defeatPrevention: { guaranteed: false, possible: false, certainty: "unknown" },
+            actions: {
+              free: false,
+              extraOwnActions: 0,
+              skippedOwnActions: 0,
+              skippedOpponentActions: 0,
+              response: true,
+              delayed: false,
+              certainty: "unknown",
+            },
+            unknownFacts: ["state"],
+          }
+        : immediateOutcomeFor(activeState, decision, costs, actionConsumption),
     outcomeProbe: { type: "combat-transition", decisionKey: key },
   };
 };

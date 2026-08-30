@@ -34,6 +34,8 @@ export interface FocusedCheckPlan {
 const scriptTestPaths = new Set([
   "scripts/check-focused.test.ts",
   "scripts/combat-capability-matrix.test.ts",
+  "scripts/ai-capability-matrix.test.ts",
+  "scripts/validate-ai-capability-closure.test.ts",
   "scripts/combat-mechanics-inventory.test.ts",
   "scripts/reference-markdown-validation.test.ts",
   "scripts/validate-combat-engine-boundaries.test.ts",
@@ -154,6 +156,8 @@ export const planFocusedCheck = (inputFiles: readonly string[]): FocusedCheckPla
           addUnique(validatorScripts, "validate:combat-engine-boundaries");
         } else if (file === "scripts/validate-ai-engine-boundaries.ts") {
           addUnique(validatorScripts, "validate:ai-engine-boundaries");
+        } else if (file === "scripts/validate-ai-capability-closure.ts") {
+          addUnique(validatorScripts, "validate:ai-capability-closure");
         } else if (file === "scripts/validate-reference-markdown.ts") {
           addUnique(validatorScripts, "validate:reference-markdown");
         } else if (!file.endsWith("/check-focused.ts")) {

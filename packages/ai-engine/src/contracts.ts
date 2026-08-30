@@ -5,6 +5,7 @@ import type {
   CombatantId,
   FightState,
   LegalDecision,
+  PendingDecision,
 } from "@dragonball-resurgence/combat-engine";
 import type {
   ItemDefinition,
@@ -15,6 +16,39 @@ import type {
 import type { AiRandomSource } from "./random.js";
 
 export type DiagnosticRetention = "none" | "selection-only" | "ranked-summary" | "full";
+
+export interface AiEvaluatorIdentity {
+  readonly id: string;
+  readonly version: string;
+}
+
+export type ScoreFactorBasis =
+  | { readonly type: "none" }
+  | {
+      readonly type: "normalized-amount";
+      readonly resource: "hp" | "ki";
+      readonly target: "self" | "opponent";
+      readonly amount: number;
+      readonly maximum: number;
+    }
+  | {
+      readonly type: "range";
+      readonly minimum: number;
+      readonly maximum: number;
+      readonly timing: "immediate" | "delayed";
+    }
+  | { readonly type: "boolean"; readonly value: boolean }
+  | {
+      readonly type: "adjustment";
+      readonly reason: "tactical-clamp" | "tie-break";
+    };
+
+export interface ScoreFactor {
+  readonly code: string;
+  readonly value: number;
+  readonly evaluator: AiEvaluatorIdentity;
+  readonly basis: ScoreFactorBasis;
+}
 
 export interface PersonalityWeights {
   readonly version: string;
@@ -52,6 +86,26 @@ export type AiTransformationMechanics = Pick<
   "id" | "raceId" | "tier" | "statModifiers" | "abilities"
 >;
 
+/** Advisory catalog identity. Mechanical meaning remains combat-engine-owned. */
+export type AiMechanicsReference =
+  | {
+      readonly type: "move";
+      readonly id: MoveDefinition["id"];
+      readonly category: MoveDefinition["category"];
+      readonly tags: MoveDefinition["tags"];
+    }
+  | {
+      readonly type: "item";
+      readonly id: ItemDefinition["id"];
+      readonly category: ItemDefinition["category"];
+    }
+  | {
+      readonly type: "transformation";
+      readonly id: TransformationDefinition["id"];
+      readonly raceId: TransformationDefinition["raceId"];
+      readonly tier: TransformationDefinition["tier"];
+    };
+
 export interface VersionedMechanicsCatalog<TEntry> {
   readonly version: string;
   readonly entries: readonly TEntry[];
@@ -63,6 +117,92 @@ export interface AiMechanicsView {
   readonly items: readonly AiItemMechanics[];
   readonly transformations: readonly AiTransformationMechanics[];
 }
+
+export interface AiFeatureExtractionInput {
+  readonly state: Readonly<FightState>;
+  readonly decision: LegalDecision;
+  readonly descriptor: Readonly<CombatDecisionDescriptor>;
+  readonly mechanics: Readonly<AiMechanicsView>;
+}
+
+export interface AiAuthoritativeStateContext {
+  readonly status: "active";
+  readonly stateVersion: number;
+  readonly turnNumber: number;
+  readonly phase: Extract<FightState, { readonly status: "active" }>["phase"];
+  readonly activeCombatantId: CombatantId;
+}
+
+export interface AiPendingSelectionFacts {
+  readonly pendingDecisionId: PendingDecision["id"];
+  readonly pendingType: PendingDecision["type"];
+  readonly optionIds: readonly string[];
+  readonly selectedOptionIds: readonly string[];
+  readonly optional: boolean;
+  readonly selection: CombatDecisionDescriptor["selection"];
+}
+
+export interface AiDecisionFeatureBase {
+  readonly decision: LegalDecision;
+  readonly canonicalKey: string;
+  readonly category: CombatDecisionDescriptor["identity"]["category"];
+  readonly actionConsumption: CombatDecisionDescriptor["actionConsumption"];
+  readonly costs: CombatDecisionDescriptor["costs"];
+  readonly effects: CombatDecisionDescriptor["effects"];
+  readonly scarcity: CombatDecisionDescriptor["scarcity"];
+  readonly targets: CombatDecisionDescriptor["targets"];
+  readonly terminal: CombatDecisionDescriptor["terminal"];
+  readonly immediateOutcome: CombatDecisionDescriptor["immediateOutcome"];
+  readonly authoritative: {
+    readonly costs: CombatDecisionDescriptor["costs"];
+    readonly effects: CombatDecisionDescriptor["effects"];
+    readonly scarcity: CombatDecisionDescriptor["scarcity"];
+    readonly targets: CombatDecisionDescriptor["targets"];
+    readonly terminal: CombatDecisionDescriptor["terminal"];
+    readonly immediateOutcome: CombatDecisionDescriptor["immediateOutcome"];
+  };
+  readonly state: AiAuthoritativeStateContext;
+  readonly mechanics?: AiMechanicsReference;
+  readonly pending?: AiPendingSelectionFacts;
+  readonly pendingSelection?: AiPendingSelectionFacts;
+}
+
+/** Feature union intentionally carries the original legal decision unchanged. */
+export type AiDecisionFeature = AiDecisionFeatureBase &
+  ({ readonly decisionType: LegalDecision["type"] } & (
+    | { readonly decisionType: "pass" }
+    | { readonly decisionType: "power-up" }
+    | { readonly decisionType: "surrender" }
+    | { readonly decisionType: "basic-attack" }
+    | { readonly decisionType: "use-move" }
+    | { readonly decisionType: "activate-transformation" }
+    | { readonly decisionType: "deactivate-transformation" }
+    | { readonly decisionType: "use-item" }
+    | { readonly decisionType: "respond-to-pending-decision" }
+  ));
+
+export type AiFeatureExtractionFailure =
+  | {
+      readonly type: "invalid-state";
+      readonly message: string;
+    }
+  | {
+      readonly type: "descriptor-decision-mismatch";
+      readonly field: "key" | "type" | "category" | "pending-decision";
+      readonly expected: string;
+      readonly actual: string;
+    }
+  | {
+      readonly type: "missing-mechanics";
+      readonly mechanicsType: AiMechanicsReference["type"];
+      readonly mechanicsId: string;
+    };
+
+export type AiFeatureExtractionResult =
+  | { readonly ok: true; readonly value: AiDecisionFeature }
+  | { readonly ok: false; readonly error: AiFeatureExtractionFailure };
+
+export type FeatureExtractionInput = AiFeatureExtractionInput;
 
 export interface AiDependencies {
   readonly random: AiRandomSource;
@@ -80,6 +220,8 @@ export interface AiAnalysisFacade {
   ) => CombatResult<CombatAnalysisProbe>;
 }
 
+export type AiImmediateAnalysisFacade = Pick<AiAnalysisFacade, "describeDecision">;
+
 export interface AiDecisionRequest {
   readonly state: Readonly<FightState>;
   readonly actorId: CombatantId;
@@ -89,6 +231,10 @@ export interface AiDecisionRequest {
   readonly dependencies: AiDependencies;
   readonly analysis?: AiAnalysisFacade;
   readonly diagnosticRetention?: DiagnosticRetention;
+}
+
+export interface AiImmediateUtilityRequest extends Omit<AiDecisionRequest, "analysis"> {
+  readonly analysis: AiImmediateAnalysisFacade;
 }
 
 export type CandidateProvenance =
@@ -106,15 +252,15 @@ export type CandidateProvenance =
       readonly key: string;
     };
 
-export interface ScoreFactor {
-  readonly key: string;
-  readonly value: number;
-  readonly provenance: CandidateProvenance;
-}
-
 export interface CandidateEvaluation {
   readonly decision: LegalDecision;
   readonly canonicalKey: string;
+  readonly candidateIdentity: {
+    readonly canonicalKey: string;
+    readonly decisionType: LegalDecision["type"];
+  };
+  readonly evaluator: AiEvaluatorIdentity;
+  readonly profileVersion: string;
   readonly scoreFactors: readonly ScoreFactor[];
   readonly provenance: readonly CandidateProvenance[];
   readonly totalScore: number;
@@ -122,7 +268,11 @@ export interface CandidateEvaluation {
 }
 
 export interface AiDiagnostics {
+  readonly schemaVersion: "ai-decision-diagnostics:v1";
   readonly level: Exclude<DiagnosticRetention, "none">;
+  readonly stateVersion: number;
+  readonly profileVersion: string;
+  readonly evaluator: AiEvaluatorIdentity;
   readonly selectedCanonicalKey: string;
   readonly evaluations?: readonly CandidateEvaluation[];
 }
@@ -168,6 +318,18 @@ export type AiFailure =
   | {
       readonly type: "invalid-request";
       readonly issues: readonly AiRequestIssue[];
+    }
+  | {
+      readonly type: "candidate-analysis-failure";
+      readonly candidateIndex: number;
+      readonly canonicalKey?: string;
+      readonly reason:
+        | "missing-analysis"
+        | "malformed-analysis"
+        | "descriptor-mismatch"
+        | "incomplete-required-facts"
+        | "feature-extraction-failed";
+      readonly detail: string;
     };
 
 export type AiResult<TSuccess> =
