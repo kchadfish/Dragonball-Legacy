@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-nested-conditional */
 import {
   ITEM_DEFINITIONS,
   MOVE_DEFINITIONS,
@@ -99,6 +100,21 @@ export interface DecisionOutcomeProbeReference {
   readonly decisionKey: string;
 }
 
+/** Combat-authored setup facts; AI may weight them but cannot derive legality from them. */
+export interface DecisionTacticalSetupFact {
+  readonly role: "setup" | "control";
+  readonly eligibleFollowUpCategories: readonly string[];
+  readonly eligibleFollowUpIds?: readonly string[];
+  readonly targetRelation: "self" | "opponent" | "both";
+  readonly window: {
+    readonly scope: "same-action" | "next-action" | "next-turn" | "several-turns" | "combat";
+    readonly duration?: number;
+  };
+  readonly controlImpact:
+    "none" | "resource-denial" | "option-removal" | "action-denial" | "stat-improvement";
+  readonly available: boolean;
+}
+
 export type ImmediateOutcomeCertainty = "guaranteed" | "possible" | "unknown";
 export type ImmediateOutcomeTiming = "immediate" | "delayed";
 
@@ -177,6 +193,7 @@ export interface CombatDecisionDescriptor {
   readonly selection?: DecisionSelectionFact;
   readonly terminal: "none" | "surrender-loss";
   readonly immediateOutcome: ImmediateOutcomeSummary;
+  readonly tacticalSetup?: DecisionTacticalSetupFact;
   /** Versioned non-authoritative context for strategic weighting. */
   readonly strategicContext?: StrategicContextSummary;
   readonly outcomeProbe: DecisionOutcomeProbeReference;
@@ -415,6 +432,53 @@ const summaryEffectsFor = (decision: LegalDecision): readonly SummaryEffect[] =>
     return (item?.effects ?? []) as readonly SummaryEffect[];
   }
   return [];
+};
+
+const tacticalSetupFor = (
+  state: ActiveFightState,
+  decision: LegalDecision,
+  effects: readonly DecisionEffectFact[],
+): DecisionTacticalSetupFact | undefined => {
+  const setupEffect = effects.find((effect) =>
+    ["status", "control", "resource", "transformation"].includes(effect.category),
+  );
+  if (setupEffect === undefined) return undefined;
+  const summary = summaryEffectsFor(decision).find((effect) => effect.type === setupEffect.type);
+  const targetRelation = summary?.target === "opponent" ? "opponent" : "self";
+  const controlImpact =
+    setupEffect.category === "resource"
+      ? "resource-denial"
+      : /skip|lock|prevent|force|restrict/u.test(setupEffect.type)
+        ? "option-removal"
+        : setupEffect.category === "transformation"
+          ? "stat-improvement"
+          : "option-removal";
+  const eligibleFollowUpCategories =
+    controlImpact === "resource-denial"
+      ? ["move", "power-up"]
+      : setupEffect.category === "transformation"
+        ? ["move", "basic-attack", "transformation"]
+        : ["move", "basic-attack", "pending-response"];
+  const available = enumerateLegalDecisions(state, decision.actorId).some(
+    (candidate) =>
+      candidate !== decision &&
+      (candidate.type === "use-move" ||
+        candidate.type === "basic-attack" ||
+        candidate.type === "power-up"),
+  );
+  return {
+    role: setupEffect.category === "control" ? "control" : "setup",
+    eligibleFollowUpCategories,
+    targetRelation,
+    window: {
+      scope:
+        summary?.type === "schedule-effect" || summary?.type === "defer-move"
+          ? "several-turns"
+          : "next-turn",
+    },
+    controlImpact,
+    available,
+  };
 };
 
 const summaryNumericContextFor = (state: ActiveFightState, decision: LegalDecision) => {
@@ -715,6 +779,8 @@ export const describeLegalDecision = (
     activeState === undefined || decision.type !== "respond-to-pending-decision"
       ? undefined
       : selectionFor(activeState, decision);
+  const tacticalSetup =
+    activeState === undefined ? undefined : tacticalSetupFor(activeState, decision, effects);
   const terminal = decision.type === "surrender" ? "surrender-loss" : "none";
   return {
     key,
@@ -725,6 +791,7 @@ export const describeLegalDecision = (
     scarcity: effectiveScarcity,
     targets: activeState === undefined ? [] : targetFactsFor(activeState, decision),
     ...(selection === undefined ? {} : { selection }),
+    ...(tacticalSetup === undefined ? {} : { tacticalSetup }),
     terminal,
     immediateOutcome:
       activeState === undefined

@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/cognitive-complexity, complexity, max-lines-per-function */
 import { canonicalDecisionKey, type LegalDecision } from "@dragonball-resurgence/combat-engine";
 
 import {
@@ -17,13 +18,24 @@ const mechanicsReferenceFor = (
       const entry = mechanics.moves.find((candidate) => candidate.id === decision.moveId);
       return entry === undefined
         ? undefined
-        : { type: "move", id: entry.id, category: entry.category, tags: entry.tags };
+        : {
+            type: "move",
+            id: entry.id,
+            category: entry.category,
+            tags: entry.tags,
+            ...(entry.aiHints === undefined ? {} : { aiHints: entry.aiHints }),
+          };
     }
     case "use-item": {
       const entry = mechanics.items.find((candidate) => candidate.id === decision.itemId);
       return entry === undefined
         ? undefined
-        : { type: "item", id: entry.id, category: entry.category };
+        : {
+            type: "item",
+            id: entry.id,
+            category: entry.category,
+            ...(entry.aiHints === undefined ? {} : { aiHints: entry.aiHints }),
+          };
     }
     case "activate-transformation": {
       const entry = mechanics.transformations.find(
@@ -31,7 +43,13 @@ const mechanicsReferenceFor = (
       );
       return entry === undefined
         ? undefined
-        : { type: "transformation", id: entry.id, raceId: entry.raceId, tier: entry.tier };
+        : {
+            type: "transformation",
+            id: entry.id,
+            raceId: entry.raceId,
+            tier: entry.tier,
+            ...(entry.aiHints === undefined ? {} : { aiHints: entry.aiHints }),
+          };
     }
     case "pass":
     case "power-up":
@@ -185,6 +203,9 @@ export const extractDecisionFeatures = (
     targets: input.descriptor.targets,
     terminal: input.descriptor.terminal,
     immediateOutcome: input.descriptor.immediateOutcome,
+    ...(input.descriptor.tacticalSetup === undefined
+      ? {}
+      : { tacticalSetup: input.descriptor.tacticalSetup }),
     ...(input.descriptor.strategicContext === undefined
       ? {}
       : { strategicContext: input.descriptor.strategicContext }),
@@ -195,6 +216,9 @@ export const extractDecisionFeatures = (
       targets: input.descriptor.targets,
       terminal: input.descriptor.terminal,
       immediateOutcome: input.descriptor.immediateOutcome,
+      ...(input.descriptor.tacticalSetup === undefined
+        ? {}
+        : { tacticalSetup: input.descriptor.tacticalSetup }),
       ...(input.descriptor.strategicContext === undefined
         ? {}
         : { strategicContext: input.descriptor.strategicContext }),

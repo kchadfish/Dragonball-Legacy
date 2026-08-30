@@ -129,8 +129,11 @@ Generated from scope `ai-combat-scope:v1` on 2026-08-30. This is an accounting a
 | AI-200 | structured score-factor and diagnostic foundation | complete | Phase 1 accounting and AI-030 baseline | focused score-factor and diagnostic tests | verified: packages/ai-engine/src/immediate-utility.test.ts |
 | AI-210 through AI-240 | resource, terminal, action-economy utility, and baseline chooser | complete | AI-200 | authoritative feature and chooser behavior tests | verified: packages/ai-engine/src/immediate-utility.test.ts |
 | AI-300 through AI-340 | state, status, transformation, scarcity, and pending-choice context | complete | AI-200 through AI-240 | state-aware evaluator and pending parity tests | verified: packages/ai-engine/src/contextual-utility.test.ts |
-| AI-400 through AI-540 | personality, difficulty, and declarative setup inference | deferred | AI-200 through AI-340 | profile and setup-value evaluator tests | deferred: later phase |
-| AI-600 through AI-750 | authoritative outcome analysis, pruning, and lookahead | deferred | PRE-030 and AI-200 through AI-540 | budgeted branch and deterministic lookahead tests | deferred: later phase |
+| AI-400 through AI-430 | typed personality, difficulty, and controlled variation | complete | AI-200 through AI-340 | profile, noise, and terminal-protection tests | verified: packages/ai-engine/src/phases-4-8.test.ts |
+| AI-500 through AI-540 | descriptor-driven setup, combo, denial, and advisory hints | complete | AI-400 through AI-430 | setup graph and validated hint tests | verified: packages/ai-engine/src/phases-4-8.test.ts; packages/game-data/src/ai-hints.test.ts |
+| AI-600 through AI-640 | combat-owned outcome estimation, expected utility, and pruning | complete | PRE-030 and AI-500 through AI-540 | outcome classification, uncertainty, and pruning tests | verified: packages/ai-engine/src/phases-4-8.test.ts |
+| AI-700 through AI-750 | isolated bounded shallow lookahead and pending expansion | complete | PRE-040 and AI-600 through AI-640 | branch isolation and deterministic budget tests | verified: packages/ai-engine/src/phases-4-8.test.ts; packages/combat-engine/src/analysis.test.ts |
+| AI-800 through AI-840 | structured diagnostics, explanations, retention, and replay | complete | AI-700 through AI-750 | diagnostic retention and replay identity tests | verified: packages/ai-engine/src/phases-4-8.test.ts |
 
 ## Accounting totals
 

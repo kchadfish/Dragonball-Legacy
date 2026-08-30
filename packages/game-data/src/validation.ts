@@ -16,6 +16,56 @@ import type {
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const transformationMasteries = Object.values(TRANSFORMATION_MASTERY);
 
+const aiHintRoles = new Set([
+  "damage",
+  "defense",
+  "control",
+  "resource",
+  "setup",
+  "finisher",
+  "transformation",
+]);
+
+const validateAiHints = (hints: unknown, context: string, errors: string[]): void => {
+  if (hints === undefined) return;
+  if (hints === null || typeof hints !== "object") {
+    errors.push(`Invalid aiHints: ${context}`);
+    return;
+  }
+  const value = hints as {
+    readonly version?: unknown;
+    readonly roles?: unknown;
+    readonly followUpPreferences?: unknown;
+  };
+  if (value.version !== "ai-hints:v1") errors.push(`Invalid aiHints version: ${context}`);
+  if (value.roles !== undefined) {
+    if (!Array.isArray(value.roles) || value.roles.some((role) => !aiHintRoles.has(role)))
+      errors.push(`Invalid aiHints roles: ${context}`);
+  }
+  if (value.followUpPreferences !== undefined) {
+    if (
+      !Array.isArray(value.followUpPreferences) ||
+      value.followUpPreferences.some((preference) => {
+        if (preference === null || typeof preference !== "object") return true;
+        const candidate = preference as { readonly category?: unknown; readonly weight?: unknown };
+        return (
+          typeof candidate.category !== "string" ||
+          !Number.isFinite(candidate.weight) ||
+          (candidate.weight as number) < -1 ||
+          (candidate.weight as number) > 1
+        );
+      })
+    )
+      errors.push(`Invalid aiHints follow-up preferences: ${context}`);
+  }
+};
+
+export const validateAiHintsMetadata = (hints: unknown): readonly string[] => {
+  const errors: string[] = [];
+  validateAiHints(hints, "metadata", errors);
+  return errors;
+};
+
 export const validateGameDataDocuments = (
   documents: readonly GameDataDocument[],
 ): readonly string[] => {
@@ -186,6 +236,7 @@ const validateMove = (move: MoveDefinition, errors: string[]) => {
   validateMoveEffectClauses(move, errors);
   validateMoveMechanics(move, errors);
   validateMoveEffects(move, errors);
+  validateAiHints(move.aiHints, move.id, errors);
 };
 
 export const validateMoveDefinitions = (moves: readonly MoveDefinition[]): readonly string[] => {
@@ -349,6 +400,7 @@ const validateItem = (item: ItemDefinition, errors: string[]) => {
   validateItemEffectClauses(item, errors);
   validateItemRules(item, errors);
   validateItemProperties(item, errors);
+  validateAiHints(item.aiHints, item.id, errors);
   validateItemSourceAndShip(item, errors);
 };
 
@@ -664,6 +716,7 @@ const validateTransformation = (transformation: TransformationDefinition, errors
     }
   }
   validateTransformationAbilities(transformation, errors);
+  validateAiHints(transformation.aiHints, transformation.id, errors);
 };
 
 export const validateTransformationDefinitions = (

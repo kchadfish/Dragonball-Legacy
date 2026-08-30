@@ -55,7 +55,7 @@ export interface AiContextualEvaluatorRow {
 }
 
 export interface AiCapabilityMatrix {
-  readonly schemaVersion: "ai-engine-capability-matrix:v3";
+  readonly schemaVersion: "ai-engine-capability-matrix:v4";
   readonly scopeVersion: string;
   readonly generatedAt: string;
   readonly authority: Readonly<Record<string, string>>;
@@ -169,7 +169,7 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
       });
 
   return {
-    schemaVersion: "ai-engine-capability-matrix:v3",
+    schemaVersion: "ai-engine-capability-matrix:v4",
     scopeVersion: sourceFixture.scopeVersion,
     generatedAt: sourceFixture.generatedAt,
     authority: {
@@ -218,20 +218,52 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
         },
       },
       {
-        roadmapId: "AI-400 through AI-540",
-        capability: "personality, difficulty, and declarative setup inference",
-        status: "deferred",
+        roadmapId: "AI-400 through AI-430",
+        capability: "typed personality, difficulty, and controlled variation",
+        status: "complete",
         prerequisite: "AI-200 through AI-340",
-        proofTarget: "profile and setup-value evaluator tests",
-        proof: { status: "deferred", evidence: "later phase" },
+        proofTarget: "profile, noise, and terminal-protection tests",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
       },
       {
-        roadmapId: "AI-600 through AI-750",
-        capability: "authoritative outcome analysis, pruning, and lookahead",
-        status: "deferred",
-        prerequisite: "PRE-030 and AI-200 through AI-540",
-        proofTarget: "budgeted branch and deterministic lookahead tests",
-        proof: { status: "deferred", evidence: "later phase" },
+        roadmapId: "AI-500 through AI-540",
+        capability: "descriptor-driven setup, combo, denial, and advisory hints",
+        status: "complete",
+        prerequisite: "AI-400 through AI-430",
+        proofTarget: "setup graph and validated hint tests",
+        proof: {
+          status: "verified",
+          evidence:
+            "packages/ai-engine/src/phases-4-8.test.ts; packages/game-data/src/ai-hints.test.ts",
+        },
+      },
+      {
+        roadmapId: "AI-600 through AI-640",
+        capability: "combat-owned outcome estimation, expected utility, and pruning",
+        status: "complete",
+        prerequisite: "PRE-030 and AI-500 through AI-540",
+        proofTarget: "outcome classification, uncertainty, and pruning tests",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
+      },
+      {
+        roadmapId: "AI-700 through AI-750",
+        capability: "isolated bounded shallow lookahead and pending expansion",
+        status: "complete",
+        prerequisite: "PRE-040 and AI-600 through AI-640",
+        proofTarget: "branch isolation and deterministic budget tests",
+        proof: {
+          status: "verified",
+          evidence:
+            "packages/ai-engine/src/phases-4-8.test.ts; packages/combat-engine/src/analysis.test.ts",
+        },
+      },
+      {
+        roadmapId: "AI-800 through AI-840",
+        capability: "structured diagnostics, explanations, retention, and replay",
+        status: "complete",
+        prerequisite: "AI-700 through AI-750",
+        proofTarget: "diagnostic retention and replay identity tests",
+        proof: { status: "verified", evidence: "packages/ai-engine/src/phases-4-8.test.ts" },
       },
     ],
   };

@@ -52,12 +52,13 @@ describe("AI capability matrix", () => {
     );
   });
 
-  it("renders exclusions and deferred strategic gaps without claiming support", () => {
+  it("renders exclusions and completed strategic phase accounting", () => {
     const rendered = renderAiCapabilityMatrix();
     expect(rendered).toContain("ai-combat-scope:v1");
     expect(rendered).toContain("combat-scope:spaceship-combat");
     expect(rendered).toContain("AI-200");
-    expect(rendered).toContain("AI-600 through AI-750");
+    expect(rendered).toContain("AI-600 through AI-640");
+    expect(rendered).toContain("AI-800 through AI-840");
     expect(rendered).toContain("AI-300 through AI-340");
     expect(rendered).toContain("Contextual evaluators");
     expect(rendered).toContain("complete");

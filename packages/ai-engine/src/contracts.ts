@@ -18,6 +18,21 @@ import type { AiRandomSource } from "./random.js";
 
 export type DiagnosticRetention = "none" | "selection-only" | "ranked-summary" | "full";
 
+export const personalityDimensionNames = [
+  "aggression",
+  "damage",
+  "defense",
+  "status",
+  "ki-conservation",
+  "risk-tolerance",
+  "transformation-preference",
+  "scarcity-conservation",
+  "combo-preference",
+] as const;
+
+export type PersonalityDimension = (typeof personalityDimensionNames)[number];
+export type PersonalityDimensions = Readonly<Record<PersonalityDimension, number>>;
+
 export interface AiEvaluatorIdentity {
   readonly id: string;
   readonly version: string;
@@ -70,7 +85,12 @@ export type ScoreFactorBasis =
   | { readonly type: "boolean"; readonly value: boolean }
   | {
       readonly type: "adjustment";
-      readonly reason: "tactical-clamp" | "tie-break";
+      readonly reason:
+        | "tactical-clamp"
+        | "tie-break"
+        | "personality-adjustment"
+        | "difficulty-adjustment"
+        | "noise";
     };
 
 export interface ScoreFactor {
@@ -82,12 +102,26 @@ export interface ScoreFactor {
 
 export interface PersonalityWeights {
   readonly version: string;
-  readonly values: Readonly<Record<string, number>>;
+  /** Typed dimensions are authoritative; values is retained for compatibility. */
+  readonly dimensions?: PersonalityDimensions;
+  readonly values?: Readonly<Record<string, number>>;
 }
 
 export interface DifficultySettings {
   readonly version: string;
   readonly level: "easy" | "normal" | "hard" | (string & {});
+  readonly precision?: number;
+  readonly comboAwareness?: number;
+  readonly opponentAwareness?: number;
+  readonly candidateLimit?: number;
+  readonly responseLimit?: number;
+  readonly lookaheadDepth?: number;
+  readonly maxNodes?: number;
+  readonly maxProbes?: number;
+  readonly scoreNoiseMinimum?: number;
+  readonly scoreNoiseMaximum?: number;
+  readonly mistakeProbability?: number;
+  readonly preserveResources?: number;
 }
 
 export interface AiProfileIdentity {
@@ -101,19 +135,31 @@ export interface AiProfile {
   readonly difficulty: DifficultySettings;
 }
 
+export interface AiHintMetadata {
+  readonly version: "ai-hints:v1";
+  readonly roles?: readonly (
+    "damage" | "defense" | "control" | "resource" | "setup" | "finisher" | "transformation"
+  )[];
+  readonly followUpPreferences?: readonly {
+    readonly category: string;
+    readonly tags?: readonly string[];
+    readonly weight: number;
+  }[];
+}
+
 export type AiMoveMechanics = Pick<
   MoveDefinition,
-  "id" | "category" | "tags" | "mechanics" | "kiCost" | "restrictedUses" | "attack"
+  "id" | "category" | "tags" | "mechanics" | "kiCost" | "restrictedUses" | "attack" | "aiHints"
 >;
 
 export type AiItemMechanics = Pick<
   ItemDefinition,
-  "id" | "category" | "usePolicy" | "inventorySlots" | "effects" | "rules"
+  "id" | "category" | "usePolicy" | "inventorySlots" | "effects" | "rules" | "aiHints"
 >;
 
 export type AiTransformationMechanics = Pick<
   TransformationDefinition,
-  "id" | "raceId" | "tier" | "statModifiers" | "abilities"
+  "id" | "raceId" | "tier" | "statModifiers" | "abilities" | "aiHints"
 >;
 
 /** Advisory catalog identity. Mechanical meaning remains combat-engine-owned. */
@@ -123,17 +169,20 @@ export type AiMechanicsReference =
       readonly id: MoveDefinition["id"];
       readonly category: MoveDefinition["category"];
       readonly tags: MoveDefinition["tags"];
+      readonly aiHints?: AiHintMetadata;
     }
   | {
       readonly type: "item";
       readonly id: ItemDefinition["id"];
       readonly category: ItemDefinition["category"];
+      readonly aiHints?: AiHintMetadata;
     }
   | {
       readonly type: "transformation";
       readonly id: TransformationDefinition["id"];
       readonly raceId: TransformationDefinition["raceId"];
       readonly tier: TransformationDefinition["tier"];
+      readonly aiHints?: AiHintMetadata;
     };
 
 export interface VersionedMechanicsCatalog<TEntry> {
@@ -147,6 +196,38 @@ export interface AiMechanicsView {
   readonly items: readonly AiItemMechanics[];
   readonly transformations: readonly AiTransformationMechanics[];
 }
+
+export type AiOutcomeCategory =
+  | "stopped"
+  | "normal-success"
+  | "critical-success"
+  | "block-counter"
+  | "status-success"
+  | "lethal"
+  | "combination";
+
+export interface AiOutcomeEstimate {
+  readonly category: AiOutcomeCategory;
+  readonly probability: number;
+  readonly uncertainty: AiUncertainty;
+  readonly provenance: "exact" | "deterministic-probe" | "descriptor-range" | "unknown";
+}
+
+export interface AiWorkLimits {
+  readonly candidateLimit: number;
+  readonly outcomeLimit: number;
+  readonly nodeLimit: number;
+  readonly probeLimit: number;
+}
+
+export interface AiProfileValidationIssue {
+  readonly path: string;
+  readonly message: string;
+}
+
+export type AiProfileValidationResult =
+  | { readonly ok: true; readonly value: AiProfile }
+  | { readonly ok: false; readonly issues: readonly AiProfileValidationIssue[] };
 
 export interface AiFeatureExtractionInput {
   readonly state: Readonly<FightState>;
@@ -183,6 +264,7 @@ export interface AiDecisionFeatureBase {
   readonly targets: CombatDecisionDescriptor["targets"];
   readonly terminal: CombatDecisionDescriptor["terminal"];
   readonly immediateOutcome: CombatDecisionDescriptor["immediateOutcome"];
+  readonly tacticalSetup?: NonNullable<CombatDecisionDescriptor["tacticalSetup"]>;
   readonly strategicContext?: StrategicContextSummary;
   readonly authoritative: {
     readonly costs: CombatDecisionDescriptor["costs"];
@@ -191,6 +273,7 @@ export interface AiDecisionFeatureBase {
     readonly targets: CombatDecisionDescriptor["targets"];
     readonly terminal: CombatDecisionDescriptor["terminal"];
     readonly immediateOutcome: CombatDecisionDescriptor["immediateOutcome"];
+    readonly tacticalSetup?: NonNullable<CombatDecisionDescriptor["tacticalSetup"]>;
     readonly strategicContext?: StrategicContextSummary;
   };
   readonly state: AiAuthoritativeStateContext;
@@ -249,6 +332,7 @@ export interface AiAnalysisFacade {
   readonly probeDecision?: (
     state: FightState,
     decision: LegalDecision,
+    dependencies?: import("@dragonball-resurgence/combat-engine").CombatDependencies,
   ) => CombatResult<CombatAnalysisProbe>;
 }
 
@@ -263,6 +347,8 @@ export interface AiDecisionRequest {
   readonly dependencies: AiDependencies;
   readonly analysis?: AiAnalysisFacade;
   readonly diagnosticRetention?: DiagnosticRetention;
+  readonly workLimits?: Partial<AiWorkLimits>;
+  readonly opponentProfile?: AiProfile;
 }
 
 export interface AiImmediateUtilityRequest extends Omit<AiDecisionRequest, "analysis"> {
@@ -282,6 +368,11 @@ export type CandidateProvenance =
   | {
       readonly type: "canonical-key-fallback";
       readonly key: string;
+    }
+  | {
+      readonly type: "controlled-noise" | "controlled-mistake";
+      readonly key: string;
+      readonly value?: number;
     };
 
 export interface CandidateEvaluation {
@@ -297,16 +388,55 @@ export interface CandidateEvaluation {
   readonly provenance: readonly CandidateProvenance[];
   readonly totalScore: number;
   readonly rank: number;
+  readonly pruning?: CandidatePruningDisposition;
+  readonly searchValue?: number;
+  readonly uncertainty?: AiUncertainty;
+  readonly outcomes?: readonly AiOutcomeEstimate[];
+}
+
+export type CandidatePruningDisposition = "retained" | "dominated" | "protected" | "budget-pruned";
+
+export interface AiUncertainty {
+  readonly minimum: number;
+  readonly maximum: number;
+  readonly provenance: "exact" | "deterministic-probe" | "descriptor-range" | "unknown";
 }
 
 export interface AiDiagnostics {
-  readonly schemaVersion: "ai-decision-diagnostics:v1";
+  readonly schemaVersion: "ai-decision-diagnostics:v1" | "ai-decision-diagnostics:v2";
   readonly level: Exclude<DiagnosticRetention, "none">;
   readonly stateVersion: number;
   readonly profileVersion: string;
   readonly evaluator: AiEvaluatorIdentity;
   readonly selectedCanonicalKey: string;
   readonly evaluations?: readonly CandidateEvaluation[];
+  readonly budget?: AiBudgetUsage;
+  readonly searchPaths?: readonly AiSearchPath[];
+  readonly setupEdges?: readonly AiSetupEdge[];
+}
+
+export interface AiBudgetUsage {
+  readonly candidates: { readonly used: number; readonly limit: number };
+  readonly outcomes: { readonly used: number; readonly limit: number };
+  readonly nodes: { readonly used: number; readonly limit: number };
+  readonly probes: { readonly used: number; readonly limit: number };
+}
+
+export interface AiSearchPath {
+  readonly path: readonly string[];
+  readonly stateHash: string;
+  readonly depth: number;
+  readonly completed: boolean;
+  readonly value?: number;
+}
+
+export interface AiSetupEdge {
+  readonly sourceKey: string;
+  readonly targetKeys: readonly string[];
+  readonly value: number;
+  readonly window: "same-action" | "next-action" | "next-turn" | "several-turns" | "combat";
+  readonly available: boolean;
+  readonly reason: string;
 }
 
 export interface AiDecisionResult {

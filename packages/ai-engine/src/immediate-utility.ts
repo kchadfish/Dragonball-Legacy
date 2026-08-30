@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-nested-conditional */
 import {
   canonicalDecisionKey,
   type CombatDecisionDescriptor,
@@ -21,6 +22,9 @@ import {
 import { extractDecisionFeatures } from "./feature-extraction.js";
 import { selectSafeLegalDecision } from "./safe-fallback.js";
 import { selectContextualDecision } from "./contextual-utility.js";
+import { selectStrategicDecision } from "./strategic-utility.js";
+import { resolveDifficultySettings } from "./profiles.js";
+import { selectLookaheadDecision } from "./lookahead.js";
 
 export const IMMEDIATE_UTILITY_EVALUATOR = {
   id: "ai-evaluator:baseline-immediate",
@@ -521,4 +525,8 @@ export const selectImmediateUtilityDecision = (
 export const selectLegalDecision = (request: AiDecisionRequest): AiResult<AiDecisionResult> =>
   request.analysis?.describeDecision === undefined
     ? selectSafeLegalDecision(request)
-    : selectContextualDecision(request);
+    : request.profile.personality.dimensions !== undefined
+      ? resolveDifficultySettings(request.profile.difficulty).lookaheadDepth > 0
+        ? selectLookaheadDecision(request)
+        : selectStrategicDecision(request)
+      : selectContextualDecision(request);

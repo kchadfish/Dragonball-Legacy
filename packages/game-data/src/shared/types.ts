@@ -26,6 +26,19 @@ export interface SourceReference {
   readonly text: string;
 }
 
+/** Optional, non-authoritative guidance for shared AI utility evaluation. */
+export interface AiHintMetadata {
+  readonly version: "ai-hints:v1";
+  readonly roles?: readonly (
+    "damage" | "defense" | "control" | "resource" | "setup" | "finisher" | "transformation"
+  )[];
+  readonly followUpPreferences?: readonly {
+    readonly category: string;
+    readonly tags?: readonly string[];
+    readonly weight: number;
+  }[];
+}
+
 export interface MoveDefinition {
   readonly id: MoveId;
   readonly name: string;
@@ -47,6 +60,7 @@ export interface MoveDefinition {
   readonly effects?: readonly EffectDefinition[];
   readonly trainingDays?: number;
   readonly source: SourceReference;
+  readonly aiHints?: AiHintMetadata;
 }
 
 export interface MoveSourceDefinition {
@@ -433,6 +447,7 @@ export interface TransformationDefinition {
   readonly appearance?: string;
   readonly notes?: readonly string[];
   readonly source: SourceReference;
+  readonly aiHints?: AiHintMetadata;
 }
 
 export interface TransformationSourceDefinition {
@@ -483,6 +498,7 @@ export interface ItemDefinition {
   readonly requirements?: readonly Requirement[];
   readonly effects?: readonly ItemEffectDefinition[];
   readonly source: SourceReference;
+  readonly aiHints?: AiHintMetadata;
 }
 
 /**

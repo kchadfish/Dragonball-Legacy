@@ -24,6 +24,30 @@ export interface CombatAnalysisProbe {
   readonly diagnosticTrace: CombatTransition["diagnosticTrace"];
 }
 
+/** Authoritative categories exposed to evaluators without exposing executors. */
+export type CombatOutcomeCategory =
+  | "stopped"
+  | "normal-success"
+  | "critical-success"
+  | "block-counter"
+  | "status-success"
+  | "lethal"
+  | "combination";
+
+export const classifyCombatAnalysisProbe = (probe: CombatAnalysisProbe): CombatOutcomeCategory => {
+  const resolved = [...probe.events].reverse().find((event) => event.type === "attack-resolved");
+  if (resolved?.type === "attack-resolved") {
+    if (resolved.counter) return "block-counter";
+    if (resolved.critical) return "critical-success";
+    if (resolved.outcome === "stopped") return "stopped";
+    if (probe.events.some((event) => event.type === "combatant-defeated")) return "lethal";
+    return "normal-success";
+  }
+  if (probe.events.some((event) => event.type === "combatant-defeated")) return "lethal";
+  if (probe.events.some((event) => event.type === "status-applied")) return "status-success";
+  return probe.terminal === undefined ? "normal-success" : "lethal";
+};
+
 export interface AnalysisWorkBudget {
   readonly maxNodes: number;
   readonly maxProbes: number;

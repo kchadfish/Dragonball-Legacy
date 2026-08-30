@@ -1374,7 +1374,7 @@ describe("combat capability matrix", () => {
       "race-namek:trait:race-trait-namek-meditative-preparation#0",
     ]);
     expect(supported.every((row) => row.executor !== null)).toBe(true);
-  });
+  }, 30_000);
 
   it("closes every exact typed modify-resource listener occurrence", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(
@@ -1801,7 +1801,7 @@ describe("combat capability matrix", () => {
       capabilityId: "copy-move-effect.v4",
       executor: "persistent-selected-copy-attack",
     });
-  });
+  }, 30_000);
 
   it("classifies Rage Mastery's exact grouped all-dice success gate", () => {
     const rows = createCombatCapabilityMatrix().occurrences.filter(

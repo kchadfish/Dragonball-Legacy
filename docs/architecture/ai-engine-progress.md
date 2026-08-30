@@ -295,3 +295,36 @@ Focused evidence is in `packages/combat-engine/src/analysis.test.ts` and
 capability matrix is schema v3, registers nine contextual evaluators, and marks
 AI-300 through AI-340 complete. The next resume point is AI-400; personality,
 difficulty, setup inference, lookahead, and NPC integration remain deferred.
+
+## 2026-08-30 - Phases 4-8 complete: AI-400 through AI-840
+
+Phases 4 through 8 are implemented in the public `ai-engine` boundary. The
+implementation remains advisory: combat-engine legal enumeration, descriptors,
+outcome classification, probes, and transitions remain authoritative.
+
+- AI-400 through AI-430: typed nine-dimension personalities, validated profile
+  factories, easy/normal/hard and deterministic simulation-quality controls,
+  keyed score noise, bounded near-best mistakes, and terminal-priority guards.
+- AI-500 through AI-540: descriptor-driven setup edges with consistent timing
+  discounts, legal-follow-up availability checks, category-based combo links,
+  denial/control evidence from engine context, and validated optional `aiHints`
+  metadata. Hints only adjust utility.
+- AI-600 through AI-640: combat-owned probe outcome categories, bounded
+  descriptor-range estimates with explicit provenance, expected utility,
+  deterministic candidate limits, and retained/dominated/protected/budget
+  dispositions.
+- AI-700 through AI-750: branch-local combat dependencies, one-ply transition
+  probing, pending-chain expansion, bounded response modeling, repeated-state
+  protection, and deterministic degradation when budgets exhaust.
+- AI-800 through AI-840: schema-v2 structured diagnostics, explanations from
+  retained diagnostics, canonical replay identities and hashes, typed replay
+  mismatch results, and retention-invariant selection.
+
+Focused proof is in `packages/ai-engine/src/phases-4-8.test.ts` and
+`packages/game-data/src/ai-hints.test.ts`, with combat outcome and branch
+dependency evidence in `packages/combat-engine/src/analysis.test.ts`. The
+capability matrix is schema v4 and marks AI-400 through AI-840 complete. No
+NPC, simulation, application, persistence, dependency, or combat-rule
+integration was added. Known limits remain bounded shallow search, local 1v1
+scope, conservative descriptor-range estimates when no probe is supplied, and
+no Phase 9 behavior. The next resume point is Phase 9.

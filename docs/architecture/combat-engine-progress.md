@@ -5838,3 +5838,13 @@ event output. Unknown transformation or lifecycle facts remain explicit in
 `completeness` and `unknownFacts`. Mechanic classification uses typed executor
 discriminants rather than definition IDs. The next combat-engine resume point
 is unchanged; the next AI resume point is AI-400.
+
+## 2026-08-30 - Tactical setup and outcome handoff for AI Phases 5-6
+
+Decision descriptors now optionally carry combat-authored tactical setup facts:
+eligible follow-up categories or IDs, target relation, bounded timing window,
+control impact, and current availability. These facts are descriptive and do
+not change legal enumeration or transition behavior. Combat analysis also
+classifies completed probes into stable outcome categories (`stopped`, normal
+or critical success, block/counter, status success, and lethal) so AI does not
+reimplement combat result semantics.

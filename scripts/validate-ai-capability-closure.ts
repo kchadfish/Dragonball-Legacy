@@ -72,7 +72,7 @@ export const validateAiCapabilityClosure = (
   const issues: string[] = [];
   const schemaVersion: string = matrix.schemaVersion;
   const scopeVersion: string = matrix.scopeVersion;
-  if (schemaVersion !== "ai-engine-capability-matrix:v3")
+  if (schemaVersion !== "ai-engine-capability-matrix:v4")
     issues.push("Invalid AI capability matrix schema version.");
   if (scopeVersion !== "ai-combat-scope:v1")
     issues.push("AI capability matrix must use ai-combat-scope:v1.");
