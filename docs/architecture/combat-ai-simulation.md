@@ -4,8 +4,9 @@
 
 This is the design for player-facing NPC AI and the future balance simulation.
 The AI engine and NPC consumer adapter are implemented for the verified local
-1v1 scope. `@dragonball-resurgence/simulation` remains intentionally planned;
-the dedicated simulation roadmap is the next workstream.
+1v1 scope. The adapter is not yet a production-complete NPC encounter system;
+see [NPC-AI completion roadmap](npc-ai-roadmap.md). The dedicated simulation
+package remains intentionally planned as a separate workstream.
 
 The design preserves the existing ownership boundary: game data declares game
 content, the combat engine alone resolves combat, AI chooses from engine-legal
@@ -58,15 +59,15 @@ one, and submits that decision using the same boundary as every other caller.
 
 Required engine-readiness properties are:
 
-* Transitions do not mutate the input state or use hidden per-fight state.
-* Creation and transitions accept injected dependencies, including a seeded RNG.
-* Equal state, actions, dependency behavior, and seed produce equal rolls,
+- Transitions do not mutate the input state or use hidden per-fight state.
+- Creation and transitions accept injected dependencies, including a seeded RNG.
+- Equal state, actions, dependency behavior, and seed produce equal rolls,
   events, and resulting state.
-* Legal decisions are complete for the active actor, including pending choices.
-* Completed state is explicit and carries a typed termination reason.
-* Events are factual and structured; full history is available for diagnostics.
-* Snapshots are serializable and cheap enough to copy for shallow lookahead.
-* Rule slices define finite resolution or surface a typed failure; they do not
+- Legal decisions are complete for the active actor, including pending choices.
+- Completed state is explicit and carries a typed termination reason.
+- Events are factual and structured; full history is available for diagnostics.
+- Snapshots are serializable and cheap enough to copy for shallow lookahead.
+- Rule slices define finite resolution or surface a typed failure; they do not
   silently loop.
 
 The engine provides immutable transition-style state,
@@ -376,11 +377,11 @@ and Discord dependencies in simulation code.
 
 ## Decisions required before implementation
 
-* Define the supported engine rule coverage at each simulation milestone; a
+- Define the supported engine rule coverage at each simulation milestone; a
   partially implemented move catalog cannot support ecosystem-wide conclusions.
-* Set initial maximum-turn and no-progress policies, including how a terminal
+- Set initial maximum-turn and no-progress policies, including how a terminal
   simulation-only stalemate is reported without changing game rules.
-* Choose deterministic seed derivation and report serialization formats.
-* Define template sources and the first representative moveset/checkpoint set.
-* Set human-review thresholds and minimum sample/confidence requirements.
-* Decide whether AI hints are needed only after mechanical inference is measured.
+- Choose deterministic seed derivation and report serialization formats.
+- Define template sources and the first representative moveset/checkpoint set.
+- Set human-review thresholds and minimum sample/confidence requirements.
+- Decide whether AI hints are needed only after mechanical inference is measured.

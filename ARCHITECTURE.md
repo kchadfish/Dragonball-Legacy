@@ -418,6 +418,9 @@ It must not:
 - Create actions that were not included in the engine’s legal-action output.
 
 `npc-ai` may depend on `shared`, `game-data`, `combat-engine`, and `ai-engine`.
+See [NPC-AI completion roadmap](docs/architecture/npc-ai-roadmap.md) for the
+dependency-ordered path from the implemented decision adapter to production
+NPC encounters.
 
 ---
 
