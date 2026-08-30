@@ -31,9 +31,12 @@
     "validate:ai-capability-closure": "tsx scripts/validate-ai-capability-closure.ts",
     "validate:combat-engine-boundaries": "tsx scripts/validate-combat-engine-boundaries.ts",
     "validate:ai-engine-boundaries": "tsx scripts/validate-ai-engine-boundaries.ts",
+    "validate:npc-ai-boundaries": "tsx scripts/validate-npc-ai-boundaries.ts",
+    "report:npc-ai-readiness": "tsx scripts/npc-ai-readiness.ts",
+    "validate:npc-ai-readiness": "tsx scripts/npc-ai-readiness.ts --validate",
     "validate:game-data": "tsx scripts/validate-game-data.ts",
     "validate:reference-markdown": "tsx scripts/validate-reference-markdown.ts",
-    "check": "npm run format:check && npm run lint && npm run validate:reference-markdown && npm run validate:game-data && npm run validate:combat-engine-boundaries && npm run validate:ai-engine-boundaries && npm run validate:combat-capability-closure && npm run validate:ai-capability-closure && npm run test && npm run build",
+    "check": "npm run format:check && npm run lint && npm run validate:reference-markdown && npm run validate:game-data && npm run validate:combat-engine-boundaries && npm run validate:ai-engine-boundaries && npm run validate:npc-ai-boundaries && npm run validate:combat-capability-closure && npm run validate:ai-capability-closure && npm run test && npm run build",
     "quality": "npm run check && npm run test:coverage && npm run duplicates && npm run audit:production"
   },
   "devDependencies": {

@@ -448,7 +448,9 @@ It must not:
 `simulation` may depend on `shared`, `game-config`, `game-data`,
 `combat-engine`, and `ai-engine`. It must not be a dependency of those packages.
 See [Combat AI and simulation architecture](docs/architecture/combat-ai-simulation.md)
-for the detailed design and delivery order.
+for the detailed design and
+[Simulation-engine completion roadmap](docs/architecture/simulation-roadmap.md)
+for the exhaustive dependency-ordered delivery plan.
 
 ---
 

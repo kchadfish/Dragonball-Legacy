@@ -111,6 +111,33 @@ const deferredMove = (state: ActiveFightState, moveId: string) =>
   );
 
 describe("deferred move catalog capabilities", () => {
+  it("does not enumerate a move whose authoritative KI cost is unaffordable", () => {
+    const { state: initialState, dependencies } = createInitialState();
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(initialState, dependencies)).state,
+    );
+    const constrained: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId],
+          ki: { ...action.combatants[firstCombatantId].ki, current: 0 },
+          moveIds: [
+            ...action.combatants[firstCombatantId].moveIds,
+            "move-afterlife-warp-kamehameha",
+          ],
+        },
+      },
+    };
+    expect(enumerateLegalDecisions(constrained, firstCombatantId)).not.toContainEqual(
+      expect.objectContaining({
+        type: "use-move",
+        moveId: "move-afterlife-warp-kamehameha",
+      }),
+    );
+  });
+
   it("schedules Warp Kamehameha, forces the intervening turn, and resumes its attack", () => {
     const dependencies = createDeferredDependencies("warp-resume", [1, 20, 20, 1]);
     const created = requireTransition(

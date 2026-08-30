@@ -307,11 +307,13 @@ const validateRequest = (request: AiImmediateUtilityRequest): AiFailure | undefi
   if (request.state.status === "completed") {
     return { type: "completed-state", stateVersion: request.state.version };
   }
-  if (request.state.activeCombatantId !== request.actorId) {
+  const expectedActorId =
+    request.state.pendingDecision?.combatantId ?? request.state.activeCombatantId;
+  if (expectedActorId !== request.actorId) {
     return {
       type: "actor-mismatch",
       actorId: request.actorId,
-      expectedActorId: request.state.activeCombatantId,
+      expectedActorId,
     };
   }
   if (request.legalDecisions.length === 0)

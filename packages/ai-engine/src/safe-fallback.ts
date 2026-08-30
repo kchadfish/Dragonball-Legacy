@@ -48,11 +48,12 @@ const validateState = (request: AiDecisionRequest): AiFailure | undefined => {
       issues: [{ path: "actorId", message: "Actor is not present in the fight state." }],
     };
   }
-  if (state.activeCombatantId !== request.actorId) {
+  const expectedActorId = state.pendingDecision?.combatantId ?? state.activeCombatantId;
+  if (expectedActorId !== request.actorId) {
     return {
       type: "actor-mismatch",
       actorId: request.actorId,
-      expectedActorId: state.activeCombatantId,
+      expectedActorId,
     };
   }
   return undefined;

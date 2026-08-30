@@ -138,6 +138,8 @@ export const planFocusedCheck = (inputFiles: readonly string[]): FocusedCheckPla
     const workspace = packageWorkspaceFor(file);
     if (workspace !== undefined) {
       addWorkspace(workspace);
+      if (workspace === workspaceNames["npc-ai"] && !file.endsWith("package.json"))
+        addTestPath("packages/npc-ai/src");
       if (file.endsWith(".test.ts")) addTestPath(file);
       if (file.endsWith("/package.json")) fullGate = setFullGate(fullGate, "quality");
       continue;

@@ -1,6 +1,7 @@
 /* eslint-disable sonarjs/cognitive-complexity, complexity -- nested policy and priority validators intentionally accumulate all configuration issues. */
 import {
   enumerateLegalDecisions,
+  deriveDeterministicSeed,
   type CombatantId,
   type FightState,
   type LegalDecision,
@@ -9,6 +10,7 @@ import {
   HARD_PROFILE,
   NORMAL_PROFILE,
   SIMULATION_QUALITY_PROFILE,
+  createAiRandomSource,
   selectAiDecision,
   validateAiAdvisoryPriorities,
   validateAiProfile,
@@ -23,9 +25,47 @@ import {
   ITEM_DEFINITIONS,
   MOVE_DEFINITIONS,
   TRANSFORMATION_DEFINITIONS,
+  type NpcId,
 } from "@dragonball-resurgence/game-data";
 
+import { npcReadinessMatrix } from "./normalization.js";
+
+export {
+  assessNpcReadiness,
+  materializeNpcCombatant,
+  npcReadinessMatrix,
+  normalizationOverlayFor,
+} from "./normalization.js";
+export * from "./catalog.js";
+
 export const NPC_AI_POLICY_VERSION = "npc-ai-policy:v1";
+
+export interface NpcDecisionRandomIdentity {
+  readonly encounterRootSeed: number;
+  readonly fightId: string;
+  readonly stateVersion: number;
+  readonly actorId: CombatantId;
+  readonly policyVersion: string;
+  readonly evaluatorVersion: string;
+  readonly purpose: string;
+}
+
+/** Creates isolated AI randomness; combat-engine randomness is never consumed here. */
+export const createNpcDecisionRandomSource = (identity: NpcDecisionRandomIdentity) =>
+  createAiRandomSource({
+    rootSeed: deriveDeterministicSeed([
+      identity.encounterRootSeed,
+      identity.fightId,
+      identity.stateVersion,
+      identity.actorId,
+      identity.policyVersion,
+      identity.evaluatorVersion,
+      identity.purpose,
+    ]),
+    profileVersion: identity.policyVersion,
+    evaluatorVersion: identity.evaluatorVersion,
+    purpose: identity.purpose,
+  });
 
 export interface NpcAiThreshold {
   readonly minimum?: number;
@@ -58,6 +98,8 @@ export type NpcTacticalPriority =
   | { readonly type: "status-pressure"; readonly id: string; readonly weight: number }
   | { readonly type: "aggressive-phase"; readonly id: string; readonly weight: number };
 
+export type NpcAiPolicyProvenance = "source-derived" | "npc-design" | "saga-design";
+
 export interface NpcAiPhase {
   readonly id: string;
   readonly priority: number;
@@ -69,6 +111,7 @@ export interface NpcAiPhase {
 export interface NpcAiPolicy {
   readonly version: typeof NPC_AI_POLICY_VERSION;
   readonly id: string;
+  readonly provenance: NpcAiPolicyProvenance;
   readonly defaultProfile: AiProfile;
   readonly tacticalPriorities?: readonly NpcTacticalPriority[];
   readonly phases?: readonly NpcAiPhase[];
@@ -94,7 +137,18 @@ export interface NpcDecisionRequest extends Omit<
   AiDecisionRequest,
   "legalDecisions" | "profile" | "advisoryPriorities"
 > {
+  readonly npcId: NpcId;
   readonly policy: NpcAiPolicy;
+  readonly npcCombatantId?: CombatantId;
+  readonly policyCatalogVersion?: string;
+  readonly mechanicsCatalogVersion?: string;
+}
+
+export interface NpcReplayIdentity {
+  readonly schemaVersion: "npc-replay:v1";
+  readonly value: string;
+  readonly seed: number;
+  readonly purpose: string;
 }
 
 export interface NpcDecisionResult {
@@ -105,11 +159,23 @@ export interface NpcDecisionResult {
   readonly phaseId?: string;
   readonly advisoryPriorities: AiAdvisoryPriorities;
   readonly ai: AiDecisionResult;
+  readonly npcId: NpcId;
+  readonly replayIdentity: NpcReplayIdentity;
 }
 
 export type NpcAiFailure =
   | { readonly type: "completed-state"; readonly stateVersion: number }
   | { readonly type: "empty-legal-set"; readonly actorId: CombatantId }
+  | {
+      readonly type: "wrong-actor";
+      readonly actorId: CombatantId;
+      readonly expectedActorId: CombatantId;
+    }
+  | { readonly type: "actor-npc-mismatch"; readonly actorId: CombatantId; readonly npcId: NpcId }
+  | { readonly type: "missing-npc-assignment"; readonly npcId: NpcId }
+  | { readonly type: "manual-only-npc"; readonly npcId: NpcId; readonly reasons: readonly string[] }
+  | { readonly type: "descriptor-catalog-drift"; readonly detail: string }
+  | { readonly type: "work-budget-exhaustion"; readonly detail: string }
   | { readonly type: "invalid-policy"; readonly issues: readonly NpcAiPolicyValidationIssue[] }
   | { readonly type: "ai-selection-failure"; readonly detail: string };
 
@@ -117,6 +183,8 @@ export type NpcAiResult<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: NpcAiFailure };
 
 const stableId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object";
 
 const policyIssue = (path: string, message: string): NpcAiPolicyValidationIssue => ({
   path,
@@ -124,57 +192,84 @@ const policyIssue = (path: string, message: string): NpcAiPolicyValidationIssue 
 });
 
 const validateThreshold = (
-  threshold: NpcAiThreshold | undefined,
+  threshold: unknown,
   path: string,
   issues: NpcAiPolicyValidationIssue[],
   minimum: number,
   maximum: number,
 ) => {
   if (threshold === undefined) return;
+  if (!isRecord(threshold)) {
+    issues.push(policyIssue(path, "Threshold must be an object."));
+    return;
+  }
+  const candidate = threshold as unknown as NpcAiThreshold;
   if (
-    threshold.minimum !== undefined &&
-    (!Number.isFinite(threshold.minimum) ||
-      threshold.minimum < minimum ||
-      threshold.minimum > maximum)
+    candidate.minimum !== undefined &&
+    (!Number.isFinite(candidate.minimum) ||
+      candidate.minimum < minimum ||
+      candidate.minimum > maximum)
   )
     issues.push(policyIssue(`${path}.minimum`, `Value must be between ${minimum} and ${maximum}.`));
   if (
-    threshold.maximum !== undefined &&
-    (!Number.isFinite(threshold.maximum) ||
-      threshold.maximum < minimum ||
-      threshold.maximum > maximum)
+    candidate.maximum !== undefined &&
+    (!Number.isFinite(candidate.maximum) ||
+      candidate.maximum < minimum ||
+      candidate.maximum > maximum)
   )
     issues.push(policyIssue(`${path}.maximum`, `Value must be between ${minimum} and ${maximum}.`));
   if (
-    threshold.minimum !== undefined &&
-    threshold.maximum !== undefined &&
-    threshold.minimum > threshold.maximum
+    candidate.minimum !== undefined &&
+    candidate.maximum !== undefined &&
+    candidate.minimum > candidate.maximum
   )
     issues.push(policyIssue(path, "Minimum must not exceed maximum."));
 };
 
 const validatePriorities = (
-  priorities: readonly NpcTacticalPriority[] | undefined,
+  priorities: unknown,
   path: string,
   issues: NpcAiPolicyValidationIssue[],
 ) => {
+  if (priorities === undefined) return;
+  if (!Array.isArray(priorities)) {
+    issues.push(policyIssue(path, "Priorities must be an array."));
+    return;
+  }
   const ids = new Set<string>();
-  for (const [index, priority] of (priorities ?? []).entries()) {
-    if (!stableId.test(priority.id))
+  const knownTypes = new Set<NpcTacticalPriority["type"]>([
+    "transformation-timing",
+    "signature-conservation",
+    "status-pressure",
+    "aggressive-phase",
+  ]);
+  for (const [index, priority] of priorities.entries()) {
+    if (!isRecord(priority)) {
+      issues.push(policyIssue(`${path}.${index}`, "Priority must be an object."));
+      continue;
+    }
+    const candidate = priority as unknown as NpcTacticalPriority;
+    if (!knownTypes.has(candidate.type))
+      issues.push(policyIssue(`${path}.${index}.type`, "Unsupported tactical priority type."));
+    if (!stableId.test(candidate.id))
       issues.push(
         policyIssue(`${path}.${index}.id`, "Priority IDs must be lowercase and hyphenated."),
       );
-    if (ids.has(priority.id))
+    if (ids.has(candidate.id))
       issues.push(policyIssue(`${path}.${index}.id`, "Priority IDs must be unique."));
-    ids.add(priority.id);
-    if (!Number.isFinite(priority.weight) || priority.weight < -2 || priority.weight > 2)
+    ids.add(candidate.id);
+    if (!Number.isFinite(candidate.weight) || candidate.weight < -2 || candidate.weight > 2)
       issues.push(policyIssue(`${path}.${index}.weight`, "Weight must be between -2 and 2."));
-    if (priority.type === "signature-conservation") {
-      if (priority.moveIds.length === 0)
+    if (candidate.type === "signature-conservation") {
+      if (!Array.isArray(candidate.moveIds)) {
+        issues.push(policyIssue(`${path}.${index}.moveIds`, "Move IDs must be an array."));
+        continue;
+      }
+      if (candidate.moveIds.length === 0)
         issues.push(
           policyIssue(`${path}.${index}.moveIds`, "At least one signature move ID is required."),
         );
-      for (const [moveIndex, moveId] of priority.moveIds.entries())
+      for (const [moveIndex, moveId] of candidate.moveIds.entries())
         if (!stableId.test(moveId))
           issues.push(
             policyIssue(
@@ -184,9 +279,9 @@ const validatePriorities = (
           );
     }
     if (
-      priority.type === "transformation-timing" &&
-      priority.selfHpAtOrBelow !== undefined &&
-      (priority.selfHpAtOrBelow < 0 || priority.selfHpAtOrBelow > 1)
+      candidate.type === "transformation-timing" &&
+      candidate.selfHpAtOrBelow !== undefined &&
+      (candidate.selfHpAtOrBelow < 0 || candidate.selfHpAtOrBelow > 1)
     )
       issues.push(
         policyIssue(`${path}.${index}.selfHpAtOrBelow`, "HP ratio must be between 0 and 1."),
@@ -198,9 +293,10 @@ export const validateNpcAiPolicy = (policy: unknown): NpcAiPolicyValidationResul
   const value = policy as {
     readonly version?: unknown;
     readonly id?: unknown;
-    readonly defaultProfile?: AiProfile;
-    readonly tacticalPriorities?: readonly NpcTacticalPriority[];
-    readonly phases?: readonly NpcAiPhase[];
+    readonly provenance?: unknown;
+    readonly defaultProfile?: unknown;
+    readonly tacticalPriorities?: unknown;
+    readonly phases?: unknown;
   };
   const issues: NpcAiPolicyValidationIssue[] = [];
   if (policy === null || typeof policy !== "object")
@@ -209,6 +305,11 @@ export const validateNpcAiPolicy = (policy: unknown): NpcAiPolicyValidationResul
     issues.push(policyIssue("version", "Unsupported policy version."));
   if (typeof value.id !== "string" || !stableId.test(value.id))
     issues.push(policyIssue("id", "Policy ID must be lowercase and hyphenated."));
+  if (
+    typeof value.provenance !== "string" ||
+    !new Set(["source-derived", "npc-design", "saga-design"]).has(value.provenance)
+  )
+    issues.push(policyIssue("provenance", "Policy provenance is unsupported."));
   const profile = validateAiProfile(value.defaultProfile as AiProfile);
   if (!profile.ok)
     for (const entry of profile.issues)
@@ -216,18 +317,29 @@ export const validateNpcAiPolicy = (policy: unknown): NpcAiPolicyValidationResul
   validatePriorities(value.tacticalPriorities, "tacticalPriorities", issues);
   const phaseIds = new Set<string>();
   const phasePriorities = new Set<number>();
-  for (const [index, phase] of (value.phases ?? []).entries()) {
-    if (!stableId.test(phase.id))
+  if (value.phases !== undefined && !Array.isArray(value.phases))
+    issues.push(policyIssue("phases", "Phases must be an array."));
+  for (const [index, phase] of (Array.isArray(value.phases) ? value.phases : []).entries()) {
+    if (!isRecord(phase)) {
+      issues.push(policyIssue(`phases.${index}`, "Phase must be an object."));
+      continue;
+    }
+    const candidatePhase = phase as unknown as NpcAiPhase;
+    if (!stableId.test(candidatePhase.id))
       issues.push(policyIssue(`phases.${index}.id`, "Phase ID must be lowercase and hyphenated."));
-    if (phaseIds.has(phase.id))
+    if (!isRecord(candidatePhase.when))
+      issues.push(policyIssue(`phases.${index}.when`, "Phase conditions are required."));
+    if (phaseIds.has(candidatePhase.id))
       issues.push(policyIssue(`phases.${index}.id`, "Phase IDs must be unique."));
-    phaseIds.add(phase.id);
-    if (!Number.isInteger(phase.priority))
+    phaseIds.add(candidatePhase.id);
+    if (!Number.isInteger(candidatePhase.priority))
       issues.push(policyIssue(`phases.${index}.priority`, "Phase priority must be an integer."));
-    if (phasePriorities.has(phase.priority))
+    if (phasePriorities.has(candidatePhase.priority))
       issues.push(policyIssue(`phases.${index}.priority`, "Phase priorities must be unique."));
-    phasePriorities.add(phase.priority);
-    const conditions = phase.when;
+    phasePriorities.add(candidatePhase.priority);
+    const conditions = isRecord(candidatePhase.when)
+      ? (candidatePhase.when as Record<string, unknown>)
+      : {};
     validateThreshold(
       conditions.turn,
       `phases.${index}.when.turn`,
@@ -242,8 +354,12 @@ export const validateNpcAiPolicy = (policy: unknown): NpcAiPolicyValidationResul
       ["opponentKiRatio", conditions.opponentKiRatio],
     ] as const)
       validateThreshold(threshold, `phases.${index}.when.${name}`, issues, 0, 1);
-    validatePriorities(phase.tacticalPriorities, `phases.${index}.tacticalPriorities`, issues);
-    const phaseProfile = validateAiProfile(phase.profile);
+    validatePriorities(
+      candidatePhase.tacticalPriorities,
+      `phases.${index}.tacticalPriorities`,
+      issues,
+    );
+    const phaseProfile = validateAiProfile(candidatePhase.profile);
     if (!phaseProfile.ok)
       for (const entry of phaseProfile.issues)
         issues.push(policyIssue(`phases.${index}.profile.${entry.path}`, entry.message));
@@ -259,12 +375,11 @@ const inThreshold = (value: number, threshold: NpcAiThreshold | undefined): bool
 const phaseMatches = (
   state: Extract<FightState, { readonly status: "active" }>,
   phase: NpcAiPhase,
+  actorId: CombatantId,
 ): boolean => {
-  const self = state.combatants[state.activeCombatantId];
-  const opponent = Object.values(state.combatants).find(
-    (candidate) => candidate.id !== state.activeCombatantId,
-  );
-  if (opponent === undefined) return false;
+  const self = Object.values(state.combatants).find((candidate) => candidate.id === actorId);
+  const opponent = Object.values(state.combatants).find((candidate) => candidate.id !== actorId);
+  if (self === undefined || opponent === undefined) return false;
   const conditions = phase.when;
   return (
     inThreshold(state.turnNumber, conditions.turn) &&
@@ -282,12 +397,16 @@ const phaseMatches = (
   );
 };
 
-export const resolveNpcAiPhase = (policy: NpcAiPolicy, state: FightState): NpcAiPhaseResolution => {
+export const resolveNpcAiPhase = (
+  policy: NpcAiPolicy,
+  state: FightState,
+  actorId: CombatantId,
+): NpcAiPhaseResolution => {
   const activePhase =
     state.status === "active"
       ? [...(policy.phases ?? [])]
           .sort((left, right) => right.priority - left.priority || left.id.localeCompare(right.id))
-          .find((phase) => phaseMatches(state, phase))
+          .find((phase) => phaseMatches(state, phase, actorId))
       : undefined;
   return {
     policyId: policy.id,
@@ -369,10 +488,52 @@ export const defaultNpcAiMechanics: AiMechanicsView = {
 export const selectNpcDecision = (request: NpcDecisionRequest): NpcAiResult<NpcDecisionResult> => {
   if (request.state.status !== "active")
     return { ok: false, error: { type: "completed-state", stateVersion: request.state.version } };
+  const expectedActorId =
+    request.state.pendingDecision?.combatantId ?? request.state.activeCombatantId;
+  if (!Object.hasOwn(request.state.combatants, request.actorId))
+    return { ok: false, error: { type: "wrong-actor", actorId: request.actorId, expectedActorId } };
+  if (request.actorId !== expectedActorId)
+    return { ok: false, error: { type: "wrong-actor", actorId: request.actorId, expectedActorId } };
+  if (request.npcCombatantId !== undefined && request.npcCombatantId !== request.actorId)
+    return {
+      ok: false,
+      error: { type: "actor-npc-mismatch", actorId: request.actorId, npcId: request.npcId },
+    };
+  if (
+    request.policyCatalogVersion !== undefined &&
+    request.policyCatalogVersion !== "npc-policy-catalog:v1"
+  )
+    return {
+      ok: false,
+      error: {
+        type: "descriptor-catalog-drift",
+        detail: "Unsupported NPC policy catalog version.",
+      },
+    };
+  if (
+    request.mechanicsCatalogVersion !== undefined &&
+    request.mechanicsCatalogVersion !== request.mechanics.version
+  )
+    return {
+      ok: false,
+      error: { type: "descriptor-catalog-drift", detail: "Mechanics catalog version mismatch." },
+    };
+  const npcReadiness = npcReadinessMatrix().find((row) => row.npcId === request.npcId);
+  if (npcReadiness === undefined)
+    return { ok: false, error: { type: "missing-npc-assignment", npcId: request.npcId } };
+  if (npcReadiness.runtimeClassification === "manual-only")
+    return {
+      ok: false,
+      error: {
+        type: "manual-only-npc",
+        npcId: request.npcId,
+        reasons: npcReadiness.issues.map((issue) => issue.reason),
+      },
+    };
   const validation = validateNpcAiPolicy(request.policy);
   if (!validation.ok)
     return { ok: false, error: { type: "invalid-policy", issues: validation.issues } };
-  const phase = resolveNpcAiPhase(request.policy, request.state);
+  const phase = resolveNpcAiPhase(request.policy, request.state, request.actorId);
   const priorities = compileNpcTacticalPriorities(phase.tacticalPriorities);
   const advisory = validateAiAdvisoryPriorities(priorities);
   if (!advisory.ok)
@@ -386,8 +547,37 @@ export const selectNpcDecision = (request: NpcDecisionRequest): NpcAiResult<NpcD
     profile: phase.profile,
     advisoryPriorities: priorities,
   });
-  if (!result.ok)
+  if (!result.ok) {
+    if (
+      result.error.type === "candidate-analysis-failure" &&
+      result.error.reason === "descriptor-mismatch"
+    )
+      return {
+        ok: false,
+        error: { type: "descriptor-catalog-drift", detail: result.error.detail },
+      };
+    if (result.error.type === "actor-mismatch")
+      return {
+        ok: false,
+        error: {
+          type: "wrong-actor",
+          actorId: result.error.actorId,
+          expectedActorId: result.error.expectedActorId,
+        },
+      };
     return { ok: false, error: { type: "ai-selection-failure", detail: result.error.type } };
+  }
+  const replaySeed = deriveDeterministicSeed([
+    request.dependencies.random.rootSeed,
+    request.state.id,
+    request.state.version,
+    request.actorId,
+    request.npcId,
+    request.policy.version,
+    request.policy.id,
+    request.dependencies.random.evaluatorVersion,
+    request.dependencies.random.purpose,
+  ]);
   return {
     ok: true,
     value: {
@@ -398,31 +588,40 @@ export const selectNpcDecision = (request: NpcDecisionRequest): NpcAiResult<NpcD
       ...(phase.phaseId === undefined ? {} : { phaseId: phase.phaseId }),
       advisoryPriorities: priorities,
       ai: result.value,
+      npcId: request.npcId,
+      replayIdentity: {
+        schemaVersion: "npc-replay:v1",
+        value: `npc-replay:${replaySeed.toString(16)}`,
+        seed: replaySeed,
+        purpose: request.dependencies.random.purpose,
+      },
     },
   };
 };
 
 export const normalNpcPolicy: NpcAiPolicy = {
   version: NPC_AI_POLICY_VERSION,
-  id: "normal-npc",
+  id: "npc-policy-balanced",
+  provenance: "npc-design",
   defaultProfile: NORMAL_PROFILE,
   tacticalPriorities: [{ type: "status-pressure", id: "prefer-status", weight: 0.25 }],
 };
 
 export const multiPhaseBossPolicy: NpcAiPolicy = {
   version: NPC_AI_POLICY_VERSION,
-  id: "multi-phase-boss",
+  id: "npc-policy-boss-quality",
+  provenance: "saga-design",
   defaultProfile: HARD_PROFILE,
   phases: [
     {
-      id: "desperate",
+      id: "phase-desperate",
       priority: 20,
       when: { selfHpRatio: { maximum: 0.35 } },
       profile: SIMULATION_QUALITY_PROFILE,
       tacticalPriorities: [{ type: "aggressive-phase", id: "desperate-aggression", weight: 0.4 }],
     },
     {
-      id: "opening",
+      id: "phase-opening",
       priority: 10,
       when: { turn: { maximum: 2 } },
       profile: HARD_PROFILE,
@@ -434,3 +633,5 @@ export const multiPhaseBossPolicy: NpcAiPolicy = {
 };
 
 /* eslint-enable sonarjs/cognitive-complexity, complexity */
+
+export * from "./certification.js";

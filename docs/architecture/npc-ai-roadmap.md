@@ -2,521 +2,724 @@
 
 ## Purpose
 
-This document is the dependency-ordered implementation queue for turning the
-completed `@dragonball-resurgence/ai-engine` and the existing
-`@dragonball-resurgence/npc-ai` decision adapter into a production-ready NPC
-combat system.
+This document is the dependency-ordered roadmap for completing the NPC-owned
+decision adapter around the completed `@dragonball-resurgence/ai-engine` and
+the authoritative `@dragonball-resurgence/combat-engine`.
 
-The shared AI decision pipeline is complete for `ai-combat-scope:v1`. This
-roadmap does not reopen its evaluators or create a second combat runtime. It
-finishes the NPC-owned work around runnable NPC definitions, policy assignment,
-boss phases, application orchestration, diagnostics, and rollout.
+The finish line for this roadmap is **NPC Intelligence Complete**. That is the
+handoff gate to the full Simulation system, not a Discord production-release
+gate. The eventual production encounter scope may include both player-versus-
+NPC and NPC-versus-NPC fights. The headless NPC Intelligence milestone only
+requires NPC-versus-NPC autonomous execution because that is sufficient to
+validate the NPC decision system and hand it to Simulation.
 
 Once implementation begins, create `npc-ai-progress.md` as the authoritative
-handoff record. Generate `npc-ai-readiness-matrix.md` in Phase 1 and keep it as
-the accounting record for NPC definition, policy, and runtime readiness. This
-roadmap owns dependency order, not current implementation status.
+handoff record. Generate `npc-ai-readiness-matrix.md` as the committed
+accounting artifact and keep it synchronized with the canonical NPC catalog.
+This roadmap owns dependency order, completion contracts, and evidence
+requirements; it does not mark future work as implemented.
 
 ## Current repository baseline
 
 As of 2026-08-30:
 
 - `@dragonball-resurgence/ai-engine` is complete for the verified local 1v1
-  scope and exposes the canonical deterministic selector, diagnostics, replay,
-  bounded reasoning, and consumer contracts.
-- `@dragonball-resurgence/npc-ai` already validates versioned policies, resolves
-  deterministic state-based boss phases, compiles four bounded tactical
+  scope and exposes deterministic selection, diagnostics, replay, bounded
+  reasoning, and consumer contracts.
+- `@dragonball-resurgence/npc-ai` currently consists of one public implementation
+  module and its focused tests. It validates `npc-ai-policy:v1` policies,
+  resolves deterministic state-based phases, compiles four bounded tactical
   priority types, enumerates combat-engine legal decisions, and returns the
   exact legal decision selected by `ai-engine`.
-- The NPC package includes representative normal-NPC and multi-phase-boss
-  policies, but these are examples rather than a complete authored policy
-  catalog.
+- The current package includes the representative policies `normal-npc` and
+  `multi-phase-boss`. They are examples, not an exhaustive authored catalog,
+  and their current phase IDs are `desperate` and `opening`.
+- The current public implementation has no pure NPC materialization adapter,
+  exhaustive NPC-to-policy assignment, or production application consumer.
 - `game-data` contains 32 canonical NPC definitions. Four do not currently
   contain a resolved runnable HP value, nine contain at least one unresolved
-  move name, two retain transformation information as source text, and thirteen
-  list equipment by display name.
-- No application currently depends on `npc-ai`. Both the Discord and API
-  application entry points are placeholders, so there is no production NPC-turn
-  loop, player-facing presentation, moderator control, or operational rollout.
+  move name, two retain transformation information as source text, and
+  thirteen list equipment by display name.
+- No application currently depends on `npc-ai`. The Discord and API entry
+  points are placeholders, so there is no production NPC-turn loop,
+  player-facing presentation, moderator control, or operational rollout.
 - The active delivery scope remains local 1v1 combat. Allies, joint attacks,
   interferers, remote targets, and other exclusions recorded under
-  `ai-combat-scope:v1` remain out of scope.
+  `ai-combat-scope:v1` remain out of scope for this roadmap's intelligence
+  milestone.
+
+The current implementation also has a known contract gap: phase matching uses
+`state.activeCombatantId` to derive `self`, while selection receives an
+explicit `request.actorId`. Phase resolution does not yet validate that the
+requested actor owns the ordinary or pending decision. Phase 2 closes this gap
+before the authored policy catalog and boss work proceed.
 
 ## Architecture and ownership
 
-The completed system must preserve this transition path:
+The intelligence path must preserve this ownership boundary:
 
 ```text
-game-data NPC definition -----> runnable combatant input
-             |                           |
-             v                           v
-npc-ai policy registry              combat-engine
-             |                           |
-             +----> ai-engine <----------+
-                         |
-                         v
-                 selected legal decision
-                         |
-                         v
-              application orchestration
-                         |
-                         v
-            combat-engine state transition
+source-faithful game-data NPC record
+              |
+              v
+   npc-ai normalization overlay
+              |
+              v
+ validated materialized combatant input -----> combat-engine
+              |                                      |
+              v                                      v
+       npc-ai effective policy ---------------> legal decisions
+              |                                      |
+              +--------------> ai-engine <-----------+
+                               |
+                               v
+                  exact selected legal decision
+                               |
+                               v
+                    combat-engine transition
+                               |
+                               v
+                 headless NPC-vs-NPC certification
+                               |
+                               v
+                         Simulation handoff
 ```
 
 Ownership is fixed as follows:
 
-- `game-data` owns static NPC identity, stats, moves, transformations, items,
-  race/style references, and source traceability.
+- `game-data` owns canonical NPC identity, source traceability, combat
+  inputs, moves, transformations, items, race references, and style
+  references.
+- The normalization overlay supplies only structured values or stable IDs
+  needed to turn ambiguous source representations into validated runtime
+  inputs. It is not a second NPC catalog.
 - `combat-engine` owns fight setup validation, legal decisions, every combat
-  rule, state transitions, events, and terminal state.
+  rule, state transitions, events, completion, and termination reasons.
 - `ai-engine` owns generic decision quality, profiles, deterministic selection,
   lookahead, replay identity, and decision diagnostics.
-- `npc-ai` owns the policy catalog, NPC-to-policy assignment, boss phase
-  selection, tactical priorities, policy validation, and NPC-specific decision
-  results.
-- Applications own active sessions, authorization, clocks and timeouts,
-  production seed allocation, repeated turn orchestration, user/moderator
-  controls, and platform rendering.
-- Persistence does not become a prerequisite. Fight or decision records are
-  persisted only if recovery, moderation, or auditing requirements justify it.
+- `npc-ai` owns NPC-specific normalization, effective policy assignment, phase
+  selection, tactical priorities, policy validation, and NPC decision results.
+- The headless certification boundary owns autonomous execution limits and
+  reporting around fights; it must still submit every decision through the
+  ordinary combat-engine public boundary.
+- Applications own future sessions, authorization, production seed
+  allocation, player handoff, user/moderator controls, and platform rendering.
+- The future Simulation package owns batch execution, scenario construction,
+  aggregation, and simulation reports. It does not depend on Discord or
+  application orchestration.
 
-Static NPC definitions must not import `npc-ai` types. The initial policy
+Static NPC definitions must not import `npc-ai` types. The NPC-to-policy
 assignment registry belongs in `npc-ai` and is keyed by stable `game-data` NPC
-IDs. This avoids reversing the dependency direction merely to attach a policy
-to a definition.
+IDs. No package may copy combat legality, damage, status, transformation, or
+completion rules from `combat-engine`.
 
 ## Completion gates
 
 ### Runtime-ready definition gate
 
-An NPC may enter an automated fight only when every combat-authoritative input
-is structured and validated. Runtime code must never infer stats, moves,
-transformations, equipment, or rules from `levelText`, `transformationText`,
-`battleNotes`, source text, or display names.
+An NPC may be automated only when every combat-authoritative input is
+structured, reference-resolved, and validated. Runtime code must never infer
+stats, moves, transformations, equipment, or rules from `levelText`,
+`transformationText`, `battleNotes`, source prose, or display names.
 
 An incomplete definition is rejected with typed readiness issues or remains an
 explicitly audited manual-only NPC. It must not be silently approximated.
 
+### Policy-accounting gate
+
+Every canonical NPC is explicitly classified as automated or justified
+manual-only. Every automated NPC has exactly one effective policy. Manual-only
+classification is an accounted outcome, not an omitted row or an implicit
+fallback.
+
 ### Legal-transition gate
 
-Every automated decision must be a member of the current
-combat-engine-enumerated legal set and must be submitted through
-`submitCombatDecision`. NPC code may not mutate `FightState`, manufacture a
-pending response, or calculate an outcome.
+Every automated decision is an exact member of the current combat-engine
+enumerated legal set, including ordinary and pending decisions, and is
+submitted through the normal combat transition boundary. NPC code may not
+mutate `FightState`, manufacture a pending response, or calculate an outcome.
 
-### Boss-release gate
+### Determinism and safeguard gate
 
-A boss is not production-ready merely because its policy validates. Every
-phase must have deterministic entry conditions, an explicit priority order,
-reachable transition evidence, safe overlap behavior, and end-to-end tests for
-ordinary actions and pending responses.
+Fixed state, policy, versions, injected dependencies, and seed identity must
+reproduce the same NPC decision and replay evidence. An autonomous fight must
+either reach a combat-engine-owned completion state or halt through an explicit
+external safeguard. A safeguard never manufactures a combat victory, defeat,
+or stalemate.
 
-### Production-release gate
+## Phase 0 - Scope, completion contracts, and accounting
 
-The system is complete only when at least one application can start a supported
-NPC fight, drive every NPC-owned decision boundary, expose typed failures to
-staff, finish or safely halt the session, and reproduce a preserved decision
-from recorded identity inputs.
+### NPC-000 - Freeze supported combat scope
 
-## Phase 0 - Freeze scope and operating contracts
+Record local 1v1 combat as the active delivery scope and carry every
+`ai-combat-scope:v1` exclusion into NPC accounting without reinterpretation.
+Record that the eventual production scope may include player-versus-NPC and
+NPC-versus-NPC encounters. Only NPC-versus-NPC autonomous execution is
+required for NPC Intelligence Complete.
 
-### NPC-000 - Declare the supported encounter scope
+### NPC-010 - Define stable identity and version rules
 
-Record local 1v1 player-versus-NPC and NPC-versus-NPC as the only initial
-encounter forms. Carry every `ai-combat-scope:v1` exclusion into NPC accounting
-without reinterpretation.
+Define owners and stable formats for canonical NPC IDs, policy IDs, phase IDs,
+assignments, catalog versions, materialization versions, and replay identity.
+Use lowercase hyphenated IDs for policy and phase identity, for example:
 
-### NPC-010 - Define production completion scenarios
+- `npc-policy-balanced`;
+- `npc-policy-aggressive`; and
+- `phase-enraged`.
+
+Reserve colon-style values for schema or contract versions such as
+`npc-ai-policy:v1` and `npc-policy-catalog:v1`. Do not derive durable identity
+from display names, catalog order, Discord users, or encounter position.
+
+The current `npc-ai-policy:v1` implementation remains the starting contract;
+do not create `npc-ai-policy:v2` merely because the current experimental v1
+implementation is not yet production-consumed. Phase 3 defines when this v1
+contract becomes stable and supported.
+
+### NPC-020 - Create the progress record
+
+Add `npc-ai-progress.md` with the closed scope, current phase, verified
+evidence, readiness counts, known exclusions, manual-only decisions, and exact
+resume point. The record must distinguish implementation evidence from
+planned work.
+
+### NPC-030 - Establish generated readiness accounting
+
+Define the schema, generator inputs, and stale-output validation for
+`npc-ai-readiness-matrix.md`. The generated record must have one row per
+canonical NPC and be able to account for source readiness, materialization,
+policy assignment, certification, and manual-only justification.
+
+### NPC-040 - Define boundary and readiness validation
+
+Specify the validation commands and public-boundary evidence required for
+generated source records, the normalization overlay, materialization,
+effective policy assignment, legal-decision selection, and autonomous
+certification. A stale matrix, missing classification, unknown reference, or
+unexplained exclusion is a validation failure.
+
+### NPC-050 - Define completion scenarios
 
 Create representative acceptance scenarios for:
 
 - a normal NPC using ordinary actions and moves;
 - an NPC responding to every supported pending-decision category;
-- an NPC using a transformation and item when legal;
-- a multi-phase boss crossing overlapping HP and turn thresholds;
-- a fight reaching defeat and surrender completion;
+- an NPC using an item and transformation when legal;
+- a synthetic multi-phase boss crossing overlapping thresholds;
+- statuses, scarce resources, defeat, surrender, and combat completion;
 - an invalid or incomplete NPC definition;
-- an exhausted AI work budget or typed selection failure; and
-- deterministic replay of a preserved NPC decision.
+- an exhausted AI work budget or typed selection failure;
+- deterministic replay of a preserved NPC decision; and
+- an external safeguard halt that preserves the distinction from combat
+  completion.
 
-### NPC-020 - Set stable identity and versioning rules
+Phase 0 exit evidence:
 
-Define stable formats and owners for policy IDs, policy-catalog versions,
-NPC-policy assignments, and boss phase IDs. Do not derive durable identity from
-NPC names, catalog order, Discord users, or encounter position.
+- supported scope and exclusions are explicit;
+- the distinction between NPC Intelligence Complete and production
+  integration is recorded;
+- identity and version rules are approved;
+- the progress record and generated readiness-matrix contract are defined;
+- boundary/readiness validation is specified; and
+- completion scenarios cover ordinary, pending, terminal, replay, and
+  safeguard behavior.
 
-### NPC-030 - Create the progress record
+## Phase 1 - NPC source normalization and runtime readiness
 
-Add `npc-ai-progress.md` with the closed scope, current phase, verified evidence,
-known exclusions, and exact resume point.
+### NPC-100 - Correct generator numeric parsing
 
-Exit evidence:
+Fix generator parsing for NPC combat-authoritative numeric values, including
+HP, power, dexterity, bonuses, levels, and source percentages. Preserve the
+canonical source representation and traceability while producing structured
+values. Parsing fixes must not promote battle notes or descriptive prose into
+runtime rules.
 
-- scope and non-goals are explicit;
-- completion scenarios are approved;
-- identity/version rules are documented; and
-- the progress record points to Phase 1.
+### NPC-110 - Preserve source-faithful generated NPC records
 
-## Phase 1 - Close NPC definition readiness
+Ensure generated NPC records remain faithful to canonical source material,
+including unresolved or ambiguous fields with explicit traceability. A source
+record may retain source text for audit and display, but runtime readiness may
+not treat that text as executable mechanics.
 
-### NPC-100 - Generate the readiness matrix
+### NPC-120 - Add the narrow normalization overlay
 
-Generate one row per canonical NPC with at least:
+Define a hand-authored normalization overlay only for information required to
+convert an ambiguous or non-runtime source representation into a structured
+value or stable ID. Generated source records remain canonical. Do not duplicate
+already-resolved NPC fields or create a hand-authored replacement NPC record.
 
-- NPC ID and source reference;
-- resolved HP, power, dexterity, and dexterity bonus status;
-- race and style reference status;
-- resolved and unresolved moves;
-- transformation resolution status;
-- item/equipment resolution status;
-- assigned policy ID;
-- automated, manual-only, or audited-excluded classification; and
-- focused test evidence.
+The required flow is:
 
-Validation must fail when the committed matrix is stale or an NPC is missing a
-classification.
+```text
+source NPC record
+  -> normalization overlay
+  -> validated materialized combatant
+```
 
-### NPC-110 - Define a runnable NPC combat profile
+The overlay must retain provenance for each normalization decision and must
+not contain combat callbacks, damage formulas, hidden rules, or runtime prose
+interpretation.
 
-Extend `game-data` only as needed to represent combat-authoritative NPC inputs
-declaratively. Prefer stable IDs and resolved numeric values while retaining
-canonical source text solely for traceability.
+### NPC-130 - Classify automated and manual-only NPCs
 
-The runnable profile should cover the subset required by
-`CreateFightInput`: HP, power, dexterity and bonus, level when mechanically
-needed, race/style, moves, transformations, items, and any already-supported
-race traits or mastery data.
+Classify every canonical NPC as automated or justified manual-only. A
+manual-only classification must identify the unresolved source or excluded
+mechanic, the applicable scope decision, and why automation is not currently
+valid. It must not be used to hide a missing accounting decision.
 
-### NPC-120 - Resolve or exclude incomplete definitions
+### NPC-140 - Resolve stable runtime references and reject prose mechanics
 
-Resolve the four NPCs without runnable HP, the nine NPCs with unresolved move
-names, and all required transformation/equipment references. If a canonical
-mechanic remains outside active combat scope, record a versioned audited
-exclusion and classify the NPC as manual-only or runnable with an explicitly
-approved reduced loadout. Do not drop unresolved content silently.
+Resolve move, item, transformation, race, and style references to stable IDs
+through validated catalogs. Reject unresolved required references and reject
+mechanical battle-note, transformation, or other prose that has not been
+normalized into an approved structured value. Do not infer NPC personality or
+combat behavior from descriptive source prose at runtime.
 
-### NPC-130 - Build the definition-to-combatant adapter
+### NPC-150 - Implement pure materialization
 
-Add a pure adapter that maps one validated NPC definition into a
-combat-engine-owned creation input. It returns typed readiness failures and
-does not call `createFight`, assign session identity, parse source prose, or
-apply combat rules.
+Add pure `materializeNpcCombatant(...)` behavior that maps one validated source
+record plus its normalization overlay into a combat-engine-owned fight-creation
+input. It must return typed readiness failures, preserve immutable inputs, avoid
+calling `createFight`, avoid assigning session identity, and avoid applying
+combat rules.
 
-### NPC-140 - Validate catalog integrity
+### NPC-160 - Close readiness for all 32 canonical NPCs
 
-Add public-boundary tests for complete mapping, unknown references, duplicate
-IDs, invalid numeric values, unresolved required content, immutability, and
-catalog-version drift.
+Populate the generated matrix for all 32 definitions and close every row as
+automated or justified manual-only. Automated rows must have complete
+materialization and stable references. Manual-only rows must have explicit
+provenance and an audited reason.
 
-Exit evidence:
+Phase 1 exit evidence:
 
-- every one of the 32 NPCs has an explicit readiness classification;
-- every automated NPC materializes without prose parsing;
-- no unknown move, transformation, item, race, or style reference reaches
+- generator parsing fixes have focused source-fidelity tests;
+- all 32 canonical NPCs have readiness rows and explicit classifications;
+- every automated NPC materializes without runtime prose parsing;
+- the normalization overlay contains no unnecessary duplicate catalog data;
+- no unknown move, item, transformation, race, or style reference reaches
   fight creation; and
-- the readiness matrix and focused game-data/NPC tests pass.
+- generated readiness and focused game-data/NPC tests pass.
 
-## Phase 2 - Build the authored NPC policy catalog
+## Phase 2 - Actor-correct decision contracts and package hardening
 
-### NPC-200 - Modularize the NPC package by responsibility
+### NPC-200 - Make phase resolution actor-explicit
 
-Split the current single implementation module into narrow public contracts
-and private policy validation, phase resolution, priority compilation, catalog,
-and selection modules. Preserve one intentional package root export; do not
-expose implementation-only helpers through deep imports.
+Resolve phases against the explicit requested NPC actor, never by inferring
+“self” from `state.activeCombatantId`. The phase resolver must receive or
+derive the actor from the request contract and must evaluate self/opponent
+ratios and transformations relative to that actor.
 
-### NPC-210 - Establish reusable policy archetypes
+### NPC-210 - Validate decision ownership
 
-Author a small, versioned base catalog using completed `ai-engine` profiles,
-such as balanced, aggressive, defensive, control, resource-conserving, elite,
-and boss-quality. Archetypes are configuration, not new scoring algorithms.
+Validate that the requested actor exists, is the NPC represented by the
+effective policy, and owns the current ordinary or pending decision. Reject
+wrong-actor, completed-state, stale-state, and unsupported-pending requests
+with typed failures before selection. The check must preserve the
+combat-engine legal-decision boundary rather than recreate its legality rules.
 
-### NPC-220 - Assign every runnable NPC a policy
+### NPC-220 - Modularize the package by responsibility
 
-Create an exhaustive `npc-ai` registry keyed by canonical NPC ID. Allow an NPC
-to reference a shared archetype plus bounded NPC-specific priorities. Reject
-unknown NPCs, duplicate assignments, missing runnable assignments, unknown
-mechanics IDs, and assignments to audited manual-only definitions.
+Split the current public implementation into narrow internal responsibilities
+for policy contracts and validation, phase resolution, priority compilation,
+normalization/materialization, catalog assignment, and decision selection.
+Preserve one intentional package-root export and do not expose implementation-
+only helpers through deep imports.
 
-### NPC-230 - Strengthen policy validation
+### NPC-230 - Define the application-facing NPC decision request
 
-Validate unknown or externally loaded policy data with Zod at the adapter
-boundary. Preserve typed validation issues and add checks for stable identity,
-profile validity, modifier bounds, duplicate phase priorities, unknown move
-references, contradictory thresholds, and unreachable phases.
+Provide a platform-neutral request containing immutable fight state, explicit
+actor identity, canonical NPC identity or a validated policy assignment,
+mechanics view/version, AI randomness identity, work limits, and diagnostic
+retention. Do not pass Discord, HTTP, persistence, or session objects into
+`npc-ai`.
 
-### NPC-240 - Prove meaningful behavioral separation
+### NPC-240 - Preserve exact legal decisions and typed failures
 
-Use sets of acceptable outcomes rather than brittle exact-choice assertions.
-Show that representative archetypes produce intended preferences while every
-choice remains legal, affordable, deterministic under fixed inputs, and based
-on the same AI evaluator.
-
-Exit evidence:
-
-- every runnable NPC has exactly one effective policy;
-- policies contain no combat callbacks, damage formulas, or source-text rules;
-- catalog validation is exhaustive; and
-- representative archetypes are behaviorally distinct without hidden bonuses.
-
-## Phase 3 - Complete boss phases and scripted priorities
-
-### NPC-300 - Make phase evaluation actor-explicit
-
-Resolve phases against the NPC combatant identified by the request rather than
-an implicit encounter position. Validate that the actor exists and is entitled
-to the current decision, including pending-response boundaries.
-
-### NPC-310 - Define the supported phase-condition vocabulary
-
-Keep conditions declarative and state-based. The initial vocabulary may use
-turn, self/opponent HP and Ki ratios, and active-transformation state. Add a
-condition only when it is generically useful and can be evaluated from
-authoritative immutable combat state.
-
-### NPC-320 - Define deterministic overlap and lifecycle semantics
-
-Document highest-priority matching, stable tie rejection, whether phases may be
-re-entered, and whether a phase is a stateless policy view or requires explicit
-combat state. Prefer stateless state-derived phases. If a future one-time phase
-affects later outcomes, its lifecycle marker must be combat-engine-owned state,
-not hidden mutable state in `npc-ai` or an application.
-
-### NPC-330 - Expand bounded tactical priorities only from evidence
-
-Retain transformation timing, signature conservation, status pressure, and
-aggression as the initial surface. Add priorities only through typed generic
-advisory modifiers. A script may rank or filter the supplied legal set but may
-never manufacture an action or require an ID-specific combat branch.
-
-### NPC-340 - Certify representative bosses
-
-Author at least one two-phase and one three-phase boss policy. Test threshold
-boundaries, overlapping phases, transformation state, low-resource behavior,
-pending responses, terminal transitions, deterministic replay, and policy
-fallback.
-
-Exit evidence:
-
-- phase selection is actor-correct and deterministic;
-- all production boss phases are reachable or explicitly reserved;
-- boss tests drive public combat transitions; and
-- boss scripting contains no hidden fight-local state.
-
-## Phase 4 - Harden NPC decision execution
-
-### NPC-400 - Define the application-facing request
-
-Provide a narrow request that accepts the immutable state, actor ID, NPC ID or
-validated policy assignment, mechanics view/version, AI randomness identity,
-work limits, and diagnostic retention. Avoid passing application, Discord, or
-persistence objects into the package.
-
-### NPC-410 - Derive production AI randomness reproducibly
-
-Applications allocate the encounter root seed. NPC decision identity derives
-from stable fight, state-version, actor, policy, evaluator, and purpose inputs
-without consuming live combat randomness. Repeated evaluation of the same
-identity must select the same action.
-
-### NPC-420 - Complete typed failure and fallback behavior
+Enumerate the legal decisions for the explicit actor through
+`combat-engine`, pass the complete supplied set to `ai-engine`, and return the
+exact selected legal object without manufacturing or normalizing a different
+decision. Cover ordinary and pending decisions, including selection
+cardinality and decline semantics supplied by the engine.
 
 Account for completed state, wrong actor, missing assignment, invalid policy,
-empty legal set, descriptor drift, work-budget exhaustion, and AI selection
-failure. Define which failures halt for staff review and which may use the
-existing safe legal fallback. Never fabricate a pass or surrender decision.
+empty legal sets, descriptor drift, unsupported pending work, exhausted work
+budgets, and AI-selection failures. Define which failures halt for diagnosis
+and which may use the existing safe legal fallback. Never fabricate a pass,
+surrender, victory, defeat, or pending response.
 
-### NPC-430 - Preserve diagnostics and replay identity
+### NPC-250 - Isolate deterministic randomness and replay identity
 
-Return the selected exact legal object, policy and phase identity, applied
-priorities, AI replay record, and optional ranking diagnostics. Retention level
-must not change the choice or random consumption.
+Keep AI randomness isolated from live combat randomness. Applications or a
+headless caller may supply the root seed, but NPC decision identity must derive
+from stable fight, state-version, actor, policy, evaluator, and purpose inputs.
+Repeated evaluation of the same identity must select the same action and must
+not depend on legal-set iteration order.
 
-### NPC-440 - Prove immutability and legal-subset invariants
+### NPC-260 - Prove immutability and diagnostics retention invariants
 
-Test every legal and pending-decision discriminant, reordered equivalent legal
-sets, input immutability, empty and completed states, repeated calls, and
-parallel unrelated decisions.
+Prove that selection does not mutate state, legal decisions, policy data, or
+mechanics views. Retention level must not change the choice, replay identity,
+random consumption, or failure behavior. Retained diagnostics must identify
+the policy, phase, priorities, selected exact legal decision, and reason for
+selection without becoming a live decision input.
 
-Exit evidence:
+Phase 2 exit evidence:
 
-- all NPC selection outcomes are reproducible;
-- every success returns an exact engine-enumerated legal decision;
-- all expected failures are typed; and
-- diagnostics identify how and why a policy selected an action.
+- phase resolution is actor-correct for ordinary and pending decisions;
+- wrong-actor and stale requests fail before selection;
+- package responsibilities and public exports are intentional;
+- all successful selections return exact engine-enumerated legal objects;
+- expected failures are typed and no fallback manufactures an outcome;
+- deterministic AI randomness and replay identity are isolated from combat
+  randomness; and
+- immutability and diagnostic-retention invariants pass focused tests.
 
-## Phase 5 - Integrate a production encounter loop
+## Phase 3 - Authored NPC policy catalog
 
-### NPC-500 - Implement application-owned NPC turn orchestration
+### NPC-300 - Freeze the initial supported policy contract
 
-In the first production application, add a loop that:
+Refine and stabilize the existing `npc-ai-policy:v1` contract as the initial
+supported version. Do not introduce `npc-ai-policy:v2` without a genuine
+compatibility break that requires it. The v1 contract becomes stable when
+Phase 2's request, actor, legal-decision, typed-failure, determinism, replay,
+and retention invariants pass and the Phase 3 catalog validation closes.
 
-1. holds the authoritative current `FightState`;
-2. advances engine-owned non-interactive work as required;
-3. detects which combatant owns the current decision;
-4. asks `npc-ai` for a decision only when that actor is NPC-controlled;
-5. submits the exact returned decision through `submitCombatDecision`;
-6. publishes structured combat events; and
-7. stops on player input, completion, cancellation, typed failure, or an
-   external safeguard.
+Keep schema/version identifiers such as `npc-ai-policy:v1` distinct from
+lowercase hyphenated policy and phase IDs. Existing example IDs remain
+baseline facts until replaced by the authored catalog; stable catalog IDs
+should use forms such as `npc-policy-balanced` and `phase-enraged`.
 
-The application may orchestrate these calls, but it must not duplicate phase,
-legality, damage, pending-choice, or completion rules.
+### NPC-310 - Establish reusable policy archetypes
 
-### NPC-510 - Add session control and safeguards
+Author a small catalog of reusable configuration archetypes, such as
+balanced, aggressive, defensive, control, resource-conserving, elite, and
+boss-quality, using completed `ai-engine` profiles. Archetypes are policy
+configuration, not new scoring algorithms or combat rules.
 
-Provide bounded consecutive NPC decisions, cancellation, timeout, idempotency,
-stale-state protection, and a no-progress/maximum-turn escalation path. These
-are operational safeguards, not alternate combat outcomes.
+Style may provide a weak mechanical/tactical baseline because a move set
+naturally favors different choices. Style must not be treated as the complete
+NPC personality or receive excessively strong weights that double-count its
+mechanical strengths. The effective policy should conceptually combine:
 
-### NPC-520 - Add player and moderator presentation
+```text
+weak mechanical/style baseline
+  + authored NPC personality
+  + optional encounter or boss priorities
+```
 
-Render combat-engine events and NPC decision diagnostics separately. Normal
-players receive appropriate combat events; staff diagnostics may include
-policy, phase, factors, replay identity, and typed failure context. Domain
-packages return no Discord markdown or HTTP response types.
+### NPC-320 - Assign exactly one effective policy
 
-### NPC-530 - Add application integration tests
+Create an exhaustive registry keyed by canonical NPC ID. Every automated NPC
+must resolve to exactly one effective policy, including its archetype,
+authored personality, optional authored NPC-specific personality overrides,
+and any explicitly bounded encounter priorities. A
+manual-only NPC must not receive an implicit automated policy. Reject unknown
+NPCs, duplicate assignments, missing assignments, unknown mechanic IDs, and
+assignments to manual-only definitions.
 
-Cover player-to-NPC handoff, NPC-to-player handoff, NPC pending responses,
-multi-step free/reaction work, stale interaction rejection, cancellation,
-completion, retries, and failure translation. Mocks must not recreate combat
-calculations.
+### NPC-330 - Validate authored behavior and provenance
 
-### NPC-540 - Add a second consumer only when required
+Validate catalog data at the adapter boundary, using Zod for untrusted or
+externally loaded values, with stable IDs, profile validity, modifier bounds,
+duplicate priorities, known mechanics references, and contradictory or
+unreachable declarations. Preserve typed validation issues.
 
-After the first application proves the orchestration contract, add an API or
-other consumer if there is a concrete product need. Reuse public package
-contracts; do not make one application depend on another or extract a generic
-orchestration service prematurely.
+NPC behavior is authored game design and may introduce deliberate personality
+decisions even when legacy source prose does not state them. Require
+provenance for authored decisions, such as `source-derived`, `npc-design`, or
+`saga-boss-design`. Combat mechanics remain source/structure-authoritative;
+personality must never be inferred automatically from descriptive prose.
 
-Exit evidence:
+### NPC-340 - Prove behavioral separation
 
-- a supported fight can be played from creation to completion against an NPC;
-- all NPC decisions traverse the ordinary combat transition boundary;
-- the loop safely yields for player decisions and halts on safeguards; and
-- application tests contain no copied domain rules.
+Use acceptable outcome sets rather than brittle exact-choice assertions. Show
+that representative archetypes and authored personalities express intended
+preferences while every choice remains legal, affordable, deterministic under
+fixed inputs, and evaluated by the same `ai-engine` pipeline. Verify that
+style-derived baselines remain weak and do not hide stat or damage bonuses.
 
-## Phase 6 - End-to-end certification and operations
+Phase 3 exit evidence:
 
-### NPC-600 - Build the autonomous certification suite
+- `npc-ai-policy:v1` is documented as the stable initial policy contract;
+- every automated NPC has exactly one effective policy;
+- policy and phase identities follow the lowercase-hyphenated convention;
+- authored personality and priorities have explicit provenance;
+- policies contain no combat callbacks, damage formulas, or source-text rules;
+- catalog validation is exhaustive; and
+- representative policies are behaviorally distinct without double-counted
+  style bonuses or hidden combat bonuses.
 
-Drive normal NPCs, each policy archetype, and every production boss through
-seeded fights. Cover all supported decision and pending-decision categories,
-items, transformations, status play, resource scarcity, defeat, and surrender.
+## Phase 4 - Boss phases and tactical behavior
 
-### NPC-610 - Add catalog smoke tests
+### NPC-400 - Define generic declarative phase conditions
 
-For every automated NPC, construct a valid fight, enumerate at least one legal
-decision at each encountered boundary, and run until engine completion or an
-explicit external cap. Classify failures by definition, policy, AI, combat, or
-application ownership.
+Keep phase conditions state-based and declarative. The initial vocabulary may
+use turn, self/opponent HP and Ki ratios, active transformation state, and
+other facts available from authoritative immutable combat state. Add a
+condition only when it is generically useful; never add a boss-name branch.
 
-### NPC-620 - Establish operational telemetry
+### NPC-410 - Define deterministic overlap and re-entry semantics
 
-Record structured counts for policy/phase selection, decision latency and work
-budget, fallback use, typed failures, fight completion, external safeguards,
-and replay capture. Do not use telemetry as hidden input to live decisions.
+Document highest-priority matching, stable tie behavior, contradictory
+conditions, phase re-entry, and whether a phase is a stateless policy view.
+Prefer stateless state-derived phases. If a one-time phase affects later
+outcomes, its lifecycle marker must be explicit combat-engine-owned state, not
+hidden mutable state in `npc-ai` or an application.
 
-### NPC-630 - Create staff debugging tools
+### NPC-420 - Add bounded tactical priorities
 
-Allow authorized staff to inspect the NPC definition, effective policy and
-phase, ranked summary, selected decision, relevant combat events, and replay
-identity. Redact platform or player information not required for diagnosis.
+Retain transformation timing, resource conservation, status pressure, and
+aggression as bounded generic advisory priorities. Priorities may rank or
+filter the supplied legal set but may never manufacture an action, calculate a
+combat outcome, or require an ID-specific combat branch.
 
-### NPC-640 - Run the extended quality gate
+### NPC-430 - Certify synthetic phase behavior
 
-Because completing this system affects `game-data`, `npc-ai`, an application,
-and public integration boundaries, run focused package checks throughout and
-`npm run test:coverage` for game-rule, validation, Discord, or API behavior
-changes. Finish the implementation workstream with exactly one
-`npm run quality` from the repository root.
+Author and test synthetic two-phase and three-phase bosses. Cover threshold
+boundaries, overlapping phases, phase re-entry, transformation state,
+conservation and aggression priorities, status pressure, low-resource behavior,
+ordinary actions, pending responses, terminal transitions, and deterministic
+replay.
 
-Exit evidence:
+### NPC-440 - Keep canonical boss assignment out of this milestone
 
-- all automated NPC rows are certified or explicitly blocked;
-- deterministic replays reproduce preserved decisions;
-- telemetry exposes failures without affecting decisions;
-- required coverage and architecture checks pass; and
-- the readiness matrix contains no unexplained row.
+Do not require production canonical boss assignments to close Phase 4. A
+canonical boss may remain manual-only or unassigned until its readiness and
+policy rows are complete. Phase 4 proves the generic vocabulary and behavior;
+Phase 5 certifies every automated catalog row.
 
-## Phase 7 - Staged release
+Phase 4 exit evidence:
 
-### NPC-700 - Shadow evaluation
+- phase conditions and overlaps are declarative, actor-correct, and
+  deterministic;
+- synthetic two-phase and three-phase bosses pass threshold and re-entry
+  tests;
+- phase behavior uses no hidden fight-local state;
+- tactical priorities remain bounded advisory configuration; and
+- no production canonical boss assignment is claimed merely because synthetic
+  certification passed.
 
-Run the NPC policy beside staff-controlled test encounters without submitting
-its choices. Compare recommendations, inspect diagnostics, and preserve seeds
-for surprising behavior.
+## Phase 5 - Autonomous certification, replay, telemetry, and safeguards
 
-### NPC-710 - Opt-in normal-NPC pilot
+### NPC-500 - Drive autonomous headless NPC-vs-NPC fights
 
-Enable a small set of fully ready normal NPCs behind application configuration.
-Define rollback as disabling automated control while preserving ordinary manual
-combat moderation.
+Build a headless certification driver or test boundary that constructs valid
+NPC combatants, advances non-interactive engine work, obtains the current
+actor's ordinary or pending legal decisions, asks `npc-ai` to choose, and
+submits the exact decision through the real `combat-engine` transition
+boundary. It must run NPC-versus-NPC fights without Discord, slash commands,
+player presentation, application sessions, or production rollout.
 
-### NPC-720 - Expand normal-NPC coverage
+The driver must run each fight until the combat engine reports completion or
+an explicit external safeguard halts it. It must not replace engine
+orchestration with copied combat rules.
 
-Promote additional NPCs only after their readiness and certification rows pass.
-Do not make catalog-wide enablement the fallback for an unclassified NPC.
+### NPC-510 - Certify the full automated catalog
 
-### NPC-730 - Boss pilot and general availability
+Run full-catalog smoke certification for every automated NPC. Cover
+representative ordinary and pending decisions, items, transformations,
+statuses, scarce HP/Ki/restricted uses, defeat, surrender, and completion.
+Use mirrored starting positions where useful to detect first-actor or
+position-dependent behavior. Classify failures by source readiness,
+materialization, policy, AI, combat-engine, or certification-boundary cause.
 
-Release certified bosses after normal encounter operations are stable. Review
-phase telemetry and preserved replays before enabling the remaining boss
-catalog.
+### NPC-520 - Prove deterministic replay
 
-Exit evidence:
+Preserve root seed, derived NPC decision identities, rules/data/policy
+versions, actor identity, phase identity, selected legal decisions, and the
+relevant diagnostic record. Replaying the same autonomous fight must reproduce
+the same legal decisions, random consumption, events, state transitions, and
+combat-engine terminal result.
 
-- rollout is reversible per NPC or policy;
-- every enabled NPC is backed by a passing readiness row;
-- staff can diagnose and take over a failed encounter; and
-- production safeguards and replay capture are exercised.
+### NPC-530 - Add diagnostics and telemetry
+
+Provide structured certification diagnostics and telemetry for policy and
+phase selection, decision latency and work budget, fallback use, typed
+failures, pending responses, replay capture, combat completion, and safeguard
+halts. Telemetry must be observational only and must never affect live
+decisions. Diagnostics must retain enough information to distinguish domain
+combat completion from an external operational halt.
+
+### NPC-540 - Define external safeguards and semantic no-progress detection
+
+Support explicit maximum-turn, transition, and no-progress safeguards at the
+headless/certification boundary. A safeguard halt is an operational result; it
+must never manufacture a combat victory, defeat, or stalemate. The engine's
+own terminal state and reason remain authoritative for domain completion.
+
+When implementing semantic no-progress fingerprints, exclude non-semantic
+churn such as timestamps, generated IDs, event IDs, transition counters, and
+turn/history metadata that does not change tactical state. Include tactically
+meaningful state such as HP, Ki, statuses, active effects, transformations,
+available or restricted uses, pending work, and relevant scheduling or locks.
+The exact fingerprint contract may be finalized during implementation, with
+focused evidence for false-positive and false-negative boundaries.
+
+### NPC-550 - Close NPC Intelligence Complete
+
+Publish the final readiness and certification records, preserve representative
+replays, and record the exact Simulation handoff inputs and exclusions.
+
+Phase 5 exit evidence:
+
+- every automated NPC can drive a complete headless NPC-vs-NPC fight through
+  the real combat engine or halt through an explicit external safeguard;
+- full-catalog certification covers ordinary and pending decisions, items,
+  transformations, statuses, scarce resources, defeat, and completion;
+- deterministic seed/replay behavior is proven;
+- diagnostics and telemetry distinguish domain completion from operational
+  halts without changing decisions;
+- no-progress fingerprints ignore non-semantic churn and include meaningful
+  tactical state;
+- the generated readiness matrix has no unexplained automated or manual-only
+  row;
+- no copied combat rules exist in `npc-ai`; and
+- all focused and final repository quality gates required by `AGENTS.md` pass.
+
+This phase closes **NPC Intelligence Complete**. It does not close production
+integration.
+
+## Definition of complete
+
+### NPC Intelligence Complete — roadmap finish and Simulation handoff
+
+NPC Intelligence Complete means all of the following are evidenced:
+
+- every canonical NPC is explicitly classified as automated or justified
+  manual-only;
+- every automated NPC can be materialized without runtime prose parsing;
+- every automated NPC has exactly one effective policy;
+- NPC decisions are actor-correct;
+- ordinary and pending decisions work through the real combat-engine
+  legal-decision boundary;
+- boss phases and tactical priorities are deterministic and stateless unless
+  combat-engine-owned state is explicitly required;
+- deterministic AI seed and replay behavior is proven;
+- every automated NPC can drive a complete headless NPC-vs-NPC fight through
+  the real combat engine or halt through an explicit external safeguard;
+- certification, diagnostics, and telemetry exist; and
+- no copied combat rules exist in `npc-ai`.
+
+This milestone does not require Discord session management, player-versus-NPC
+interaction, live slash commands, player presentation, player handoff, or
+production rollout. Those are later application integration work.
+
+### NPC Production Integration Complete — deferred application milestone
+
+This is a separate future milestone for a concrete application consumer. It
+may include Discord/API orchestration, player-versus-NPC encounters, shadow
+and allowlist rollout, all-certified rollout, staff controls, session
+persistence and recovery, and platform rendering. It is not a prerequisite for
+NPC Intelligence Complete and is not a dependency of the full Simulation
+system.
+
+## Future: NPC Production Integration
+
+These are deliberately deferred until after NPC Intelligence Complete and may
+be sequenced by the consuming application:
+
+### NPC-600 - Add Discord/API orchestration when required
+
+The preferred consumer path is:
+
+```text
+Discord/application
+  -> npc-ai
+  -> ai-engine
+```
+
+The application may also depend directly on `combat-engine` because it owns
+authoritative fight orchestration and player action handoff. It should not
+depend directly on `ai-engine` unless a concrete use case requires generic AI
+profiles, and generic AI internals must not leak through the NPC abstraction.
+No application may depend on another application.
+
+### NPC-610 - Add player-versus-NPC encounters
+
+Add player handoff, player legal-decision presentation, NPC-to-player turns,
+and mixed encounter tests through application-owned orchestration. The
+application translates structured domain results into platform responses; it
+does not calculate combat rules or legality.
+
+### NPC-620 - Add operational rollout controls
+
+If production use requires it, add shadow evaluation, per-policy or per-NPC
+allowlists, all-certified rollout, rollback, and staff take-over controls.
+These controls must remain external operational behavior and must not alter
+combat outcomes.
+
+### NPC-630 - Add sessions, recovery, and platform rendering
+
+Add channel/API session coordination, idempotency, stale-state protection,
+optional persistence and recovery, staff diagnostics, slash commands,
+components, and platform-specific rendering only when the application has a
+concrete requirement. None is needed by Simulation.
+
+## Simulation handoff gate
+
+Full Simulation implementation may begin once NPC Intelligence Complete is
+reached and its evidence is recorded. The handoff guarantees:
+
+- autonomous deterministic NPC-versus-NPC execution through the real combat
+  engine;
+- reusable NPC policies with explicit classification and provenance;
+- the simulation-quality AI path remains owned by `ai-engine`;
+- Simulation may use generic AI profiles directly, or NPC policies when it is
+  intentionally testing NPC behavior; and
+- Simulation does not depend on Discord or application orchestration.
+
+Simulation remains responsible for its own templates, scenarios, batch
+execution, seed derivation, aggregation, reports, anomaly triage, and future
+simulation-only variants. It may broaden beyond the active NPC local-1v1
+scope only through its own combat-scope and engine-readiness decisions.
 
 ## Recommended implementation order
 
 ```text
-Phase 0: scope and contracts
-  -> Phase 1: runnable definitions and readiness matrix
-  -> Phase 2: authored policy catalog
-  -> Phase 3: boss phases
-  -> Phase 4: hardened decision boundary
-  -> Phase 5: application encounter loop
-  -> Phase 6: certification and operations
-  -> Phase 7: staged release
+Phase 0: scope, completion contracts, and accounting
+  -> Phase 1: source normalization and runtime readiness
+  -> Phase 2: actor-correct decision contracts and package hardening
+  -> Phase 3: authored NPC policy catalog
+  -> Phase 4: boss phases and tactical behavior
+  -> Phase 5: autonomous certification, replay, telemetry, and safeguards
+  -> NPC Intelligence Complete
+  -> Simulation handoff
+  -> Future NPC Production Integration, when an application requires it
 ```
 
-Phase 2 catalog scaffolding may begin after the Phase 1 matrix schema is fixed,
-but NPC assignments cannot close until definition classifications are stable.
-Application presentation may be prototyped during Phase 4, but production
-integration must wait for the hardened failure and replay contracts.
-
-The exact implementation resume point is **NPC-000**. The first vertical
-milestone is one fully resolved normal NPC that passes Phases 1, 2, 4, and 5
-end to end; broad catalog conversion should follow only after that path proves
-the contracts.
+The implementation resume point is **NPC-000**. Phase 2 must precede the
+authored policy catalog and boss certification because actor ownership and
+pending-decision correctness are foundational contracts. Production Discord
+orchestration, player presentation, rollout controls, and session persistence
+must not be treated as prerequisites for the Simulation handoff.
 
 ## Explicit non-goals
 
 - changing or retraining the completed shared AI evaluator without evidence of
   a generic decision-quality defect;
+- creating `npc-ai-policy:v2` without a genuine compatibility reason;
 - full MCTS, reinforcement learning, or LLM-driven combat decisions;
 - NPC-only combat rules, legality checks, damage calculations, or direct state
   mutation;
-- parsing canonical prose at runtime;
+- parsing canonical prose at runtime or inferring personality from prose;
+- treating fighting style as a complete NPC personality;
+- permanently redefining the eventual encounter architecture as NPC-versus-
+  NPC only;
 - team fights, joint attacks, interferers, spectators, remote targets, or
-  relationship-based targeting in the initial release;
+  relationship-based targeting in the active local-1v1 scope;
 - hidden boss stat bonuses presented as difficulty;
-- mandatory combat-session persistence before recovery requirements exist;
-- a new application-to-application dependency or speculative orchestration
-  framework; and
+- Discord sessions, slash commands, components, player presentation,
+  production rollout, or mandatory persistence before the future integration
+  milestone requires them; and
 - automatic balance or content-approval decisions.
 
 ## Architecture status
 
-**Healthy with an incomplete production adapter.** The package dependency
-direction and decision boundary are sound: the existing NPC adapter consumes
-engine legal decisions through `ai-engine` and does not resolve combat. The
-remaining risks are incomplete structured NPC data, the absence of exhaustive
-policy assignment, and the absence of an application encounter loop. The
-roadmap closes those gaps without relocating rules or adding a new engine.
+**Healthy with intelligence work incomplete.** The current dependency
+direction and combat decision boundary are sound: `npc-ai` consumes
+combat-engine legal decisions through `ai-engine` and does not resolve combat.
+The verified remaining work is structured NPC readiness, normalization and
+materialization, actor-correct contracts, exhaustive policy accounting,
+authored behavior, generic boss phases, autonomous certification, diagnostics,
+telemetry, and safeguards. The current application integration absence is
+intentional deferred scope, not a blocker for the Simulation handoff.

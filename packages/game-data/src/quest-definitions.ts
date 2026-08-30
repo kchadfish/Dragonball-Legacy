@@ -5321,194 +5321,6 @@ export const QUEST_DEFINITIONS: readonly QuestDefinition[] = [
 
 export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
   {
-    id: "npc-earth-east-limax-1",
-    name: "Limax",
-    raceId: "race-namek",
-    raceName: "Namekian",
-    combatProfile: {
-      levelText: "F",
-      hitPoints: {
-        sourceText: "500",
-        baseValue: 500,
-      },
-      power: {
-        sourceText: "200",
-        baseValue: 200,
-      },
-      dexterity: {
-        sourceText: "12",
-        baseValue: 12,
-      },
-      equipmentNames: [],
-    },
-    moveIds: [
-      "move-aoyosumu-untouchable-mastery",
-      "move-aoyosumu-state-of-zen",
-      "move-aoyosumu-inner-peace",
-      "move-aoyosumu-straightjacket",
-      "move-aoyosumu-heart-punch",
-      "move-aoyosumu-zen-explosion",
-      "move-aoyosumu-lights-out-strike",
-      "move-aoyosumu-serenity-explosion",
-      "move-aoyosumu-defiant-stance",
-    ],
-    unresolvedMoveNames: [],
-    description:
-      "Limax is the previous Apprentice to Kami. He has gone rogue and started a group designed to overthrow Kami. He is a master of Aoyosumu.",
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "Level: F\nRace: Namekian[Giant Form TF, 1d80]\nHP: 500\nPower: 200\nDexterity: 12\nMove Set:Untouchable Mastery, State of Zen, Inner Peace, Straightjacket, Heart Punch, Zen Explosion, Lights Out Strike, Serenity Explosion, Defiant Stance",
-    },
-  },
-  {
-    id: "npc-earth-east-dryad-nymph-1",
-    name: "Dryad Nymph",
-    styleId: "style-kurokonwaku",
-    raceName: "Saibaman",
-    styleName: "Kurokonwaku",
-    combatProfile: {
-      levelText: "B",
-      transformationText: "Frenzied Saibaman [1d50]",
-      hitPoints: {
-        sourceText: "250",
-        baseValue: 250,
-      },
-      power: {
-        sourceText: "120",
-        baseValue: 120,
-      },
-      dexterity: {
-        sourceText: "5 (+3 dice bonus)",
-        baseValue: 5,
-      },
-      equipmentNames: [],
-    },
-    moveIds: [
-      "move-kurokonwaku-childish-taunt",
-      "move-freestyle-hidden-power-level",
-      "move-kurokonwaku-dismissive-kick",
-      "move-kurokonwaku-poison-mist",
-    ],
-    unresolvedMoveNames: ["Freestyle Ki Color Cascade"],
-    description:
-      "The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.",
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "Level: B\nRace: Saibaman [Mutated]\nTransformation:Frenzied Saibaman [1d50]\nHP: 250\nPower: 120\nDexterity: 5 (+3 dice bonus)\nMove Set: Childish Taunt, Hidden Power Level, Dismissive Kick, Freestyle Ki Color Cascade, Poison Mist",
-    },
-  },
-  {
-    id: "npc-earth-east-koutton-1",
-    name: "Koutton",
-    raceId: "race-majins",
-    styleId: "style-midorikatai",
-    raceName: "Majin",
-    styleName: "Midorikatai",
-    combatProfile: {
-      levelText: "B [Evil Form, 1d50]",
-      hitPoints: {
-        sourceText: "300",
-        baseValue: 300,
-      },
-      power: {
-        sourceText: "140",
-        baseValue: 140,
-      },
-      dexterity: {
-        sourceText: "3",
-        baseValue: 3,
-      },
-      equipmentNames: ["Ooey Gooey"],
-    },
-    moveIds: [
-      "move-midorikatai-critical-mass-mastery",
-      "move-midorikatai-galactic-punisher",
-      "move-midorikatai-gut-punch",
-      "move-midorikatai-enraged-piledriver",
-      "move-midorikatai-palm-crusher",
-    ],
-    unresolvedMoveNames: [],
-    description:
-      "Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.",
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "Level: B [Evil Form, 1d50]\nRace: Majin\nHP: 300\nPower: 140\nDexterity: 3\nMove Set: Critical Mass Mastery, Galactic Punisher, Gut Punch, Enraged Piledriver, Palm Crusher\nBukujutsu \nGluttonous Glob\nInventory Slots: 1\nDescription: A small, portable piece of goo left behind by Koutton. It is currently in a jar, where the rest of him is...well....that's hard to say. But, he is out of your hair. If you throw it at your opponent, maybe it will take something from them.\nEffect: USEx1. Use during your UPKEEP PHASE. Your opponent loses two ki points. You cannot use this if your opponent has lost ki due to your effects in the last four turns.",
-    },
-  },
-  {
-    id: "npc-earth-east-chaos-browncoat-1",
-    name: "Chaos Browncoat",
-    raceId: "race-saiyans",
-    styleId: "style-midorikatai",
-    raceName: "Saiyan",
-    styleName: "Midorikatai",
-    combatProfile: {
-      levelText: "D",
-      hitPoints: {
-        sourceText: "400 +10%= 440",
-        baseValue: 400,
-        resolvedValue: 440,
-      },
-      power: {
-        sourceText: "200+ 10%= 220",
-        baseValue: 200,
-        resolvedValue: 220,
-      },
-      dexterity: {
-        sourceText: "6 + 10%= 7",
-        baseValue: 6,
-        resolvedValue: 7,
-      },
-      equipmentNames: [],
-    },
-    moveIds: [
-      "move-midorikatai-war-cry",
-      "move-midorikatai-energy-gorged",
-      "move-midorikatai-gut-punch",
-      "move-midorikatai-torture-rack",
-      "move-midorikatai-enraged-piledriver",
-      "move-midorikatai-breaker-breaker",
-    ],
-    unresolvedMoveNames: [],
-    description:
-      "Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.",
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "Level: D\nRace: Saiyan [Oozaru TF, 1d80]\nHP: 400 +10%= 440\nPower: 200+ 10%= 220\nDexterity: 6 + 10%= 7\nMove Set: War Cry, Energy Gorged, Gut Punch, Torture Rack, Enraged Piledriver, Breaker Breaker\nBukujutsu Level 1\nStrength Level 1",
-    },
-  },
-  {
-    id: "npc-earth-east-lilith-1",
-    name: "Lilith",
-    styleId: "style-akaikaru",
-    raceName: "Angel",
-    styleName: "Akaikaru",
-    combatProfile: {
-      levelText: "B (12)",
-      hitPoints: {
-        sourceText: "300",
-        baseValue: 300,
-      },
-      power: {
-        sourceText: "100",
-        baseValue: 100,
-      },
-      dexterity: {
-        sourceText: "5",
-        baseValue: 5,
-      },
-      equipmentNames: [],
-    },
-    moveIds: [],
-    unresolvedMoveNames: [],
-    description:
-      "Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.",
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "Level: B (12)\nRace: Angel [Shin-Jin for racial purposes]\nHP: 300\nPower: 100\nDexterity: 5\nMove List: Bukujutsu, Adrenaline Rush Mastery, Speed Demon, Swift Re-Action, Torpedo Kick, Continuous Knee Smash, Anger Management, Machine Gun Kicks, Burn Out, Chained Mauler, Limb Twist, Backflip\nBukujutsu Level 1- You are beginning to learn how to fly. It may not be the most elegant flying ever but you stay afloat.\nEffect: Your dice gain + 1 side and your escape rolls gain +2 to the combined results.\nFeather of an Angel [500z]\nInventory Slots: 1\nDescription: Angels don't actually have feathers, but sometimes they carry one. The Angel known as Lilith had this feather and it still seems to have some of her Angelic ki on it.\nEffect: USEx1. If you have a halo, you may remove it.",
-    },
-  },
-  {
     id: "npc-alpha-collective-ransom-seeker-1",
     name: "Ransom Seeker",
     raceId: "race-changeling",
@@ -5573,6 +5385,46 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
     source: {
       path: "reference/quests/alpha-collective.md",
       text: "Level: A\r\nRace: Kaizoku-jin\r\nHP: 250\r\nPower: 80\r\nDex: 3\r\nShadow Stalker, Poison Mist, Psycho Driver, Setting up The Punchline, Breaking the Cycle",
+    },
+  },
+  {
+    id: "npc-basbas-bogro-1",
+    name: "Bogro",
+    raceId: "race-bas-jin",
+    styleId: "style-kurokonwaku",
+    raceName: "Bas-Jin",
+    styleName: "Kurokonwaku",
+    combatProfile: {
+      levelText: "Yours",
+      hitPoints: {
+        sourceText: "(35% SP) +12%",
+      },
+      power: {
+        sourceText: "(30% SP) +10%",
+      },
+      dexterity: {
+        sourceText: "(35% SP)",
+      },
+      equipmentNames: ["bloodstained Captain’s Armored Uniform"],
+    },
+    moveIds: [
+      "move-kurokonwaku-living-voodoo",
+      "move-freestyle-predictable",
+      "move-kurokonwaku-poison-mist",
+      "move-kurokonwaku-psycho-driver",
+      "move-kurokonwaku-sinister-claw",
+      "move-kurokonwaku-sixty-second-meltdown",
+    ],
+    unresolvedMoveNames: [
+      "After-Image Mastery Shadowstalker",
+      "Biological Transmogrification",
+      "Sand in the Eyes",
+    ],
+    description:
+      "Bogro is a mutated Baas-Jin with a particularly disorienting attack. He is equipped with a bloodstained Captain’s Armored Uniform.",
+    source: {
+      path: "reference/quests/basbas.md",
+      text: "Level: Yours\r\nRace: Bas-Jin [Sensory Overload 1d100 // Eye of the Beholder 1d60]\r\nHP: (35% SP) +12%\r\nPower: (30% SP) +10%\r\nDexterity: (35% SP)\r\nMove Set: After-Image Mastery Shadowstalker, Living Voodoo, Predictable!, Poison Mist, Psycho Driver, Sinister Claw, Sixty Second Meltdown, Biological Transmogrification, Sand in the Eyes\r\nSpeed/Bukujutsu based",
     },
   },
   {
@@ -5766,43 +5618,191 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
     },
   },
   {
-    id: "npc-basbas-bogro-1",
-    name: "Bogro",
-    raceId: "race-bas-jin",
-    styleId: "style-kurokonwaku",
-    raceName: "Bas-Jin",
-    styleName: "Kurokonwaku",
+    id: "npc-earth-east-limax-1",
+    name: "Limax",
+    raceId: "race-namek",
+    raceName: "Namekian",
     combatProfile: {
-      levelText: "Yours",
+      levelText: "F",
       hitPoints: {
-        sourceText: "(35% SP) +12%",
+        sourceText: "500",
+        baseValue: 500,
       },
       power: {
-        sourceText: "(30% SP) +10%",
+        sourceText: "200",
+        baseValue: 200,
       },
       dexterity: {
-        sourceText: "(35% SP)",
+        sourceText: "12",
+        baseValue: 12,
       },
-      equipmentNames: ["bloodstained Captain’s Armored Uniform"],
+      equipmentNames: [],
     },
     moveIds: [
-      "move-kurokonwaku-living-voodoo",
-      "move-freestyle-predictable",
-      "move-kurokonwaku-poison-mist",
-      "move-kurokonwaku-psycho-driver",
-      "move-kurokonwaku-sinister-claw",
-      "move-kurokonwaku-sixty-second-meltdown",
+      "move-aoyosumu-untouchable-mastery",
+      "move-aoyosumu-state-of-zen",
+      "move-aoyosumu-inner-peace",
+      "move-aoyosumu-straightjacket",
+      "move-aoyosumu-heart-punch",
+      "move-aoyosumu-zen-explosion",
+      "move-aoyosumu-lights-out-strike",
+      "move-aoyosumu-serenity-explosion",
+      "move-aoyosumu-defiant-stance",
     ],
-    unresolvedMoveNames: [
-      "After-Image Mastery Shadowstalker",
-      "Biological Transmogrification",
-      "Sand in the Eyes",
-    ],
+    unresolvedMoveNames: [],
     description:
-      "Bogro is a mutated Baas-Jin with a particularly disorienting attack. He is equipped with a bloodstained Captain’s Armored Uniform.",
+      "Limax is the previous Apprentice to Kami. He has gone rogue and started a group designed to overthrow Kami. He is a master of Aoyosumu.",
     source: {
-      path: "reference/quests/basbas.md",
-      text: "Level: Yours\r\nRace: Bas-Jin [Sensory Overload 1d100 // Eye of the Beholder 1d60]\r\nHP: (35% SP) +12%\r\nPower: (30% SP) +10%\r\nDexterity: (35% SP)\r\nMove Set: After-Image Mastery Shadowstalker, Living Voodoo, Predictable!, Poison Mist, Psycho Driver, Sinister Claw, Sixty Second Meltdown, Biological Transmogrification, Sand in the Eyes\r\nSpeed/Bukujutsu based",
+      path: "reference/quests/earthEast.md",
+      text: "Level: F\nRace: Namekian[Giant Form TF, 1d80]\nHP: 500\nPower: 200\nDexterity: 12\nMove Set:Untouchable Mastery, State of Zen, Inner Peace, Straightjacket, Heart Punch, Zen Explosion, Lights Out Strike, Serenity Explosion, Defiant Stance",
+    },
+  },
+  {
+    id: "npc-earth-east-dryad-nymph-1",
+    name: "Dryad Nymph",
+    styleId: "style-kurokonwaku",
+    raceName: "Saibaman",
+    styleName: "Kurokonwaku",
+    combatProfile: {
+      levelText: "B",
+      transformationText: "Frenzied Saibaman [1d50]",
+      hitPoints: {
+        sourceText: "250",
+        baseValue: 250,
+      },
+      power: {
+        sourceText: "120",
+        baseValue: 120,
+      },
+      dexterity: {
+        sourceText: "5 (+3 dice bonus)",
+        baseValue: 5,
+      },
+      equipmentNames: [],
+    },
+    moveIds: [
+      "move-kurokonwaku-childish-taunt",
+      "move-freestyle-hidden-power-level",
+      "move-kurokonwaku-dismissive-kick",
+      "move-kurokonwaku-poison-mist",
+    ],
+    unresolvedMoveNames: ["Freestyle Ki Color Cascade"],
+    description:
+      "The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.",
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "Level: B\nRace: Saibaman [Mutated]\nTransformation:Frenzied Saibaman [1d50]\nHP: 250\nPower: 120\nDexterity: 5 (+3 dice bonus)\nMove Set: Childish Taunt, Hidden Power Level, Dismissive Kick, Freestyle Ki Color Cascade, Poison Mist",
+    },
+  },
+  {
+    id: "npc-earth-east-koutton-1",
+    name: "Koutton",
+    raceId: "race-majins",
+    styleId: "style-midorikatai",
+    raceName: "Majin",
+    styleName: "Midorikatai",
+    combatProfile: {
+      levelText: "B [Evil Form, 1d50]",
+      hitPoints: {
+        sourceText: "300",
+        baseValue: 300,
+      },
+      power: {
+        sourceText: "140",
+        baseValue: 140,
+      },
+      dexterity: {
+        sourceText: "3",
+        baseValue: 3,
+      },
+      equipmentNames: ["Ooey Gooey"],
+    },
+    moveIds: [
+      "move-midorikatai-critical-mass-mastery",
+      "move-midorikatai-galactic-punisher",
+      "move-midorikatai-gut-punch",
+      "move-midorikatai-enraged-piledriver",
+      "move-midorikatai-palm-crusher",
+    ],
+    unresolvedMoveNames: [],
+    description:
+      "Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.",
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "Level: B [Evil Form, 1d50]\nRace: Majin\nHP: 300\nPower: 140\nDexterity: 3\nMove Set: Critical Mass Mastery, Galactic Punisher, Gut Punch, Enraged Piledriver, Palm Crusher\nBukujutsu \nGluttonous Glob\nInventory Slots: 1\nDescription: A small, portable piece of goo left behind by Koutton. It is currently in a jar, where the rest of him is...well....that's hard to say. But, he is out of your hair. If you throw it at your opponent, maybe it will take something from them.\nEffect: USEx1. Use during your UPKEEP PHASE. Your opponent loses two ki points. You cannot use this if your opponent has lost ki due to your effects in the last four turns.",
+    },
+  },
+  {
+    id: "npc-earth-east-chaos-browncoat-1",
+    name: "Chaos Browncoat",
+    raceId: "race-saiyans",
+    styleId: "style-midorikatai",
+    raceName: "Saiyan",
+    styleName: "Midorikatai",
+    combatProfile: {
+      levelText: "D",
+      hitPoints: {
+        sourceText: "400 +10%= 440",
+        baseValue: 400,
+        resolvedValue: 440,
+      },
+      power: {
+        sourceText: "200+ 10%= 220",
+        baseValue: 200,
+        resolvedValue: 220,
+      },
+      dexterity: {
+        sourceText: "6 + 10%= 7",
+        baseValue: 6,
+        resolvedValue: 7,
+      },
+      equipmentNames: [],
+    },
+    moveIds: [
+      "move-midorikatai-war-cry",
+      "move-midorikatai-energy-gorged",
+      "move-midorikatai-gut-punch",
+      "move-midorikatai-torture-rack",
+      "move-midorikatai-enraged-piledriver",
+      "move-midorikatai-breaker-breaker",
+    ],
+    unresolvedMoveNames: [],
+    description:
+      "Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.",
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "Level: D\nRace: Saiyan [Oozaru TF, 1d80]\nHP: 400 +10%= 440\nPower: 200+ 10%= 220\nDexterity: 6 + 10%= 7\nMove Set: War Cry, Energy Gorged, Gut Punch, Torture Rack, Enraged Piledriver, Breaker Breaker\nBukujutsu Level 1\nStrength Level 1",
+    },
+  },
+  {
+    id: "npc-earth-east-lilith-1",
+    name: "Lilith",
+    styleId: "style-akaikaru",
+    raceName: "Angel",
+    styleName: "Akaikaru",
+    combatProfile: {
+      levelText: "B (12)",
+      hitPoints: {
+        sourceText: "300",
+        baseValue: 300,
+      },
+      power: {
+        sourceText: "100",
+        baseValue: 100,
+      },
+      dexterity: {
+        sourceText: "5",
+        baseValue: 5,
+      },
+      equipmentNames: [],
+    },
+    moveIds: [],
+    unresolvedMoveNames: [],
+    description:
+      "Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.",
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "Level: B (12)\nRace: Angel [Shin-Jin for racial purposes]\nHP: 300\nPower: 100\nDexterity: 5\nMove List: Bukujutsu, Adrenaline Rush Mastery, Speed Demon, Swift Re-Action, Torpedo Kick, Continuous Knee Smash, Anger Management, Machine Gun Kicks, Burn Out, Chained Mauler, Limb Twist, Backflip\nBukujutsu Level 1- You are beginning to learn how to fly. It may not be the most elegant flying ever but you stay afloat.\nEffect: Your dice gain + 1 side and your escape rolls gain +2 to the combined results.\nFeather of an Angel [500z]\nInventory Slots: 1\nDescription: Angels don't actually have feathers, but sometimes they carry one. The Angel known as Lilith had this feather and it still seems to have some of her Angelic ki on it.\nEffect: USEx1. If you have a halo, you may remove it.",
     },
   },
   {
@@ -5931,6 +5931,7 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
       dexterity: {
         sourceText: "10 + 14%= 11 (39%)",
         baseValue: 10,
+        resolvedValue: 11,
       },
       equipmentNames: [],
     },
@@ -5941,6 +5942,37 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
     source: {
       path: "reference/quests/earthSouth.md",
       text: "Level:F\nHP:500 +14%= 570\nPower:240 +11%= 266\nDexterity:10 + 14%= 11 (39%)\nMoveset: Power Surge Mastery,Aura Burst, Eagle Eye, Aerial Beam, Static Shot, Orange Burst, Too Hot To Touch\nItems: Ensorcelled Mystic Pants, Majin Belt, Demon Realm Cape",
+    },
+  },
+  {
+    id: "npc-earth-west-korin-1",
+    name: "Korin",
+    raceId: "race-humans",
+    raceName: "Human",
+    combatProfile: {
+      levelText: "E",
+      transformationText: "HP: 400 + 17%= 468",
+      hitPoints: {
+        sourceText: "400 (6 SP)",
+        baseValue: 400,
+      },
+      power: {
+        sourceText: "220 (9SP)",
+        baseValue: 220,
+      },
+      dexterity: {
+        sourceText: "9 (9SP) (37.5%, + 1)",
+        baseValue: 9,
+      },
+      equipmentNames: [],
+    },
+    moveIds: [],
+    unresolvedMoveNames: [],
+    description:
+      "Korin is countering Adaedrion’s tricks, treating this fight as if he were Human. He has black hair and purple fiery eyes. Bran is a muscular tattooed Human monk who seems to be allergic to shirts.",
+    source: {
+      path: "reference/quests/earthWest.md",
+      text: "Level: E\nRace: Human\nRacial Traits: Mentorship - When learning a move, you gain 5x the Move Learning Experience.\nWhere There's Life, There's Hope - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\nHP: 400 (6 SP)\nPower: 220 (9SP)\nDexterity: 9 (9SP) (37.5%, + 1)\nTransformation:\nHP: 400 + 17%= 468\nPower: 220 + 17% = 257\nDexterity: 9 + 16%= 10 (41.67%, +2)\nMastery",
     },
   },
   {
@@ -6053,80 +6085,6 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
     source: {
       path: "reference/quests/magumar.md",
       text: "Level: Yours [Your Level, 1d100]\r\nRace:Makyan\r\nClass: Makyo Star Connection\r\nHP: (30%) + 14%\r\nPower: (30%) + 14%\r\nDexterity: (40%)+ 19%\r\nMove Set: Adrenaline rush Mastery, Instant Transmission Speed Demon, Impulsive, Swift Re-Action,Follow Up, Blown Fuse, Chained Strikes, Agile Medley,Delta Storm, Ticking Timebomb, Backflip, Gone in a Sixtieth of a Second\r\nBukujutsu and Strength based\r\nBack to contents",
-    },
-  },
-  {
-    id: "npc-earth-west-korin-1",
-    name: "Korin",
-    raceId: "race-humans",
-    raceName: "Human",
-    combatProfile: {
-      levelText: "E",
-      transformationText: "HP: 400 + 17%= 468",
-      hitPoints: {
-        sourceText: "400 (6 SP)",
-        baseValue: 400,
-      },
-      power: {
-        sourceText: "220 (9SP)",
-        baseValue: 220,
-      },
-      dexterity: {
-        sourceText: "9 (9SP) (37.5%, + 1)",
-        baseValue: 9,
-      },
-      equipmentNames: [],
-    },
-    moveIds: [],
-    unresolvedMoveNames: [],
-    description:
-      "Korin is countering Adaedrion’s tricks, treating this fight as if he were Human. He has black hair and purple fiery eyes. Bran is a muscular tattooed Human monk who seems to be allergic to shirts.",
-    source: {
-      path: "reference/quests/earthWest.md",
-      text: "Level: E\nRace: Human\nRacial Traits: Mentorship - When learning a move, you gain 5x the Move Learning Experience.\nWhere There's Life, There's Hope - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\nHP: 400 (6 SP)\nPower: 220 (9SP)\nDexterity: 9 (9SP) (37.5%, + 1)\nTransformation:\nHP: 400 + 17%= 468\nPower: 220 + 17% = 257\nDexterity: 9 + 16%= 10 (41.67%, +2)\nMastery",
-    },
-  },
-  {
-    id: "npc-shi-kir-dai-1",
-    name: "Dai",
-    raceId: "race-shikirian",
-    styleId: "style-akaikaru",
-    raceName: "Shikirian",
-    styleName: "Akaikaru",
-    combatProfile: {
-      levelText: "N (56)",
-      hitPoints: {
-        sourceText: "700 + 5%= 735",
-        baseValue: 700,
-        resolvedValue: 735,
-      },
-      power: {
-        sourceText: "460 + 8%= 497",
-        baseValue: 460,
-        resolvedValue: 497,
-      },
-      dexterity: {
-        sourceText: "20 + 13%= 23",
-        baseValue: 20,
-        resolvedValue: 23,
-      },
-      equipmentNames: [
-        "Ginyu Force Pants",
-        "Ginyu Force Battle Armor",
-        "Ginyu Force Boots",
-        "Ginyu Force Gloves",
-        "Ginyu Force Scouter",
-      ],
-      battleNotes:
-        "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
-    },
-    moveIds: [],
-    unresolvedMoveNames: [],
-    description:
-      "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
-    source: {
-      path: "reference/quests/shi-kir.md",
-      text: 'Level: N (56)\r\nRace: Shikirian [Shikirian Captain 1d100]\r\nHP: 700 + 5%= 735\r\nPower: 460 + 8%= 497\r\nDexterity: 20 + 13%= 23\r\nMove List: Bukujutsu, Deep Wounds Mastery, Inner Peace, Expert Swordplay, Unquenchable Bloodthirst, Special Fighting Pose 5, Sword Cleave, Tricky Sword Maneuvers, Slice N\' Hack, Straightjacket, Heart Punch, Body Change, Epitaph to War, Impenetrable Defense, Defiant Stance\r\nBukujutsu Level 2\r\nEffect: Your dice gain + 2 sides and your escape rolls gain +3 to the combined results.\r\nStrength Level 2\r\nYour physical attacks deal + (5% Power) damage. Your physical attacks cost + 1 ki to block.\r\nGinyu Force Scouter [1000z]\r\nInventory Slots: 1\r\nDescription: A greenscouter with the ginyu force logo along the side of it. This scouter, along with the rest of the "Ginyu Force" items, shows that you are a member of the esteemed Ginyu Force[ACCESSORY].\r\nEffect: Your opponent’s escape rolls gain -3 to the combined result. Your interference rolls gain +5 to the result. If worn with the "Ginyu Force Pants", "Ginyu Force Battle Armor", "Ginyu Force Boots", and "Ginyu Force Gloves" this does not take an Accessory slot to equip.',
     },
   },
   {
@@ -6420,6 +6378,49 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
     },
   },
   {
+    id: "npc-shi-kir-dai-1",
+    name: "Dai",
+    raceId: "race-shikirian",
+    styleId: "style-akaikaru",
+    raceName: "Shikirian",
+    styleName: "Akaikaru",
+    combatProfile: {
+      levelText: "N (56)",
+      hitPoints: {
+        sourceText: "700 + 5%= 735",
+        baseValue: 700,
+        resolvedValue: 735,
+      },
+      power: {
+        sourceText: "460 + 8%= 497",
+        baseValue: 460,
+        resolvedValue: 497,
+      },
+      dexterity: {
+        sourceText: "20 + 13%= 23",
+        baseValue: 20,
+        resolvedValue: 23,
+      },
+      equipmentNames: [
+        "Ginyu Force Pants",
+        "Ginyu Force Battle Armor",
+        "Ginyu Force Boots",
+        "Ginyu Force Gloves",
+        "Ginyu Force Scouter",
+      ],
+      battleNotes:
+        "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
+    },
+    moveIds: [],
+    unresolvedMoveNames: [],
+    description:
+      "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
+    source: {
+      path: "reference/quests/shi-kir.md",
+      text: 'Level: N (56)\r\nRace: Shikirian [Shikirian Captain 1d100]\r\nHP: 700 + 5%= 735\r\nPower: 460 + 8%= 497\r\nDexterity: 20 + 13%= 23\r\nMove List: Bukujutsu, Deep Wounds Mastery, Inner Peace, Expert Swordplay, Unquenchable Bloodthirst, Special Fighting Pose 5, Sword Cleave, Tricky Sword Maneuvers, Slice N\' Hack, Straightjacket, Heart Punch, Body Change, Epitaph to War, Impenetrable Defense, Defiant Stance\r\nBukujutsu Level 2\r\nEffect: Your dice gain + 2 sides and your escape rolls gain +3 to the combined results.\r\nStrength Level 2\r\nYour physical attacks deal + (5% Power) damage. Your physical attacks cost + 1 ki to block.\r\nGinyu Force Scouter [1000z]\r\nInventory Slots: 1\r\nDescription: A greenscouter with the ginyu force logo along the side of it. This scouter, along with the rest of the "Ginyu Force" items, shows that you are a member of the esteemed Ginyu Force[ACCESSORY].\r\nEffect: Your opponent’s escape rolls gain -3 to the combined result. Your interference rolls gain +5 to the result. If worn with the "Ginyu Force Pants", "Ginyu Force Battle Armor", "Ginyu Force Boots", and "Ginyu Force Gloves" this does not take an Accessory slot to equip.',
+    },
+  },
+  {
     id: "npc-taifuu-makaioshin-1",
     name: "Makaioshin",
     raceId: "race-makaioshin",
@@ -6430,15 +6431,12 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
       levelText: "Yours",
       hitPoints: {
         sourceText: "30%",
-        baseValue: 30,
       },
       power: {
         sourceText: "30%",
-        baseValue: 30,
       },
       dexterity: {
         sourceText: "40%",
-        baseValue: 40,
       },
       equipmentNames: [],
     },
@@ -6497,66 +6495,6 @@ export const NPC_DEFINITIONS: readonly NpcDefinition[] = [
 
 export const QUEST_ENCOUNTER_DEFINITIONS: readonly QuestEncounterDefinition[] = [
   {
-    id: "quest-earth-east-die-a-hero-or-live-long-enough-to-become-a-villain-3-encounter-1",
-    questId: "quest-earth-east-die-a-hero-or-live-long-enough-to-become-a-villain-3",
-    battleText:
-      "Limax is the previous Apprentice to Kami. He has gone rogue and started a group designed to overthrow Kami. He is a master of Aoyosumu.",
-    npcIds: ["npc-earth-east-limax-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "## Die a Hero or Live Long Enough to Become a Villain\nDescription: Satan City has a little problem. Limax was once one of the city’s most celebrated protectors, especially among the people who fled East City’s hateful politics. Recently, however, he has gone a little… rogue.\n\nHis following, the True Believers, are currently rampaging through Satan City. Limax claims he is defending the city’s outcasts, but his followers have begun attacking anyone they decide is not part of their vision for the city. Satan City could use the help in defeating its former hero before he turns a refuge into his personal kingdom.\n\nRequirements: Battle for the Tower// Choosing an Apprentice\nReward(s): 1.0x EXP, Select two Skill, Advanced Attack, or Signature Techniques in your set. You may replace those moves with moves of your Style or non-Afterlife Freestyle worth equal or lesser Training Days.\nTime: 4 Days (3 RP, 1 Battle) // 400 wpd\nBattle Info: Limax is the previous Apprentice to Kami. He has gone rogue and started a group designed to overthrow Kami. He is a master of Aoyosumu.\nLimax the Disciple [Aoyosumu]\nLevel: F\nRace: Namekian[Giant Form TF, 1d80]\nHP: 500\nPower: 200\nDexterity: 12\nMove Set:Untouchable Mastery, State of Zen, Inner Peace, Straightjacket, Heart Punch, Zen Explosion, Lights Out Strike, Serenity Explosion, Defiant Stance",
-    },
-  },
-  {
-    id: "quest-earth-east-forest-from-another-world-5-encounter-1",
-    questId: "quest-earth-east-forest-from-another-world-5",
-    battleText:
-      "The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.",
-    npcIds: ["npc-earth-east-dryad-nymph-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "## Forest from Another World\nDescription: Ages ago, when the first Planet Namek was ruthlessly destroyed by Frieza, the surviving inhabitants fled to the planet Earth. The humans and Namekians co-existed peacefully, sharing their cultures, games, knowledge and technology freely. Some of the more “green thumbed” Namekians had managed to bring some seeds from of native plant life from Namek. The new environment allowed the Ajisa trees and blue grass to flourish into a unique and massive forest. In recent times, however, visitors have begun to disappear into the forest. The locals are deeply concerned and are seeking aid from anyone who could investigate the issue and bring it to a close.\n\nRequirements: None\nRewards: 0.5x Base EXP Gain // Senzu Root\nTime: 3 Days (2 RP, 1 Battle) // 600 WPD\nBattle Info: The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.\nDryad Nymph [Kurokonwaku]\nLevel: B\nRace: Saibaman [Mutated]\nTransformation:Frenzied Saibaman [1d50]\nHP: 250\nPower: 120\nDexterity: 5 (+3 dice bonus)\nMove Set: Childish Taunt, Hidden Power Level, Dismissive Kick, Freestyle Ki Color Cascade, Poison Mist",
-    },
-  },
-  {
-    id: "quest-earth-east-gluttony-in-the-mountains-6-encounter-1",
-    questId: "quest-earth-east-gluttony-in-the-mountains-6",
-    battleText:
-      "Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.",
-    npcIds: ["npc-earth-east-koutton-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "## Gluttony in the Mountains\nDescription: A meteor has crashed in the forests outside Mount Paozu. Scientists and news anchors originally showed great relief that the crash did not cause as much damage as expected, until it was revealed why: the meteor is made of Majin flesh…and it’s still alive.\nThis gluttonous creature has begun to consume everything on its rolling path through the East Sector. Dinosaurs, forests, ruins, and whole stretches of road disappear into it. Hundreds could die if it reaches the populated areas, and the creature gets more and more powerful with each thing it consumes. Stop the monster before it reaches Satan City or East City, or its all-consuming body could take the entire sector.\nRequirements: None\nReward(s): Gluttonous Glob// 1.0 EXP\nTime: 4 Days (3 RPs, 1 Battle) // 600 WPD\nBattle Info: Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.\nKoutton [Midorikatai]\nLevel: B [Evil Form, 1d50]\nRace: Majin\nHP: 300\nPower: 140\nDexterity: 3\nMove Set: Critical Mass Mastery, Galactic Punisher, Gut Punch, Enraged Piledriver, Palm Crusher\nBukujutsu \nGluttonous Glob\nInventory Slots: 1\nDescription: A small, portable piece of goo left behind by Koutton. It is currently in a jar, where the rest of him is...well....that's hard to say. But, he is out of your hair. If you throw it at your opponent, maybe it will take something from them.\nEffect: USEx1. Use during your UPKEEP PHASE. Your opponent loses two ki points. You cannot use this if your opponent has lost ki due to your effects in the last four turns.",
-    },
-  },
-  {
-    id: "quest-earth-east-the-best-type-of-training-13-encounter-1",
-    questId: "quest-earth-east-the-best-type-of-training-13",
-    battleText:
-      "Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.",
-    npcIds: ["npc-earth-east-chaos-browncoat-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "## The Best Type of Training\nDescription: Today is your lucky day. You were out walking the streets of East City when, what else, you get accosted by the Browncoats, one of the finest, upstanding gangs of anti-alien toughs this side of the East Sector.\nThey make Changeling hitmen look like altar boys from Konats. Apparently you did something to offend them—probably walked on the wrong side of the street, looked at one of them cross, or simply looked too much like an outsider—and their leader wants to make an example out of you.\nRequirements:None\nReward(s): 1.0x Base EXP Gain // Molotov Cocktail\nTime: 3 Days (2 RP, 1 Battle) // 600 WPD\nBattle Info: Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.\nChaos Browncoat [Midorikatai]\nLevel: D\nRace: Saiyan [Oozaru TF, 1d80]\nHP: 400 +10%= 440\nPower: 200+ 10%= 220\nDexterity: 6 + 10%= 7\nMove Set: War Cry, Energy Gorged, Gut Punch, Torture Rack, Enraged Piledriver, Breaker Breaker\nBukujutsu Level 1\nStrength Level 1",
-    },
-  },
-  {
-    id: "quest-earth-east-the-siren-s-call-15-encounter-1",
-    questId: "quest-earth-east-the-siren-s-call-15",
-    battleText:
-      "Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.",
-    npcIds: ["npc-earth-east-lilith-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/earthEast.md",
-      text: "## The Siren's Call\nDescription: There have been many instances of people disappearing in the forests of the East Sector. Rumors speak of a beautiful maiden playing a black lute somewhere along the abandoned roads that hikers use to seek out hidden ruins.\nNo one who enters these woods will get out without succumbing to her call…\nRequirements: None\nReward: Feather of an Angel\nTime: 4 Days (3 RPs, 1 Battle) // 500 WPD\nBattle Info: Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.\nLilith [Akaikaru]\nLevel: B (12)\nRace: Angel [Shin-Jin for racial purposes]\nHP: 300\nPower: 100\nDexterity: 5\nMove List: Bukujutsu, Adrenaline Rush Mastery, Speed Demon, Swift Re-Action, Torpedo Kick, Continuous Knee Smash, Anger Management, Machine Gun Kicks, Burn Out, Chained Mauler, Limb Twist, Backflip\nBukujutsu Level 1- You are beginning to learn how to fly. It may not be the most elegant flying ever but you stay afloat.\nEffect: Your dice gain + 1 side and your escape rolls gain +2 to the combined results.\nFeather of an Angel [500z]\nInventory Slots: 1\nDescription: Angels don't actually have feathers, but sometimes they carry one. The Angel known as Lilith had this feather and it still seems to have some of her Angelic ki on it.\nEffect: USEx1. If you have a halo, you may remove it.",
-    },
-  },
-  {
     id: "quest-alpha-collective-needle-in-an-asteroid-stack-4-encounter-1",
     questId: "quest-alpha-collective-needle-in-an-asteroid-stack-4",
     battleText:
@@ -6577,6 +6515,18 @@ export const QUEST_ENCOUNTER_DEFINITIONS: readonly QuestEncounterDefinition[] = 
     source: {
       path: "reference/quests/alpha-collective.md",
       text: "## Planet Trading like a Boss\r\nDescription: The Planet Trade Organization is running an illegal black market and the Alpha Collective government is not too happy about it. They have hired you to infiltrate the black market and get evidence that the Planet Trade Organization is involved in it…OR…..The Planet Trade Organization has contacted you about a security detail for an event that they are running. They have heard that the government is trying to infiltrate the event.\r\nThat’s why they brought you on board.\r\nRequirements: None\nReward(s): Any Firearm weapon from the marketplace.\r\nAlternate Reward: 400Z\r\nTime: 3 Days // 600 WPD\r\nDr. Feel Goods\r\nQuest Description: The word around the Collective is that there's a gentleman opening up a clinic of sorts. They say he's good at getting results but there's always... side effects. When meeting the man he looks the text book definition of sketchy. He's wearing a tatter and torn doctor's coat riddled with stains, frizzy and long white hair, a missing tooth, a lazy eye, and he's consistently twitching and sneaking in a giggle.\r\nHe says he's got what you came for but you may walk away with more than you bargain for. Maybe it's better to just buy a med kit... You're not going to buy a med kit are you? Man are you frugal. Why not just steal some of his supplies?\r\nReward: Heal all SEVER effects and you heal (100% Total) HP. Your HP may not exceed your max. Additionally Roll on the table in front of a mod. Your allowed one reroll but you have to take the second one.\r\n1. Nothing Happens\r\n2. You smell like fresh pine for a month\r\n3. Gender swap\r\n4. Every Time an opponent holds you, you squeak like a rubber duck\r\n5. Your hair grows long, down to your toes\r\n6. You glow in the dark now.\r\nAlternate Reward:Two med kits and a Vitatlity Y and you may not take this quest again, regardless of class or item effects. (This happens if you steal the rewards)\r\nTime: 3 Days // 600 WPD\r\nTossing Shade\r\nQuest Description: The Alpha Collective often contains dens of murderers, thieves, and villainy. Usually these crimes can be ignored, it certainly helps when the local law enforcement gets a cut. Some of the more frugal crooks however, tend to get put on the wanted list. A costumed thug sweeping through the shadows of the Collective is currently one such example.\r\nWith a sizable enough price on his head, the rookie crook is about to learn the hard way that some respect must be paid in gold. Dead or Alive doesn't matter, so long as this \"Street Shade\" isn't seen again.\r\nRequirements: None\nReward:250 zenni\r\nTime: 3 Days (2 RP, 1 Battle)//400 WPD\r\nBattle Info:\r\nThe Street Shade\r\nLevel: A\r\nRace: Kaizoku-jin\r\nHP: 250\r\nPower: 80\r\nDex: 3\r\nShadow Stalker, Poison Mist, Psycho Driver, Setting up The Punchline, Breaking the Cycle",
+    },
+  },
+  {
+    id: "quest-basbas-twisted-timelines-39-encounter-1",
+    questId: "quest-basbas-twisted-timelines-39",
+    battleText:
+      "Bogro is a mutated Baas-Jin with a particularly disorienting attack. He is equipped with a bloodstained Captain’s Armored Uniform.",
+    npcIds: ["npc-basbas-bogro-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/basbas.md",
+      text: "## Twisted Timelines\r\nDescription: Not all Bas-Jin are friendly but many are powerful. You’ve entered into the territory of one unique horror and its effects instantly become evident: time itself shifts around you. The very history of your life shifts in this maelstrom; friends were enemies, enemies were friends, the living become dead, the dead become living, until you can find the creature at the center of this chronological storm.\r\nRequirements: None\nReward(s): You may trade in up to 7 Training Days worth of Techniques for new Techniques costing up to the same amount of Training Days. These new Techniques must be from your Style or non-Afterlife Freestyle. If you have been to the Afterlife, you may choose Freestyle moves from the Afterlife that you have visited as well.\r\nTime: 3 Days (2 RP, 1 Battle) // 600 WPD\r\nBattle Info: Bogro is a mutated Baas-Jin with a particularly disorienting attack. He is equipped with a bloodstained Captain’s Armored Uniform.\r\nBogro [Kurokonwaku]\r\nLevel: Yours\r\nRace: Bas-Jin [Sensory Overload 1d100 // Eye of the Beholder 1d60]\r\nHP: (35% SP) +12%\r\nPower: (30% SP) +10%\r\nDexterity: (35% SP)\r\nMove Set: After-Image Mastery Shadowstalker, Living Voodoo, Predictable!, Poison Mist, Psycho Driver, Sinister Claw, Sixty Second Meltdown, Biological Transmogrification, Sand in the Eyes\r\nSpeed/Bukujutsu based",
     },
   },
   {
@@ -6644,15 +6594,63 @@ export const QUEST_ENCOUNTER_DEFINITIONS: readonly QuestEncounterDefinition[] = 
     },
   },
   {
-    id: "quest-basbas-twisted-timelines-39-encounter-1",
-    questId: "quest-basbas-twisted-timelines-39",
+    id: "quest-earth-east-die-a-hero-or-live-long-enough-to-become-a-villain-3-encounter-1",
+    questId: "quest-earth-east-die-a-hero-or-live-long-enough-to-become-a-villain-3",
     battleText:
-      "Bogro is a mutated Baas-Jin with a particularly disorienting attack. He is equipped with a bloodstained Captain’s Armored Uniform.",
-    npcIds: ["npc-basbas-bogro-1"],
+      "Limax is the previous Apprentice to Kami. He has gone rogue and started a group designed to overthrow Kami. He is a master of Aoyosumu.",
+    npcIds: ["npc-earth-east-limax-1"],
     unresolvedCombatantTexts: [],
     source: {
-      path: "reference/quests/basbas.md",
-      text: "## Twisted Timelines\r\nDescription: Not all Bas-Jin are friendly but many are powerful. You’ve entered into the territory of one unique horror and its effects instantly become evident: time itself shifts around you. The very history of your life shifts in this maelstrom; friends were enemies, enemies were friends, the living become dead, the dead become living, until you can find the creature at the center of this chronological storm.\r\nRequirements: None\nReward(s): You may trade in up to 7 Training Days worth of Techniques for new Techniques costing up to the same amount of Training Days. These new Techniques must be from your Style or non-Afterlife Freestyle. If you have been to the Afterlife, you may choose Freestyle moves from the Afterlife that you have visited as well.\r\nTime: 3 Days (2 RP, 1 Battle) // 600 WPD\r\nBattle Info: Bogro is a mutated Baas-Jin with a particularly disorienting attack. He is equipped with a bloodstained Captain’s Armored Uniform.\r\nBogro [Kurokonwaku]\r\nLevel: Yours\r\nRace: Bas-Jin [Sensory Overload 1d100 // Eye of the Beholder 1d60]\r\nHP: (35% SP) +12%\r\nPower: (30% SP) +10%\r\nDexterity: (35% SP)\r\nMove Set: After-Image Mastery Shadowstalker, Living Voodoo, Predictable!, Poison Mist, Psycho Driver, Sinister Claw, Sixty Second Meltdown, Biological Transmogrification, Sand in the Eyes\r\nSpeed/Bukujutsu based",
+      path: "reference/quests/earthEast.md",
+      text: "## Die a Hero or Live Long Enough to Become a Villain\nDescription: Satan City has a little problem. Limax was once one of the city’s most celebrated protectors, especially among the people who fled East City’s hateful politics. Recently, however, he has gone a little… rogue.\n\nHis following, the True Believers, are currently rampaging through Satan City. Limax claims he is defending the city’s outcasts, but his followers have begun attacking anyone they decide is not part of their vision for the city. Satan City could use the help in defeating its former hero before he turns a refuge into his personal kingdom.\n\nRequirements: Battle for the Tower// Choosing an Apprentice\nReward(s): 1.0x EXP, Select two Skill, Advanced Attack, or Signature Techniques in your set. You may replace those moves with moves of your Style or non-Afterlife Freestyle worth equal or lesser Training Days.\nTime: 4 Days (3 RP, 1 Battle) // 400 wpd\nBattle Info: Limax is the previous Apprentice to Kami. He has gone rogue and started a group designed to overthrow Kami. He is a master of Aoyosumu.\nLimax the Disciple [Aoyosumu]\nLevel: F\nRace: Namekian[Giant Form TF, 1d80]\nHP: 500\nPower: 200\nDexterity: 12\nMove Set:Untouchable Mastery, State of Zen, Inner Peace, Straightjacket, Heart Punch, Zen Explosion, Lights Out Strike, Serenity Explosion, Defiant Stance",
+    },
+  },
+  {
+    id: "quest-earth-east-forest-from-another-world-5-encounter-1",
+    questId: "quest-earth-east-forest-from-another-world-5",
+    battleText:
+      "The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.",
+    npcIds: ["npc-earth-east-dryad-nymph-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "## Forest from Another World\nDescription: Ages ago, when the first Planet Namek was ruthlessly destroyed by Frieza, the surviving inhabitants fled to the planet Earth. The humans and Namekians co-existed peacefully, sharing their cultures, games, knowledge and technology freely. Some of the more “green thumbed” Namekians had managed to bring some seeds from of native plant life from Namek. The new environment allowed the Ajisa trees and blue grass to flourish into a unique and massive forest. In recent times, however, visitors have begun to disappear into the forest. The locals are deeply concerned and are seeking aid from anyone who could investigate the issue and bring it to a close.\n\nRequirements: None\nRewards: 0.5x Base EXP Gain // Senzu Root\nTime: 3 Days (2 RP, 1 Battle) // 600 WPD\nBattle Info: The Dryad Nymph has been luring victims into the forest and then killing them to enrich the soil. She appears as a tall humanoid woman with skin made from flexible bark up to her neck. Her face is a green-skinned mix of Namekian and an attractive human woman with long green hair.\nDryad Nymph [Kurokonwaku]\nLevel: B\nRace: Saibaman [Mutated]\nTransformation:Frenzied Saibaman [1d50]\nHP: 250\nPower: 120\nDexterity: 5 (+3 dice bonus)\nMove Set: Childish Taunt, Hidden Power Level, Dismissive Kick, Freestyle Ki Color Cascade, Poison Mist",
+    },
+  },
+  {
+    id: "quest-earth-east-gluttony-in-the-mountains-6-encounter-1",
+    questId: "quest-earth-east-gluttony-in-the-mountains-6",
+    battleText:
+      "Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.",
+    npcIds: ["npc-earth-east-koutton-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "## Gluttony in the Mountains\nDescription: A meteor has crashed in the forests outside Mount Paozu. Scientists and news anchors originally showed great relief that the crash did not cause as much damage as expected, until it was revealed why: the meteor is made of Majin flesh…and it’s still alive.\nThis gluttonous creature has begun to consume everything on its rolling path through the East Sector. Dinosaurs, forests, ruins, and whole stretches of road disappear into it. Hundreds could die if it reaches the populated areas, and the creature gets more and more powerful with each thing it consumes. Stop the monster before it reaches Satan City or East City, or its all-consuming body could take the entire sector.\nRequirements: None\nReward(s): Gluttonous Glob// 1.0 EXP\nTime: 4 Days (3 RPs, 1 Battle) // 600 WPD\nBattle Info: Koutton is a 60 foot tall, faceless blob that consumes anything around him. He is equipped with Ooey Gooey.\nKoutton [Midorikatai]\nLevel: B [Evil Form, 1d50]\nRace: Majin\nHP: 300\nPower: 140\nDexterity: 3\nMove Set: Critical Mass Mastery, Galactic Punisher, Gut Punch, Enraged Piledriver, Palm Crusher\nBukujutsu \nGluttonous Glob\nInventory Slots: 1\nDescription: A small, portable piece of goo left behind by Koutton. It is currently in a jar, where the rest of him is...well....that's hard to say. But, he is out of your hair. If you throw it at your opponent, maybe it will take something from them.\nEffect: USEx1. Use during your UPKEEP PHASE. Your opponent loses two ki points. You cannot use this if your opponent has lost ki due to your effects in the last four turns.",
+    },
+  },
+  {
+    id: "quest-earth-east-the-best-type-of-training-13-encounter-1",
+    questId: "quest-earth-east-the-best-type-of-training-13",
+    battleText:
+      "Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.",
+    npcIds: ["npc-earth-east-chaos-browncoat-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "## The Best Type of Training\nDescription: Today is your lucky day. You were out walking the streets of East City when, what else, you get accosted by the Browncoats, one of the finest, upstanding gangs of anti-alien toughs this side of the East Sector.\nThey make Changeling hitmen look like altar boys from Konats. Apparently you did something to offend them—probably walked on the wrong side of the street, looked at one of them cross, or simply looked too much like an outsider—and their leader wants to make an example out of you.\nRequirements:None\nReward(s): 1.0x Base EXP Gain // Molotov Cocktail\nTime: 3 Days (2 RP, 1 Battle) // 600 WPD\nBattle Info: Whenever Chaos would land a critical hit or BREAK, he instead lands a SEVER due to his slicing style of combat.\nChaos Browncoat [Midorikatai]\nLevel: D\nRace: Saiyan [Oozaru TF, 1d80]\nHP: 400 +10%= 440\nPower: 200+ 10%= 220\nDexterity: 6 + 10%= 7\nMove Set: War Cry, Energy Gorged, Gut Punch, Torture Rack, Enraged Piledriver, Breaker Breaker\nBukujutsu Level 1\nStrength Level 1",
+    },
+  },
+  {
+    id: "quest-earth-east-the-siren-s-call-15-encounter-1",
+    questId: "quest-earth-east-the-siren-s-call-15",
+    battleText:
+      "Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.",
+    npcIds: ["npc-earth-east-lilith-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/earthEast.md",
+      text: "## The Siren's Call\nDescription: There have been many instances of people disappearing in the forests of the East Sector. Rumors speak of a beautiful maiden playing a black lute somewhere along the abandoned roads that hikers use to seek out hidden ruins.\nNo one who enters these woods will get out without succumbing to her call…\nRequirements: None\nReward: Feather of an Angel\nTime: 4 Days (3 RPs, 1 Battle) // 500 WPD\nBattle Info: Lilith is an Angel who utilizes Akaikaru. She uses her Lute to hypnotize opponents, making all of her attacks gain + 2 to the results. If you lose to Lilith, you will be asleep for the next seven roleplay days rather than sent to the afterlife. You must make a 100 WPD post for each day, rping your dream.\nLilith [Akaikaru]\nLevel: B (12)\nRace: Angel [Shin-Jin for racial purposes]\nHP: 300\nPower: 100\nDexterity: 5\nMove List: Bukujutsu, Adrenaline Rush Mastery, Speed Demon, Swift Re-Action, Torpedo Kick, Continuous Knee Smash, Anger Management, Machine Gun Kicks, Burn Out, Chained Mauler, Limb Twist, Backflip\nBukujutsu Level 1- You are beginning to learn how to fly. It may not be the most elegant flying ever but you stay afloat.\nEffect: Your dice gain + 1 side and your escape rolls gain +2 to the combined results.\nFeather of an Angel [500z]\nInventory Slots: 1\nDescription: Angels don't actually have feathers, but sometimes they carry one. The Angel known as Lilith had this feather and it still seems to have some of her Angelic ki on it.\nEffect: USEx1. If you have a halo, you may remove it.",
     },
   },
   {
@@ -6744,6 +6742,32 @@ export const QUEST_ENCOUNTER_DEFINITIONS: readonly QuestEncounterDefinition[] = 
     },
   },
   {
+    id: "quest-earth-west-battle-for-the-tower-2-encounter-1",
+    questId: "quest-earth-west-battle-for-the-tower-2",
+    battleText:
+      "Korin is countering Adaedrion’s tricks, treating this fight as if he were Human. He has black hair and purple fiery eyes. Bran is a muscular tattooed Human monk who seems to be allergic to shirts.",
+    npcIds: ["npc-earth-west-korin-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/earthWest.md",
+      text: "## Battle for the Tower\nDescription: A set of unusual runes covers a small area of rubble, and inside you find a rather pissed-off Korin! After completing a complex puzzle to deactivate the rune-trap that’s holding the legend down, you are attacked by the same person who put him there: a rogue wizard, Adaedrion! Korin can counter some of the wizard’s tricks, but it’s up to you to put him in his place. . . . OR . . . You find the master of the tower, Korin, trapped in a complex set of runes.\nA man in dark robes approaches you and offers you a chance to plunder the tower’s hidden treasures with him. He’s managed to neutralize Korin, but he requires your aid in stopping one of Earth’s champions that Korin has called.\nRequirements: Korin’s Tower\nReward(s): ⅓ Senzu Bean // 0.5x Base EXP Gain\nTime: 3 Days (2 RPs, 1 Battle) // 750 WPD\nBattle Info: Korin is countering Adaedrion’s tricks, treating this fight as if he were Human. He has black hair and purple fiery eyes. Bran is a muscular tattooed Human monk who seems to be allergic to shirts.\n[+] Adaedrion\n[Kiihakai]\nLevel: E\nRace: Human\nRacial Traits: Mentorship - When learning a move, you gain 5x the Move Learning Experience.\nWhere There's Life, There's Hope - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\nHP: 400 (6 SP)\nPower: 220 (9SP)\nDexterity: 9 (9SP) (37.5%, + 1)\nTransformation:\nHP: 400 + 17%= 468\nPower: 220 + 17% = 257\nDexterity: 9 + 16%= 10 (41.67%, +2)\nMastery",
+    },
+  },
+  {
+    id: "quest-earth-west-the-open-sky-24-encounter-1",
+    questId: "quest-earth-west-the-open-sky-24",
+    battleText:
+      "The Hollow Moon has taken control of one of West City’s automated security machines. It is currently guarding the communications grid and scanning anyone who approaches for collection.",
+    npcIds: [],
+    unresolvedCombatantTexts: [
+      "The Hollow Moon has taken control of one of West City’s automated security machines. It is currently guarding the communications grid and scanning anyone who approaches for collection.",
+    ],
+    source: {
+      path: "reference/quests/earthWest.md",
+      text: "## The Open Sky\nDescription: Capsule Corporation has examined the Lunar Lens and Tidal Resonator, and they have some good news. The object in the sky is not actually a moon.\n\nThe bad news is that it is an enormous alien prison using the ki of its captives to charge a long-range extraction beam.\n\nCapsule Corporation believes the Resonator can interfere with the vessel, but only if it is connected to West City’s communications grid. Unfortunately, the Hollow Moon has already noticed what they are doing. Bridges have locked in place, machines are scanning citizens for their power levels, and a massive beam has begun pulling people toward the open sky.\n\nHelp Capsule Corporation connect the Resonator, enter the corrupted network, and broadcast a counter-signal before half of West City is dragged into orbit. . . . OR . . .\n\nSomeone has offered you a lot of money for Capsule Corporation’s research. Sell them the counter-signal, sabotage the broadcast, or help them figure out how to point the Hollow Moon at someone else. Just make sure you keep a copy for yourself. You may need it.\nRequirements: Tide of the Hollow Moon\nReward(s): Orbitbreaker Beacon // Capsule Corp Emergency Access\nAlternate Reward(s): Orbitbreaker Beacon // Hijacked Power Registry\nTime: 4 Days (3 RPs, 1 Battle) // 700 WPD\nNote: You receive the Alternate Reward if you sell or sabotage Capsule Corporation’s counter-signal.\nBattle Info: The Hollow Moon has taken control of one of West City’s automated security machines. It is currently guarding the communications grid and scanning anyone who approaches for collection.\n\nOrbitbreaker Beacon [1,300z]\nInventory Slots: 0\nDescription: A beacon built using the Lunar Lens, the Tidal Resonator, and a concerning amount of Capsule Corporation equipment. It can identify and interrupt signals produced by alien machinery.\nEffect: USEx1. Use before a Quest Battle involving an Android, Bio-Android, or machine opponent. You begin the Battle with +2 KI Points and your first defensive roll gains +3 to the result.\n\nCapsule Corp Emergency Access [1,000z]\nInventory Slots: 0\nDescription: Capsule Corporation has granted you limited emergency access to its facilities and transportation systems. The word “limited” is underlined several times.\nEffect: Once per Saga, your next Quest in the West Sector takes -1 Day, to a minimum of 1.\n\nHijacked Power Registry [1,000z]\nInventory Slots: 0\nDescription: A stolen copy of the Hollow Moon’s scan of West City. It contains the names, locations, and power levels of thousands of citizens, along with several people willing to pay to have that information disappear.\nEffect: Once per Saga, when completing a Quest in the West Sector, gain an additional 300z.",
+    },
+  },
+  {
     id: "quest-magumar-three-wishes-1-encounter-1",
     questId: "quest-magumar-three-wishes-1",
     battleText:
@@ -6779,46 +6803,6 @@ export const QUEST_ENCOUNTER_DEFINITIONS: readonly QuestEncounterDefinition[] = 
     source: {
       path: "reference/quests/magumar.md",
       text: "## Reaper\r\nDescription: Okay, so you got on the island. However you did it, I hope you realize that the fun starts now. Every creature on this island is either under the control of the Makyans or one of them themselves. Make your way towards the center of the island where all that black mist is spewing forth and put a stop to all this madness before it is too late.\r\nRequirements: Too Hot!\r\nReward(s): Free Magumar// 1.0x Base EXP// 500z\r\nAlternate Reward(s): You are sent to the Deadzone. You get the Alternate Reward if you lose.\r\nTime: 4 Days (3 RP, 1 Battle) // 800 WPD\r\nNote: Nothing may complete this quest for you.\r\nBattle Info: Reaper is a Makyan who works underneath Garlic Jr. He appears similar to a monster made of lava. He is wearing Kung Fu Slacks, a Leather Duster, a Warrior's Belt, and Bunny Ears.\r\nReaper\r\nLevel: Yours [Your Level, 1d100]\r\nRace:Makyan\r\nClass: Makyo Star Connection\r\nHP: (30%) + 14%\r\nPower: (30%) + 14%\r\nDexterity: (40%)+ 19%\r\nMove Set: Adrenaline rush Mastery, Instant Transmission Speed Demon, Impulsive, Swift Re-Action,Follow Up, Blown Fuse, Chained Strikes, Agile Medley,Delta Storm, Ticking Timebomb, Backflip, Gone in a Sixtieth of a Second\r\nBukujutsu and Strength based\r\nBack to contents",
-    },
-  },
-  {
-    id: "quest-earth-west-battle-for-the-tower-2-encounter-1",
-    questId: "quest-earth-west-battle-for-the-tower-2",
-    battleText:
-      "Korin is countering Adaedrion’s tricks, treating this fight as if he were Human. He has black hair and purple fiery eyes. Bran is a muscular tattooed Human monk who seems to be allergic to shirts.",
-    npcIds: ["npc-earth-west-korin-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/earthWest.md",
-      text: "## Battle for the Tower\nDescription: A set of unusual runes covers a small area of rubble, and inside you find a rather pissed-off Korin! After completing a complex puzzle to deactivate the rune-trap that’s holding the legend down, you are attacked by the same person who put him there: a rogue wizard, Adaedrion! Korin can counter some of the wizard’s tricks, but it’s up to you to put him in his place. . . . OR . . . You find the master of the tower, Korin, trapped in a complex set of runes.\nA man in dark robes approaches you and offers you a chance to plunder the tower’s hidden treasures with him. He’s managed to neutralize Korin, but he requires your aid in stopping one of Earth’s champions that Korin has called.\nRequirements: Korin’s Tower\nReward(s): ⅓ Senzu Bean // 0.5x Base EXP Gain\nTime: 3 Days (2 RPs, 1 Battle) // 750 WPD\nBattle Info: Korin is countering Adaedrion’s tricks, treating this fight as if he were Human. He has black hair and purple fiery eyes. Bran is a muscular tattooed Human monk who seems to be allergic to shirts.\n[+] Adaedrion\n[Kiihakai]\nLevel: E\nRace: Human\nRacial Traits: Mentorship - When learning a move, you gain 5x the Move Learning Experience.\nWhere There's Life, There's Hope - When your Health drops below 0 for the first time in combat, you may roll 1d30. If the result is 10 or higher, you may set your Health to 1.\nHP: 400 (6 SP)\nPower: 220 (9SP)\nDexterity: 9 (9SP) (37.5%, + 1)\nTransformation:\nHP: 400 + 17%= 468\nPower: 220 + 17% = 257\nDexterity: 9 + 16%= 10 (41.67%, +2)\nMastery",
-    },
-  },
-  {
-    id: "quest-earth-west-the-open-sky-24-encounter-1",
-    questId: "quest-earth-west-the-open-sky-24",
-    battleText:
-      "The Hollow Moon has taken control of one of West City’s automated security machines. It is currently guarding the communications grid and scanning anyone who approaches for collection.",
-    npcIds: [],
-    unresolvedCombatantTexts: [
-      "The Hollow Moon has taken control of one of West City’s automated security machines. It is currently guarding the communications grid and scanning anyone who approaches for collection.",
-    ],
-    source: {
-      path: "reference/quests/earthWest.md",
-      text: "## The Open Sky\nDescription: Capsule Corporation has examined the Lunar Lens and Tidal Resonator, and they have some good news. The object in the sky is not actually a moon.\n\nThe bad news is that it is an enormous alien prison using the ki of its captives to charge a long-range extraction beam.\n\nCapsule Corporation believes the Resonator can interfere with the vessel, but only if it is connected to West City’s communications grid. Unfortunately, the Hollow Moon has already noticed what they are doing. Bridges have locked in place, machines are scanning citizens for their power levels, and a massive beam has begun pulling people toward the open sky.\n\nHelp Capsule Corporation connect the Resonator, enter the corrupted network, and broadcast a counter-signal before half of West City is dragged into orbit. . . . OR . . .\n\nSomeone has offered you a lot of money for Capsule Corporation’s research. Sell them the counter-signal, sabotage the broadcast, or help them figure out how to point the Hollow Moon at someone else. Just make sure you keep a copy for yourself. You may need it.\nRequirements: Tide of the Hollow Moon\nReward(s): Orbitbreaker Beacon // Capsule Corp Emergency Access\nAlternate Reward(s): Orbitbreaker Beacon // Hijacked Power Registry\nTime: 4 Days (3 RPs, 1 Battle) // 700 WPD\nNote: You receive the Alternate Reward if you sell or sabotage Capsule Corporation’s counter-signal.\nBattle Info: The Hollow Moon has taken control of one of West City’s automated security machines. It is currently guarding the communications grid and scanning anyone who approaches for collection.\n\nOrbitbreaker Beacon [1,300z]\nInventory Slots: 0\nDescription: A beacon built using the Lunar Lens, the Tidal Resonator, and a concerning amount of Capsule Corporation equipment. It can identify and interrupt signals produced by alien machinery.\nEffect: USEx1. Use before a Quest Battle involving an Android, Bio-Android, or machine opponent. You begin the Battle with +2 KI Points and your first defensive roll gains +3 to the result.\n\nCapsule Corp Emergency Access [1,000z]\nInventory Slots: 0\nDescription: Capsule Corporation has granted you limited emergency access to its facilities and transportation systems. The word “limited” is underlined several times.\nEffect: Once per Saga, your next Quest in the West Sector takes -1 Day, to a minimum of 1.\n\nHijacked Power Registry [1,000z]\nInventory Slots: 0\nDescription: A stolen copy of the Hollow Moon’s scan of West City. It contains the names, locations, and power levels of thousands of citizens, along with several people willing to pay to have that information disappear.\nEffect: Once per Saga, when completing a Quest in the West Sector, gain an additional 300z.",
-    },
-  },
-  {
-    id: "quest-shi-kir-the-captain-of-the-ginyu-force-8-encounter-1",
-    questId: "quest-shi-kir-the-captain-of-the-ginyu-force-8",
-    battleText:
-      "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
-    notesText:
-      "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
-    npcIds: ["npc-shi-kir-dai-1"],
-    unresolvedCombatantTexts: [],
-    source: {
-      path: "reference/quests/shi-kir.md",
-      text: '## The Captain of The Ginyu Force\r\nDescription:You have finally arrived. Captain Dai is diligently training soldiers for combat. Oh? Well, in order to pass the final test you have to be trained by the Captain himself. After he deems you worthy, he will fight you to see if you are worthy of joining The Ginyu Force.\r\nRequirements:The Azure Hurricane\r\nReward(s): Ginyu Force Member// 1.0 X Base EXP// Ginyu Force Scouter\r\nTime: 3 Days (2 RP, 1 Battle) // 500 WPD\r\nBattle Notes: Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .\r\nDai [Akaikaru]\r\nLevel: N (56)\r\nRace: Shikirian [Shikirian Captain 1d100]\r\nHP: 700 + 5%= 735\r\nPower: 460 + 8%= 497\r\nDexterity: 20 + 13%= 23\r\nMove List: Bukujutsu, Deep Wounds Mastery, Inner Peace, Expert Swordplay, Unquenchable Bloodthirst, Special Fighting Pose 5, Sword Cleave, Tricky Sword Maneuvers, Slice N\' Hack, Straightjacket, Heart Punch, Body Change, Epitaph to War, Impenetrable Defense, Defiant Stance\r\nBukujutsu Level 2\r\nEffect: Your dice gain + 2 sides and your escape rolls gain +3 to the combined results.\r\nStrength Level 2\r\nYour physical attacks deal + (5% Power) damage. Your physical attacks cost + 1 ki to block.\r\nGinyu Force Scouter [1000z]\r\nInventory Slots: 1\r\nDescription: A greenscouter with the ginyu force logo along the side of it. This scouter, along with the rest of the "Ginyu Force" items, shows that you are a member of the esteemed Ginyu Force[ACCESSORY].\r\nEffect: Your opponent’s escape rolls gain -3 to the combined result. Your interference rolls gain +5 to the result. If worn with the "Ginyu Force Pants", "Ginyu Force Battle Armor", "Ginyu Force Boots", and "Ginyu Force Gloves" this does not take an Accessory slot to equip.',
     },
   },
   {
@@ -6927,6 +6911,20 @@ export const QUEST_ENCOUNTER_DEFINITIONS: readonly QuestEncounterDefinition[] = 
     source: {
       path: "reference/quests/new-vegeta.md",
       text: "## The Emperor's New Groove\r\nDescription: You have traced the source of the black water to the Emperor's home! Getting inside will be a challenge but what awaits you inside may be even worse. The Emperor awaits and he's looking a little different these days.\r\nRequirements: The Prince and the Pauper\r\nReward(s): Free New Vegeta// Royal Battle Armor\r\nTime: 4 Days (3 RP, 1 Battle) // 800 WPD\r\nNote: Nothing may complete this quest for you. This quest may only be completed once.\r\nBattle: You face the Emperor himself. He is wearing Royal Battle Armor, a Warrior's Belt, and Brass Knuckles.\r\nEmperor Wrolen [Midorikatai]\r\nLevel: Yours\r\nRace: Saiyan [Yours (at least Level 1), 1d100]\r\nClass: Legendary Super Saiyan\r\nHP: (30%) + 20%\r\nPower: (35%) + 40%\r\nDexterity: (35%) + 25%\r\nBukujutsu + Strength Based\r\n[+] Equipment\r\nRoyal Battle Armor [3,000z][UNIQUE]\r\nInventory Slots: 1\r\nDescription: Wrolen’s battle armor is specially made with ki-infused light-weight fibers. This allows it increased speed but prevents it from stretching the same way as regular Saiyan Battle Armor.[FULL BODY]\r\nEffect: +10% HP. +15% Power, +10% Dexterity. Your styled attacks can CRITICAL at one lower result than normal. This stacks with other bonuses. This counts as Saiyan Battle Armor for Set purposes.\nWarrior Belt [1,000z]\r\nInventory Slots: 1\r\nDescription: A martial arts belt worn around the waist, signifying master-status of a chosen fighting form. The confidence of a true warrior allows for harder hits and swifter reflexes. [ACCESSORY]\r\nEffect: +5% Power. +5% Dexterity.\r\nBrass Knuckles [1,000z]\r\nInventory Slots: 1\r\nDescription: Made of a very powerful alloy, brass knuckles are worn around . . . well, the knuckles. Hitting someone with a pair of these on further increases the level of damage done. [ACCESSORY]\r\nEffect: +10% Power.\r\n[+] Moveset",
+    },
+  },
+  {
+    id: "quest-shi-kir-the-captain-of-the-ginyu-force-8-encounter-1",
+    questId: "quest-shi-kir-the-captain-of-the-ginyu-force-8",
+    battleText:
+      "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
+    notesText:
+      "Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .",
+    npcIds: ["npc-shi-kir-dai-1"],
+    unresolvedCombatantTexts: [],
+    source: {
+      path: "reference/quests/shi-kir.md",
+      text: '## The Captain of The Ginyu Force\r\nDescription:You have finally arrived. Captain Dai is diligently training soldiers for combat. Oh? Well, in order to pass the final test you have to be trained by the Captain himself. After he deems you worthy, he will fight you to see if you are worthy of joining The Ginyu Force.\r\nRequirements:The Azure Hurricane\r\nReward(s): Ginyu Force Member// 1.0 X Base EXP// Ginyu Force Scouter\r\nTime: 3 Days (2 RP, 1 Battle) // 500 WPD\r\nBattle Notes: Dai has put you through rigorous training before you face him in battle. Because of this, you start combat at 0 ki. Dai is a master swordsman.He is wearing Ginyu Force Pants, Ginyu Force Battle Armor , Ginyu Force Boots , Ginyu Force Gloves , and Ginyu Force Scouter .\r\nDai [Akaikaru]\r\nLevel: N (56)\r\nRace: Shikirian [Shikirian Captain 1d100]\r\nHP: 700 + 5%= 735\r\nPower: 460 + 8%= 497\r\nDexterity: 20 + 13%= 23\r\nMove List: Bukujutsu, Deep Wounds Mastery, Inner Peace, Expert Swordplay, Unquenchable Bloodthirst, Special Fighting Pose 5, Sword Cleave, Tricky Sword Maneuvers, Slice N\' Hack, Straightjacket, Heart Punch, Body Change, Epitaph to War, Impenetrable Defense, Defiant Stance\r\nBukujutsu Level 2\r\nEffect: Your dice gain + 2 sides and your escape rolls gain +3 to the combined results.\r\nStrength Level 2\r\nYour physical attacks deal + (5% Power) damage. Your physical attacks cost + 1 ki to block.\r\nGinyu Force Scouter [1000z]\r\nInventory Slots: 1\r\nDescription: A greenscouter with the ginyu force logo along the side of it. This scouter, along with the rest of the "Ginyu Force" items, shows that you are a member of the esteemed Ginyu Force[ACCESSORY].\r\nEffect: Your opponent’s escape rolls gain -3 to the combined result. Your interference rolls gain +5 to the result. If worn with the "Ginyu Force Pants", "Ginyu Force Battle Armor", "Ginyu Force Boots", and "Ginyu Force Gloves" this does not take an Accessory slot to equip.',
     },
   },
   {

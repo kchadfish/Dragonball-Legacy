@@ -17486,7 +17486,7 @@ export const enumerateLegalDecisions = (
   if (
     state.status !== "active" ||
     (state.phase !== "action" && state.phase !== "counter" && state.phase !== "upkeep") ||
-    state.activeCombatantId !== combatantId
+    (state.pendingDecision === undefined && state.activeCombatantId !== combatantId)
   )
     return [];
   if (state.pendingDecision !== undefined) {
@@ -17519,9 +17519,16 @@ export const enumerateLegalDecisions = (
             extraActionMatchesDecision(candidate, decision),
           ),
         );
-  return force === undefined
-    ? extraActionDecisions
-    : extraActionDecisions.filter((decision) => satisfiesForcedAction(state, force, decision));
+  const constrainedDecisions =
+    force === undefined
+      ? extraActionDecisions
+      : extraActionDecisions.filter((decision) => satisfiesForcedAction(state, force, decision));
+  const actor = state.combatants[combatantId];
+  return constrainedDecisions.filter((decision) =>
+    probeLegalDecisionCosts(state, decision).every(
+      (cost) => cost.resource !== "ki" || cost.effective <= actor.ki.current,
+    ),
+  );
 };
 
 type DeferredMoveEffect = Extract<ActiveCombatEffect, { readonly type: "deferred-move" }>;

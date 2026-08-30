@@ -12,6 +12,7 @@
   "references": [
     { "path": "../ai-engine" },
     { "path": "../combat-engine" },
+    { "path": "../game-config" },
     { "path": "../game-data" }
   ]
 }

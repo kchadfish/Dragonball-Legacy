@@ -112,6 +112,30 @@ describe("safe legal fallback", () => {
         "candidate:two",
       ]);
     }
+
+    const pendingForNonActiveCombatant: LegalDecision = {
+      type: "respond-to-pending-decision",
+      actorId: defenderId,
+      pendingDecisionId: "pending-decision:defender" as never,
+      optionId: "candidate:one",
+      selectedOptionIds: ["candidate:one"],
+    };
+    const pendingState = {
+      ...state,
+      pendingDecision: {
+        id: "pending-decision:defender" as never,
+        stateVersion: state.version,
+        combatantId: defenderId,
+        type: "defense-response" as const,
+        options: [{ id: "candidate:one", type: "roll-defense" as const }],
+      },
+    };
+    const pendingActorResult = selectSafeLegalDecision({
+      ...requestFor([pendingForNonActiveCombatant]),
+      actorId: defenderId,
+      state: pendingState,
+    });
+    expect(pendingActorResult.ok).toBe(true);
   });
 
   it("avoids surrender when any viable alternative exists and permits surrender alone", () => {

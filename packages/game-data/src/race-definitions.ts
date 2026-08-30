@@ -2635,6 +2635,13 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
           {
             sourceDefinitionId: "race-class-konatsian-konatsian-wizard",
             sourcePath: "reference/races.transformations/konatsian/race.md",
+            clauseOrder: 1,
+            sourceText:
+              "Nothing can increase the cost of your Skills or prevent you from using your Skills.",
+          },
+          {
+            sourceDefinitionId: "race-class-konatsian-konatsian-wizard",
+            sourcePath: "reference/races.transformations/konatsian/race.md",
             clauseOrder: 3,
             sourceText: "Your Konats Ocarinas stop UNRESTRICTED attacks with a roll of 15 or less.",
           },
@@ -2648,6 +2655,22 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
         ],
         coveredClauseOrders: [2],
         effects: [
+          {
+            trigger: "passive",
+            target: "self",
+            type: "override-skill-activation-prevention",
+            duration: {
+              type: "turns",
+              turns: {
+                type: "literal",
+                value: 5,
+              },
+              sourceText: "combat",
+            },
+            sourceClauseOrder: 1,
+            sourceText:
+              "Nothing can increase the cost of your Skills or prevent you from using your Skills.",
+          },
           {
             trigger: "before-defense-roll",
             target: "self",
@@ -5541,7 +5564,8 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
             type: "skip-action",
             blockedCategories: ["basic-attack", "advanced-attack", "signature"],
             scope: {
-              type: "next-action",
+              type: "next-turn",
+              subject: "opponent",
               sourceText: "opponent's next attack",
             },
             sourceClauseOrder: 3,

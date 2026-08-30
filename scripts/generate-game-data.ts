@@ -1691,8 +1691,16 @@ const questFieldValue = (sourceText: string, fields: readonly string[]): string 
 };
 
 const sourceNumericValue = (sourceText: string) => {
-  const baseValue = Number(/^\s*(\d+)/u.exec(sourceText)?.[1]);
-  const resolvedValue = Number(/=\s*(\d+)\s*$/u.exec(sourceText)?.[1]);
+  const normalized = sourceText.trim();
+  const isRelativeExpression =
+    /^\(?\s*[+-]?\d+(?:\.\d+)?%/u.test(normalized) ||
+    /^\(?\s*[+-]?\d+(?:\.\d+)?%\s*SP\)?/iu.test(normalized);
+  const baseMatch = isRelativeExpression ? undefined : /^\s*(\d+)/u.exec(sourceText);
+  const resolvedMatch =
+    /=\s*(\d+)\s*(?:\([^)]*\))?\s*$/u.exec(sourceText) ??
+    /%\s*[A-Za-z ]*\s*\+?\s*(\d+)\s*(?:\([^)]*\))?\s*$/u.exec(sourceText);
+  const baseValue = Number(baseMatch?.[1]);
+  const resolvedValue = Number(resolvedMatch?.[1]);
   return {
     sourceText,
     ...(Number.isFinite(baseValue) ? { baseValue } : {}),

@@ -7,6 +7,7 @@ import {
   type FightId,
   type FightState,
   type LegalDecision,
+  type PendingDecisionId,
 } from "@dragonball-resurgence/combat-engine";
 import { createAiRandomSource } from "@dragonball-resurgence/ai-engine";
 
@@ -110,6 +111,7 @@ const request = (policy = normalNpcPolicy): NpcDecisionRequest => ({
   state,
   actorId,
   policy,
+  npcId: "npc-earth-east-limax-1",
   mechanics: { version: "test", moves: [], items: [], transformations: [] },
   dependencies: {
     random: createAiRandomSource({
@@ -126,8 +128,17 @@ const request = (policy = normalNpcPolicy): NpcDecisionRequest => ({
 describe("npc-ai public adapter", () => {
   it("validates stable policies and resolves the highest-priority matching phase", () => {
     expect(validateNpcAiPolicy(multiPhaseBossPolicy).ok).toBe(true);
-    expect(resolveNpcAiPhase(multiPhaseBossPolicy, state).phaseId).toBe("opening");
+    expect(resolveNpcAiPhase(multiPhaseBossPolicy, state, actorId).phaseId).toBe("phase-opening");
     expect(validateNpcAiPolicy({ ...normalNpcPolicy, id: "Bad ID" }).ok).toBe(false);
+    expect(validateNpcAiPolicy({ ...normalNpcPolicy, provenance: "guessed" }).ok).toBe(false);
+    expect(validateNpcAiPolicy({ ...normalNpcPolicy, phases: { invalid: true } }).ok).toBe(false);
+    expect(validateNpcAiPolicy({ ...normalNpcPolicy, tacticalPriorities: [null] }).ok).toBe(false);
+    expect(
+      validateNpcAiPolicy({
+        ...normalNpcPolicy,
+        tacticalPriorities: [{ type: "unknown", id: "unknown", weight: 0 }],
+      }).ok,
+    ).toBe(false);
   });
 
   it("compiles typed priorities into bounded generic advisory modifiers", () => {
@@ -143,8 +154,61 @@ describe("npc-ai public adapter", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.legalDecisions).toContainEqual(result.value.decision);
-    expect(result.value.policyId).toBe("normal-npc");
+    expect(result.value.policyId).toBe("npc-policy-balanced");
     expect(result.value.advisoryPriorities.version).toBe("ai-advisory-priorities:v1");
     expect(NPC_AI_POLICY_VERSION).toBe("npc-ai-policy:v1");
+  });
+
+  it("rejects stale policy and mechanics catalogs before AI evaluation", () => {
+    expect(
+      selectNpcDecision({ ...request(), policyCatalogVersion: "npc-policy-catalog:v0" }),
+    ).toEqual({
+      ok: false,
+      error: {
+        type: "descriptor-catalog-drift",
+        detail: "Unsupported NPC policy catalog version.",
+      },
+    });
+    expect(selectNpcDecision({ ...request(), mechanicsCatalogVersion: "stale" })).toEqual({
+      ok: false,
+      error: { type: "descriptor-catalog-drift", detail: "Mechanics catalog version mismatch." },
+    });
+  });
+
+  it("keeps ordinary and pending decisions actor-correct", () => {
+    const wrongActor = selectNpcDecision({ ...request(), actorId: opponentId });
+    expect(wrongActor).toEqual({
+      ok: false,
+      error: { type: "wrong-actor", actorId: opponentId, expectedActorId: actorId },
+    });
+    const mismatch = selectNpcDecision({ ...request(), npcCombatantId: opponentId });
+    expect(mismatch).toEqual({
+      ok: false,
+      error: { type: "actor-npc-mismatch", actorId, npcId: "npc-earth-east-limax-1" },
+    });
+    const pendingState: FightState = {
+      ...state,
+      phase: "counter",
+      pendingDecision: {
+        id: "pending:npc-choice" as PendingDecisionId,
+        stateVersion: state.version,
+        combatantId: opponentId,
+        type: "optional-effect",
+        options: [{ id: "decline", type: "decline" }],
+      },
+    };
+    const pendingWrongActor = selectNpcDecision({ ...request(), state: pendingState });
+    expect(pendingWrongActor).toEqual({
+      ok: false,
+      error: { type: "wrong-actor", actorId, expectedActorId: opponentId },
+    });
+  });
+
+  it("replays the same selection identity without mutating the request state", () => {
+    const before = JSON.stringify(state);
+    const first = selectNpcDecision(request());
+    const second = selectNpcDecision(request());
+    expect(first).toEqual(second);
+    expect(JSON.stringify(state)).toBe(before);
   });
 });

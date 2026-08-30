@@ -74,4 +74,17 @@ describe("quest and NPC definitions", () => {
       validateQuestDefinitions([{ ...quest, id: "bad quest" }], MOVE_DEFINITIONS, ITEM_DEFINITIONS),
     ).toEqual(expect.arrayContaining(["Invalid quest ID: bad quest"]));
   });
+
+  it("preserves relative stat allocations and resolves explicit trailing annotations", () => {
+    const naraka = NPC_DEFINITIONS.find((npc) => npc.id === "npc-namek-naraka-1");
+    const aberax = NPC_DEFINITIONS.find((npc) => npc.id === "npc-earth-south-aberax-1");
+    expect(naraka?.combatProfile?.hitPoints).toEqual({ sourceText: "(35%)" });
+    expect(naraka?.combatProfile?.power).toEqual({ sourceText: "(30%)" });
+    expect(aberax?.combatProfile?.dexterity).toEqual({
+      sourceText: "10 + 14%= 11 (39%)",
+      baseValue: 10,
+      resolvedValue: 11,
+    });
+    expect(aberax?.source.path).toBe("reference/quests/earthSouth.md");
+  });
 });
