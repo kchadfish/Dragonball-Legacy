@@ -14,6 +14,7 @@ import {
   type CombatDecisionDescriptor,
 } from "./decision-descriptors.js";
 import { enumerateLegalDecisions, submitCombatDecision } from "./progress-fight.js";
+import type { CombatMechanicsView } from "./mechanics-view.js";
 
 export interface CombatAnalysisProbe {
   readonly decision: CombatDecision;
@@ -104,13 +105,15 @@ export const consumeAnalysisWork = (
 export const enumerateAnalysisDecisions = (
   state: FightState,
   actorId: Parameters<typeof enumerateLegalDecisions>[1],
-): readonly LegalDecision[] => enumerateLegalDecisions(state, actorId);
+  mechanicsView?: CombatMechanicsView,
+): readonly LegalDecision[] => enumerateLegalDecisions(state, actorId, mechanicsView);
 
 /** Analysis consumes the same descriptor contract used by future AI callers. */
 export const describeAnalysisDecision = (
   state: FightState,
   decision: LegalDecision,
-): CombatDecisionDescriptor => describeLegalDecision(state, decision);
+  mechanicsView?: CombatMechanicsView,
+): CombatDecisionDescriptor => describeLegalDecision(state, decision, mechanicsView);
 
 const materializeDecision = (
   state: FightState,
@@ -130,8 +133,9 @@ export const probeCombatDecision = (
   state: FightState,
   decision: LegalDecision,
   dependencies: CombatDependencies,
+  mechanicsView?: CombatMechanicsView,
 ): CombatResult<CombatAnalysisProbe> => {
-  const legal = enumerateLegalDecisions(state, decision.actorId).some(
+  const legal = enumerateLegalDecisions(state, decision.actorId, mechanicsView).some(
     (candidate) => canonicalDecisionKey(candidate) === canonicalDecisionKey(decision),
   );
   if (!legal)

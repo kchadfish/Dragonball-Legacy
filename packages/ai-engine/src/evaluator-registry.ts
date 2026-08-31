@@ -27,7 +27,11 @@ export const pendingDecisionTypes = [
 export const responseShapeTypes = ["one", "up-to", "all", "engine-authored-options"] as const;
 export type ResponseShapeType = (typeof responseShapeTypes)[number];
 export type AiSurfaceClassification =
-  "supported" | "baseline" | "unsupported" | "audited-out-of-scope";
+  | "supported"
+  | "baseline"
+  | "contract-accounted-not-currently-emitted"
+  | "unsupported"
+  | "audited-out-of-scope";
 
 export interface AiEvaluatorRegistryEntry {
   readonly id: string;
@@ -107,7 +111,9 @@ const pendingEntry = (
   id: `ai-evaluator:pending-${type}`,
   surface: type,
   classification:
-    type === "select-source-action" || type === "select-source-effect" ? "baseline" : "supported",
+    type === "select-source-action" || type === "select-source-effect"
+      ? "contract-accounted-not-currently-emitted"
+      : "supported",
   roadmapOwner: "AI-120",
   featureExtractor: "ai-feature-extractor:v1",
   prerequisites: ["AI-030 safe legal fallback", "complete supplied LegalDecision response"],

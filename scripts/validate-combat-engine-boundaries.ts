@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 const workspacePackagePrefix = "@dragonball-resurgence/";
 const combatEngineRoot = "packages/combat-engine";
 const combatEngineSourceRoot = join(combatEngineRoot, "src");
+const mechanicsViewAssemblyPath = join(combatEngineSourceRoot, "mechanics-view.ts");
 const packageJsonPath = join(combatEngineRoot, "package.json");
 const tsconfigPath = join(combatEngineRoot, "tsconfig.json");
 const allowedWorkspaceDependencies = new Set([
@@ -39,6 +40,22 @@ export const validateCombatEngineBoundaries = async (): Promise<readonly string[
     readonly exports?: Readonly<Record<string, unknown>>;
   };
   const errors: string[] = [];
+
+  const mechanicsViewAssembly = await readFile(mechanicsViewAssemblyPath, "utf8");
+  for (const requiredExport of [
+    "MechanicsViewIdentity",
+    "mechanicsViewIdentitySchema",
+    "CombatMechanicsView",
+    "createCombatMechanicsView",
+    "CANONICAL_COMBAT_MECHANICS_VIEW",
+  ]) {
+    if (
+      !new RegExp(`(?:interface|type|const|export const)\\s+${requiredExport}\\b`, "u").test(
+        mechanicsViewAssembly,
+      )
+    )
+      errors.push(`mechanics-view.ts must define or export ${requiredExport}.`);
+  }
 
   if (packageJson.exports?.["."] === undefined) {
     errors.push("combat-engine must export its public root entry point.");

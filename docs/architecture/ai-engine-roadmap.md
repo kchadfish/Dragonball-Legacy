@@ -25,21 +25,27 @@ This roadmap owns dependency order, not current implementation status.
 
 As of 2026-08-30:
 
-- `packages/ai-engine` exists with Phase 0 (AI-000 through AI-030) implemented;
-  `packages/simulation` does not exist.
+- `packages/ai-engine` is implemented through AI-1150 for the closed local 1v1
+  scope; `packages/simulation` does not exist.
 - `packages/npc-ai` provides the validated NPC policy and public AI-selection
   adapter; representative normal and multi-phase boss policies are examples.
 - Combat Phase 10's explicit local-1v1 scope boundary is complete under ADR 0006.
 - Combat Phase 11 catalog closure is complete, with the closed scope recorded
   in `ai-engine-progress.md`.
-- `CombatDecisionInput` can carry normalized `selectedOptionIds`, while
-  `LegalDecision` still models a pending response with one `optionId`. The public
-  legal-decision surface therefore cannot yet represent every complete `one`,
-  `up-to`, or `all` response.
+- `CombatDecisionInput` and `LegalDecision` carry normalized complete pending
+  selections for `one`, `up-to`, and `all` responses.
 - Combat transitions expose deterministic dependencies, immutable and
   serializable state, versions, structured events, pending work, explicit
   completion, the analysis/probe boundary, and branch-local speculative
   dependencies. AI Phase 0 consumes only the isolated keyed AI source.
+- The combat engine now exposes a decision-point contract and semantic-progress
+  identity. AI lookahead consumes those combat-owned contracts instead of
+  inferring pending actor ownership or using exact replay hashes for loop
+  detection.
+- Simulation-quality selection now requires a declared effective analysis
+  capability set. Insufficient descriptor/probe/lookahead/pending facilities
+  fail explicitly instead of retaining simulation-quality profile identity
+  while running a shallower policy.
 
 AI-000 through AI-1150 are complete for the active local 1v1 scope. The next
 workstream is the dedicated simulation roadmap; production simulation
@@ -303,6 +309,8 @@ Each dimension has one status:
 - `supported`: implemented with focused strategic behavior coverage;
 - `supported-baseline`: safely selectable through the generic fallback, but
   strategically understood only at baseline level;
+- `contract-accounted-not-currently-emitted`: present in the public union but
+  not emitted by a verified public combat transition;
 - `unsupported-in-scope`: part of the active AI scope but waiting on an AI
   capability; or
 - `audited-out-of-scope`: outside the active combat or AI delivery scope.

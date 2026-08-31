@@ -45,6 +45,7 @@ const checkRows = (
     if (
       classification !== "supported" &&
       classification !== "baseline" &&
+      classification !== "contract-accounted-not-currently-emitted" &&
       classification !== "unsupported" &&
       classification !== "audited-out-of-scope"
     )
@@ -53,10 +54,12 @@ const checkRows = (
     if (row.featureExtractor.length === 0) issues.push(`${row.id}: missing feature extractor.`);
     if (row.representativeScenario.length === 0) issues.push(`${row.id}: missing scenario.`);
     if (
-      (classification === "supported" || classification === "baseline") &&
+      (classification === "supported" ||
+        classification === "baseline" ||
+        classification === "contract-accounted-not-currently-emitted") &&
       row.focusedProof.length === 0
     )
-      issues.push(`${row.id}: supported/baseline entry is missing focused proof.`);
+      issues.push(`${row.id}: accounted entry is missing focused proof.`);
     if (classification === "unsupported") {
       if (row.prerequisites.length === 0)
         issues.push(`${row.id}: unsupported entry needs prerequisites.`);
@@ -66,12 +69,12 @@ const checkRows = (
     if (
       kind === "pending-decision" &&
       (row.surface === "select-source-action" || row.surface === "select-source-effect") &&
-      (row.classification !== "baseline" ||
+      (row.classification !== "contract-accounted-not-currently-emitted" ||
         row.proofTarget === undefined ||
         row.proofTarget.length === 0)
     )
       issues.push(
-        `${row.id}: source selection remains an explicitly documented baseline limitation.`,
+        `${row.id}: source selection must remain explicitly classified as contract-accounted and not currently emitted.`,
       );
   }
 };
@@ -82,7 +85,7 @@ export const validateAiCapabilityClosure = (
   const issues: string[] = [];
   const schemaVersion: string = matrix.schemaVersion;
   const scopeVersion: string = matrix.scopeVersion;
-  if (schemaVersion !== "ai-engine-capability-matrix:v5")
+  if (schemaVersion !== "ai-engine-capability-matrix:v6")
     issues.push("Invalid AI capability matrix schema version.");
   if (scopeVersion !== "ai-combat-scope:v1")
     issues.push("AI capability matrix must use ai-combat-scope:v1.");

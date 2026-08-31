@@ -1,4 +1,4 @@
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
+import { CANONICAL_COMBAT_MECHANICS_VIEW, type CombatRules } from "./mechanics-view.js";
 
 export type CombatResultOutcome = "blocked" | "stopped" | "successful";
 
@@ -17,6 +17,7 @@ export interface ResultClassificationInput {
   readonly defenderDexterity: number;
   readonly criticalPrevented?: boolean;
   readonly counterPrevented?: boolean;
+  readonly rules?: CombatRules;
 }
 
 export interface ResultClassification {
@@ -30,7 +31,9 @@ export interface ResultClassification {
 const criticalEligible = (input: ResultClassificationInput) =>
   input.finalResult === "successful" &&
   input.criticalPrevented !== true &&
-  input.diceCount <= GLOBAL_RULES.combat.criticalHit.maximumEligibleAttackDice &&
+  input.diceCount <=
+    (input.rules ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules).combat.criticalHit
+      .maximumEligibleAttackDice &&
   input.naturalAttackResult !== undefined &&
   input.naturalAttackResult >=
     input.diceSides - (input.attackerDexterity > input.defenderDexterity ? 1 : 0);
@@ -40,9 +43,10 @@ const counterEligible = (input: ResultClassificationInput) =>
   input.counterPrevented !== true &&
   input.naturalDefenseResult !== undefined &&
   input.naturalDefenseResult >=
-    GLOBAL_RULES.combat.standardDieSides -
+    (input.rules ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules).combat.standardDieSides -
       (input.defenderDexterity > input.attackerDexterity
-        ? GLOBAL_RULES.combat.counter.higherDexterityNaturalRollReduction
+        ? (input.rules ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules).combat.counter
+            .higherDexterityNaturalRollReduction
         : 0);
 
 /** Classify only after final roll/result calculation; natural facts are retained. */

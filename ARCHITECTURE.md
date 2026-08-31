@@ -243,6 +243,14 @@ The combat engine must not import:
 
 Randomness must be injected through an explicit interface so tests and simulations can reproduce outcomes. Combat transitions must remain pure or predictably stateful: they must not mutate input state, perform I/O, or retain hidden per-fight state. The engine must support state snapshots, terminal-state detection, and legal-decision enumeration so an AI or simulator can drive every fight through the same public transition boundary used by player-facing applications.
 
+The engine also owns the public decision-point classification that tells an
+orchestrator whether to advance, request a decision from a specified combatant
+using an exact legal set, or stop at explicit completion. Downstream callers
+must not infer decision ownership from phases, pending frames, or active-
+combatant fields. A separate combat-owned semantic-progress identity supports
+loop/no-progress comparison without replacing exact snapshot and replay
+identity.
+
 Bulk callers may request reduced event retention, but that may only affect returned or retained diagnostics. It must never change resolved rules, random-number consumption, or the resulting fight state. A configurable maximum-turn and no-progress safeguard belongs at the simulation boundary initially; the engine must expose enough state and event information to diagnose a resulting stalled fight.
 
 Example:
@@ -424,7 +432,7 @@ NPC encounters.
 
 ---
 
-### `@dragonball-resurgence/simulation` (planned)
+### `@dragonball-resurgence/simulation`
 
 Runs reproducible automated fights and analyzes their results for balance work.
 It owns static fighter templates, scenario and matrix definitions, seed
@@ -683,7 +691,7 @@ npc-ai
   -> may also depend on ai-engine
   └── may depend on shared, game-data, and combat-engine
 
-simulation (planned)
+simulation
   -> may depend on shared, game-config, game-data, combat-engine, and ai-engine
 
 transformation-evaluator

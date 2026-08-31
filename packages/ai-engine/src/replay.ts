@@ -3,13 +3,18 @@ import type {
   AiDecisionRequest,
   AiDecisionResult,
   AiWorkLimits,
+  AiEffectiveAnalysisCapabilities,
   CandidateEvaluation,
   DiagnosticRetention,
 } from "./contracts.js";
-import { canonicalDecisionKey } from "@dragonball-resurgence/combat-engine";
+import {
+  canonicalDecisionKey,
+  type MechanicsViewIdentity,
+} from "@dragonball-resurgence/combat-engine";
 import { canonicalHash, canonicalJson, canonicalLegalSetHash } from "./canonicalization.js";
 import { selectAiDecision } from "./selection.js";
 import { resolveDifficultySettings } from "./profiles.js";
+import { resolveEffectiveAiAnalysisCapabilities } from "./capabilities.js";
 
 export interface AiReplayRecordV1 {
   readonly schemaVersion: "ai-replay:v1";
@@ -23,7 +28,11 @@ export interface AiReplayRecordV1 {
   readonly rulesVersion: unknown;
   readonly actorId: string;
   readonly legalSet: { readonly keys: readonly string[]; readonly hash: string };
-  readonly mechanics: { readonly version: string; readonly hash: string };
+  readonly mechanics: {
+    readonly version: string;
+    readonly hash: string;
+    readonly identity?: MechanicsViewIdentity;
+  };
   readonly engine: { readonly version: string; readonly evaluator: string };
   readonly profile: { readonly id: string; readonly version: string; readonly hash: string };
   readonly seed: number;
@@ -34,8 +43,8 @@ export interface AiReplayRecordV1 {
   readonly diagnostics?: AiDecisionResult["diagnostics"];
 }
 
-export interface AiReplayRecordV2 {
-  readonly schemaVersion: "ai-replay:v2";
+export interface AiReplayRecordV3 {
+  readonly schemaVersion: "ai-replay:v3";
   readonly fight: AiReplayRecordV1["fight"];
   readonly rulesVersion: unknown;
   readonly actorId: string;
@@ -43,12 +52,14 @@ export interface AiReplayRecordV2 {
   readonly mechanics: AiReplayRecordV1["mechanics"];
   readonly pipeline: {
     readonly id: "ai-engine";
-    readonly version: "ai-engine:v2";
+    readonly version: "ai-engine:v3";
     readonly evaluator: string;
   };
   readonly profile: AiReplayRecordV1["profile"];
   readonly opponentProfile?: AiReplayRecordV1["profile"];
   readonly advisoryModifiers: { readonly version?: string; readonly hash: string };
+  readonly advisoryHints: "enabled" | "disabled";
+  readonly effectiveAnalysisCapabilities: AiEffectiveAnalysisCapabilities;
   readonly randomnessMode: "enabled" | "disabled";
   readonly workLimits: AiWorkLimits;
   readonly seed: number;
@@ -58,7 +69,19 @@ export interface AiReplayRecordV2 {
   readonly diagnostics?: AiDecisionResult["diagnostics"];
 }
 
-export type AiReplayRecord = AiReplayRecordV1 | AiReplayRecordV2;
+export type AiReplayRecordV2 = Omit<
+  AiReplayRecordV3,
+  "schemaVersion" | "pipeline" | "advisoryHints" | "effectiveAnalysisCapabilities"
+> & {
+  readonly schemaVersion: "ai-replay:v2";
+  readonly pipeline: {
+    readonly id: "ai-engine";
+    readonly version: "ai-engine:v2";
+    readonly evaluator: string;
+  };
+};
+
+export type AiReplayRecord = AiReplayRecordV1 | AiReplayRecordV2 | AiReplayRecordV3;
 
 export type ReplayMismatchCode =
   | "schema-version"
@@ -74,6 +97,8 @@ export type ReplayMismatchCode =
   | "pipeline"
   | "opponent-profile"
   | "advisory-modifiers"
+  | "advisory-hints"
+  | "analysis-capabilities"
   | "randomness-mode"
   | "seed"
   | "work-limits"
@@ -106,7 +131,7 @@ export const createAiReplayRecord = (
   request: AiDecisionRequest,
   result: AiDecisionResult,
   options: { readonly includeSnapshot?: boolean } = {},
-): AiReplayRecordV2 => {
+): AiReplayRecordV3 => {
   const completeResult =
     result.evaluations.length > 0 || result.diagnostics?.evaluations !== undefined
       ? result
@@ -119,12 +144,12 @@ export const createAiReplayRecord = (
   const difficulty = resolveDifficultySettings(request.profile.difficulty);
   const workLimits: AiWorkLimits = {
     candidateLimit: request.workLimits?.candidateLimit ?? difficulty.candidateLimit,
-    outcomeLimit: request.workLimits?.outcomeLimit ?? evaluations.length,
+    outcomeLimit: request.workLimits?.outcomeLimit ?? Number.MAX_SAFE_INTEGER,
     nodeLimit: request.workLimits?.nodeLimit ?? difficulty.maxNodes,
     probeLimit: request.workLimits?.probeLimit ?? difficulty.maxProbes,
   };
   return {
-    schemaVersion: "ai-replay:v2",
+    schemaVersion: "ai-replay:v3",
     fight: {
       id: state.id,
       snapshotSchemaVersion: state.schemaVersion ?? 0,
@@ -138,10 +163,14 @@ export const createAiReplayRecord = (
       keys: request.legalDecisions.map((decision) => canonicalJson(decision)).sort(),
       hash: canonicalLegalSetHash(request.legalDecisions),
     },
-    mechanics: { version: request.mechanics.version, hash: canonicalHash(request.mechanics) },
+    mechanics: {
+      version: request.mechanics.version,
+      hash: canonicalHash(request.mechanics),
+      ...(request.mechanics.identity === undefined ? {} : { identity: request.mechanics.identity }),
+    },
     pipeline: {
       id: "ai-engine",
-      version: "ai-engine:v2",
+      version: "ai-engine:v3",
       evaluator: completeResult.diagnostics?.evaluator.id ?? "unknown",
     },
     profile: {
@@ -164,6 +193,8 @@ export const createAiReplayRecord = (
         : { version: request.advisoryPriorities.version }),
       hash: canonicalHash(request.advisoryPriorities ?? { modifiers: [] }),
     },
+    advisoryHints: request.advisoryHints ?? "enabled",
+    effectiveAnalysisCapabilities: resolveEffectiveAiAnalysisCapabilities(request),
     randomnessMode: request.dependencies.randomness ?? "enabled",
     workLimits,
     seed: request.dependencies.random.rootSeed,
@@ -188,10 +219,10 @@ export const verifyAiReplayRecord = (
   record: AiReplayRecord,
   request: AiDecisionRequest,
 ): ReplayVerificationResult => {
-  if (record.schemaVersion !== "ai-replay:v2")
+  if (record.schemaVersion !== "ai-replay:v3")
     return {
       ok: false,
-      mismatches: [mismatch("schema-version", "ai-replay:v2", record.schemaVersion)],
+      mismatches: [mismatch("schema-version", "ai-replay:v3", record.schemaVersion)],
     };
   const expected = createAiReplayRecord(request, {
     decision: request.legalDecisions[0]!,
@@ -241,6 +272,19 @@ export const verifyAiReplayRecord = (
   if (canonicalJson(record.advisoryModifiers) !== canonicalJson(expected.advisoryModifiers))
     mismatches.push(
       mismatch("advisory-modifiers", record.advisoryModifiers, expected.advisoryModifiers),
+    );
+  if (record.advisoryHints !== expected.advisoryHints)
+    mismatches.push(mismatch("advisory-hints", record.advisoryHints, expected.advisoryHints));
+  if (
+    canonicalJson(record.effectiveAnalysisCapabilities) !==
+    canonicalJson(expected.effectiveAnalysisCapabilities)
+  )
+    mismatches.push(
+      mismatch(
+        "analysis-capabilities",
+        record.effectiveAnalysisCapabilities,
+        expected.effectiveAnalysisCapabilities,
+      ),
     );
   if (record.randomnessMode !== expected.randomnessMode)
     mismatches.push(mismatch("randomness-mode", record.randomnessMode, expected.randomnessMode));

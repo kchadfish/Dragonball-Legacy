@@ -1,4 +1,3 @@
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 import { isUseAvailable } from "./availability.js";
 import {
   calculateCost,
@@ -6,6 +5,7 @@ import {
   publishCalculationTrace,
   type CalculationTraceSink,
 } from "./calculation-pipeline.js";
+import { CANONICAL_COMBAT_MECHANICS_VIEW, type CombatRules } from "./mechanics-view.js";
 
 export interface AttackRollQualificationInput {
   readonly attackerDexterity: number;
@@ -15,6 +15,7 @@ export interface AttackRollQualificationInput {
   readonly naturalAttackResult: number;
   readonly naturalDefenseResult: number;
   readonly outcome: "successful" | "stopped";
+  readonly rules?: CombatRules;
 }
 
 export const qualifiesForCritical = ({
@@ -23,8 +24,9 @@ export const qualifiesForCritical = ({
   diceCount,
   diceSides,
   naturalAttackResult,
+  rules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
 }: AttackRollQualificationInput) =>
-  diceCount <= GLOBAL_RULES.combat.criticalHit.maximumEligibleAttackDice &&
+  diceCount <= rules.combat.criticalHit.maximumEligibleAttackDice &&
   naturalAttackResult >= diceSides - (attackerDexterity > defenderDexterity ? 1 : 0);
 
 export const qualifiesForCounter = ({
@@ -32,18 +34,20 @@ export const qualifiesForCounter = ({
   defenderDexterity,
   naturalDefenseResult,
   outcome,
+  rules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
 }: AttackRollQualificationInput) =>
   outcome === "stopped" &&
   naturalDefenseResult >=
-    GLOBAL_RULES.combat.standardDieSides -
+    rules.combat.standardDieSides -
       (defenderDexterity > attackerDexterity
-        ? GLOBAL_RULES.combat.counter.higherDexterityNaturalRollReduction
+        ? rules.combat.counter.higherDexterityNaturalRollReduction
         : 0);
 
 export const calculateAttackDamage = (
   baseDamage: number,
   critical: boolean,
   diagnosticTraceSink?: CalculationTraceSink,
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
 ) =>
   publishCalculationTrace(
     calculateDamage({
@@ -54,7 +58,7 @@ export const calculateAttackDamage = (
           : [
               {
                 operation: "multiply",
-                amount: GLOBAL_RULES.combat.criticalHit.baseDamageMultiplier,
+                amount: rules.combat.criticalHit.baseDamageMultiplier,
                 provenance: "combat:critical-hit",
               },
             ],
@@ -85,6 +89,7 @@ export const calculateBlockKiCost = (
   opponentBaseCost: number,
   adjustment: number,
   diagnosticTraceSink?: CalculationTraceSink,
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
 ) =>
   publishCalculationTrace(
     calculateCost({
@@ -95,7 +100,7 @@ export const calculateBlockKiCost = (
       bounds: [
         {
           type: "minimum",
-          value: GLOBAL_RULES.combat.blockMinimumKiCost,
+          value: rules.combat.blockMinimumKiCost,
           provenance: "combat:block-minimum-ki-cost",
         },
       ],
@@ -125,8 +130,12 @@ export const resolveMultiDieOutcomes = (
 export const isRestrictedUseAvailable = (used: number, limit: number | undefined) =>
   isUseAvailable(used, limit);
 
-export const isSignatureTurnAvailable = (turnNumber: number) =>
-  turnNumber >= GLOBAL_RULES.combat.signatureTechniqueMinimumTurn;
+export const isSignatureTurnAvailable = (
+  turnNumber: number,
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
+) => turnNumber >= rules.combat.signatureTechniqueMinimumTurn;
 
-export const canContinueCounterChain = (counterAttackCount: number) =>
-  counterAttackCount < GLOBAL_RULES.combat.engineeringSafeguards.maximumConsecutiveCounterAttacks;
+export const canContinueCounterChain = (
+  counterAttackCount: number,
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
+) => counterAttackCount < rules.combat.engineeringSafeguards.maximumConsecutiveCounterAttacks;

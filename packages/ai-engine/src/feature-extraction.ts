@@ -128,6 +128,22 @@ export const extractDecisionFeatures = (
 ): AiFeatureExtractionResult => {
   if (input.state.status !== "active")
     return invalidState("Feature extraction requires an active state.");
+  if (input.mechanics.identity !== undefined) {
+    const stateIdentity = input.state.mechanicsView;
+    if (
+      stateIdentity === undefined ||
+      stateIdentity.schemaVersion !== input.mechanics.identity.schemaVersion ||
+      stateIdentity.contentHash !== input.mechanics.identity.contentHash
+    )
+      return {
+        ok: false,
+        error: {
+          type: "mechanics-view-mismatch",
+          expected: input.mechanics.identity.contentHash,
+          actual: stateIdentity?.contentHash,
+        },
+      };
+  }
   if (!Object.hasOwn(input.state.combatants, input.decision.actorId))
     return invalidState("Decision actor is not present in the supplied state.");
 

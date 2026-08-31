@@ -25,6 +25,22 @@ const invalidRequest = (
   issues: readonly { readonly path: string; readonly message: string }[],
 ): AiFailure => ({ type: "invalid-request", issues });
 
+export const mechanicsViewMismatchFor = (request: AiDecisionRequest): AiFailure | undefined => {
+  const identity = request.mechanics.identity;
+  if (identity === undefined) return undefined;
+  if (
+    request.state.mechanicsView !== undefined &&
+    request.state.mechanicsView.schemaVersion === identity.schemaVersion &&
+    request.state.mechanicsView.contentHash === identity.contentHash
+  )
+    return undefined;
+  return {
+    type: "mechanics-view-mismatch",
+    expected: identity.contentHash,
+    actual: request.state.mechanicsView?.contentHash,
+  };
+};
+
 const validateState = (request: AiDecisionRequest): AiFailure | undefined => {
   const state = request.state;
   if (!isRecord(state)) {
@@ -95,6 +111,18 @@ const validateProfileAndDependencies = (request: AiDecisionRequest): AiFailure |
   }
   if (typeof request.mechanics.version !== "string" || request.mechanics.version.length === 0) {
     return invalidRequest([{ path: "mechanics.version", message: "Version is required." }]);
+  }
+  if (
+    request.mechanics.identity !== undefined &&
+    (request.state.mechanicsView === undefined ||
+      request.state.mechanicsView.contentHash !== request.mechanics.identity.contentHash ||
+      request.state.mechanicsView.schemaVersion !== request.mechanics.identity.schemaVersion)
+  ) {
+    return {
+      type: "mechanics-view-mismatch",
+      expected: request.mechanics.identity.contentHash,
+      actual: request.state.mechanicsView?.contentHash,
+    };
   }
   if (
     typeof request.dependencies.random.tieBreak !== "function" ||

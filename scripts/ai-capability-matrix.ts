@@ -55,7 +55,7 @@ export interface AiContextualEvaluatorRow {
 }
 
 export interface AiCapabilityMatrix {
-  readonly schemaVersion: "ai-engine-capability-matrix:v5";
+  readonly schemaVersion: "ai-engine-capability-matrix:v6";
   readonly scopeVersion: string;
   readonly generatedAt: string;
   readonly authority: Readonly<Record<string, string>>;
@@ -176,7 +176,7 @@ export const createAiCapabilityMatrix = (): AiCapabilityMatrix => {
       });
 
   return {
-    schemaVersion: "ai-engine-capability-matrix:v5",
+    schemaVersion: "ai-engine-capability-matrix:v6",
     scopeVersion: sourceFixture.scopeVersion,
     generatedAt: sourceFixture.generatedAt,
     authority: {

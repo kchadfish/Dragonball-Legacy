@@ -39,6 +39,12 @@ const attack: LegalDecision = {
   basicAttack: "basic-punch",
   targetCombatantId: opponentId,
 };
+const hintedMove: LegalDecision = {
+  type: "use-move",
+  actorId,
+  moveId: "move-test-hinted" as never,
+  targetCombatantId: opponentId,
+};
 
 const state: FightState = {
   id: "fight:phase" as FightId,
@@ -241,6 +247,51 @@ describe("AI phases 4-8", () => {
       expect(
         result.value.evaluations.find((candidate) => candidate.decision === attack)?.pruning,
       ).toBe("protected");
+  });
+
+  it("can disable advisory game-data hints without changing mechanical evaluation", () => {
+    const hintedMechanics: AiMechanicsView = {
+      ...mechanics,
+      moves: [
+        {
+          id: "move-test-hinted",
+          category: "advanced-attack",
+          tags: [],
+          mechanics: {},
+          aiHints: { version: "ai-hints:v1", roles: ["damage"] },
+        } as never,
+      ],
+    };
+    const moveDescriptor = descriptor(hintedMove, {
+      effects: [
+        {
+          type: "apply-damage",
+          category: "damage",
+          timing: "on-success",
+          sourceDefinitionId: "move-test-hinted",
+          sourceEffectIndex: 0,
+        },
+      ],
+    });
+    const baseRequest = {
+      ...request([hintedMove], () => moveDescriptor),
+      mechanics: hintedMechanics,
+    };
+    const withHints = selectStrategicDecision({ ...baseRequest, advisoryHints: "enabled" });
+    const withoutHints = selectStrategicDecision({ ...baseRequest, advisoryHints: "disabled" });
+    expect(withHints.ok && withoutHints.ok).toBe(true);
+    if (withHints.ok && withoutHints.ok) {
+      expect(
+        withHints.value.evaluations[0]?.scoreFactors.some(
+          (factor) => factor.code === "advisory-hint",
+        ),
+      ).toBe(true);
+      expect(
+        withoutHints.value.evaluations[0]?.scoreFactors.some(
+          (factor) => factor.code === "advisory-hint",
+        ),
+      ).toBe(false);
+    }
   });
 
   it("creates setup edges only when descriptor-authored follow-ups exist", () => {

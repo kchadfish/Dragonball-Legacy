@@ -326,4 +326,75 @@ describe("immediate utility chooser", () => {
       error: { type: "candidate-actor-mismatch", candidateIndex: 0 },
     });
   });
+
+  it("preserves generic utility monotonicity for lower costs, greater benefit, and lethality", () => {
+    const first: LegalDecision = {
+      type: "basic-attack",
+      actorId,
+      basicAttack: "basic-punch",
+      targetCombatantId: opponentId,
+    };
+    const second: LegalDecision = {
+      type: "basic-attack",
+      actorId,
+      basicAttack: "basic-kick",
+      targetCombatantId: opponentId,
+    };
+    const scorePair = (
+      firstOutcome: ImmediateOutcomeSummary,
+      secondOutcome: ImmediateOutcomeSummary,
+    ) => {
+      const result = selectImmediateUtilityDecision(
+        requestFor([first, second], (_suppliedState, decision) =>
+          descriptorFor(decision, decision === first ? firstOutcome : secondOutcome),
+        ),
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("Expected monotonic utility evaluation to succeed.");
+      return Object.fromEntries(
+        result.value.evaluations.map((evaluation) => [
+          evaluation.decision === first ? "first" : "second",
+          evaluation.totalScore,
+        ]),
+      );
+    };
+    const damage = (amount: number, lethal = false) =>
+      emptySummary({
+        damage: [
+          {
+            target: "opponent",
+            amount: { minimum: amount, maximum: amount },
+            guaranteedLethality: lethal,
+            possibleLethality: lethal,
+            overkill: { minimum: 0, maximum: 0 },
+            selfHarm: false,
+            timing: "immediate",
+            certainty: "guaranteed",
+          },
+        ],
+      });
+    const cost = (amount: number) =>
+      emptySummary({
+        resources: [
+          {
+            target: "self",
+            resource: "ki",
+            operation: "cost",
+            declared: amount,
+            effective: amount,
+            amount: { minimum: amount, maximum: amount },
+            overflow: { minimum: 0, maximum: 0 },
+            timing: "immediate",
+            certainty: "guaranteed",
+          },
+        ],
+      });
+
+    const lowerCost = scorePair(cost(1), cost(2));
+    expect(lowerCost.first).toBeGreaterThanOrEqual(lowerCost.second!);
+    const greaterBenefit = scorePair(damage(20), damage(10));
+    expect(greaterBenefit.first).toBeGreaterThanOrEqual(greaterBenefit.second!);
+    const lethal = scorePair(damage(100, true), damage(100, false));
+    expect(lethal.first).toBeGreaterThanOrEqual(lethal.second!);
+  });
 });

@@ -9,6 +9,7 @@
     { "path": "./packages/game-config" },
     { "path": "./packages/game-data" },
     { "path": "./packages/npc-ai" },
+    { "path": "./packages/simulation" },
     { "path": "./packages/persistence" },
     { "path": "./packages/shared" },
     { "path": "./packages/transformation-evaluator" }

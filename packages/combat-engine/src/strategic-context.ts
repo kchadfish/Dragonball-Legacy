@@ -1,7 +1,4 @@
-import {
-  TRANSFORMATION_DEFINITIONS,
-  type TransformationDefinition,
-} from "@dragonball-resurgence/game-data";
+import type { TransformationDefinition } from "@dragonball-resurgence/game-data";
 
 import type {
   ActiveCombatEffect,
@@ -21,6 +18,7 @@ import type {
   DecisionSelectionFact,
 } from "./decision-descriptors.js";
 import { enumerateLegalDecisions } from "./progress-fight.js";
+import { mechanicsViewForState, type CombatMechanicsView } from "./mechanics-view.js";
 
 export type StrategicContextCompleteness = "complete" | "partial";
 export type StrategicRelation = "self" | "opponent";
@@ -273,6 +271,7 @@ const transformationFor = (
   decision: LegalDecision,
   actor: CombatantState,
   actionConsumption: DecisionActionConsumption,
+  mechanicsView?: CombatMechanicsView,
 ): StrategicTransformationDelta | undefined => {
   if (decision.type !== "activate-transformation" && decision.type !== "deactivate-transformation")
     return undefined;
@@ -281,8 +280,9 @@ const transformationFor = (
     decision.type === "activate-transformation"
       ? decision.transformationId
       : active?.transformationId;
-  const definition = TRANSFORMATION_DEFINITIONS.find(
-    (candidate) => candidate.id === transformationId,
+  if (transformationId === undefined) return undefined;
+  const definition = (mechanicsView ?? mechanicsViewForState(state)).indexes.transformations.get(
+    transformationId,
   );
   if (definition === undefined) return undefined;
   const mastery =
@@ -488,6 +488,7 @@ export const strategicContextFor = (
   effects: readonly DecisionEffectFact[],
   scarcity: readonly AuthoritativeDecisionScarcity[],
   selection: DecisionSelectionFact | undefined,
+  mechanicsView?: CombatMechanicsView,
 ): StrategicContextSummary => {
   const actor = state.combatants[decision.actorId];
   const opponent =
@@ -495,7 +496,13 @@ export const strategicContextFor = (
   const latest = state.actionHistory.at(-1);
   const recentOutcome = latest !== undefined && "outcome" in latest ? latest.outcome : undefined;
   const unknownFacts: string[] = [];
-  const transformation = transformationFor(state, decision, actor, actionConsumption);
+  const transformation = transformationFor(
+    state,
+    decision,
+    actor,
+    actionConsumption,
+    mechanicsView,
+  );
   const strategicScarcity = scarcityFor(state, actor, decision, scarcity);
   const pendingOptions = pendingOptionsFor(state, decision, costs, effects, strategicScarcity);
   if (

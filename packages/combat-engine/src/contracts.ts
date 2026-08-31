@@ -1,4 +1,4 @@
-import { GLOBAL_RULES, type RulesVersion } from "@dragonball-resurgence/game-config";
+import type { RulesVersion } from "@dragonball-resurgence/game-config";
 import type {
   EffectCostTiming,
   EffectDefinition,
@@ -26,6 +26,7 @@ import type {
   PendingDecisionId,
   ResolutionFrameId,
 } from "./ids.js";
+import type { MechanicsViewIdentity } from "./mechanics-view.js";
 import type { ScheduledCombatWork } from "./fight-flow-scheduler.js";
 import type { CandidateReference } from "./candidate-resolution.js";
 import type { EffectLifecycleBoundary, EffectLifecycleRecord } from "./effect-lifecycle.js";
@@ -211,10 +212,7 @@ const createFightCombatantInputSchema = z
       .object({
         power: z.number().nonnegative(),
         dexterity: z.number().nonnegative(),
-        dexterityBonus: z
-          .number()
-          .min(GLOBAL_RULES.combat.minimumDexterityBonus)
-          .max(GLOBAL_RULES.combat.maximumDexterityBonus),
+        dexterityBonus: z.number(),
       })
       .strict(),
     declaredStyleId: z.string().min(1).optional(),
@@ -1807,9 +1805,11 @@ export type ResolutionFrame =
 interface FightStateBase {
   readonly id: FightId;
   /** Serialized fight-state contract version. Legacy snapshots may omit it. */
-  readonly schemaVersion?: 1 | 2 | 3 | 4;
+  readonly schemaVersion?: 1 | 2 | 3 | 4 | 5;
   readonly version: number;
   readonly rulesVersion: RulesVersion;
+  /** Identity of the immutable mechanics environment used by this fight. */
+  readonly mechanicsView?: MechanicsViewIdentity;
   readonly mode: CombatMode;
   readonly turnNumber: number;
   readonly combatants: Readonly<Record<CombatantId, CombatantState>>;
@@ -1858,7 +1858,8 @@ export interface FightStateInvariantViolation {
     | "invalid-status"
     | "invalid-slot-capacity"
     | "invalid-transformation"
-    | "invalid-use-count";
+    | "invalid-use-count"
+    | "invalid-mechanics-view";
   readonly message: string;
   readonly subject?: string;
 }
@@ -2458,6 +2459,11 @@ export type CombatFailure =
   | {
       readonly type: "unsupported-mechanic";
       readonly mechanic: string;
+    }
+  | {
+      readonly type: "mechanics-view-mismatch";
+      readonly expected: MechanicsViewIdentity;
+      readonly actual?: MechanicsViewIdentity;
     }
   | {
       readonly type: "illegal-decision";

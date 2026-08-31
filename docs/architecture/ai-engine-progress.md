@@ -1,5 +1,36 @@
 # AI-engine implementation progress
 
+## 2026-08-30 - SIM-080 mechanics identity binding
+
+AI advisory views now accept the combat-owned mechanics identity. AI selection
+fails closed when an identity-bearing view does not match the originating fight
+state, while legacy advisory fixtures remain compatible. NPC certification and
+simulation consumers can bind the same combat runtime so legal decisions,
+descriptors, probes, and submissions retain the originating environment.
+
+## 2026-08-30 - Simulation integration hardening
+
+The simulation-readiness audit added an explicit effective-analysis capability
+contract. `simulation-quality` requests now fail with
+`insufficient-analysis-capabilities` unless the facade declares descriptors,
+expected outcomes, pruning, setup inference, the requested lookahead depth,
+opponent modelling, and pending-decision expansion backed by an available
+probe. Ordinary profiles may intentionally remain shallow.
+
+Diagnostics and replay v3 now record effective analysis capabilities. Replay
+also records whether advisory game-data AI hints were enabled, and callers may
+disable those hints for policy-sensitivity experiments without changing
+mechanical descriptors. AI lookahead now consumes combat-owned decision points
+and semantic-progress identity instead of inferring pending ownership or using
+exact replay state hashes for repeated-state detection.
+
+The generated AI capability matrix is schema v6. `select-source-action` and
+`select-source-effect` are classified
+`contract-accounted-not-currently-emitted`: the union surfaces are safely
+accounted, but current public combat transitions do not emit them. Focused
+proof is in `phases-4-8.test.ts`, `phases-9-11.test.ts`, combat decision-point/
+semantic-progress tests, and the generated matrix tests.
+
 ## 2026-08-30 - Steps 9-11 complete: NPC, simulation-consumer readiness, and decision-quality closure
 
 Steps 9 through 11 are complete for `ai-combat-scope:v1`.

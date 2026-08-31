@@ -1,5 +1,5 @@
 import type { MoveDefinition, MoveSelectorCondition } from "@dragonball-resurgence/game-data";
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
+import { CANONICAL_COMBAT_MECHANICS_VIEW, type CombatRules } from "./mechanics-view.js";
 
 const isConstantSkill = (move: MoveDefinition) =>
   move.category === "skill" && move.mechanics.activationClassification === "constant";
@@ -61,12 +61,16 @@ export const hasLegacyProseSelector = (selector: MoveSelectorCondition): boolean
   selector.requirementIncludes !== undefined ||
   selector.requirementExcludes !== undefined;
 
-const matchesAttackRoll = (move: MoveDefinition, selector: MoveSelectorCondition) => {
+const matchesAttackRoll = (
+  move: MoveDefinition,
+  selector: MoveSelectorCondition,
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
+) => {
   if (selector.attackRoll === undefined) return true;
   const attack = move.mechanics.attack;
   if (attack === undefined) return false;
   const dice = attack.attackRoll?.dice ?? 1;
-  const sides = attack.attackRoll?.sides ?? GLOBAL_RULES.combat.standardDieSides;
+  const sides = attack.attackRoll?.sides ?? rules.combat.standardDieSides;
   return (
     (selector.attackRoll.dice === undefined || dice === selector.attackRoll.dice) &&
     (selector.attackRoll.minimumDice === undefined || dice >= selector.attackRoll.minimumDice) &&
@@ -106,11 +110,15 @@ const hasEffectKind = (move: MoveDefinition, kind: "resource-loss" | "roll-side-
  * such as `subject`, `styleProvenance`, and `selectionKey` are intentionally
  * evaluated by candidate resolution, where combat state is available.
  */
-export const matchesMoveSelector = (move: MoveDefinition, selector: MoveSelectorCondition) =>
+export const matchesMoveSelector = (
+  move: MoveDefinition,
+  selector: MoveSelectorCondition,
+  rules?: CombatRules,
+) =>
   matchesIdentity(move, selector) &&
   matchesTagsAndClassification(move, selector) &&
   matchesTextAndRequirements(move, selector) &&
-  matchesAttackRoll(move, selector) &&
+  matchesAttackRoll(move, selector, rules) &&
   matchesCost(move, selector) &&
   (selector.effectKinds === undefined ||
     selector.effectKinds.every((kind) => hasEffectKind(move, kind)));

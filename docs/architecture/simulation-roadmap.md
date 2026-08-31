@@ -29,8 +29,9 @@ implementation status.
 
 As of 2026-08-30:
 
-- `packages/simulation` does not exist and `scripts/simulate-fights.ts` is an
-  empty placeholder.
+- `packages/simulation` now exists with the Phase 0 public contracts and
+  certifications for SIM-000 through SIM-070. `scripts/simulate-fights.ts`
+  remains an empty placeholder until the runner phases are implemented.
 - Combat Phase 11 is complete for `ai-combat-scope:v1`. The generated combat
   capability matrix accounts for 1,612 occurrences with no
   `unsupported-in-scope` row. Excluded multiplayer, remote, identity,
@@ -43,11 +44,13 @@ As of 2026-08-30:
 - The combat engine exposes immutable, versioned state; injected seeded and
   branch-local dependencies; complete legal decisions including pending
   selections; structured events; result classification; decision descriptors;
-  deterministic analysis probes; and explicit completed fight states.
+  deterministic analysis probes; explicit completed fight states; a public
+  `CombatDecisionPoint` boundary; and combat-owned semantic-progress identity.
 - `ai-engine` is complete through AI-1150 for the active local 1v1 scope. It
   exposes deterministic simulation-quality profiles, canonical decision
-  replay, bounded lookahead, work budgets, reduced diagnostic retention, and a
-  public legal-decision selector.
+  replay, bounded lookahead, work budgets, reduced diagnostic retention, a
+  public legal-decision selector, and an effective-capability gate that rejects
+  simulation-quality requests without declared probe-backed facilities.
 - `npc-ai` has reached NPC Intelligence Complete. Its headless certification
   runner proves autonomous fights, external turn/transition/no-progress
   safeguards, telemetry, and replay identity, but it is certification tooling,
@@ -57,7 +60,13 @@ As of 2026-08-30:
   These are useful source fixtures but are not yet typed simulation templates.
 - There is no simulation scenario schema, seed manifest, batch runner,
   statistical aggregator, move-balance matrix, immutable variant mechanism,
-  custom-move checker, or staff-facing report.
+  custom-move checker, or staff-facing report. Those remain later roadmap
+  scope after the immutable mechanics-view prerequisite.
+- Combat creation, transitions, invariants, descriptors, and trigger resolution
+  still contain many direct reads from canonical module-level registries. An
+  immutable variant cannot yet flow through one fight without an owning-package
+  catalog/mechanics-view boundary; SIM-080 must certify or correct that before
+  the runner architecture freezes.
 
 Implementation must update this baseline from repository evidence. A catalog
 count is an accounting fact, not proof that the corresponding content is
@@ -87,9 +96,10 @@ satisfied.
   versions, variant identity, root seed, derivation algorithm, limits, and
   retention level.
 - Repeating a manifest produces identical per-fight summaries, aggregate data,
-  preserved anomaly replays, and report hashes.
-- Sequential and bounded-concurrency execution produce identical logical
-  results and seed assignments.
+  preserved anomaly replays, and canonical logical report hashes.
+- Sequential and bounded-concurrency execution, every supported worker count,
+  and every partition/merge order produce the same canonical serialized logical
+  output. Wall-clock and environment metadata live outside that hash.
 - Diagnostic retention and progress reporting do not alter decisions, random
   consumption, events, or final state.
 
@@ -102,6 +112,8 @@ satisfied.
 - Statistical reports state population, sample size, paired or unpaired design,
   interval method, confidence level, effect size, missing/error counts, and the
   exact comparison being made.
+- Every experiment declares a fixed-count, versioned sequential, or incomplete/
+  cancelled stopping policy. Ad hoc significance-driven stopping is invalid.
 - A balance conclusion never relies on raw win rate alone.
 
 ### Move-data closure gate
@@ -281,6 +293,15 @@ derivation, template catalog, scenario catalog, metric dictionary, anomaly
 rules, comparator algorithm, and custom-review workflow independently. Do not
 use package version alone as report identity.
 
+The canonical run manifest includes or hashes source commit, rules version,
+combat scope/version, game-data/catalog hash, immutable variant hash,
+simulation schema, metric dictionary, template/scenario identities, AI
+pipeline/evaluator version, requested profiles, effective AI capabilities,
+combat and AI seed-derivation versions, root seed, work/execution budgets,
+retention, statistical design, and stopping policy. Generated time,
+environment, worker completion order, and local paths are non-canonical
+metadata unless a manifest explicitly promotes them to input identity.
+
 ### Fighter template
 
 A `SimulationFighterTemplate` must carry:
@@ -311,6 +332,7 @@ A `SimulationScenario` must identify:
 - mirrored dimensions;
 - root seed and iteration plan;
 - turn, transition, no-progress, work, diagnostic, and concurrency budgets;
+- fixed-count, versioned sequential, or incomplete/cancellation stopping policy;
 - required metric and coverage families;
 - checkpoint, archetype, matchup, isolation, and interaction tags;
 - expected exclusions or unsupported facts; and
@@ -358,6 +380,11 @@ A `SimulationFightResult` must retain:
 
 The runner must not surrender, cancel, damage, or otherwise mutate a fight to
 force a simulation terminal result.
+
+Replay identity is the exact snapshot/transition/decision/ID/seed identity used
+to reproduce a run. Semantic progress identity is the combat-owned equivalence
+used only for loop and no-progress safeguards. They are separate contracts and
+must never share a hash field or substitute for one another.
 
 ### Observation levels
 
@@ -554,6 +581,10 @@ These are starting policies, not claims that a fixed sample is always enough.
 Reports must state achieved precision. Adaptive continuation may add a
 predeclared batch when an interval remains wider than the configured target;
 it must not stop early merely because the current result is desirable.
+The sequential rule, look schedule, maximum sample, alpha/error spending, and
+completion semantics are versioned manifest identity. Cancelled work and an
+incomplete mirror/variant pair remain incomplete evidence rather than being
+silently converted into an unpaired completed observation.
 
 ### Intervals and effect sizes
 
@@ -584,6 +615,8 @@ values. An anomaly is a triage signal, not a verdict.
   matchup effects.
 - Include multiple policy personalities and the deterministic
   simulation-quality profile.
+- Where authored advisory hints exist, include bounded hints-enabled versus
+  mechanically inferred hints-disabled sensitivity runs.
 - Flag moves whose apparent value collapses under another reasonable policy.
 - Distinguish never selected from never useful by adding forced-use or
   move-isolation scenarios for coverage, clearly labeled as non-natural policy
@@ -635,6 +668,92 @@ Use it as the authoritative handoff for completed IDs, verification evidence,
 current artifact versions, generated counts, benchmark results, known limits,
 and the exact next executable item.
 
+#### SIM-050 — Certify combat-owned decision points
+
+Use `getCombatDecisionPoint` as the sole contract for advance, decision owner,
+complete legal set, and explicit completion. Prove ordinary action, pending
+defense/response, automatically advanceable upkeep/end, and completed fights.
+Simulation must not inspect phase, `pendingDecision`, resolution frames, or
+`activeCombatantId` to reconstruct actor ownership.
+
+#### SIM-060 — Certify effective AI capabilities
+
+Require every simulation decision record to preserve requested profile,
+pipeline/evaluator version, effective analysis capability set, AI seed
+derivation version, and effective work limits. A simulation-quality request
+must fail with the typed insufficient-capability error unless descriptors,
+expected outcomes, pruning, setup inference, required lookahead depth,
+opponent modelling, and pending expansion are declared and available.
+
+#### SIM-070 — Certify combat semantic-progress identity
+
+Use the public combat-owned semantic-progress identity for loop/no-progress
+comparison and keep exact replay hashing unchanged. Prove bookkeeping-only
+version/event/generated-ID changes compare equal while durations, cooldowns,
+scheduled work, restrictions, stored selections, transformations, and pending
+choices remain meaningful.
+
+#### SIM-080 — Establish and certify the immutable mechanics-view boundary
+
+Inventory every direct or indirect canonical registry read that can influence fight creation, legal decisions, transitions, invariants, move/item/transformation/status resolution, declarative trigger execution, decision descriptors, strategic context, combat analysis probes, and AI mechanical evaluation.
+
+Classify each read as:
+
+* authoritative fight mechanics that must use the fight's mechanics view;
+* immutable metadata that may safely remain canonical and explain why;
+* build/startup compilation that must produce view-local compiled data; or
+* unrelated application/catalog access outside the combat/AI execution boundary.
+
+Introduce the smallest coherent immutable mechanics/catalog-view abstraction necessary to represent the complete rule-definition environment used by one fight. Do not create unrelated package-specific substitute registries where a shared mechanics-view identity or input is sufficient.
+
+The canonical game catalog must remain available through a canonical/default mechanics view so ordinary production combat behavior does not require simulation-specific setup.
+
+Thread the mechanics view through every authoritative combat path identified by the audit. Combat must remain the owner of mechanical interpretation. Callers may select which mechanics view a fight uses, but they must not resolve definitions or substitute combat rules themselves.
+
+Ensure AI decision descriptors, strategic-context extraction, expected-outcome analysis, probes, setup/combo inference, and lookahead use the same effective mechanics view as the combat state they are evaluating. AI must not silently fall back to canonical definitions when evaluating a fight created from another view.
+
+Compiled definitions, indexes, lookup tables, caches, and other derived structures that depend on catalog contents must either:
+
+* be immutable members of the mechanics view;
+* be keyed by stable mechanics-view identity/content hash; or
+* be proven independent of catalog contents.
+
+Do not implement correctness by mutating, replacing, temporarily swapping, monkey-patching, or restoring module-level canonical registries.
+
+Give each mechanics view a stable deterministic identity sufficient for later replay and variant manifests. Identical canonical mechanics must produce the same identity; mechanically different views must not accidentally share derived catalog-dependent state.
+
+Preserve baseline behavior. Creating and running a fight through the canonical mechanics view must remain behaviorally identical to the pre-refactor canonical path for the same inputs, dependencies, and seeds.
+
+Add isolation certification proving:
+
+* canonical A -> alternate B -> canonical A produces identical A behavior and hashes;
+* canonical and alternate fights may execute interleaved without contamination;
+* canonical and alternate fights may execute in parallel without contamination;
+* two distinct alternate views may coexist without contamination;
+* AI analysis of each fight observes that fight's mechanics view;
+* combat probes and lookahead preserve the originating mechanics view;
+* cached or compiled catalog-dependent state cannot cross view boundaries;
+* execution order does not change outcomes;
+* diagnostics and replay inspection do not change mechanics-view selection; and
+* no test requires cleanup or restoration of mutable global game-data state.
+
+Add architecture or boundary validation that prevents newly introduced authoritative combat/AI code from bypassing the mechanics-view boundary with direct canonical registry imports where practical.
+
+The task is complete only when the repository can construct and execute baseline and alternate immutable mechanics environments concurrently through the same combat and AI architecture without mutating canonical game data.
+
+Do not implement simulation variant patch authoring, custom-move draft handling, comparison workflows, or the custom laboratory in this task. SIM-080 establishes only the architectural seam and isolation guarantees those later phases require.
+
+
+#### SIM-090 — Freeze deterministic seed namespaces
+
+Version semantic-key derivation for combat, AI A, AI B, diagnostic reruns,
+mirrors, pairs, and variants. Prove allocation is independent of scenario
+display order, batching, worker count, retries, cancellation, and completion
+order.
+
+Phase 0 exits only when SIM-050 through SIM-090 are verified. Package and
+runner contracts may not freeze around provisional consumer-owned substitutes.
+
 ### Phase 1 — Package, public contracts, and boundary enforcement
 
 #### SIM-100 — Create `@dragonball-resurgence/simulation`
@@ -657,6 +776,11 @@ budgets, stable IDs, unique references, valid probability/confidence ranges,
 known schema versions, and bounded arrays. Internal public package calls may
 accept already typed objects but must still reject invalid runtime data where
 it can cross a process or file boundary.
+
+Future variant/custom inputs must additionally cap effect count, nested
+expression depth, AST/definition size, candidate and scenario expansion,
+diagnostic retention, and report output. Validation produces immutable values;
+it never mutates a canonical registry.
 
 #### SIM-130 — Add a boundary validator
 
@@ -716,10 +840,12 @@ and custom-move replacement/addition.
 
 #### SIM-300 — Build the public transition driver
 
-Create a fresh fight, advance non-interactive phases, determine the actor from
-pending/active state, enumerate legal decisions, invoke `selectAiDecision`,
-submit the exact chosen decision, and repeat until a real completion or external
-safeguard result.
+Create a fresh fight and consume `getCombatDecisionPoint`. On `advance`, call
+`advanceFight`; on `decision-required`, pass the supplied actor and exact legal
+set to `selectAiDecision`, submit the exact chosen decision through the public
+transition; on `completed`, preserve the engine completion. Never infer actor
+ownership from phase, pending state, resolution frames, or active-combatant
+fields.
 
 #### SIM-310 — Separate dependency streams
 
@@ -730,9 +856,9 @@ reused across fights.
 #### SIM-320 — Implement external safeguards
 
 Add maximum turn, maximum transition, cancellation, and semantic no-progress
-limits. The semantic fingerprint must ignore incidental IDs/versions while
-including every rule-relevant state field available through the public state.
-It returns a simulation halt and diagnostic facts without mutating combat.
+limits through the combat-owned semantic-progress identity. Exhaustion returns
+a distinct simulation halt and diagnostic facts without mutating combat or
+manufacturing defeat, surrender, cancellation, or another engine completion.
 
 #### SIM-330 — Add summary observation
 
@@ -765,7 +891,10 @@ existing seeds.
 
 Store enough manifest, seed, template, scenario, policy, variant, legal-set,
 decision, and transition identity to rerun a fight without retaining every
-state in ordinary summary mode.
+state in ordinary summary mode. Include requested AI profile, pipeline/
+evaluator version, effective capabilities, effective work limits, combat and AI
+seed derivation versions, catalog/variant hashes, metric dictionary,
+statistical design, stopping policy, and retention mode.
 
 #### SIM-420 — Implement replay verification
 
@@ -781,20 +910,25 @@ assert identical authoritative hashes and random consumption.
 #### SIM-440 — Prove concurrency invariance
 
 Run the same manifest sequentially and with bounded local concurrency; sort by
-stable fight identity and require byte-identical canonical results.
+stable fight identity and require identical per-fight results, canonical
+aggregate serialization, and logical report hashes for every tested worker
+count and partition/merge order.
 
 ### Phase 5 — Series and Monte Carlo batch execution
 
 #### SIM-500 — Implement deterministic series expansion
 
 Expand iterations and paired mirrors into stable fight specifications. Validate
-even/complete pairing requirements when a report claims paired evidence.
+even/complete pairing requirements when a report claims paired evidence. Bind
+the series to a fixed-count, versioned sequential, or incomplete/cancellation
+stopping policy before expansion.
 
 #### SIM-510 — Add bounded streaming execution
 
 Support batch size, bounded concurrency, progress callbacks, cancellation, and
 incremental aggregation. Avoid retaining full fight results when only summaries
-are requested.
+are requested. Cancellation produces an explicit partial series; incomplete
+paired observations never become completed paired evidence.
 
 #### SIM-520 — Define mirrored execution
 
@@ -825,9 +959,12 @@ transformation scenarios. Set budgets from evidence rather than intuition.
 #### SIM-600 — Implement mergeable accumulators
 
 Use numerically stable counts, means, variance, quantile sketches or bounded
-histograms, and paired-difference accumulators. Merging partitions in different
-orders must produce the same canonical result within an explicitly documented
-numeric tolerance—or exact output where integer/rational accumulation permits.
+histograms, and paired-difference accumulators. Integer counts remain integers,
+observations retain stable identities, and partitions merge in canonical order
+or through a fixed deterministic merge tree. Canonical serialization defines
+finite-number normalization and rounding so worker count and merge order yield
+the same serialized logical aggregate/hash; arbitrary in-memory floating state
+need not be byte-identical before canonical reduction.
 
 #### SIM-610 — Add rate and distribution summaries
 
@@ -851,7 +988,9 @@ outside declared comparison fields.
 
 Given predeclared targets, report which metrics need more samples and derive the
 next deterministic iteration range. Never overwrite the original result or
-hide that the run was extended.
+hide that the run was extended. Version the look schedule, maximum sample, and
+error-spending rule. Fixed-count experiments never stop early for significance,
+and undeclared stopping is invalid.
 
 #### SIM-650 — Add multiple-comparison families
 
@@ -887,6 +1026,11 @@ move, plus a nearest-comparable replacement when available. Use forced-use
 policies only to establish mechanic exposure, never as natural win-rate
 evidence.
 
+Every observation and report separates `naturally-eligible`,
+`naturally-selected`, `eligible-not-selected`, `never-naturally-eligible`,
+`isolation-exposed`, and `forced-exposed`. Forced/isolation outcomes cannot be
+pooled into normal-policy selection, win-rate, or utility metrics.
+
 #### SIM-740 — Add pairwise interaction coverage
 
 Use deterministic covering arrays or an equivalent pairwise design across
@@ -919,7 +1063,9 @@ missingness behavior, and interpretation warning.
 Track equipped, eligible, affordable, selected, submitted, resolved,
 successful, and value-producing counts without reconstructing legality. Add the
 smallest public combat diagnostic only if an authoritative denominator is not
-currently observable.
+currently observable. Record natural eligibility/selection separately from
+isolation and forced exposure in schemas, coverage accounting, reports, and
+anomaly inputs.
 
 #### SIM-830 — Aggregate dynamic move metrics
 
@@ -982,12 +1128,19 @@ value per Ki, damage/healing tails, control uptime, transformation swing,
 restricted-use efficiency, dominant opening/finishing lines, dominated
 alternatives, excessive length, stalls, errors, and crowd-out.
 
+Required categories include illegal transition attempts, AI selections outside
+the supplied legal set, replay mismatch, invariant-invalid state, semantic
+loop/stalemate, maximum-turn/work exhaustion, suspicious control lock, extreme
+damage/resource outlier, suspicious non-use of eligible mechanics, one-sided
+dominance, and variant contamination. A flag is investigation evidence, never
+an automatic balance verdict.
+
 #### SIM-940 — Add anomaly triage records
 
 Each flag states metric, threshold, population, sample, interval, adjustment
 family, effect size, contributing scenarios/actions, representative seeds,
-possible confounders, and recommended next experiment. Never emit only a red/
-yellow/green label.
+possible confounders, manifest/hash identity, shortest reproducible trace, and
+recommended next experiment. Never emit only a red/yellow/green label.
 
 #### SIM-950 — Add metamorphic invariants
 
@@ -998,12 +1151,12 @@ fight; and catalog iteration order does not change decisions or seeds.
 
 ### Phase 10 — Immutable variants
 
-#### SIM-1000 — Implement cloned catalog/mechanics views
+#### SIM-1000 — Implement immutable variant construction
 
-Construct a validated immutable view used consistently by fight creation,
-descriptors, AI mechanics, and simulation reporting. Audit current public APIs
-for hidden reads from module-level canonical registries; add explicit catalog
-inputs at the owning boundary if variant correctness requires them.
+Build on the SIM-080 certified owning-package catalog/mechanics-view boundary.
+Construct validated baseline and variant views used consistently by fight
+creation, descriptors, AI mechanics, probes, and reporting. Do not reopen
+dependency injection as a late runner redesign.
 
 #### SIM-1010 — Add typed patch operations
 
@@ -1092,6 +1245,11 @@ For each executable draft, schedule:
 8. mirrored sides and first-turn controls;
 9. move-isolation/forced-exposure mechanic checks; and
 10. targeted interaction escalation for anomalies.
+
+Use bounded representative policy sensitivity: simulation-quality balanced,
+selected alternative personalities/strategies, and advisory-hints enabled/
+disabled where authored hints exist. Every matrix need not run every policy,
+but reports flag findings that materially depend on the selected policy.
 
 #### SIM-1150 — Add crowd-out and dominance analysis
 
@@ -1191,7 +1349,14 @@ silently during `check`.
 #### SIM-1300 — Profile before parallelizing
 
 Measure combat, AI, observation, aggregation, serialization, and report costs
-separately. Address avoidable retention and cloning first.
+separately. Retain cheap descriptor/candidate-count microbenchmarks, but add
+representative tiers for resource-heavy choices, transformations, control/
+status states, combo/setup-heavy states, high candidate-count pruning,
+probe-backed lookahead, opponent responses, pending-decision expansion, and
+full autonomous fights. Track candidates evaluated/retained, outcome branches,
+probe count, nodes, depth, pending expansions, decisions per fight, and
+transitions per fight in addition to informational wall-clock values. Address
+avoidable retention and cloning first.
 
 #### SIM-1310 — Add bounded local concurrency
 
@@ -1283,7 +1448,7 @@ and the exact process for adding a new move or scenario.
 
 - schemas, IDs, canonicalization, seed derivation, immutable patching;
 - template/scenario validation and deterministic expansion;
-- semantic fingerprint and safeguard boundaries;
+- combat decision-point and semantic-progress boundaries;
 - event/decision observation and opportunity denominators;
 - mergeable accumulators, intervals, effect sizes, bootstrap replay;
 - comparable filtering and reason codes;
@@ -1292,8 +1457,9 @@ and the exact process for adding a new move or scenario.
 
 ### Public-boundary integration tests
 
-Drive representative fights only through `createFight`, `advanceFight`,
-`enumerateLegalDecisions`, `selectAiDecision`, and `submitCombatDecision`.
+Drive representative fights only through `createFight`,
+`getCombatDecisionPoint`, `advanceFight`, `selectAiDecision`, and
+`submitCombatDecision`.
 Cover ordinary attacks, blocks/counters, pending choices, statuses,
 transformations, items, restricted uses, deferred work, completion, and each
 external safeguard.
@@ -1302,12 +1468,19 @@ external safeguard.
 
 - exact iteration and mirror counts;
 - stable seeds when scenario order changes;
-- sequential/concurrent equivalence;
+- sequential/concurrent and worker-count equivalence;
 - summary/diagnostic equivalence;
-- partition/merge equivalence;
+- batch-order and partition/merge-order equivalence;
+- retention-mode invariance of the canonical logical report;
 - cancelled and resumed run accounting;
 - baseline/variant pairing and compatibility rejection; and
 - byte-stable canonical report generation.
+
+Additional regression proofs cover exact legal-membership selection, empty
+legal-set failure, pending decisions, semantic loop detection, legitimate
+delayed-state non-loop behavior, A -> B -> A and parallel variant isolation,
+partial/cancelled series, serialization round trips, natural/forced exposure
+separation, catalog closure, and synthetic broken-damage/control-loop cases.
 
 ### Statistical tests
 
@@ -1381,7 +1554,9 @@ Simulation Complete
 The critical path is:
 
 ```text
-scope/version contracts
+scope/version and prerequisite contract certification
+  -> decision point + AI capability + semantic progress
+  -> immutable catalog-read readiness + seed namespace
   -> package and validation
   -> typed templates/scenarios
   -> deterministic single-fight runner
@@ -1389,7 +1564,7 @@ scope/version contracts
   -> paired batch runner
   -> statistical aggregation
   -> scenario and move coverage
-  -> immutable variants
+  -> variant construction on the certified immutable boundary
   -> custom-move laboratory
   -> closure
 ```
@@ -1442,12 +1617,13 @@ use an unresolved decision silently.
 
 ## Architecture status
 
-**Healthy and ready for the dedicated simulation workstream.** The repository
-already has the essential deterministic combat and simulation-quality AI
-boundaries. The remaining work belongs in a downstream `simulation` package:
+**Healthy with required simulation preflight.** Combat decision ownership,
+semantic progress identity, and simulation-quality capability enforcement are
+now explicit. The remaining work belongs in a downstream `simulation` package:
 templates, scenarios, seed allocation, batch control, statistics, catalog-wide
 move accounting, immutable variants, custom-move analysis, reports, replay, and
-operational safeguards. The principal architectural risk is variant support:
-any hidden read of canonical module-level registries must be exposed through a
-public immutable catalog input at the owning package rather than bypassed or
-duplicated in simulation.
+operational safeguards. The principal unresolved architectural prerequisite is
+variant support: the verified canonical module-level registry reads must be
+replaced or routed through public immutable owning-package inputs in SIM-080,
+before the runner architecture freezes, rather than bypassed or duplicated in
+simulation.

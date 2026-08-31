@@ -1,12 +1,3 @@
-import { GLOBAL_RULES, RULES_VERSION } from "@dragonball-resurgence/game-config";
-import {
-  ITEM_DEFINITIONS,
-  MOVE_DEFINITIONS,
-  GENERIC_CLASS_DEFINITIONS,
-  RACE_DEFINITIONS,
-  TRANSFORMATION_DEFINITIONS,
-} from "@dragonball-resurgence/game-data";
-
 import type {
   ActiveFightState,
   ActiveCombatEffect,
@@ -21,8 +12,10 @@ import type {
   SlotCapacityModification,
 } from "./contracts.js";
 import { createFightInputSchema } from "./contracts.js";
+import type { CombatMechanicsView } from "./mechanics-view.js";
 import { resolveActiveEffectConflicts } from "./conflict-policy.js";
 import type { CombatDependencies } from "./dependencies.js";
+import { mechanicsViewFor } from "./mechanics-view.js";
 import type { CombatantId } from "./ids.js";
 import { validateFightState } from "./invariants.js";
 import { applyCombatItemPassives } from "./item-effects-runtime.js";
@@ -41,19 +34,6 @@ import {
   scheduledWorkFromResolutionFrame,
 } from "./fight-flow-scheduler.js";
 
-const knownMoveIds = new Set(MOVE_DEFINITIONS.map((move) => move.id));
-const knownItemIds = new Set(ITEM_DEFINITIONS.map((item) => item.id));
-const knownTransformationIds = new Set(
-  TRANSFORMATION_DEFINITIONS.map((transformation) => transformation.id),
-);
-const knownRaceIds = new Set(RACE_DEFINITIONS.map((race) => race.id));
-const knownRaceTraitIds = new Set(
-  RACE_DEFINITIONS.flatMap((race) => race.racialTraits.map((trait) => trait.id)),
-);
-const knownClassIds = new Set([
-  ...RACE_DEFINITIONS.flatMap((race) => race.classes.map((classDefinition) => classDefinition.id)),
-  ...GENERIC_CLASS_DEFINITIONS.map((classDefinition) => classDefinition.id),
-]);
 const activeTransformationRaceIds = new Set([
   "race-humans",
   "race-saiyans",
@@ -74,6 +54,7 @@ const toFightSetupIssues = (error: {
 const createCombatantState = (
   combatantId: CombatantId,
   combatant: CreateFightInput["combatants"][number],
+  mechanics: CombatMechanicsView,
 ): CombatantState => ({
   id: combatantId,
   ...(combatant.raceId === undefined ? {} : { raceId: combatant.raceId as never }),
@@ -83,7 +64,7 @@ const createCombatantState = (
     ? {}
     : { declaredStyleId: combatant.declaredStyleId }),
   hitPoints: { current: combatant.maximumHitPoints, maximum: combatant.maximumHitPoints },
-  ki: { current: GLOBAL_RULES.combat.startingKi, maximum: GLOBAL_RULES.combat.maximumKi },
+  ki: { current: mechanics.rules.combat.startingKi, maximum: mechanics.rules.combat.maximumKi },
   stats: { ...combatant.stats },
   ...(combatant.specializationPoints === undefined
     ? {}
@@ -95,11 +76,11 @@ const createCombatantState = (
   transformationProfiles: transformationProfilesFor(combatant),
   moveIds: [...combatant.moveIds],
   slotCapacities: {
-    mastery: GLOBAL_RULES.movesetSlots.mastery,
-    skill: GLOBAL_RULES.movesetSlots.skill,
-    "advanced-attack": GLOBAL_RULES.movesetSlots.advancedAttack,
-    signature: GLOBAL_RULES.movesetSlots.signatureTechnique,
-    block: GLOBAL_RULES.movesetSlots.block,
+    mastery: mechanics.rules.movesetSlots.mastery,
+    skill: mechanics.rules.movesetSlots.skill,
+    "advanced-attack": mechanics.rules.movesetSlots.advancedAttack,
+    signature: mechanics.rules.movesetSlots.signatureTechnique,
+    block: mechanics.rules.movesetSlots.block,
   },
   slotCapacityModifications: [],
   ...(combatant.itemIds === undefined ? {} : { itemIds: [...combatant.itemIds] }),
@@ -127,17 +108,18 @@ const transformationProfilesFor = (
 const passiveSlotCapacityState = (
   source: CombatantState,
   opponent: CombatantState,
+  mechanics: CombatMechanicsView,
 ): {
   readonly capacities: CombatSlotCapacities;
   readonly modifications: readonly SlotCapacityModification[];
 } => {
-  const triggerSources = combatTriggerSourcesFor(source, "self");
+  const triggerSources = combatTriggerSourcesFor(source, "self", mechanics);
   const modifications = dispatchCombatTriggerSources("passive", triggerSources, () => ({
     self: source,
     opponent,
     turnNumber: 1,
     completedTurnCount: 0,
-    moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+    moves: new Map(mechanics.moves.map((candidate) => [candidate.id, candidate])),
     moveActivationCounts: new Map(),
     successfulHitCount: 0,
   })).flatMap((effects) => effects.slotCapacityModifications);
@@ -151,16 +133,20 @@ const passiveSlotCapacityState = (
   return { capacities, modifications };
 };
 
-const applyPermanentInnateStats = (source: CombatantState, opponent: CombatantState) => {
+const applyPermanentInnateStats = (
+  source: CombatantState,
+  opponent: CombatantState,
+  mechanics: CombatMechanicsView,
+) => {
   const results = dispatchCombatTriggerSourceResults(
     "passive",
-    combatTriggerSourcesFor(source, "self"),
+    combatTriggerSourcesFor(source, "self", mechanics),
     () => ({
       self: source,
       opponent,
       turnNumber: 1,
       completedTurnCount: 0,
-      moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+      moves: new Map(mechanics.moves.map((candidate) => [candidate.id, candidate])),
       moveActivationCounts: new Map(),
       successfulHitCount: 0,
     }),
@@ -186,10 +172,10 @@ const applyPermanentInnateStats = (source: CombatantState, opponent: CombatantSt
   return { ...source, stats };
 };
 
-const unknownTransformationIssuesFor = (input: CreateFightInput) =>
+const unknownTransformationIssuesFor = (input: CreateFightInput, mechanics: CombatMechanicsView) =>
   input.combatants.flatMap((combatant, combatantIndex) =>
     (combatant.transformationIds ?? []).flatMap((transformationId, transformationIndex) =>
-      knownTransformationIds.has(transformationId)
+      mechanics.indexes.transformations.has(transformationId)
         ? []
         : [
             {
@@ -215,10 +201,9 @@ const transformationProfileIssuesForProfile = (
   profileIndex: number,
   profile: CombatantTransformationProfile,
   seen: Set<string>,
+  mechanics: CombatMechanicsView,
 ): readonly FightSetupIssue[] => {
-  const transformation = TRANSFORMATION_DEFINITIONS.find(
-    (candidate) => candidate.id === profile.transformationId,
-  );
+  const transformation = mechanics.indexes.transformations.get(profile.transformationId);
   const path = `combatants.${combatantIndex}.transformationProfiles.${profileIndex}`;
   const issues: FightSetupIssue[] = [];
   if (seen.has(profile.transformationId))
@@ -245,11 +230,12 @@ const transformationProfileIssuesForProfile = (
 const transformationProfileIssuesForCombatant = (
   combatant: CreateFightInput["combatants"][number],
   combatantIndex: number,
+  mechanics: CombatMechanicsView,
 ): readonly FightSetupIssue[] => {
   const profiles = transformationProfilesFor(combatant);
   const seen = new Set<string>();
   const raceIssues: readonly FightSetupIssue[] =
-    combatant.raceId !== undefined && !knownRaceIds.has(combatant.raceId)
+    combatant.raceId !== undefined && !mechanics.indexes.races.has(combatant.raceId)
       ? [
           {
             path: `combatants.${combatantIndex}.raceId`,
@@ -260,18 +246,27 @@ const transformationProfileIssuesForCombatant = (
   return [
     ...raceIssues,
     ...profiles.flatMap((profile, profileIndex) =>
-      transformationProfileIssuesForProfile(combatant, combatantIndex, profileIndex, profile, seen),
+      transformationProfileIssuesForProfile(
+        combatant,
+        combatantIndex,
+        profileIndex,
+        profile,
+        seen,
+        mechanics,
+      ),
     ),
   ];
 };
 
-const transformationProfileIssuesFor = (input: CreateFightInput) =>
-  input.combatants.flatMap(transformationProfileIssuesForCombatant);
+const transformationProfileIssuesFor = (input: CreateFightInput, mechanics: CombatMechanicsView) =>
+  input.combatants.flatMap((combatant, index) =>
+    transformationProfileIssuesForCombatant(combatant, index, mechanics),
+  );
 
-const missingDeclaredStyleIssuesFor = (input: CreateFightInput) =>
+const missingDeclaredStyleIssuesFor = (input: CreateFightInput, mechanics: CombatMechanicsView) =>
   input.combatants.flatMap((combatant, combatantIndex) =>
     combatant.moveIds.flatMap((moveId) => {
-      const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+      const move = mechanics.indexes.moves.get(moveId);
       const requiresDeclaredStyle = move?.effects?.some(
         (effect) =>
           effect.type === "modify-move-classification" && effect.replaceStyle === "declared-style",
@@ -287,10 +282,10 @@ const missingDeclaredStyleIssuesFor = (input: CreateFightInput) =>
     }),
   );
 
-const unknownItemIssuesFor = (input: CreateFightInput) =>
+const unknownItemIssuesFor = (input: CreateFightInput, mechanics: CombatMechanicsView) =>
   input.combatants.flatMap((combatant, combatantIndex) =>
     (combatant.itemIds ?? []).flatMap((itemId, itemIndex) =>
-      knownItemIds.has(itemId)
+      mechanics.indexes.items.has(itemId)
         ? []
         : [
             {
@@ -301,10 +296,10 @@ const unknownItemIssuesFor = (input: CreateFightInput) =>
     ),
   );
 
-const unknownInnateAbilityIssuesFor = (input: CreateFightInput) =>
+const unknownInnateAbilityIssuesFor = (input: CreateFightInput, mechanics: CombatMechanicsView) =>
   input.combatants.flatMap((combatant, combatantIndex) => [
     ...(combatant.raceTraitIds ?? []).flatMap((traitId, traitIndex) =>
-      knownRaceTraitIds.has(traitId)
+      mechanics.indexes.raceTraits.has(traitId)
         ? []
         : [
             {
@@ -313,7 +308,11 @@ const unknownInnateAbilityIssuesFor = (input: CreateFightInput) =>
             } satisfies FightSetupIssue,
           ],
     ),
-    ...(combatant.classId !== undefined && !knownClassIds.has(combatant.classId)
+    ...(combatant.classId !== undefined &&
+    !(
+      mechanics.indexes.genericClasses.has(combatant.classId) ||
+      mechanics.indexes.raceClasses.has(combatant.classId)
+    )
       ? [
           {
             path: `combatants.${combatantIndex}.classId`,
@@ -337,6 +336,7 @@ const determineInitiative = (
   secondCombatant: CombatantState,
   dependencies: CombatDependencies,
   modifiers: ReadonlyMap<CombatantId, number>,
+  mechanics: CombatMechanicsView,
 ): InitiativeResult => {
   if (firstCombatant.stats.dexterity !== secondCombatant.stats.dexterity) {
     return {
@@ -353,11 +353,11 @@ const determineInitiative = (
   while (activeCombatantId === undefined) {
     const firstRoll = dependencies.random.integer(
       1,
-      GLOBAL_RULES.combat.initiative.tiedDexterityTieBreakerDieSides,
+      mechanics.rules.combat.initiative.tiedDexterityTieBreakerDieSides,
     );
     const secondRoll = dependencies.random.integer(
       1,
-      GLOBAL_RULES.combat.initiative.tiedDexterityTieBreakerDieSides,
+      mechanics.rules.combat.initiative.tiedDexterityTieBreakerDieSides,
     );
     tieBreakerRolls.push(
       {
@@ -421,8 +421,9 @@ const startCombatRollState = (
   firstCombatant: CombatantState,
   secondCombatant: CombatantState,
   dependencies: CombatDependencies,
+  mechanics: CombatMechanicsView,
 ) => {
-  const moves = new Map(MOVE_DEFINITIONS.map((move) => [move.id, move]));
+  const moves = new Map(mechanics.moves.map((move) => [move.id, move]));
   const activeEffects: ActiveCombatEffect[] = [];
   const initiativeModifiers = new Map<CombatantId, number>();
   const combatants: [CombatantState, CombatantState] = [firstCombatant, secondCombatant];
@@ -458,7 +459,7 @@ const startCombatRollState = (
   ] as const) {
     const sourceIndex = source;
     const opponentIndex = opponent;
-    const triggerSources = combatTriggerSourcesFor(combatants[sourceIndex], "self");
+    const triggerSources = combatTriggerSourcesFor(combatants[sourceIndex], "self", mechanics);
     const dispatch = () =>
       dispatchCombatTriggerSourceResults("start-combat", triggerSources, () => ({
         self: combatants[sourceIndex],
@@ -525,6 +526,7 @@ export const createFight = (
   dependencies: CombatDependencies,
   // eslint-disable-next-line max-lines-per-function -- Fight construction intentionally assembles the validated state boundary in one transaction.
 ): CombatResult<CombatTransition> => {
+  const mechanics = mechanicsViewFor(dependencies.mechanicsView);
   const parsedInput = createFightInputSchema.safeParse(input);
   if (!parsedInput.success) {
     return {
@@ -535,7 +537,7 @@ export const createFight = (
 
   const unknownMoveIssues = parsedInput.data.combatants.flatMap((combatant, combatantIndex) =>
     combatant.moveIds.flatMap((moveId, moveIndex) =>
-      knownMoveIds.has(moveId)
+      mechanics.indexes.moves.has(moveId)
         ? []
         : [
             {
@@ -545,12 +547,25 @@ export const createFight = (
           ],
     ),
   );
-  const unknownItemIssues = unknownItemIssuesFor(parsedInput.data);
-  const unknownTransformationIssues = unknownTransformationIssuesFor(parsedInput.data);
-  const unknownInnateAbilityIssues = unknownInnateAbilityIssuesFor(parsedInput.data);
-  const transformationProfileIssues = transformationProfileIssuesFor(parsedInput.data);
-  const missingDeclaredStyleIssues = missingDeclaredStyleIssuesFor(parsedInput.data);
+  const dexterityBonusIssues = parsedInput.data.combatants.flatMap((combatant, combatantIndex) => {
+    const { minimumDexterityBonus, maximumDexterityBonus } = mechanics.rules.combat;
+    const value = combatant.stats.dexterityBonus;
+    return value >= minimumDexterityBonus && value <= maximumDexterityBonus
+      ? []
+      : [
+          {
+            path: `combatants.${combatantIndex}.stats.dexterityBonus`,
+            message: `Dexterity bonus must be from ${minimumDexterityBonus} through ${maximumDexterityBonus}.`,
+          } satisfies FightSetupIssue,
+        ];
+  });
+  const unknownItemIssues = unknownItemIssuesFor(parsedInput.data, mechanics);
+  const unknownTransformationIssues = unknownTransformationIssuesFor(parsedInput.data, mechanics);
+  const unknownInnateAbilityIssues = unknownInnateAbilityIssuesFor(parsedInput.data, mechanics);
+  const transformationProfileIssues = transformationProfileIssuesFor(parsedInput.data, mechanics);
+  const missingDeclaredStyleIssues = missingDeclaredStyleIssuesFor(parsedInput.data, mechanics);
   const setupIssues = [
+    ...dexterityBonusIssues,
     ...unknownMoveIssues,
     ...unknownItemIssues,
     ...unknownTransformationIssues,
@@ -571,9 +586,9 @@ export const createFight = (
     inputCombatant: CreateFightInput["combatants"][number],
   ) =>
     applyCombatItemPassives(
-      createCombatantState(combatantId, inputCombatant),
+      createCombatantState(combatantId, inputCombatant, mechanics),
       (inputCombatant.itemIds ?? []).flatMap((itemId) => {
-        const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === itemId);
+        const item = mechanics.indexes.items.get(itemId);
         return item === undefined ? [] : [item];
       }),
     );
@@ -582,18 +597,22 @@ export const createFight = (
   const firstCombatantWithInnateStats = applyPermanentInnateStats(
     firstCombatantBase,
     secondCombatantBase,
+    mechanics,
   );
   const secondCombatantWithInnateStats = applyPermanentInnateStats(
     secondCombatantBase,
     firstCombatantBase,
+    mechanics,
   );
   const firstSlotCapacityState = passiveSlotCapacityState(
     firstCombatantWithInnateStats,
     secondCombatantWithInnateStats,
+    mechanics,
   );
   const secondSlotCapacityState = passiveSlotCapacityState(
     secondCombatantWithInnateStats,
     firstCombatantWithInnateStats,
+    mechanics,
   );
   const firstCombatant: CombatantState = {
     ...firstCombatantWithInnateStats,
@@ -605,7 +624,12 @@ export const createFight = (
     slotCapacities: secondSlotCapacityState.capacities,
     slotCapacityModifications: secondSlotCapacityState.modifications,
   };
-  const startCombat = startCombatRollState(firstCombatant, secondCombatant, dependencies);
+  const startCombat = startCombatRollState(
+    firstCombatant,
+    secondCombatant,
+    dependencies,
+    mechanics,
+  );
   const [firstCombatantAfterStart, secondCombatantAfterStart] = startCombat.combatants;
   const combatants: Readonly<Record<CombatantId, CombatantState>> = {
     [firstCombatantId]: firstCombatantAfterStart,
@@ -616,13 +640,15 @@ export const createFight = (
     secondCombatantAfterStart,
     dependencies,
     startCombat.initiativeModifiers,
+    mechanics,
   );
   const activeCombatantId = initiative.activeCombatantId;
   const state: ActiveFightState = {
     id: fightId,
-    schemaVersion: 4,
+    schemaVersion: 5,
     version: 0,
-    rulesVersion: { ...RULES_VERSION },
+    rulesVersion: { ...mechanics.rulesVersion },
+    mechanicsView: mechanics.identity,
     mode: parsedInput.data.mode,
     status: "active",
     turnNumber: 1,
@@ -657,7 +683,7 @@ export const createFight = (
     ),
   ];
   const stateWithScheduledWork = { ...stateWithInitialCopySelection, scheduledWork };
-  const violations = validateFightState(stateWithScheduledWork);
+  const violations = validateFightState(stateWithScheduledWork, mechanics);
   if (violations.length > 0) {
     return { ok: false, error: { type: "invalid-fight-state", violations } };
   }

@@ -6,6 +6,7 @@ import {
   createFight,
   describeAnalysisDecision,
   enumerateLegalDecisions,
+  probeCombatDecision,
   SeededRandomSource,
   submitCombatDecision,
   type CombatDependencies,
@@ -91,7 +92,22 @@ const request = (
     }),
     randomness: "disabled",
   },
-  analysis: { describeDecision: describeAnalysisDecision },
+  analysis: {
+    capabilities: {
+      descriptors: true,
+      expectedOutcomes: true,
+      pruning: true,
+      setupInference: true,
+      lookaheadDepth: 2,
+      opponentModeling: true,
+      pendingExpansion: true,
+    },
+    describeDecision: describeAnalysisDecision,
+    probeDecision: (probeState, decision, dependencies) => {
+      if (dependencies === undefined) throw new Error("Branch dependencies are required.");
+      return probeCombatDecision(probeState, decision, dependencies);
+    },
+  },
   diagnosticRetention: retention,
   advisoryPriorities: priorities,
 });
@@ -103,6 +119,40 @@ const legal: readonly LegalDecision[] = [
 ];
 
 describe("AI decision-quality closure", () => {
+  it("rejects simulation-quality requests without the declared deep-analysis capability set", () => {
+    const shallow = selectAiDecision({
+      ...request(legal),
+      analysis: { describeDecision: describeAnalysisDecision },
+    });
+    expect(shallow).toMatchObject({
+      ok: false,
+      error: {
+        type: "insufficient-analysis-capabilities",
+        profileId: SIMULATION_QUALITY_PROFILE.identity.id,
+      },
+    });
+    if (!shallow.ok)
+      expect(
+        shallow.error.type === "insufficient-analysis-capabilities" && shallow.error.missing,
+      ).toEqual(expect.arrayContaining(["lookahead-depth", "declared-capability-contract"]));
+  });
+
+  it("allows an intentionally shallow ordinary profile and reports its effective capability", () => {
+    const shallow = selectAiDecision({
+      ...request(legal),
+      profile: NORMAL_PROFILE,
+      analysis: { describeDecision: describeAnalysisDecision },
+    });
+    expect(shallow.ok).toBe(true);
+    if (shallow.ok)
+      expect(shallow.value.diagnostics?.effectiveAnalysisCapabilities).toMatchObject({
+        descriptors: true,
+        lookaheadDepth: 0,
+        opponentModeling: false,
+        pendingExpansion: false,
+      });
+  });
+
   it("selects only a supplied legal object and fails explicitly for an empty set", () => {
     const result = selectAiDecision(request(legal));
     expect(result.ok).toBe(true);
@@ -189,8 +239,13 @@ describe("AI decision-quality closure", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const replay = createAiReplayRecord(request(legal), result.value);
-    expect(replay.schemaVersion).toBe("ai-replay:v2");
-    expect(replay.pipeline.version).toBe("ai-engine:v2");
+    expect(replay.schemaVersion).toBe("ai-replay:v3");
+    expect(replay.pipeline.version).toBe("ai-engine:v3");
+    expect(replay.effectiveAnalysisCapabilities).toMatchObject({
+      lookaheadDepth: 2,
+      opponentModeling: true,
+      pendingExpansion: true,
+    });
     expect(verifyAiReplayRecord(replay, request(legal))).toEqual({
       ok: true,
       decisionKey: replay.selectedDecisionKey,

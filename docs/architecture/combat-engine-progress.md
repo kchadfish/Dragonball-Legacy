@@ -1,5 +1,38 @@
 # Combat-engine implementation progress
 
+## 2026-08-30 - SIM-080 mechanics-view boundary
+
+The combat package now exposes `MechanicsViewIdentity`, immutable
+`CombatMechanicsView` construction, the canonical view, and
+`createCombatRuntime`. Fight creation persists the view identity in schema 5;
+legacy snapshots normalize to the canonical identity, and transition/runtime
+boundaries reject missing or mismatched alternate views. The view factory
+deep-copies/freeze-protects definitions, validates duplicate and unresolved
+catalog references, builds private indexes and compiled-plan maps, and hashes
+sorted mechanically relevant content with SHA-256. The source classification is
+recorded in [combat-mechanics-view-audit.md](combat-mechanics-view-audit.md).
+
+NPC AI and simulation adapters can bind the same combat runtime for legal
+decisions, transitions, descriptors, and probes. Remaining legacy canonical
+helper reads are explicitly tracked in the audit before SIM-090.
+
+## 2026-08-30 - Simulation integration contracts
+
+The public engine now owns `CombatDecisionPoint`, which classifies an active
+snapshot as automatically advanceable or decision-required with the exact
+actor and engine-enumerated legal set, and carries completed fight data
+explicitly. Pending defense and future pending-choice ownership therefore do
+not require downstream phase or state interpretation.
+
+The engine also exports `CombatSemanticProgressIdentity` and equality support.
+This canonical identity excludes state version, event sequence, fight identity,
+and opaque generated-ID values while retaining rule-relevant state including
+resources, durations, scheduled work, restrictions, stored selections,
+transformations, pending choices, phases, actors, and history. Exact snapshot/
+replay identity remains unchanged. Focused public-contract tests cover ordinary
+actions, pending defense, automatic advancement, completion, bookkeeping-only
+changes, duration/scheduled progress, and repeated semantic state.
+
 ## Purpose
 
 This is the versioned handoff record for the in-progress

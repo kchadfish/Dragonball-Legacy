@@ -6,13 +6,20 @@ This is the design for player-facing NPC AI and the future balance simulation.
 The AI engine and NPC consumer adapter are implemented for the verified local
 1v1 scope. The adapter is not yet a production-complete NPC encounter system;
 see [NPC-AI completion roadmap](npc-ai-roadmap.md). The dedicated simulation
-package remains intentionally planned as a separate workstream.
+package now contains its Phase 0 contracts and remains separate from the
+future runner and reporting workstream.
 
 The design preserves the existing ownership boundary: game data declares game
 content, the combat engine alone resolves combat, AI chooses from engine-legal
 decisions, and simulations aggregate engine-resolved fights. It applies to 1v1
 first; it must not assume team fights or other future modes are already
 supported.
+
+SIM-080 makes this ownership executable: combat and AI consumers bind an
+immutable `CombatMechanicsView` identity, and alternate environments cannot be
+silently evaluated through canonical registries. The full view is supplied by
+the runtime on resume; only its identity is retained in fight state and
+AI-facing replay facts.
 
 ```text
 static game data + game config
@@ -47,15 +54,16 @@ Its simulation contract is its ordinary public contract:
 
 ```ts
 createFight(input, dependencies) => CombatResult<CombatTransition>
-enumerateLegalDecisions(state, combatantId) => readonly LegalDecision[]
+getCombatDecisionPoint(state) => CombatDecisionPoint
 submitCombatDecision(state, decision, dependencies) => CombatResult<CombatTransition>
 advanceFight(state, dependencies) => CombatResult<CombatTransition>
 ```
 
 The present names above are existing public engine concepts, not a request to
 replace them with a second simulation API. A simulation driver repeatedly
-advances non-interactive phases, obtains legal decisions, asks a policy to pick
-one, and submits that decision using the same boundary as every other caller.
+consumes the combat-owned decision point, advances when instructed, asks a
+policy to choose from the supplied legal set and actor, and submits that
+decision using the same boundary as every other caller.
 
 Required engine-readiness properties are:
 
@@ -69,6 +77,8 @@ Required engine-readiness properties are:
 - Snapshots are serializable and cheap enough to copy for shallow lookahead.
 - Rule slices define finite resolution or surface a typed failure; they do not
   silently loop.
+- Semantic-progress identity is combat-owned and separate from exact replay
+  identity; callers do not choose meaningful state fields themselves.
 
 The engine provides immutable transition-style state,
 `enumerateLegalDecisions`, structured events, completed fight state, and
@@ -96,7 +106,14 @@ explicitly scripted priorities. That keeps NPC content concerns out of the
 generic evaluator and lets simulations use the same decision system with a
 simulation-quality profile.
 
-### `@dragonball-resurgence/simulation` (new, planned)
+Simulation-quality requests must declare the effective descriptor, expected-
+outcome, pruning, setup, lookahead, opponent-model, and pending-expansion
+capabilities available to the evaluator. The selector returns a typed failure
+when that capability set is insufficient. Basic profiles may intentionally use
+shallower facilities, and diagnostics/replay preserve the effective capability
+identity and advisory-hint mode.
+
+### `@dragonball-resurgence/simulation` (Phase 0 implemented)
 
 This package contains no Discord or persistence dependency. It owns static
 simulation templates rather than live character records, scenario construction,

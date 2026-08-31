@@ -1,11 +1,3 @@
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
-import {
-  GENERIC_CLASS_DEFINITIONS,
-  MOVE_DEFINITIONS,
-  RACE_DEFINITIONS,
-  TRANSFORMATION_DEFINITIONS,
-} from "@dragonball-resurgence/game-data";
-
 import {
   activeEffectIdSchema,
   combatDecisionIdSchema,
@@ -34,6 +26,11 @@ import type {
   ResourceChangeHistoryRecord,
   ResolutionFrame,
 } from "./contracts.js";
+import {
+  CANONICAL_COMBAT_MECHANICS_VIEW,
+  mechanicsViewForState,
+  type CombatMechanicsView,
+} from "./mechanics-view.js";
 import type { ScheduledCombatOperation, ScheduledCombatWork } from "./fight-flow-scheduler.js";
 import { matchesMoveSelector } from "./declarative-runtime.js";
 import { conflictKeyFor, conflictMatchKeyFor, conflictPolicyFor } from "./conflict-policy.js";
@@ -48,19 +45,23 @@ import {
 // Invariants validate serializable runtime data even when the in-memory union
 // type has already narrowed a discriminant to one literal value.
 const runtimeValue = (value: unknown): unknown => value;
+const mechanicsFor = (state: FightState | undefined) =>
+  state === undefined ? CANONICAL_COMBAT_MECHANICS_VIEW : mechanicsViewForState(state);
 
 const validCounter = (value: number, minimum: number) =>
   Number.isFinite(value) && Number.isInteger(value) && value >= minimum;
 
 const validNonnegativeNumber = (value: number) => Number.isFinite(value) && value >= 0;
 
-const knownRaceTraitIds = new Set(
-  RACE_DEFINITIONS.flatMap((race) => race.racialTraits.map((trait) => trait.id)),
-);
-const knownClassIds = new Set([
-  ...RACE_DEFINITIONS.flatMap((race) => race.classes.map((classDefinition) => classDefinition.id)),
-  ...GENERIC_CLASS_DEFINITIONS.map((classDefinition) => classDefinition.id),
-]);
+const knownRaceTraitIdsFor = (state: FightState) =>
+  new Set(mechanicsFor(state).races.flatMap((race) => race.racialTraits.map((trait) => trait.id)));
+const knownClassIdsFor = (state: FightState) =>
+  new Set([
+    ...mechanicsFor(state).races.flatMap((race) =>
+      race.classes.map((classDefinition) => classDefinition.id),
+    ),
+    ...mechanicsFor(state).genericClasses.map((classDefinition) => classDefinition.id),
+  ]);
 
 const addViolation = (
   violations: FightStateInvariantViolation[],
@@ -101,6 +102,7 @@ const validateResource = (
 };
 
 const validateCombatantStats = (
+  state: FightState,
   combatant: CombatantState,
   recordId: string,
   violations: FightStateInvariantViolation[],
@@ -109,15 +111,15 @@ const validateCombatantStats = (
     const validStat =
       statName === "dexterityBonus"
         ? Number.isFinite(statValue) &&
-          statValue >= GLOBAL_RULES.combat.minimumDexterityBonus &&
-          statValue <= GLOBAL_RULES.combat.maximumDexterityBonus
+          statValue >= mechanicsFor(state).rules.combat.minimumDexterityBonus &&
+          statValue <= mechanicsFor(state).rules.combat.maximumDexterityBonus
         : validNonnegativeNumber(statValue);
     if (!validStat) {
       addViolation(
         violations,
         "invalid-stat",
         statName === "dexterityBonus"
-          ? `dexterityBonus must be a finite number from ${GLOBAL_RULES.combat.minimumDexterityBonus} through ${GLOBAL_RULES.combat.maximumDexterityBonus}.`
+          ? `dexterityBonus must be a finite number from ${mechanicsFor(state).rules.combat.minimumDexterityBonus} through ${mechanicsFor(state).rules.combat.maximumDexterityBonus}.`
           : `${statName} must be a finite nonnegative number.`,
         recordId,
       );
@@ -137,6 +139,7 @@ const validateCombatantStats = (
 };
 
 const validateInnateSelections = (
+  state: FightState,
   combatant: CombatantState,
   recordId: string,
   violations: FightStateInvariantViolation[],
@@ -150,7 +153,7 @@ const validateInnateSelections = (
         recordId,
       );
     for (const traitId of combatant.raceTraitIds)
-      if (!knownRaceTraitIds.has(traitId))
+      if (!knownRaceTraitIdsFor(state).has(traitId))
         addViolation(
           violations,
           "invalid-combatant-identity",
@@ -158,7 +161,7 @@ const validateInnateSelections = (
           recordId,
         );
   }
-  if (combatant.classId !== undefined && !knownClassIds.has(combatant.classId))
+  if (combatant.classId !== undefined && !knownClassIdsFor(state).has(combatant.classId))
     addViolation(
       violations,
       "invalid-combatant-identity",
@@ -170,6 +173,7 @@ const validateInnateSelections = (
 const combatSlots = ["mastery", "skill", "advanced-attack", "signature", "block"] as const;
 
 const validateSlotCapacities = (
+  state: FightState,
   combatant: CombatantState,
   recordId: string,
   violations: FightStateInvariantViolation[],
@@ -192,11 +196,13 @@ const validateSlotCapacities = (
     const sourceReference = modification.sourceReference;
     const sourceMove =
       sourceReference?.kind === "move" || sourceReference === undefined
-        ? MOVE_DEFINITIONS.find((candidate) => candidate.id === modification.sourceDefinitionId)
+        ? mechanicsFor(state).moves.find(
+            (candidate) => candidate.id === modification.sourceDefinitionId,
+          )
         : undefined;
     const sourceEffect =
       sourceMove?.effects?.[modification.sourceEffectIndex] ??
-      sourceEffectForReference(sourceReference, modification.sourceEffectIndex);
+      sourceEffectForReference(state, sourceReference, modification.sourceEffectIndex);
     const validInnateReference =
       sourceReference !== undefined &&
       sourceReference.kind !== "move" &&
@@ -230,22 +236,26 @@ const validateSlotCapacities = (
   }
 };
 
-const sourceEffectForReference = (reference: CombatSourceReference | undefined, index: number) => {
+const sourceEffectForReference = (
+  state: FightState,
+  reference: CombatSourceReference | undefined,
+  index: number,
+) => {
   if (reference?.kind === "race-trait")
-    return RACE_DEFINITIONS.flatMap((race) => race.racialTraits).find(
-      (trait) => trait.id === reference.definitionId,
-    )?.effects?.[index];
+    return mechanicsFor(state)
+      .races.flatMap((race) => race.racialTraits)
+      .find((trait) => trait.id === reference.definitionId)?.effects?.[index];
   if (reference?.kind === "race-class")
-    return RACE_DEFINITIONS.flatMap((race) => race.classes).find(
-      (classDefinition) => classDefinition.id === reference.definitionId,
-    )?.effects?.[index];
+    return mechanicsFor(state)
+      .races.flatMap((race) => race.classes)
+      .find((classDefinition) => classDefinition.id === reference.definitionId)?.effects?.[index];
   if (reference?.kind === "generic-class")
-    return GENERIC_CLASS_DEFINITIONS.find(
+    return mechanicsFor(state).genericClasses.find(
       (classDefinition) => classDefinition.id === reference.definitionId,
     )?.effects?.[index];
   if (reference?.kind === "transformation-ability") {
     const [transformationId] = reference.definitionId.split(/:(?=[^:]+$)/u);
-    return TRANSFORMATION_DEFINITIONS.find(
+    return mechanicsFor(state).transformations.find(
       (transformation) => transformation.id === transformationId,
     )?.abilities[reference.mastery].effects?.[index];
   }
@@ -270,12 +280,13 @@ const validateMoveUses = (
 };
 
 const validateMoveUseLimitModifiers = (
+  state: FightState,
   combatant: CombatantState,
   recordId: string,
   violations: FightStateInvariantViolation[],
 ) => {
   for (const [moveId, modifier] of Object.entries(combatant.moveUseLimitModifiers ?? {})) {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
     if (
       !combatant.moveIds.includes(moveId) ||
       move?.mechanics.restrictedUses?.type !== "literal" ||
@@ -328,6 +339,7 @@ const validateItemUses = (
 const storedRollKeyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const validateStoredRolls = (
+  state: FightState,
   combatant: CombatantState,
   recordId: string,
   turnNumber: number,
@@ -335,12 +347,12 @@ const validateStoredRolls = (
   // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   for (const [storageKey, storedRoll] of Object.entries(combatant.storedRolls ?? {})) {
-    const sourceMove = MOVE_DEFINITIONS.find(
+    const sourceMove = mechanicsFor(state).moves.find(
       (candidate) => candidate.id === storedRoll.sourceDefinitionId,
     );
     const sourceInnate = [
-      ...RACE_DEFINITIONS.flatMap((race) => [...race.racialTraits, ...race.classes]),
-      ...GENERIC_CLASS_DEFINITIONS,
+      ...mechanicsFor(state).races.flatMap((race) => [...race.racialTraits, ...race.classes]),
+      ...mechanicsFor(state).genericClasses,
     ].find((candidate) => candidate.id === storedRoll.sourceDefinitionId);
     const sourceEffect = (sourceMove?.effects ?? sourceInnate?.effects)?.find(
       (effect) => effect.type === "roll-and-store" && effect.storageKey === storageKey,
@@ -380,6 +392,7 @@ const validateStoredRolls = (
 };
 
 const validateStoredMoveSelections = (
+  state: FightState,
   combatant: CombatantState,
   recordId: string,
   turnNumber: number,
@@ -387,7 +400,7 @@ const validateStoredMoveSelections = (
   // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   for (const [selectionKey, selection] of Object.entries(combatant.storedMoveSelections ?? {})) {
-    const sourceMove = MOVE_DEFINITIONS.find(
+    const sourceMove = mechanicsFor(state).moves.find(
       (candidate) => candidate.id === selection.sourceDefinitionId,
     );
     const sourceEffect = sourceMove?.effects?.find(
@@ -399,7 +412,9 @@ const validateStoredMoveSelections = (
         effect.type === "copy-move-effect" &&
         `copy-move-${selection.sourceDefinitionId}-${effectIndex}` === selectionKey,
     );
-    const selectedMove = MOVE_DEFINITIONS.find((candidate) => candidate.id === selection.moveId);
+    const selectedMove = mechanicsFor(state).moves.find(
+      (candidate) => candidate.id === selection.moveId,
+    );
     const validStoredRollSource =
       sourceEffect?.type === "select-move-by-stored-roll" &&
       sourceEffect.target === "self" &&
@@ -486,6 +501,7 @@ const validateActiveStatuses = (
 };
 
 const validateCombatant = (
+  state: FightState,
   recordId: string,
   combatant: CombatantState,
   turnNumber: number,
@@ -503,9 +519,9 @@ const validateCombatant = (
   validateResource("hitPoints", combatant.hitPoints, recordId, violations);
   validateResource("ki", combatant.ki, recordId, violations);
 
-  validateCombatantStats(combatant, recordId, violations);
-  validateInnateSelections(combatant, recordId, violations);
-  validateSlotCapacities(combatant, recordId, violations);
+  validateCombatantStats(state, combatant, recordId, violations);
+  validateInnateSelections(state, combatant, recordId, violations);
+  validateSlotCapacities(state, combatant, recordId, violations);
 
   if (new Set(combatant.moveIds).size !== combatant.moveIds.length) {
     addViolation(
@@ -544,11 +560,11 @@ const validateCombatant = (
   }
 
   validateMoveUses(combatant, recordId, violations);
-  validateMoveUseLimitModifiers(combatant, recordId, violations);
+  validateMoveUseLimitModifiers(state, combatant, recordId, violations);
   validateEffectUseCounts(combatant, recordId, violations);
   validateItemUses(combatant, recordId, violations);
-  validateStoredRolls(combatant, recordId, turnNumber, violations);
-  validateStoredMoveSelections(combatant, recordId, turnNumber, violations);
+  validateStoredRolls(state, combatant, recordId, turnNumber, violations);
+  validateStoredMoveSelections(state, combatant, recordId, turnNumber, violations);
   validateActiveStatuses(combatant, recordId, violations);
 };
 
@@ -571,12 +587,13 @@ const masteryForRollSides = (
 };
 
 const validateTransformationProfiles = (
+  state: FightState,
   combatant: CombatantState,
   violations: FightStateInvariantViolation[],
 ) => {
   const profileIds = new Set<string>();
   for (const profile of combatant.transformationProfiles ?? []) {
-    const transformationDefinition = TRANSFORMATION_DEFINITIONS.find(
+    const transformationDefinition = mechanicsFor(state).transformations.find(
       (candidate) => candidate.id === profile.transformationId,
     );
     const expectedMastery = masteryForRollSides(profile.rollSides);
@@ -644,7 +661,7 @@ const validateCombatantReferences = (
 ) => {
   if (
     combatant.raceId !== undefined &&
-    !RACE_DEFINITIONS.some((race) => race.id === combatant.raceId)
+    !mechanicsFor(state).races.some((race) => race.id === combatant.raceId)
   )
     addViolation(
       violations,
@@ -652,7 +669,7 @@ const validateCombatantReferences = (
       `Combatant references unknown race ${combatant.raceId}.`,
       combatant.id,
     );
-  validateTransformationProfiles(combatant, violations);
+  validateTransformationProfiles(state, combatant, violations);
   validateTransformationCooldown(combatant, violations);
   validateActiveStatusReferences(state, combatant, violations);
 
@@ -1144,6 +1161,7 @@ const hasValidItemDamageModifierEffectDetails = (
 
 const hasValidMoveRemovalEffectDetails = (
   effect: Extract<ActiveCombatEffect, { type: "remove-move-from-combat" }>,
+  mechanics: CombatMechanicsView,
 ) =>
   (effect.duration === "combat" ||
     (runtimeValue(effect.duration.type) === "until-perfect-roll" &&
@@ -1152,16 +1170,17 @@ const hasValidMoveRemovalEffectDetails = (
   effect.moveId.length > 0 &&
   validCounter(effect.sourceEffectIndex, 0) &&
   validCounter(effect.removedFromIndex, 0) &&
-  MOVE_DEFINITIONS.some((move) => move.id === effect.moveId);
+  mechanics.moves.some((move) => move.id === effect.moveId);
 
 const hasValidMoveEffectReplacementDetails = (
   effect: Extract<ActiveCombatEffect, { type: "move-effect-replacement" }>,
+  mechanics: CombatMechanicsView,
 ) =>
   effect.sourceDefinitionId.length > 0 &&
   effect.targetMoveId.length > 0 &&
   validCounter(effect.sourceEffectIndex, 0) &&
   validCounter(effect.remainingTriggers, 1) &&
-  MOVE_DEFINITIONS.some((move) => move.id === effect.targetMoveId) &&
+  mechanics.moves.some((move) => move.id === effect.targetMoveId) &&
   effect.replacement.trigger === "on-resource-drain" &&
   effect.replacement.target === "self" &&
   effect.replacement.type === "modify-resource" &&
@@ -1443,6 +1462,7 @@ const hasValidNonFloatingEffectDetails = (
     ActiveCombatEffect,
     { type: "floating-effect" | "extra-action" | "scheduled-resource" }
   >,
+  mechanics: CombatMechanicsView,
   // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
   switch (effect.type) {
@@ -1476,9 +1496,9 @@ const hasValidNonFloatingEffectDetails = (
     case "active-constant":
       return hasValidConstantEffectDetails(effect);
     case "remove-move-from-combat":
-      return hasValidMoveRemovalEffectDetails(effect);
+      return hasValidMoveRemovalEffectDetails(effect, mechanics);
     case "move-effect-replacement":
-      return hasValidMoveEffectReplacementDetails(effect);
+      return hasValidMoveEffectReplacementDetails(effect, mechanics);
     case "force-next-action":
       return hasValidForcedActionEffectDetails(effect);
     case "action-restriction":
@@ -1524,11 +1544,11 @@ const hasValidNonFloatingEffectDetails = (
   }
 };
 
-const hasValidEffectDetails = (effect: ActiveCombatEffect) => {
+const hasValidEffectDetails = (effect: ActiveCombatEffect, mechanics: CombatMechanicsView) => {
   if (effect.type === "floating-effect") return hasValidFloatingEffectDetails(effect);
   if (effect.type === "extra-action") return hasValidExtraActionEffectDetails(effect);
   if (effect.type === "scheduled-resource") return hasValidScheduledResourceEffectDetails(effect);
-  return hasValidNonFloatingEffectDetails(effect);
+  return hasValidNonFloatingEffectDetails(effect, mechanics);
 };
 
 const hasValidTypedSelectorTokens = (effect: ActiveCombatEffect) => {
@@ -1645,6 +1665,7 @@ const hasValidActiveEffectBaseIdentity = (effect: ActiveCombatEffect) =>
 
 const validateActiveEffects = (state: FightState, violations: FightStateInvariantViolation[]) => {
   const activeEffectIds = new Set<string>();
+  const mechanics = mechanicsFor(state);
 
   for (const [effectIndex, effect] of state.activeEffects.entries()) {
     const validEffect =
@@ -1663,7 +1684,7 @@ const validateActiveEffects = (state: FightState, violations: FightStateInvarian
         const lifecycle = lifecycleRecordForEffect(effect);
         return lifecycle === undefined || isValidEffectLifecycle(lifecycle);
       })() &&
-      hasValidEffectDetails(effect) &&
+      hasValidEffectDetails(effect, mechanics) &&
       hasValidConflictMetadata(effect) &&
       !state.activeEffects.some((candidate, candidateIndex) => {
         if (candidateIndex <= effectIndex) return false;
@@ -1938,8 +1959,11 @@ const validFiniteNumericRecord = (values: Readonly<Record<string, number>> | und
     ([key, value]) => storedRollKeyPattern.test(key) && Number.isFinite(value),
   );
 
-// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks.
-const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
+/* eslint-disable sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks. */
+const validCopiedMoveAttackReference = (
+  attack: AttackFrameReference,
+  mechanics: CombatMechanicsView,
+) => {
   if (attack.type !== "move") return true;
   const {
     copiedFromMoveId,
@@ -1976,7 +2000,7 @@ const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
   return (
     copiedFromMoveId !== attack.moveId &&
     (copiedSourceMove !== undefined ||
-      MOVE_DEFINITIONS.some((move) => move.id === copiedFromMoveId)) &&
+      mechanics.moves.some((move) => move.id === copiedFromMoveId)) &&
     (copiedDamageBonusPercent === undefined ||
       (Number.isFinite(copiedDamageBonusPercent) && copiedDamageBonusPercent >= 0)) &&
     (copiedDamageOverride === undefined ||
@@ -1984,13 +2008,18 @@ const validCopiedMoveAttackReference = (attack: AttackFrameReference) => {
   );
 };
 
+/* eslint-enable sonarjs/cognitive-complexity */
+
 // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
-const validCounterActionReference = (reference: CounterActionReference) => {
+const validCounterActionReference = (
+  reference: CounterActionReference,
+  mechanics: CombatMechanicsView,
+) => {
   const activationCost = reference.activationCost;
   const costModifier = reference.costModifier;
   const sourceAction = reference.sourceAction;
   return (
-    MOVE_DEFINITIONS.some((move) => move.id === reference.sourceDefinitionId) &&
+    mechanics.moves.some((move) => move.id === reference.sourceDefinitionId) &&
     validCounter(reference.sourceEffectIndex, 0) &&
     typeof reference.stopsTriggeringAttack === "boolean" &&
     typeof reference.ignoreRequirements === "boolean" &&
@@ -2016,26 +2045,28 @@ const validCounterActionReference = (reference: CounterActionReference) => {
 
 const validAttackCostFrameMetadata = (
   frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
+  mechanics: CombatMechanicsView,
 ) =>
   !("costEffectTrigger" in frame) ||
   (frame.costEffectTrigger !== undefined &&
     frame.costEffectSourceDefinitionId !== undefined &&
     frame.costEffectIndices !== undefined &&
     validRequiredIndexList(frame.costEffectIndices) &&
-    MOVE_DEFINITIONS.some((move) => move.id === frame.costEffectSourceDefinitionId));
+    mechanics.moves.some((move) => move.id === frame.costEffectSourceDefinitionId));
 
 const validBeforeDefenseEffectFrameMetadata = (
   frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
+  mechanics: CombatMechanicsView,
 ) =>
   !("beforeDefenseEffectChoices" in frame) ||
   frame.beforeDefenseEffectChoices === undefined ||
   (frame.beforeDefenseEffectChoices.length > 0 &&
     frame.beforeDefenseEffectChoices.every(
       (choice) =>
-        MOVE_DEFINITIONS.some((move) => move.id === choice.sourceDefinitionId) &&
+        mechanics.moves.some((move) => move.id === choice.sourceDefinitionId) &&
         validRequiredIndexList(choice.effectIndices) &&
         (choice.sacrificedMoveId === undefined ||
-          MOVE_DEFINITIONS.some((move) => move.id === choice.sacrificedMoveId)) &&
+          mechanics.moves.some((move) => move.id === choice.sacrificedMoveId)) &&
         ((choice.sourceActionId === undefined && choice.sourceMoveSnapshot === undefined) ||
           (choice.sourceActionId !== undefined &&
             combatDecisionIdSchema.safeParse(choice.sourceActionId).success &&
@@ -2044,7 +2075,10 @@ const validBeforeDefenseEffectFrameMetadata = (
             choice.sourceMoveSnapshot.mechanics.attack !== undefined)),
     ));
 
-const validAwaitingEffectChoiceSource = (frame: AwaitingEffectChoiceAttackFrame) =>
+const validAwaitingEffectChoiceSource = (
+  frame: AwaitingEffectChoiceAttackFrame,
+  mechanics: CombatMechanicsView,
+) =>
   frame.effectSourceDefinitionId === undefined
     ? frame.effectTrigger !== "on-move-use" &&
       frame.effectTrigger !== "on-cost-modified" &&
@@ -2053,7 +2087,7 @@ const validAwaitingEffectChoiceSource = (frame: AwaitingEffectChoiceAttackFrame)
         frame.effectTrigger === "on-move-use" ||
         frame.effectTrigger === "on-cost-modified" ||
         frame.effectTrigger === "on-damage") &&
-      MOVE_DEFINITIONS.some((move) => move.id === frame.effectSourceDefinitionId);
+      mechanics.moves.some((move) => move.id === frame.effectSourceDefinitionId);
 
 const suppressionSelectionPhaseFor = (
   state: Extract<FightState, { readonly status: "active" }>,
@@ -2095,6 +2129,7 @@ const validSelectedSuppressionMoves = (
     { readonly type: "attack"; readonly stage: "awaiting-effect-choice" }
   >,
   suppressionSelectionPhase: boolean,
+  mechanics: CombatMechanicsView,
 ) =>
   frame.selectedSuppressionMoves === undefined ||
   (suppressionSelectionPhase &&
@@ -2106,7 +2141,7 @@ const validSelectedSuppressionMoves = (
         selection.effectIndex >= 0 &&
         frame.enabledEffectIndices.includes(selection.effectIndex) &&
         typeof selection.moveId === "string" &&
-        MOVE_DEFINITIONS.some((move) => move.id === selection.moveId),
+        mechanics.moves.some((move) => move.id === selection.moveId),
     ));
 
 const validSelectedMoveTargets = (
@@ -2115,6 +2150,7 @@ const validSelectedMoveTargets = (
     { readonly type: "attack"; readonly stage: "awaiting-effect-choice" }
   >,
   selectionPhase: boolean,
+  mechanics: CombatMechanicsView,
 ) =>
   frame.selectedMoveTargets === undefined ||
   (selectionPhase &&
@@ -2126,7 +2162,7 @@ const validSelectedMoveTargets = (
         selection.effectIndex >= 0 &&
         frame.enabledEffectIndices.includes(selection.effectIndex) &&
         typeof selection.moveId === "string" &&
-        MOVE_DEFINITIONS.some((move) => move.id === selection.moveId),
+        mechanics.moves.some((move) => move.id === selection.moveId),
     ));
 
 const validAttackPendingBoundary = (
@@ -2153,12 +2189,13 @@ const validAttackResolutionFrame = (
   frame: Extract<ResolutionFrame, { readonly type: "attack" }>,
   // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
+  const mechanics = mechanicsFor(state);
   const validCopiedMoveReference =
-    !("attack" in frame) || validCopiedMoveAttackReference(frame.attack);
+    !("attack" in frame) || validCopiedMoveAttackReference(frame.attack, mechanics);
   const validCounterAction =
     !("counterAction" in frame) ||
     frame.counterAction === undefined ||
-    validCounterActionReference(frame.counterAction);
+    validCounterActionReference(frame.counterAction, mechanics);
   const common =
     combatDecisionIdSchema.safeParse(frame.decisionId).success &&
     isActiveCombatant(state, frame.attackerId) &&
@@ -2166,8 +2203,8 @@ const validAttackResolutionFrame = (
     frame.attackerId !== frame.targetCombatantId &&
     validCopiedMoveReference &&
     validCounterAction;
-  const costFrameMetadataValid = validAttackCostFrameMetadata(frame);
-  const beforeDefenseFrameMetadataValid = validBeforeDefenseEffectFrameMetadata(frame);
+  const costFrameMetadataValid = validAttackCostFrameMetadata(frame, mechanics);
+  const beforeDefenseFrameMetadataValid = validBeforeDefenseEffectFrameMetadata(frame, mechanics);
   if (
     !common ||
     !costFrameMetadataValid ||
@@ -2198,7 +2235,7 @@ const validAttackResolutionFrame = (
     frame.block === undefined ||
     (Number.isInteger(frame.block.cost) &&
       frame.block.cost >= 0 &&
-      MOVE_DEFINITIONS.some((move) => move.id === frame.block!.blockId));
+      mechanicsFor(state).moves.some((move) => move.id === frame.block!.blockId));
   const blockedDiceValid =
     frame.blockedDice === undefined ||
     (Number.isInteger(frame.blockedDice) &&
@@ -2253,8 +2290,9 @@ const validAttackResolutionFrame = (
   const selectedSuppressionMovesValid = validSelectedSuppressionMoves(
     frame,
     suppressionSelectionPhase,
+    mechanics,
   );
-  const effectSourceMove = MOVE_DEFINITIONS.find(
+  const effectSourceMove = mechanicsFor(state).moves.find(
     (move) => move.id === (frame.effectSourceDefinitionId ?? frame.attack.moveId),
   );
   const effectIndicesValid =
@@ -2271,7 +2309,7 @@ const validAttackResolutionFrame = (
       suppressionSelectionPhase || moveTargetSelectionPhase || replacementSelectionPhase,
     ) &&
     runtimeValue(frame.attack.type) === "move" &&
-    validAwaitingEffectChoiceSource(frame) &&
+    validAwaitingEffectChoiceSource(frame, mechanics) &&
     validRequiredIndexList(frame.effectIndices) &&
     effectIndicesValid &&
     naturalRollsValid &&
@@ -2285,7 +2323,7 @@ const validAttackResolutionFrame = (
     overrideValuesValid &&
     serializedReactionReferencesValid &&
     selectedSuppressionMovesValid &&
-    validSelectedMoveTargets(frame, moveTargetSelectionPhase)
+    validSelectedMoveTargets(frame, moveTargetSelectionPhase, mechanics)
   );
 };
 
@@ -2388,7 +2426,7 @@ const validCopyMoveSelectionFrame = (
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
   // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
-  const sourceMove = MOVE_DEFINITIONS.find(
+  const sourceMove = mechanicsFor(state).moves.find(
     (candidate) => candidate.id === frame.sourceDefinitionId,
   );
   const target = state.combatants[frame.targetCombatantId];
@@ -2416,7 +2454,7 @@ const validCopyMoveSelectionFrame = (
       frame.eligibleMoveIds !== undefined &&
       frame.eligibleMoveIds.length > 0 &&
       frame.eligibleMoveIds.every((moveId) => {
-        const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+        const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
         return (
           owner.moveIds.includes(moveId) &&
           move?.category === "advanced-attack" &&
@@ -2440,7 +2478,7 @@ const validCopyMoveSelectionFrame = (
           const move =
             action === undefined
               ? undefined
-              : MOVE_DEFINITIONS.find((candidate) => candidate.id === action.moveId);
+              : mechanicsFor(state).moves.find((candidate) => candidate.id === action.moveId);
           return (
             action !== undefined &&
             action.actorId !== frame.sourceCombatantId &&
@@ -2459,7 +2497,7 @@ const validCopyMoveSelectionFrame = (
     (priorSourceIds !== undefined
       ? frame.eligibleMoveIds?.every((moveId) => typeof moveId === "string") === true
       : frame.eligibleMoveIds?.every((moveId) => {
-          const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+          const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
           return (
             target.moveIds.includes(moveId) &&
             move?.category === "advanced-attack" &&
@@ -2473,7 +2511,7 @@ const validSelectedDamageTargetFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
 ) => {
-  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
+  const sourceMove = mechanicsFor(state).moves.find((move) => move.id === frame.sourceDefinitionId);
   const effect = sourceMove?.effects?.[frame.effectIndex];
   const target = state.combatants[frame.targetCombatantId];
   const eligibleMoveIds = frame.eligibleMoveIds;
@@ -2490,7 +2528,7 @@ const validSelectedDamageTargetFrame = (
   )
     return false;
   return eligibleMoveIds.every((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
     return (
       target.moveIds.includes(moveId) && move !== undefined && matchesMoveSelector(move, selector)
     );
@@ -2501,7 +2539,7 @@ const validSelectedTemporaryMoveRemovalFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
 ) => {
-  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
+  const sourceMove = mechanicsFor(state).moves.find((move) => move.id === frame.sourceDefinitionId);
   const effect = sourceMove?.effects?.[frame.effectIndex];
   const target = state.combatants[frame.targetCombatantId];
   const eligibleMoveIds = frame.eligibleMoveIds;
@@ -2517,7 +2555,7 @@ const validSelectedTemporaryMoveRemovalFrame = (
     return false;
   const selector = effect.selector;
   return eligibleMoveIds.every((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
     return (
       target.moveIds.includes(moveId) && move !== undefined && matchesMoveSelector(move, selector)
     );
@@ -2529,7 +2567,7 @@ const validSelectedSuppressionTargetFrame = (
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
   // eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 ) => {
-  const sourceMove = MOVE_DEFINITIONS.find((move) => move.id === frame.sourceDefinitionId);
+  const sourceMove = mechanicsFor(state).moves.find((move) => move.id === frame.sourceDefinitionId);
   const effect = sourceMove?.effects?.[frame.effectIndex];
   const target = state.combatants[frame.targetCombatantId];
   const eligibleMoveIds = frame.eligibleMoveIds;
@@ -2555,7 +2593,7 @@ const validSelectedSuppressionTargetFrame = (
     return false;
   const selector = effect.selector;
   return eligibleMoveIds.every((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
     return (
       target.moveIds.includes(moveId) && move !== undefined && matchesMoveSelector(move, selector)
     );
@@ -2566,7 +2604,7 @@ const validSelectedMoveTargetFrame = (
   state: FightState,
   frame: Extract<ResolutionFrame, { readonly type: "effect" }>,
 ) => {
-  const sourceMove = MOVE_DEFINITIONS.find(
+  const sourceMove = mechanicsFor(state).moves.find(
     (candidate) => candidate.id === frame.sourceDefinitionId,
   );
   const effect = sourceMove?.effects?.[frame.effectIndex];
@@ -2581,7 +2619,7 @@ const validSelectedMoveTargetFrame = (
     frame.eligibleMoveIds.every(
       (moveId) =>
         target.moveIds.includes(moveId) &&
-        MOVE_DEFINITIONS.some(
+        mechanicsFor(state).moves.some(
           (candidate) => candidate.id === moveId && matchesMoveSelector(candidate, effect.selector),
         ),
     )
@@ -2623,7 +2661,7 @@ const validEffectSelectionOperation = (
   if (frame.operation === "activate") {
     const target = state.combatants[frame.targetCombatantId];
     return eligibleMoveIds.every((moveId) => {
-      const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+      const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
       return (
         target.moveIds.includes(moveId) &&
         ((move?.category === "skill" && move.mechanics.activationClassification === "constant") ||
@@ -2637,7 +2675,7 @@ const validEffectSelectionOperation = (
     return validCopyMoveSelectionFrame(state, frame);
   }
   if (frame.operation === "replace-constant") {
-    const sourceMove = MOVE_DEFINITIONS.find(
+    const sourceMove = mechanicsFor(state).moves.find(
       (candidate) => candidate.id === frame.sourceDefinitionId,
     );
     const effect = sourceMove?.effects?.[frame.effectIndex];
@@ -2648,7 +2686,7 @@ const validEffectSelectionOperation = (
     const replacementSelectionValid =
       frame.replacementSourceMoveSnapshot === undefined
         ? eligibleMoveIds.every((moveId) => {
-            const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+            const move = mechanicsFor(state).moves.find((candidate) => candidate.id === moveId);
             return (
               opponent?.moveIds.includes(moveId) === true &&
               move?.category === "skill" &&
@@ -2761,7 +2799,7 @@ const validEffectChoiceFrame = (
       frame.storedRolls !== undefined &&
       frame.storedRolls.length > 0 &&
       frame.storedRolls.every((storedRoll) => {
-        const sourceMove = MOVE_DEFINITIONS.find(
+        const sourceMove = mechanicsFor(state).moves.find(
           (candidate) => candidate.id === storedRoll.sourceDefinitionId,
         );
         const sourceEffect = sourceMove?.effects?.find(
@@ -2879,18 +2917,38 @@ const validateFightMetadata = (
   state: FightState,
   combatantEntries: readonly [string, CombatantState][],
   violations: FightStateInvariantViolation[],
+  mechanics: CombatMechanicsView,
 ) => {
   if (
     state.schemaVersion !== undefined &&
     state.schemaVersion !== 1 &&
     state.schemaVersion !== 2 &&
     state.schemaVersion !== 3 &&
-    state.schemaVersion !== 4
+    state.schemaVersion !== 4 &&
+    state.schemaVersion !== 5
   ) {
     addViolation(
       violations,
       "invalid-schema-version",
-      "Fight state schema version must be 1, 2, 3, or 4 when present.",
+      "Fight state schema version must be 1, 2, 3, 4, or 5 when present.",
+    );
+  }
+  if (state.schemaVersion === 5 && state.mechanicsView === undefined) {
+    addViolation(
+      violations,
+      "invalid-mechanics-view",
+      "Schema version 5 fight state must retain a mechanics-view identity.",
+    );
+  }
+  if (
+    state.mechanicsView !== undefined &&
+    (state.mechanicsView.schemaVersion !== mechanics.identity.schemaVersion ||
+      state.mechanicsView.contentHash !== mechanics.identity.contentHash)
+  ) {
+    addViolation(
+      violations,
+      "invalid-mechanics-view",
+      "Fight state mechanics-view identity does not match the supplied mechanics view.",
     );
   }
   if (!validCounter(state.version, 0)) {
@@ -2968,16 +3026,16 @@ const validScheduledWork = (
   return validScheduledOperation(state, work) && finiteNumbersOnly(work);
 };
 
-const validMoveDefinition = (sourceDefinitionId: string | undefined): boolean =>
+const validMoveDefinition = (state: FightState, sourceDefinitionId: string | undefined): boolean =>
   sourceDefinitionId !== undefined &&
-  MOVE_DEFINITIONS.some((move) => move.id === sourceDefinitionId);
+  mechanicsFor(state).moves.some((move) => move.id === sourceDefinitionId);
 
 const validScheduledResourceOperation = (
   state: FightState,
   work: ScheduledCombatWork,
   operation: Extract<ScheduledCombatOperation, { readonly type: "resource" }>,
 ): boolean =>
-  validMoveDefinition(work.sourceDefinitionId) &&
+  validMoveDefinition(state, work.sourceDefinitionId) &&
   (operation.resource === "hp" || operation.resource === "ki") &&
   (operation.operation === "damage" ||
     operation.operation === "drain" ||
@@ -3014,10 +3072,11 @@ const validScheduledPhaseOperation = (
   state.combatants[operation.activeCombatantId] !== undefined;
 
 const validScheduledExtraActionOperation = (
+  state: FightState,
   work: ScheduledCombatWork,
   operation: Extract<ScheduledCombatOperation, { readonly type: "extra-action" }>,
 ): boolean =>
-  validMoveDefinition(work.sourceDefinitionId) &&
+  validMoveDefinition(state, work.sourceDefinitionId) &&
   (operation.phase === "action" || operation.phase === "upkeep") &&
   typeof operation.sourceMoveOnly === "boolean" &&
   Number.isInteger(operation.remainingActions) &&
@@ -3034,7 +3093,7 @@ const validScheduledCounterOperation = (
   Number.isInteger(operation.chainDepth) &&
   operation.chainDepth >= 1 &&
   operation.chainDepth <=
-    GLOBAL_RULES.combat.engineeringSafeguards.maximumConsecutiveCounterAttacks &&
+    mechanicsFor(state).rules.combat.engineeringSafeguards.maximumConsecutiveCounterAttacks &&
   resolutionFrameIdSchema.safeParse(operation.returnFrameId).success &&
   state.resolutionFrames.some((frame) => frame.id === operation.returnFrameId) &&
   combatDecisionIdSchema.safeParse(operation.sourceActionId).success;
@@ -3051,8 +3110,8 @@ const validScheduledDeferredMoveOperation = (
   work: ScheduledCombatWork,
   operation: Extract<ScheduledCombatOperation, { readonly type: "deferred-move" }>,
 ): boolean =>
-  validMoveDefinition(work.sourceDefinitionId) &&
-  MOVE_DEFINITIONS.some((move) => move.id === operation.moveId) &&
+  validMoveDefinition(state, work.sourceDefinitionId) &&
+  mechanicsFor(state).moves.some((move) => move.id === operation.moveId) &&
   Number.isInteger(operation.sourceEffectIndex) &&
   operation.sourceEffectIndex >= 0 &&
   combatDecisionIdSchema.safeParse(operation.declarationDecisionId).success &&
@@ -3074,7 +3133,7 @@ const validScheduledOperation = (state: FightState, work: ScheduledCombatWork): 
     case "skip-action":
       return operation.reason === "status" || operation.reason === "effect";
     case "extra-action":
-      return validScheduledExtraActionOperation(work, operation);
+      return validScheduledExtraActionOperation(state, work, operation);
     case "counter":
       return validScheduledCounterOperation(state, operation);
     case "resume-frame":
@@ -3201,7 +3260,7 @@ const validPendingDecision = (state: ActiveFightState) => {
         }
         const separator = candidate.id.lastIndexOf(":");
         if (separator <= 0) return false;
-        const sourceMove = MOVE_DEFINITIONS.find(
+        const sourceMove = mechanicsFor(state).moves.find(
           (move) => move.id === candidate.id.slice(0, separator),
         );
         const effectIndex = Number(candidate.id.slice(separator + 1));
@@ -3431,15 +3490,18 @@ const validateCompletedFight = (
  * Checks the invariants shared by all current initial 1v1 fight states. This
  * remains internal so future transition functions cannot emit a corrupt state.
  */
-export const validateFightState = (state: FightState): readonly FightStateInvariantViolation[] => {
+export const validateFightState = (
+  state: FightState,
+  mechanics: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
+): readonly FightStateInvariantViolation[] => {
   const violations: FightStateInvariantViolation[] = [];
   const combatantEntries = Object.entries(state.combatants);
 
-  validateFightMetadata(state, combatantEntries, violations);
+  validateFightMetadata(state, combatantEntries, violations, mechanics);
   validateScheduledWork(state, violations);
 
   for (const [recordId, combatant] of combatantEntries) {
-    validateCombatant(recordId, combatant, state.turnNumber, violations);
+    validateCombatant(state, recordId, combatant, state.turnNumber, violations);
     validateCombatantReferences(state, combatant, violations);
   }
   validateActiveEffects(state, violations);

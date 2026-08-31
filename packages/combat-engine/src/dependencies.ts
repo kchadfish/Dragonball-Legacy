@@ -9,6 +9,7 @@ import type {
   ScheduledWorkId,
 } from "./ids.js";
 import type { CalculationTraceEntry, CalculationTraceSink } from "./calculation-pipeline.js";
+import { mechanicsViewFor, type CombatMechanicsView } from "./mechanics-view.js";
 
 const maximumUint32 = 2 ** 32;
 
@@ -261,7 +262,11 @@ export interface CombatDependencies {
   readonly retainDiagnosticTrace?: boolean;
   /** Ephemeral sink installed by a public transition while diagnostics are requested. */
   readonly diagnosticTraceSink?: CalculationTraceSink;
+  /** The immutable catalog/configuration environment for this transition. */
+  readonly mechanicsView?: CombatMechanicsView;
 }
+
+export { mechanicsViewFor };
 
 export interface BranchCombatDependencies extends CombatDependencies {
   readonly branchPath: readonly string[];

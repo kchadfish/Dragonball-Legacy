@@ -5,6 +5,7 @@ import type {
   CombatantId,
   FightState,
   LegalDecision,
+  MechanicsViewIdentity,
   PendingDecision,
   StrategicContextSummary,
 } from "@dragonball-resurgence/combat-engine";
@@ -193,6 +194,8 @@ export interface VersionedMechanicsCatalog<TEntry> {
 
 export interface AiMechanicsView {
   readonly version: string;
+  /** Present for combat-owned views; legacy advisory fixtures may omit it. */
+  readonly identity?: MechanicsViewIdentity;
   readonly moves: readonly AiMoveMechanics[];
   readonly items: readonly AiItemMechanics[];
   readonly transformations: readonly AiTransformationMechanics[];
@@ -303,6 +306,11 @@ export type AiFeatureExtractionFailure =
       readonly message: string;
     }
   | {
+      readonly type: "mechanics-view-mismatch";
+      readonly expected: string;
+      readonly actual?: string;
+    }
+  | {
       readonly type: "descriptor-decision-mismatch";
       readonly field: "key" | "type" | "category" | "pending-decision";
       readonly expected: string;
@@ -326,6 +334,7 @@ export interface AiDependencies {
 }
 
 export interface AiAnalysisFacade {
+  readonly capabilities?: AiAnalysisCapabilities;
   readonly describeDecision: (
     state: FightState,
     decision: LegalDecision,
@@ -336,6 +345,18 @@ export interface AiAnalysisFacade {
     dependencies?: import("@dragonball-resurgence/combat-engine").CombatDependencies,
   ) => CombatResult<CombatAnalysisProbe>;
 }
+
+export interface AiAnalysisCapabilities {
+  readonly descriptors: boolean;
+  readonly expectedOutcomes: boolean;
+  readonly pruning: boolean;
+  readonly setupInference: boolean;
+  readonly lookaheadDepth: number;
+  readonly opponentModeling: boolean;
+  readonly pendingExpansion: boolean;
+}
+
+export type AiEffectiveAnalysisCapabilities = AiAnalysisCapabilities;
 
 export type AiImmediateAnalysisFacade = Pick<AiAnalysisFacade, "describeDecision">;
 
@@ -351,6 +372,7 @@ export interface AiDecisionRequest {
   readonly workLimits?: Partial<AiWorkLimits>;
   readonly opponentProfile?: AiProfile;
   readonly advisoryPriorities?: AiAdvisoryPriorities;
+  readonly advisoryHints?: "enabled" | "disabled";
 }
 
 export interface AiImmediateUtilityRequest extends Omit<AiDecisionRequest, "analysis"> {
@@ -415,6 +437,7 @@ export interface AiDiagnostics {
   readonly budget?: AiBudgetUsage;
   readonly searchPaths?: readonly AiSearchPath[];
   readonly setupEdges?: readonly AiSetupEdge[];
+  readonly effectiveAnalysisCapabilities?: AiEffectiveAnalysisCapabilities;
 }
 
 export interface AiBudgetUsage {
@@ -482,6 +505,18 @@ export type AiFailure =
   | {
       readonly type: "invalid-request";
       readonly issues: readonly AiRequestIssue[];
+    }
+  | {
+      readonly type: "insufficient-analysis-capabilities";
+      readonly profileId: string;
+      readonly requiredLookaheadDepth: number;
+      readonly effective: AiEffectiveAnalysisCapabilities;
+      readonly missing: readonly string[];
+    }
+  | {
+      readonly type: "mechanics-view-mismatch";
+      readonly expected: string;
+      readonly actual?: string;
     }
   | {
       readonly type: "candidate-analysis-failure";

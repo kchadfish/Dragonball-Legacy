@@ -1,11 +1,4 @@
-import {
-  GENERIC_CLASS_DEFINITIONS,
-  MOVE_DEFINITIONS,
-  RACE_DEFINITIONS,
-  TRANSFORMATION_DEFINITIONS,
-  type EffectDefinition,
-  type MoveDefinition,
-} from "@dragonball-resurgence/game-data";
+import type { EffectDefinition, MoveDefinition } from "@dragonball-resurgence/game-data";
 
 import {
   moveEffectsForTrigger,
@@ -15,6 +8,7 @@ import {
 } from "./move-effects-runtime.js";
 import { combatTriggers, type CombatTrigger } from "./condition-executors.js";
 import type { CombatantState, CombatSourceReference } from "./contracts.js";
+import { mechanicsViewFor, type CombatMechanicsView } from "./mechanics-view.js";
 
 export type CombatEffectSourceKind =
   | "action-move"
@@ -97,9 +91,11 @@ const sourceForDefinition = (
 export const combatTriggerSourcesFor = (
   combatant: CombatantState,
   owner: "self" | "opponent",
+  mechanicsView?: CombatMechanicsView,
 ): readonly CombatTriggerSource[] => {
+  const mechanics = mechanicsViewFor(mechanicsView);
   const sources: CombatTriggerSource[] = combatant.moveIds.flatMap((moveId) => {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === moveId);
+    const move = mechanics.indexes.moves.get(moveId);
     return move === undefined
       ? []
       : [
@@ -112,9 +108,7 @@ export const combatTriggerSourcesFor = (
         ];
   });
   for (const traitId of combatant.raceTraitIds ?? []) {
-    const trait = RACE_DEFINITIONS.flatMap((race) => race.racialTraits).find(
-      (candidate) => candidate.id === traitId,
-    );
+    const trait = mechanics.indexes.raceTraits.get(traitId);
     const source =
       trait === undefined
         ? undefined
@@ -122,12 +116,8 @@ export const combatTriggerSourcesFor = (
     if (source !== undefined) sources.push(source);
   }
   if (combatant.classId !== undefined) {
-    const raceClass = RACE_DEFINITIONS.flatMap((race) => race.classes).find(
-      (candidate) => candidate.id === combatant.classId,
-    );
-    const genericClass = GENERIC_CLASS_DEFINITIONS.find(
-      (candidate) => candidate.id === combatant.classId,
-    );
+    const raceClass = mechanics.indexes.raceClasses.get(combatant.classId);
+    const genericClass = mechanics.indexes.genericClasses.get(combatant.classId);
     const selected = raceClass ?? genericClass;
     const kind = raceClass === undefined ? "generic-class" : "race-class";
     const source =
@@ -137,8 +127,8 @@ export const combatTriggerSourcesFor = (
     if (source !== undefined) sources.push(source);
   }
   if (combatant.transformation !== undefined) {
-    const transformation = TRANSFORMATION_DEFINITIONS.find(
-      (candidate) => candidate.id === combatant.transformation?.transformationId,
+    const transformation = mechanics.indexes.transformations.get(
+      combatant.transformation.transformationId,
     );
     const mastery = combatant.transformationProfiles?.find(
       (profile) => profile.transformationId === combatant.transformation?.transformationId,

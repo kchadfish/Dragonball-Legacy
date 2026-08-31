@@ -43,7 +43,11 @@ describe("AI evaluator registry", () => {
           (entry) =>
             entry.surface === "select-source-action" || entry.surface === "select-source-effect",
         )
-        .every((entry) => entry.classification === "baseline" && entry.proofTarget !== undefined),
+        .every(
+          (entry) =>
+            entry.classification === "contract-accounted-not-currently-emitted" &&
+            entry.proofTarget !== undefined,
+        ),
     ).toBe(true);
     expect(
       allAiEvaluatorRegistryEntries.every(

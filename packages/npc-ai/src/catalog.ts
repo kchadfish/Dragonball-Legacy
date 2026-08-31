@@ -1,9 +1,13 @@
 import {
+  CANONICAL_COMBAT_MECHANICS_VIEW,
+  type CombatMechanicsView,
+} from "@dragonball-resurgence/combat-engine";
+import {
   HARD_PROFILE,
   NORMAL_PROFILE,
   SIMULATION_QUALITY_PROFILE,
 } from "@dragonball-resurgence/ai-engine";
-import { MOVE_DEFINITIONS, NPC_DEFINITIONS, type NpcId } from "@dragonball-resurgence/game-data";
+import { NPC_DEFINITIONS, type NpcId } from "@dragonball-resurgence/game-data";
 
 import { validateNpcAiPolicy } from "./index.js";
 import type { NpcAiPolicy, NpcAiPolicyProvenance, NpcAiPolicyValidationIssue } from "./index.js";
@@ -194,8 +198,10 @@ export interface NpcPolicyCatalogValidationResult {
   readonly issues: readonly NpcAiPolicyValidationIssue[];
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- catalog validation reports independent drift classes together.
-export const validateNpcPolicyCatalog = (): NpcPolicyCatalogValidationResult => {
+/* eslint-disable sonarjs/cognitive-complexity -- Catalog validation reports independent drift classes together. */
+export const validateNpcPolicyCatalog = (
+  mechanics: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
+): NpcPolicyCatalogValidationResult => {
   const issues: NpcAiPolicyValidationIssue[] = [];
   const catalogIds = new Set<string>();
   for (const candidate of NPC_POLICY_CATALOG) {
@@ -210,7 +216,7 @@ export const validateNpcPolicyCatalog = (): NpcPolicyCatalogValidationResult => 
     ])
       if (priority.type === "signature-conservation")
         for (const moveId of priority.moveIds)
-          if (!MOVE_DEFINITIONS.some((move) => move.id === moveId))
+          if (!mechanics.indexes.moves.has(moveId))
             issues.push({ path: candidate.id, message: `Unknown move priority: ${moveId}.` });
   }
   for (const npc of NPC_DEFINITIONS) {
@@ -232,3 +238,5 @@ export const validateNpcPolicyCatalog = (): NpcPolicyCatalogValidationResult => 
   }
   return { ok: issues.length === 0, issues };
 };
+
+/* eslint-enable sonarjs/cognitive-complexity */

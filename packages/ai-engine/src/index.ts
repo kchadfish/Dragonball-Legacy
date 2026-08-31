@@ -1,4 +1,5 @@
 export * from "./contracts.js";
+export * from "./capabilities.js";
 export * from "./random.js";
 export * from "./safe-fallback.js";
 export * from "./feature-extraction.js";

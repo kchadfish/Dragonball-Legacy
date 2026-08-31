@@ -1,17 +1,20 @@
 /* eslint-disable sonarjs/cognitive-complexity, complexity -- readiness intentionally reports all blocking mechanics in one immutable assessment. */
-import type { CreateFightInput } from "@dragonball-resurgence/combat-engine";
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 import {
-  ITEM_DEFINITIONS,
+  CANONICAL_COMBAT_MECHANICS_VIEW,
+  type CombatMechanicsView,
+  type CreateFightInput,
+} from "@dragonball-resurgence/combat-engine";
+import {
   NPC_DEFINITIONS,
-  RACE_DEFINITIONS,
-  TRANSFORMATION_DEFINITIONS,
   type NpcDefinition,
   type NpcId,
   type SourceNumericValue,
 } from "@dragonball-resurgence/game-data";
 
 export const NPC_NORMALIZATION_VERSION = "npc-normalization:v1";
+
+const mechanicsFor = (mechanics: CombatMechanicsView | undefined) =>
+  mechanics ?? CANONICAL_COMBAT_MECHANICS_VIEW;
 
 export type NpcReadinessReason =
   | "missing-combat-profile"
@@ -88,12 +91,16 @@ const stableKey = (value: string): string =>
 const uniqueMatches = <T>(values: readonly T[], predicate: (value: T) => boolean): readonly T[] =>
   values.filter(predicate);
 
-const raceFor = (npc: NpcDefinition, overlay: NpcNormalizationOverlay | undefined) => {
+const raceFor = (
+  npc: NpcDefinition,
+  overlay: NpcNormalizationOverlay | undefined,
+  mechanics: CombatMechanicsView,
+) => {
   const requested = overlay?.raceId ?? npc.raceId;
-  if (requested !== undefined) return RACE_DEFINITIONS.find((race) => race.id === requested);
+  if (requested !== undefined) return mechanics.indexes.races.get(requested);
   if (npc.raceName === undefined) return undefined;
   const matches = uniqueMatches(
-    RACE_DEFINITIONS,
+    mechanics.races,
     (race) => stableKey(race.name) === stableKey(npc.raceName!),
   );
   return matches.length === 1 ? matches[0] : undefined;
@@ -144,11 +151,11 @@ const dexterityBonusFor = (allocation: number | undefined): number | undefined =
   return [...bands].reverse().find(([minimum]) => allocation >= minimum)?.[1] ?? -4;
 };
 
-const transformationFor = (text: string) => {
+const transformationFor = (text: string, mechanics: CombatMechanicsView) => {
   const bracketIndex = text.lastIndexOf("[");
   const name = (bracketIndex < 0 ? text : text.slice(0, bracketIndex)).trim();
   const matches = uniqueMatches(
-    TRANSFORMATION_DEFINITIONS,
+    mechanics.transformations,
     (transformation) => stableKey(transformation.name) === stableKey(name),
   );
   return matches.length === 1 ? matches[0] : undefined;
@@ -194,6 +201,7 @@ export const assessNpcReadiness = (
   npc: NpcDefinition,
   overlay: NpcNormalizationOverlay | undefined = normalizationOverlayFor(npc.id),
   effectivePolicyId?: string,
+  mechanics: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
 ): NpcReadinessResult => {
   const profile = npc.combatProfile;
   const issues: NpcReadinessIssue[] = [];
@@ -239,7 +247,7 @@ export const assessNpcReadiness = (
       ),
     );
 
-  const race = raceFor(npc, overlay);
+  const race = raceFor(npc, overlay, mechanics);
   if (
     (npc.raceId !== undefined || npc.raceName !== undefined || overlay?.raceId !== undefined) &&
     race === undefined
@@ -254,12 +262,12 @@ export const assessNpcReadiness = (
     issues.push(issueFor(npc, "unresolved-move", `Move is unresolved: ${move}.`));
   const resolvedItems = (overlay?.itemIds ?? []).concat(
     (profile?.equipmentNames ?? []).flatMap((name) => {
-      const matches = ITEM_DEFINITIONS.filter((item) => stableKey(item.name) === stableKey(name));
+      const matches = mechanics.items.filter((item) => stableKey(item.name) === stableKey(name));
       return matches.length === 1 ? [matches[0].id] : [];
     }),
   );
   const unresolvedItems = (profile?.equipmentNames ?? []).filter(
-    (name) => !ITEM_DEFINITIONS.some((item) => stableKey(item.name) === stableKey(name)),
+    (name) => !mechanics.items.some((item) => stableKey(item.name) === stableKey(name)),
   );
   for (const item of unresolvedItems)
     issues.push(issueFor(npc, "unknown-equipment", `Equipment is unresolved: ${item}.`));
@@ -268,12 +276,12 @@ export const assessNpcReadiness = (
     profile?.transformationText === undefined ? [] : [profile.transformationText];
   const resolvedTransformations = (overlay?.transformationIds ?? []).concat(
     transformationNames.flatMap((text) => {
-      const transformation = transformationFor(text);
+      const transformation = transformationFor(text, mechanics);
       return transformation === undefined ? [] : [transformation.id];
     }),
   );
   const unresolvedTransformations = transformationNames.filter(
-    (text) => transformationFor(text) === undefined,
+    (text) => transformationFor(text, mechanics) === undefined,
   );
   for (const transformation of unresolvedTransformations)
     issues.push(
@@ -318,14 +326,24 @@ export const assessNpcReadiness = (
 
 export const npcReadinessMatrix = (
   effectivePolicyFor?: (npcId: NpcId) => string | undefined,
+  mechanics?: CombatMechanicsView,
 ): readonly NpcReadinessRow[] =>
   NPC_DEFINITIONS.map((npc) => {
     const policyId = effectivePolicyFor?.(npc.id);
-    const result = assessNpcReadiness(npc, normalizationOverlayFor(npc.id), policyId);
+    const result = assessNpcReadiness(
+      npc,
+      normalizationOverlayFor(npc.id),
+      policyId,
+      mechanicsFor(mechanics),
+    );
     return result.ok ? result.value : result.row;
   });
 
-export const materializeNpcCombatant = (npcId: NpcId): NpcCombatantMaterialization => {
+export const materializeNpcCombatant = (
+  npcId: NpcId,
+  mechanics?: CombatMechanicsView,
+): NpcCombatantMaterialization => {
+  const boundMechanics = mechanicsFor(mechanics);
   const npc = NPC_DEFINITIONS.find((candidate) => candidate.id === npcId);
   if (npc === undefined)
     return {
@@ -340,16 +358,16 @@ export const materializeNpcCombatant = (npcId: NpcId): NpcCombatantMaterializati
       ],
     };
   const overlay = normalizationOverlayFor(npcId);
-  const readiness = assessNpcReadiness(npc, overlay);
+  const readiness = assessNpcReadiness(npc, overlay, undefined, boundMechanics);
   if (!readiness.ok) return { ok: false, npcId, issues: readiness.row.issues };
   const profile = npc.combatProfile!;
-  const race = raceFor(npc, overlay);
+  const race = raceFor(npc, overlay, boundMechanics);
   const styleId = styleIdFor(npc, overlay);
   const dexterityBonus = dexterityBonusFor(overlay?.dexterityAllocationPercent)!;
   const transformations =
     profile.transformationText === undefined ? [] : [profile.transformationText];
   const transformationProfiles = transformations.map((text) => ({
-    transformationId: transformationFor(text)!.id,
+    transformationId: transformationFor(text, boundMechanics)!.id,
     rollSides: transformationRollSidesFor(text) ?? 20,
     mastery: "novice" as const,
   }));
@@ -361,8 +379,8 @@ export const materializeNpcCombatant = (npcId: NpcId): NpcCombatantMaterializati
         power: numericValue(profile.power)!,
         dexterity: numericValue(profile.dexterity)!,
         dexterityBonus: Math.max(
-          GLOBAL_RULES.combat.minimumDexterityBonus,
-          Math.min(GLOBAL_RULES.combat.maximumDexterityBonus, dexterityBonus),
+          boundMechanics.rules.combat.minimumDexterityBonus,
+          Math.min(boundMechanics.rules.combat.maximumDexterityBonus, dexterityBonus),
         ),
       },
       ...(race === undefined ? {} : { raceId: race.id }),

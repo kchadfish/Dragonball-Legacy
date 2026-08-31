@@ -14,6 +14,7 @@ import {
   type ScoreFactorBasis,
 } from "./contracts.js";
 import { extractDecisionFeatures } from "./feature-extraction.js";
+import { mechanicsViewMismatchFor } from "./safe-fallback.js";
 import { descriptorIsUsable, evaluateImmediateCandidate } from "./immediate-utility.js";
 import { advisoryFactorsFor, validateAiAdvisoryPriorities } from "./advisory.js";
 
@@ -362,6 +363,8 @@ const contextualEvaluationFor = (
 export const selectContextualDecision = (
   request: AiDecisionRequest,
 ): AiResult<AiDecisionResult> => {
+  const mechanicsMismatch = mechanicsViewMismatchFor(request);
+  if (mechanicsMismatch !== undefined) return { ok: false, error: mechanicsMismatch };
   if (request.advisoryPriorities !== undefined) {
     const advisory = validateAiAdvisoryPriorities(request.advisoryPriorities);
     if (!advisory.ok)

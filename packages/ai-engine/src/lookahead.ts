@@ -2,7 +2,8 @@
 import {
   canonicalDecisionKey,
   createBranchCombatDependencies,
-  enumerateAnalysisDecisions,
+  createCombatSemanticProgressIdentity,
+  getCombatDecisionPoint,
   type FightState,
 } from "@dragonball-resurgence/combat-engine";
 
@@ -17,16 +18,11 @@ import type {
 import { canonicalHash } from "./canonicalization.js";
 import { resolveDifficultySettings } from "./profiles.js";
 import { selectStrategicDecision } from "./strategic-utility.js";
+import { mechanicsViewMismatchFor } from "./safe-fallback.js";
 
 export type AiLookaheadResult = AiDecisionResult;
 
 const use = (used: number, limit: number): boolean => used < limit;
-
-const actorForPending = (state: FightState): string => {
-  if (state.status !== "active") return "";
-  const pending = state.pendingDecision as unknown as { readonly actorId?: string } | undefined;
-  return pending?.actorId ?? state.activeCombatantId;
-};
 
 const responseValue = (
   state: FightState,
@@ -46,8 +42,11 @@ const responseValue = (
       nodes: 0,
       probes: 0,
     };
-  const actorId = actorForPending(state) as AiDecisionRequest["actorId"];
-  const legal = enumerateAnalysisDecisions(state, actorId);
+  const decisionPoint = getCombatDecisionPoint(state);
+  if (decisionPoint.type !== "decision-required")
+    return { value: 0, paths: [], nodes: 0, probes: 0 };
+  const actorId = decisionPoint.actorId;
+  const legal = decisionPoint.legalDecisions;
   if (legal.length === 0 || request.analysis?.probeDecision === undefined)
     return { value: 0, paths: [], nodes: 0, probes: 0 };
   const response = selectStrategicDecision({
@@ -75,6 +74,8 @@ const responseValue = (
 export const selectLookaheadDecision = (
   request: AiDecisionRequest,
 ): AiResult<AiLookaheadResult> => {
+  const mechanicsMismatch = mechanicsViewMismatchFor(request);
+  if (mechanicsMismatch !== undefined) return { ok: false, error: mechanicsMismatch };
   const difficulty = resolveDifficultySettings(request.profile.difficulty);
   const baseline = selectStrategicDecision({ ...request, diagnosticRetention: "full" });
   if (!baseline.ok) return baseline;
@@ -87,7 +88,9 @@ export const selectLookaheadDecision = (
   let probes = 0;
   const paths: AiSearchPath[] = [];
   const searchValues = new Map<string, number>();
-  const stateHashes = new Set<string>([canonicalHash(request.state)]);
+  const stateHashes = new Set<string>([
+    createCombatSemanticProgressIdentity(request.state).canonicalState,
+  ]);
   const candidates = [...evaluations]
     .filter((evaluation) => evaluation.pruning === "retained" || evaluation.pruning === "protected")
     .slice(0, Math.max(1, request.workLimits?.candidateLimit ?? difficulty.candidateLimit))
@@ -114,8 +117,13 @@ export const selectLookaheadDecision = (
       use(nodes, limits.nodes) &&
       use(probes, limits.probes)
     ) {
-      const pendingActor = actorForPending(successor) as AiDecisionRequest["actorId"];
-      const legal = enumerateAnalysisDecisions(successor, pendingActor);
+      const decisionPoint = getCombatDecisionPoint(successor);
+      if (decisionPoint.type !== "decision-required") {
+        completed = false;
+        break;
+      }
+      const pendingActor = decisionPoint.actorId;
+      const legal = decisionPoint.legalDecisions;
       if (legal.length === 0) {
         completed = false;
         break;
@@ -142,11 +150,12 @@ export const selectLookaheadDecision = (
       successor = pendingProbe.value.successorState;
       path.push(canonicalDecisionKey(pendingDecision));
     }
+    const semanticIdentity = createCombatSemanticProgressIdentity(successor);
     const stateHash = canonicalHash(successor);
-    if (stateHashes.has(stateHash)) {
+    if (stateHashes.has(semanticIdentity.canonicalState)) {
       completed = false;
     }
-    stateHashes.add(stateHash);
+    stateHashes.add(semanticIdentity.canonicalState);
     const response = responseValue(
       successor,
       request,
@@ -180,7 +189,10 @@ export const selectLookaheadDecision = (
     },
     outcomes: {
       used: candidates.reduce((total, candidate) => total + (candidate.outcomes?.length ?? 0), 0),
-      limit: request.workLimits?.outcomeLimit ?? candidates.length,
+      limit:
+        request.workLimits?.outcomeLimit ??
+        baseline.value.diagnostics?.budget?.outcomes.limit ??
+        Number.MAX_SAFE_INTEGER,
     },
     nodes: { used: nodes, limit: limits.nodes },
     probes: { used: probes, limit: limits.probes },

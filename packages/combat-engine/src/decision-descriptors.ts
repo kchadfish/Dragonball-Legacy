@@ -1,12 +1,9 @@
 /* eslint-disable sonarjs/no-nested-conditional */
-import {
-  ITEM_DEFINITIONS,
-  MOVE_DEFINITIONS,
-  type ItemDefinition,
-  type MoveDefinition,
-  type NumericExpression,
+import type {
+  ItemDefinition,
+  MoveDefinition,
+  NumericExpression,
 } from "@dragonball-resurgence/game-data";
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
 
 import type { ActiveFightState, FightState, LegalDecision, PendingDecision } from "./contracts.js";
 import { compileEffectPlan } from "./effect-executors.js";
@@ -23,6 +20,12 @@ import type { CombatantId } from "./ids.js";
 import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
 import { calculateAttackDamage } from "./combat-mechanics.js";
 import { strategicContextFor, type StrategicContextSummary } from "./strategic-context.js";
+import {
+  mechanicsViewFor,
+  mechanicsViewForState,
+  mechanicsViewMatchesState,
+  type CombatMechanicsView,
+} from "./mechanics-view.js";
 
 export type DecisionCategory =
   | "pass"
@@ -379,7 +382,7 @@ const actionConsumptionFor = (
 ): DecisionActionConsumption => {
   if (decision.type === "respond-to-pending-decision") return "response";
   if (decision.type === "use-item") {
-    const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === decision.itemId);
+    const item = mechanicsViewForState(state).indexes.items.get(decision.itemId);
     const timing = item === undefined ? undefined : itemUsePolicyFor(item)?.timing;
     return timing === "free" ? "free" : "action";
   }
@@ -393,13 +396,16 @@ const actionConsumptionFor = (
   return "action";
 };
 
-const effectsFor = (decision: LegalDecision): readonly DecisionEffectFact[] => {
+const effectsFor = (
+  state: ActiveFightState,
+  decision: LegalDecision,
+): readonly DecisionEffectFact[] => {
   if (decision.type === "use-move") {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+    const move = mechanicsViewForState(state).indexes.moves.get(decision.moveId);
     return move === undefined ? [] : compiledMoveEffects(move);
   }
   if (decision.type === "use-item") {
-    const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === decision.itemId);
+    const item = mechanicsViewForState(state).indexes.items.get(decision.itemId);
     return item === undefined ? [] : compiledItemEffects(item);
   }
   return [];
@@ -422,13 +428,16 @@ type SummaryEffect = {
   };
 };
 
-const summaryEffectsFor = (decision: LegalDecision): readonly SummaryEffect[] => {
+const summaryEffectsFor = (
+  state: ActiveFightState,
+  decision: LegalDecision,
+): readonly SummaryEffect[] => {
   if (decision.type === "use-move") {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+    const move = mechanicsViewForState(state).indexes.moves.get(decision.moveId);
     return (move?.effects ?? []) as readonly SummaryEffect[];
   }
   if (decision.type === "use-item") {
-    const item = ITEM_DEFINITIONS.find((candidate) => candidate.id === decision.itemId);
+    const item = mechanicsViewForState(state).indexes.items.get(decision.itemId);
     return (item?.effects ?? []) as readonly SummaryEffect[];
   }
   return [];
@@ -443,7 +452,9 @@ const tacticalSetupFor = (
     ["status", "control", "resource", "transformation"].includes(effect.category),
   );
   if (setupEffect === undefined) return undefined;
-  const summary = summaryEffectsFor(decision).find((effect) => effect.type === setupEffect.type);
+  const summary = summaryEffectsFor(state, decision).find(
+    (effect) => effect.type === setupEffect.type,
+  );
   const targetRelation = summary?.target === "opponent" ? "opponent" : "self";
   const controlImpact =
     setupEffect.category === "resource"
@@ -496,7 +507,9 @@ const summaryNumericContextFor = (state: ActiveFightState, decision: LegalDecisi
     completedTurnCount: state.turnNumber - 1,
     actionHistory: state.actionHistory,
     activeEffects: state.activeEffects,
-    moves: new Map(MOVE_DEFINITIONS.map((candidate) => [candidate.id, candidate])),
+    moves: new Map(
+      mechanicsViewForState(state).moves.map((candidate) => [candidate.id, candidate]),
+    ),
     moveActivationCounts: new Map(
       state.actionHistory
         .filter((action) => action.type === "use-move")
@@ -551,7 +564,7 @@ const immediateOutcomeFor = (
     certainty: "guaranteed",
   }));
   if (decision.type === "power-up") {
-    const declared = GLOBAL_RULES.combat.powerUpKiGain;
+    const declared = mechanicsViewForState(state).rules.combat.powerUpKiGain;
     const effective = Math.min(declared, Math.max(0, actor.ki.maximum - actor.ki.current));
     resources.push({
       target: "self",
@@ -654,7 +667,7 @@ const immediateOutcomeFor = (
     }
   };
 
-  const summaryEffects = summaryEffectsFor(decision);
+  const summaryEffects = summaryEffectsFor(state, decision);
   for (const cost of summaryEffects) {
     const amount = summaryAmountFor(cost.activationCost?.amount, context);
     if (cost.activationCost !== undefined) {
@@ -692,17 +705,19 @@ const immediateOutcomeFor = (
   let directAttack: number | undefined;
   if (decision.type === "basic-attack") {
     directAttack = Math.round(
-      (actor.stats.power * GLOBAL_RULES.combat.basicAttackPowerDamagePercent) / 100,
+      (actor.stats.power *
+        mechanicsViewForState(state).rules.combat.basicAttackPowerDamagePercent) /
+        100,
     );
   } else if (decision.type === "use-move") {
-    const move = MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId);
+    const move = mechanicsViewForState(state).indexes.moves.get(decision.moveId);
     const percent = summaryAmountFor(move?.mechanics.attack?.baseDamagePercent, context);
     if (percent !== undefined) directAttack = Math.round((actor.stats.power * percent) / 100);
   }
   if (directAttack !== undefined) {
     const move =
       decision.type === "use-move"
-        ? MOVE_DEFINITIONS.find((candidate) => candidate.id === decision.moveId)
+        ? mechanicsViewForState(state).indexes.moves.get(decision.moveId)
         : undefined;
     const attack = move?.mechanics.attack;
     const count = attack?.damagePerHit === true ? (attack.attackRoll?.dice ?? 1) : 1;
@@ -765,14 +780,20 @@ const immediateOutcomeFor = (
 export const describeLegalDecision = (
   state: FightState,
   decision: LegalDecision,
+  mechanicsView?: CombatMechanicsView,
 ): CombatDecisionDescriptor => {
+  const view = mechanicsViewFor(mechanicsView);
+  if (!mechanicsViewMatchesState(state, view))
+    throw new RangeError(
+      `Mechanics view mismatch: expected ${view.identity.contentHash}, received ${state.mechanicsView?.contentHash ?? "none"}.`,
+    );
   const activeState = state.status === "active" ? state : undefined;
   const category = decisionCategoryFor(decision);
   const key = canonicalDecisionKey(decision);
   const actionConsumption =
     activeState === undefined ? "response" : actionConsumptionFor(activeState, decision);
   const costs = activeState === undefined ? [] : probeLegalDecisionCosts(activeState, decision);
-  const effects = effectsFor(decision);
+  const effects = activeState === undefined ? [] : effectsFor(activeState, decision);
   const effectiveScarcity =
     activeState === undefined ? [] : probeLegalDecisionScarcity(activeState, decision);
   const selection =
@@ -825,6 +846,7 @@ export const describeLegalDecision = (
             effects,
             effectiveScarcity,
             selection,
+            view,
           ),
         }),
     outcomeProbe: { type: "combat-transition", decisionKey: key },
@@ -834,5 +856,8 @@ export const describeLegalDecision = (
 export const describeLegalDecisions = (
   state: FightState,
   actorId: CombatantId,
+  mechanicsView?: CombatMechanicsView,
 ): readonly CombatDecisionDescriptor[] =>
-  enumerateLegalDecisions(state, actorId).map((decision) => describeLegalDecision(state, decision));
+  enumerateLegalDecisions(state, actorId, mechanicsView).map((decision) =>
+    describeLegalDecision(state, decision, mechanicsView),
+  );

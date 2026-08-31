@@ -1,10 +1,12 @@
 /* eslint-disable sonarjs/cognitive-complexity, complexity -- nested policy and priority validators intentionally accumulate all configuration issues. */
 import {
-  enumerateLegalDecisions,
+  CANONICAL_COMBAT_RUNTIME,
+  createCombatRuntime,
   deriveDeterministicSeed,
   type CombatantId,
   type FightState,
   type LegalDecision,
+  type CombatMechanicsView,
 } from "@dragonball-resurgence/combat-engine";
 import {
   HARD_PROFILE,
@@ -21,12 +23,7 @@ import {
   type AiMechanicsView,
   type AiProfile,
 } from "@dragonball-resurgence/ai-engine";
-import {
-  ITEM_DEFINITIONS,
-  MOVE_DEFINITIONS,
-  TRANSFORMATION_DEFINITIONS,
-  type NpcId,
-} from "@dragonball-resurgence/game-data";
+import type { NpcId } from "@dragonball-resurgence/game-data";
 
 import { npcReadinessMatrix } from "./normalization.js";
 
@@ -478,12 +475,7 @@ export const compileNpcTacticalPriorities = (
   }),
 });
 
-export const defaultNpcAiMechanics: AiMechanicsView = {
-  version: "game-data:catalog-v1",
-  moves: MOVE_DEFINITIONS,
-  items: ITEM_DEFINITIONS,
-  transformations: TRANSFORMATION_DEFINITIONS,
-};
+export const defaultNpcAiMechanics: AiMechanicsView = CANONICAL_COMBAT_RUNTIME.view;
 
 export const selectNpcDecision = (request: NpcDecisionRequest): NpcAiResult<NpcDecisionResult> => {
   if (request.state.status !== "active")
@@ -538,7 +530,11 @@ export const selectNpcDecision = (request: NpcDecisionRequest): NpcAiResult<NpcD
   const advisory = validateAiAdvisoryPriorities(priorities);
   if (!advisory.ok)
     return { ok: false, error: { type: "invalid-policy", issues: advisory.issues } };
-  const legalDecisions = enumerateLegalDecisions(request.state, request.actorId);
+  const runtime =
+    request.mechanics.identity === undefined
+      ? CANONICAL_COMBAT_RUNTIME
+      : createCombatRuntime(request.mechanics as CombatMechanicsView);
+  const legalDecisions = runtime.enumerateLegalDecisions(request.state, request.actorId);
   if (legalDecisions.length === 0)
     return { ok: false, error: { type: "empty-legal-set", actorId: request.actorId } };
   const result = selectAiDecision({

@@ -20,11 +20,15 @@ import {
   type ScoreFactorBasis,
 } from "./contracts.js";
 import { extractDecisionFeatures } from "./feature-extraction.js";
-import { selectSafeLegalDecision } from "./safe-fallback.js";
+import { mechanicsViewMismatchFor, selectSafeLegalDecision } from "./safe-fallback.js";
 import { selectContextualDecision } from "./contextual-utility.js";
 import { selectStrategicDecision } from "./strategic-utility.js";
 import { resolveDifficultySettings } from "./profiles.js";
 import { selectLookaheadDecision } from "./lookahead.js";
+import {
+  resolveEffectiveAiAnalysisCapabilities,
+  validateRequestedAiCapabilities,
+} from "./capabilities.js";
 
 export const IMMEDIATE_UTILITY_EVALUATOR = {
   id: "ai-evaluator:baseline-immediate",
@@ -524,11 +528,29 @@ export const selectImmediateUtilityDecision = (
 };
 /* eslint-enable sonarjs/cognitive-complexity, max-lines-per-function */
 
-export const selectLegalDecision = (request: AiDecisionRequest): AiResult<AiDecisionResult> =>
-  request.analysis?.describeDecision === undefined
-    ? selectSafeLegalDecision(request)
-    : request.profile.personality.dimensions !== undefined
-      ? resolveDifficultySettings(request.profile.difficulty).lookaheadDepth > 0
-        ? selectLookaheadDecision(request)
-        : selectStrategicDecision(request)
-      : selectContextualDecision(request);
+export const selectLegalDecision = (request: AiDecisionRequest): AiResult<AiDecisionResult> => {
+  const mechanicsMismatch = mechanicsViewMismatchFor(request);
+  if (mechanicsMismatch !== undefined) return { ok: false, error: mechanicsMismatch };
+  if (request.legalDecisions.length === 0) return selectSafeLegalDecision(request);
+  const capabilityFailure = validateRequestedAiCapabilities(request);
+  if (capabilityFailure !== undefined) return { ok: false, error: capabilityFailure };
+  const result =
+    request.analysis?.describeDecision === undefined
+      ? selectSafeLegalDecision(request)
+      : request.profile.personality.dimensions !== undefined
+        ? resolveDifficultySettings(request.profile.difficulty).lookaheadDepth > 0
+          ? selectLookaheadDecision(request)
+          : selectStrategicDecision(request)
+        : selectContextualDecision(request);
+  if (!result.ok || result.value.diagnostics === undefined) return result;
+  return {
+    ok: true,
+    value: {
+      ...result.value,
+      diagnostics: {
+        ...result.value.diagnostics,
+        effectiveAnalysisCapabilities: resolveEffectiveAiAnalysisCapabilities(request),
+      },
+    },
+  };
+};

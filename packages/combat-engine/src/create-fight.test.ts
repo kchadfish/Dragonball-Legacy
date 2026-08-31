@@ -6,7 +6,7 @@ import type {
   CreateFightInput,
   FightState,
 } from "./index.js";
-import { advanceFight, createFight } from "./index.js";
+import { advanceFight, CANONICAL_COMBAT_MECHANICS_VIEW, createFight } from "./index.js";
 import {
   activeEffectIdSchema,
   combatantIdSchema,
@@ -80,7 +80,7 @@ describe("createFight", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const combatant = result.value.state.combatants[firstCombatantId];
-    expect(result.value.state.schemaVersion).toBe(4);
+    expect(result.value.state.schemaVersion).toBe(5);
     expect(combatant).toMatchObject({
       raceId: "race-humans",
       transformationProfiles: [
@@ -142,7 +142,7 @@ describe("createFight", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const combatant = result.value.state.combatants[firstCombatantId];
-    expect(result.value.state.schemaVersion).toBe(4);
+    expect(result.value.state.schemaVersion).toBe(5);
     expect(combatant.transformationProfiles).toEqual([
       {
         transformationId: "transformation-humans-1-high-tension",
@@ -307,7 +307,7 @@ describe("createFight", () => {
     const result = advanceFight(legacyState, createDependencies());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.state.schemaVersion).toBe(4);
+    expect(result.value.state.schemaVersion).toBe(5);
   });
 
   it("migrates scheduling-only v1 effects into queued work at the public boundary", () => {
@@ -338,7 +338,7 @@ describe("createFight", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.state).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       activeEffects: [],
       scheduledWork: [
         expect.objectContaining({
@@ -414,7 +414,8 @@ describe("createFight", () => {
       value: {
         state: {
           id: fightIdSchema.parse("fight:opening-spar"),
-          schemaVersion: 4,
+          schemaVersion: 5,
+          mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW.identity,
           version: 0,
           rulesVersion: { value: "legacy-reference-2026-08", sourcePath: "reference/rules.md" },
           mode: "spar",
@@ -829,7 +830,7 @@ describe("validateFightState", () => {
     expect(
       validateFightState({
         ...createdFight.value.state,
-        schemaVersion: 4,
+        schemaVersion: 5,
       } as unknown as FightState),
     ).not.toContainEqual(expect.objectContaining({ type: "invalid-schema-version" }));
   });

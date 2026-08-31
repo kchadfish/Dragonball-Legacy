@@ -1,8 +1,7 @@
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
-
 import type { RandomSource } from "./dependencies.js";
 import { publishCalculationTrace, type CalculationTraceSink } from "./calculation-pipeline.js";
 import { calculateFinalRollResult } from "./roll-calculations.js";
+import { CANONICAL_COMBAT_MECHANICS_VIEW, type CombatRules } from "./mechanics-view.js";
 
 export interface AttackRollDefinition {
   readonly dice: number;
@@ -45,6 +44,7 @@ export interface ContestedAttackRollInput {
   /** Declarative constraints on whether a die may count as successful or stopped. */
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
   readonly diagnosticTraceSink?: CalculationTraceSink;
+  readonly rules?: CombatRules;
 }
 
 export interface ResolutionThresholdRule {
@@ -255,7 +255,12 @@ const resolvedUnblockedDie = (
 ): AttackDieRoll => {
   const defenseNaturalResult =
     persisted?.defense ??
-    random.integer(1, input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides);
+    random.integer(
+      1,
+      input.defenseSides ??
+        input.rules?.combat.standardDieSides ??
+        CANONICAL_COMBAT_MECHANICS_VIEW.rules.combat.standardDieSides,
+    );
   const defenseResult = resolvedRollResult(
     defenseNaturalResult,
     input.defenderDexterityBonus,
@@ -392,7 +397,10 @@ const resolveContestedAttackDie = (
     };
   }
   if (persisted === undefined && selection?.roll === "defense") {
-    const defenseSides = input.defenseSides ?? GLOBAL_RULES.combat.standardDieSides;
+    const defenseSides =
+      input.defenseSides ??
+      input.rules?.combat.standardDieSides ??
+      CANONICAL_COMBAT_MECHANICS_VIEW.rules.combat.standardDieSides;
     const defenseCandidates = Array.from({ length: selection.diceCount }, () =>
       random.integer(1, defenseSides),
     );
@@ -459,7 +467,7 @@ export const resolveContestedAttackRolls = (
     attackerDexterityBonus,
     blockedDice = 0,
     defenderDexterityBonus,
-    defenseSides = GLOBAL_RULES.combat.standardDieSides,
+    defenseSides = CANONICAL_COMBAT_MECHANICS_VIEW.rules.combat.standardDieSides,
     defenderResultModifier = 0,
     naturalRolls,
     resultOverrides,

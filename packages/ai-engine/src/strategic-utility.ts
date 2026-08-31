@@ -13,6 +13,7 @@ import {
   type ScoreFactor,
 } from "./contracts.js";
 import { extractDecisionFeatures } from "./feature-extraction.js";
+import { mechanicsViewMismatchFor } from "./safe-fallback.js";
 import { selectContextualDecision } from "./contextual-utility.js";
 import { resolveDifficultySettings, resolvePersonalityDimensions } from "./profiles.js";
 import { setupEdgesFor } from "./tactical.js";
@@ -206,6 +207,8 @@ const extractFeatures = (
 };
 
 export const selectStrategicDecision = (request: AiDecisionRequest): AiResult<AiDecisionResult> => {
+  const mechanicsMismatch = mechanicsViewMismatchFor(request);
+  if (mechanicsMismatch !== undefined) return { ok: false, error: mechanicsMismatch };
   const profile = request.profile;
   const profileValidation = resolvePersonalityDimensions(profile.personality);
   const difficulty = resolveDifficultySettings(profile.difficulty);
@@ -232,7 +235,10 @@ export const selectStrategicDecision = (request: AiDecisionRequest): AiResult<Ai
   const enriched = contextualEvaluations.map((evaluation) => {
     const feature = featureByKey.get(evaluation.canonicalKey);
     const personality = feature === undefined ? [] : adjustFactors(evaluation, profileValidation);
-    const hintValue = feature === undefined ? 0 : hintAdjustmentFor(feature);
+    const hintValue =
+      feature === undefined || request.advisoryHints === "disabled"
+        ? 0
+        : hintAdjustmentFor(feature);
     const hint =
       hintValue === 0
         ? []

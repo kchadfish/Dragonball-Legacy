@@ -1,14 +1,13 @@
 /* eslint-disable sonarjs/cognitive-complexity, complexity, max-lines-per-function, max-statements -- certification orchestration intentionally owns one bounded transition loop. */
 import {
-  advanceFight,
-  createFight,
-  describeLegalDecision,
-  submitCombatDecision,
+  createCombatRuntime,
   type CombatDecisionInput,
   type CombatDependencies,
   type CombatTransition,
   type CreateFightInput,
   type FightState,
+  type CombatRuntime,
+  type CombatMechanicsView,
 } from "@dragonball-resurgence/combat-engine";
 import {
   type AiDependencies,
@@ -19,7 +18,6 @@ import type { NpcId } from "@dragonball-resurgence/game-data";
 
 import {
   AUTOMATED_NPC_POLICY_ASSIGNMENTS,
-  defaultNpcAiMechanics,
   materializeNpcCombatant,
   policyForNpc,
   selectNpcDecision,
@@ -225,6 +223,7 @@ const decisionInputFor = (
 const transitionUntilDecision = (
   state: FightState,
   dependencies: CombatDependencies,
+  runtime: CombatRuntime,
 ):
   | { readonly ok: true; readonly value: CombatTransition }
   | { readonly ok: false; readonly error: unknown } => {
@@ -235,7 +234,7 @@ const transitionUntilDecision = (
     current.phase !== "action" &&
     current.phase !== "counter"
   ) {
-    const advanced = advanceFight(current, dependencies);
+    const advanced = runtime.advanceFight(current, dependencies);
     if (!advanced.ok) return advanced;
     current = advanced.value.state;
   }
@@ -244,11 +243,14 @@ const transitionUntilDecision = (
 
 export const runAutonomousNpcFight = (input: NpcCertificationInput): NpcCertificationResult => {
   const limits = { ...defaultLimits, ...input.limits };
-  const mechanics = input.mechanics ?? defaultNpcAiMechanics;
+  const runtime = input.mechanics?.identity
+    ? createCombatRuntime(input.mechanics as CombatMechanicsView)
+    : createCombatRuntime(input.dependencies.mechanicsView);
+  const mechanics = input.mechanics ?? runtime.view;
   const telemetry: NpcTelemetryEvent[] = [];
   const inspections: NpcCertificationInspection[] = [];
   const npcByCombatant = new Map<string, NpcId>();
-  const setup = createFight(
+  const setup = runtime.createFight(
     {
       mode: input.mode ?? "spar",
       combatants: input.combatants.map((entry) => entry.materialized),
@@ -261,7 +263,8 @@ export const runAutonomousNpcFight = (input: NpcCertificationInput): NpcCertific
       state: {
         status: "completed",
         id: "fight:certification-failed",
-        schemaVersion: 4,
+        schemaVersion: 5,
+        mechanicsView: runtime.view.identity,
         version: 0,
         rulesVersion: { value: "unknown" },
         mode: input.mode ?? "spar",
@@ -313,7 +316,7 @@ export const runAutonomousNpcFight = (input: NpcCertificationInput): NpcCertific
         inspections,
       };
     }
-    const prepared = transitionUntilDecision(transition.state, input.dependencies);
+    const prepared = transitionUntilDecision(transition.state, input.dependencies, runtime);
     if (!prepared.ok) {
       telemetry.push({ type: "typed-failure", owner: "combat", detail: String(prepared.error) });
       return {
@@ -373,7 +376,7 @@ export const runAutonomousNpcFight = (input: NpcCertificationInput): NpcCertific
         random: input.aiRandom,
         randomness: "enabled",
       },
-      analysis: input.analysis ?? { describeDecision: describeLegalDecision },
+      analysis: input.analysis ?? { describeDecision: runtime.describeDecision },
       diagnosticRetention: input.diagnosticRetention,
     });
     if (!decision.ok) {
@@ -406,7 +409,7 @@ export const runAutonomousNpcFight = (input: NpcCertificationInput): NpcCertific
       replayIdentity: decision.value.replayIdentity,
       combatEvents: transition.events,
     });
-    const submitted = awaitDecision(transition, decision.value, input.dependencies);
+    const submitted = awaitDecision(transition, decision.value, input.dependencies, runtime);
     if (!submitted.ok) {
       telemetry.push({ type: "typed-failure", owner: "combat", detail: submitted.error.type });
       return {
@@ -447,8 +450,9 @@ const awaitDecision = (
   transition: CombatTransition,
   result: NpcDecisionResult,
   dependencies: CombatDependencies,
+  runtime: CombatRuntime,
 ): ReturnType<typeof import("@dragonball-resurgence/combat-engine").submitCombatDecision> => {
-  return submitCombatDecision(
+  return runtime.submitCombatDecision(
     transition.state,
     decisionInputFor(transition, result.decision, dependencies),
     dependencies,

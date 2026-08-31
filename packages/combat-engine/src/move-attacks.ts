@@ -1,5 +1,3 @@
-import { GLOBAL_RULES } from "@dragonball-resurgence/game-config";
-
 import {
   resolveContestedAttackRolls,
   type AttackDieRoll,
@@ -21,6 +19,7 @@ import {
 
 import type { CombatantState } from "./contracts.js";
 import type { RandomSource } from "./dependencies.js";
+import { CANONICAL_COMBAT_MECHANICS_VIEW, type CombatRules } from "./mechanics-view.js";
 
 export interface MoveAttackDefinition {
   readonly attack: AttackRollDefinition;
@@ -57,6 +56,7 @@ export interface MoveAttackDefinition {
   readonly baseDamage: number;
   /** A converted `damagePerHit` move deals its listed damage for every successful die. */
   readonly damagePerHit?: boolean;
+  readonly rules?: CombatRules;
 }
 
 export interface MoveAttackResolution {
@@ -75,12 +75,19 @@ const damageForSuccessfulDice = (
   critical: boolean,
   damagePerHit: boolean,
   diagnosticTraceSink?: CalculationTraceSink,
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
 ) =>
   publishCalculationTrace(
     calculateDamage({
       baseDamage: (damagePerHit ? baseDamage : baseDamage / dice) * successfulHitCount,
       modifiers: critical
-        ? [{ operation: "multiply", amount: 2, provenance: "damage:critical-multiplier" }]
+        ? [
+            {
+              operation: "multiply",
+              amount: rules.combat.criticalHit.baseDamageMultiplier,
+              provenance: "damage:critical-multiplier",
+            },
+          ]
         : [],
       retainTrace: diagnosticTraceSink !== undefined,
     }),
@@ -125,6 +132,7 @@ export const resolveMoveAttack = (
       afterDieResolved: definition.afterDieResolved,
       resolutionThresholds: definition.resolutionThresholds,
       diagnosticTraceSink: definition.diagnosticTraceSink,
+      rules: definition.rules,
     },
     random,
   );
@@ -154,6 +162,7 @@ export const resolveMoveAttack = (
           defenderDexterity: defender.stats.dexterity,
           criticalPrevented: definition.preventCritical,
           counterPrevented: definition.preventCounter,
+          rules: definition.rules,
         });
   const criticalThresholdMatch =
     definition.preventCritical !== true &&
@@ -167,6 +176,7 @@ export const resolveMoveAttack = (
       naturalAttackResult: firstRoll.attackNaturalResult,
       naturalDefenseResult: firstRoll.defenseNaturalResult ?? 0,
       outcome: firstRoll.outcome === "successful" ? "successful" : "stopped",
+      rules: definition.rules,
     }) ||
       (definition.criticalThresholds ?? []).some(({ basis, threshold }) =>
         basis === "natural-result"
@@ -187,6 +197,7 @@ export const resolveMoveAttack = (
           naturalAttackResult: roll.attackNaturalResult,
           naturalDefenseResult: roll.defenseNaturalResult,
           outcome: "stopped",
+          rules: definition.rules,
         }),
     );
   const critical = (classification?.critical ?? false) || criticalThresholdMatch;
@@ -205,11 +216,14 @@ export const resolveMoveAttack = (
       critical,
       definition.damagePerHit === true,
       definition.diagnosticTraceSink,
+      definition.rules ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules,
     ),
   };
 };
 
-export const defaultMoveAttackRoll = (): AttackRollDefinition => ({
+export const defaultMoveAttackRoll = (
+  rules: CombatRules = CANONICAL_COMBAT_MECHANICS_VIEW.rules,
+): AttackRollDefinition => ({
   dice: 1,
-  sides: GLOBAL_RULES.combat.standardDieSides,
+  sides: rules.combat.standardDieSides,
 });
