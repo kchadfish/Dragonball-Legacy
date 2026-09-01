@@ -16,6 +16,7 @@ const workspaceNames = {
   persistence: "@dragonball-resurgence/persistence",
   shared: "@dragonball-resurgence/shared",
   "transformation-evaluator": "@dragonball-resurgence/transformation-evaluator",
+  simulation: "@dragonball-resurgence/simulation",
 } as const;
 
 type WorkspaceName = (typeof workspaceNames)[keyof typeof workspaceNames];
@@ -135,6 +136,13 @@ export const planFocusedCheck = (inputFiles: readonly string[]): FocusedCheckPla
       continue;
     }
 
+    if (file.startsWith("packages/simulation/")) {
+      addWorkspace(workspaceNames.simulation);
+      addTestPath("packages/simulation/src");
+      addUnique(validatorScripts, "validate:simulation-boundaries");
+      continue;
+    }
+
     const workspace = packageWorkspaceFor(file);
     if (workspace !== undefined) {
       addWorkspace(workspace);
@@ -162,6 +170,8 @@ export const planFocusedCheck = (inputFiles: readonly string[]): FocusedCheckPla
           addUnique(validatorScripts, "validate:ai-capability-closure");
         } else if (file === "scripts/validate-reference-markdown.ts") {
           addUnique(validatorScripts, "validate:reference-markdown");
+        } else if (file === "scripts/validate-simulation-boundaries.ts") {
+          addUnique(validatorScripts, "validate:simulation-boundaries");
         } else if (!file.endsWith("/check-focused.ts")) {
           fullGate = setFullGate(fullGate, "check");
           notes.push(`${file} has no focused test or validator mapping.`);

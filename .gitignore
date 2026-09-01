@@ -7,3 +7,4 @@ dist/
 !.env.example
 .eslintcache
 *.log
+artifacts/simulation/

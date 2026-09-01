@@ -7,6 +7,7 @@ import {
   type SimulationTemplateId,
   type SimulationVariantId,
 } from "./ids.js";
+import { z } from "zod";
 
 export const ARTIFACT_SCHEMA_VERSIONS = Object.freeze({
   fightResult: "simulation-fight-result:v1",
@@ -70,6 +71,27 @@ export interface SimulationRunManifest extends VersionedSimulationArtifact<"runM
   readonly canonicalInputHash: string;
 }
 
+export const simulationRunManifestSchema = z
+  .object({
+    artifactKind: z.literal("runManifest"),
+    schemaVersion: z.literal("simulation-run-manifest:v1"),
+    runId: z.string().min(1),
+    scope: z.string().min(1),
+    sourceCommit: z.string().min(1),
+    rootSeed: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(2 ** 32 - 1),
+    seedDerivationVersion: z.string().min(1),
+    templateIds: z.array(z.string().min(1)),
+    scenarioIds: z.array(z.string().min(1)),
+    variantId: z.string().min(1),
+    retention: z.enum(["summary", "diagnostic", "anomaly"]),
+    canonicalInputHash: z.string().min(1),
+  })
+  .strict();
+
 export interface SimulationAggregateReport extends VersionedSimulationArtifact<"aggregateReport"> {
   readonly reportId: SimulationReportId;
   readonly runId: SimulationRunId;
@@ -87,7 +109,7 @@ export interface SimulationMoveBalanceRecord extends VersionedSimulationArtifact
   readonly exclusionReason?: string;
 }
 
-export interface SimulationReplayRecord extends VersionedSimulationArtifact<"replayRecord"> {
+export interface SimulationReplayArtifact extends VersionedSimulationArtifact<"replayRecord"> {
   readonly runId: SimulationRunId;
   readonly scenarioId: SimulationScenarioId;
   readonly seed: number;
@@ -122,7 +144,7 @@ export type AnySimulationArtifact =
   | SimulationRunManifest
   | SimulationAggregateReport
   | SimulationMoveBalanceRecord
-  | SimulationReplayRecord
+  | SimulationReplayArtifact
   | SimulationAnomalyRecord
   | CustomMoveReport;
 

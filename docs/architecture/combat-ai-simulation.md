@@ -6,8 +6,9 @@ This is the design for player-facing NPC AI and the future balance simulation.
 The AI engine and NPC consumer adapter are implemented for the verified local
 1v1 scope. The adapter is not yet a production-complete NPC encounter system;
 see [NPC-AI completion roadmap](npc-ai-roadmap.md). The dedicated simulation
-package now contains its Phase 0 contracts and remains separate from the
-future runner and reporting workstream.
+package now contains the verified Phase 0 through Phase 3 contracts and
+deterministic single-fight runner; paired series, aggregation, and reporting
+remain later work.
 
 The design preserves the existing ownership boundary: game data declares game
 content, the combat engine alone resolves combat, AI chooses from engine-legal
@@ -20,6 +21,13 @@ immutable `CombatMechanicsView` identity, and alternate environments cannot be
 silently evaluated through canonical registries. The full view is supplied by
 the runtime on resume; only its identity is retained in fight state and
 AI-facing replay facts.
+
+SIM-090 through SIM-350 complete the first executable simulation kernel. Seed
+allocation is semantic and namespace-separated; templates materialize only
+against an explicitly supplied mechanics view; and the runner uses fresh
+per-fight dependencies while driving the ordinary combat decision-point
+boundary. Summary and diagnostic observation are additive views of that same
+transition path. SIM-400 is the next executable item for replay verification.
 
 ```text
 static game data + game config
