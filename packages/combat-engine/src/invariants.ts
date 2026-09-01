@@ -3388,17 +3388,19 @@ const validateAttackFrames = (
   state: ActiveFightState,
   violations: FightStateInvariantViolation[],
 ) => {
-  const counterFrames = state.resolutionFrames.filter(
-    (frame) => frame.type === "attack" && frame.stage === "awaiting-counter",
+  const counterOpportunityFrames = state.resolutionFrames.filter(
+    (frame) =>
+      frame.type === "attack" &&
+      (frame.stage === "awaiting-counter" || frame.returnPhase === "counter"),
   );
   if (
-    (state.phase === "counter" && counterFrames.length === 0) ||
-    (state.phase !== "counter" && counterFrames.length > 0)
+    (state.phase === "counter" && counterOpportunityFrames.length === 0) ||
+    (state.phase !== "counter" && counterOpportunityFrames.length > 0)
   ) {
     addViolation(
       violations,
       "invalid-resolution-frame",
-      "Counter phase must have an awaiting-counter attack frame, and those frames require counter phase.",
+      "Counter phase must have an awaiting-counter or counter-returning attack frame, and those frames require counter phase.",
     );
   }
 

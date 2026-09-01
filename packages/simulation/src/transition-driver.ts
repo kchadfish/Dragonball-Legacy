@@ -157,6 +157,23 @@ const appendTransition = (
   };
 };
 
+const guardedStepFor = (
+  options: SimulationTransitionDriverOptions,
+  state: FightState,
+): DriverStep => {
+  try {
+    return stepFor(options, state);
+  } catch (error) {
+    return {
+      type: "failure",
+      failure: {
+        type: "unexpected-runner-failure",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+};
+
 /**
  * Shared simulation transition protocol. Observation and decision policy are
  * injected so summary, diagnostic, and future anomaly runs cannot drift into
@@ -182,7 +199,7 @@ export const runSimulationTransitionDriver = (
       terminationReason = guardedTermination;
       break;
     }
-    const step = stepFor(options, state);
+    const step = guardedStepFor(options, state);
     if (step.type === "stop") break;
     if (step.type === "failure") return { ok: false, state, failure: step.failure };
     if (!step.result.ok) return { ok: false, state, failure: combatFailure(step.result.error) };

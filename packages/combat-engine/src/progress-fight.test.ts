@@ -249,6 +249,221 @@ describe("deferred move catalog capabilities", () => {
     );
   });
 
+  it("resumes a restricted attack after a defender's post-defense reaction", () => {
+    const dependencies = createDeferredDependencies("restricted-post-defense", [20, 15]);
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 500,
+              stats: { power: 100, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-afterlife-spirit-bomb"],
+            },
+            {
+              maximumHitPoints: 500,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const actionState = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const action = { ...actionState, turnNumber: 10 } satisfies ActiveFightState;
+    const prepared: ActiveFightState = {
+      ...action,
+      combatants: {
+        ...action.combatants,
+        [firstCombatantId]: {
+          ...action.combatants[firstCombatantId],
+          ki: { ...action.combatants[firstCombatantId].ki, current: 10 },
+        },
+      },
+    };
+    const withDefenderClass: ActiveFightState = {
+      ...prepared,
+      combatants: {
+        ...prepared.combatants,
+        [secondCombatantId]: {
+          ...prepared.combatants[secondCombatantId],
+          classId: "race-class-humans-average-in-the-extreme",
+        },
+      },
+    };
+    const defensePending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          withDefenderClass,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:restricted-post-defense-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: withDefenderClass.version,
+            moveId: "move-afterlife-spirit-bomb",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const defense = defensePending.pendingDecision;
+    if (defense === undefined) throw new Error("Expected a defense response.");
+    const reactionPending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          defensePending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:restricted-post-defense-roll"),
+            actorId: secondCombatantId,
+            expectedStateVersion: defensePending.version,
+            pendingDecisionId: defense.id,
+            optionId: "roll-defense",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const reaction = reactionPending.pendingDecision;
+    if (reaction === undefined) throw new Error("Expected the post-defense reaction.");
+    expect(reaction.combatantId).toBe(secondCombatantId);
+    const resumed = requireTransition(
+      submitCombatDecision(
+        reactionPending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:restricted-post-defense-decline"),
+          actorId: secondCombatantId,
+          expectedStateVersion: reactionPending.version,
+          pendingDecisionId: reaction.id,
+          optionId: "decline",
+        },
+        dependencies,
+      ),
+    );
+    expect(resumed.state.status).toBe("active");
+    expect(resumed.events).toContainEqual(
+      expect.objectContaining({
+        type: "attack-resolved",
+        moveId: "move-afterlife-spirit-bomb",
+      }),
+    );
+  });
+
+  it("normalizes signed resource effects in the completed attack history", () => {
+    const dependencies = createDeferredDependencies("signed-resource-history", [20, 15]);
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 500,
+              stats: { power: 60, dexterity: 30, dexterityBonus: 0 },
+              moveIds: ["move-freestyle-straining-aura-explosion"],
+            },
+            {
+              maximumHitPoints: 500,
+              classId: "race-class-humans-average-in-the-extreme",
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const actionState = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const action: ActiveFightState = {
+      ...actionState,
+      turnNumber: 10,
+      actionHistory: Array.from({ length: 9 }, (_, index) => ({
+        decisionId: combatDecisionIdSchema.parse(`decision:signed-resource-history-${index}`),
+        actorId: index % 2 === 0 ? secondCombatantId : firstCombatantId,
+        turnNumber: index + 1,
+        phase: "action" as const,
+        type: "power-up" as const,
+      })),
+      combatants: {
+        ...actionState.combatants,
+        [firstCombatantId]: {
+          ...actionState.combatants[firstCombatantId],
+          ki: { ...actionState.combatants[firstCombatantId].ki, current: 10 },
+        },
+      },
+    };
+    const defensePending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:signed-resource-history-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-freestyle-straining-aura-explosion",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const defense = defensePending.pendingDecision;
+    if (defense === undefined) throw new Error("Expected a defense response.");
+    const reactionPending = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          defensePending,
+          {
+            type: "respond-to-pending-decision",
+            id: combatDecisionIdSchema.parse("decision:signed-resource-history-roll"),
+            actorId: secondCombatantId,
+            expectedStateVersion: defensePending.version,
+            pendingDecisionId: defense.id,
+            optionId: "roll-defense",
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const reaction = reactionPending.pendingDecision;
+    if (reaction === undefined) throw new Error("Expected the post-defense reaction.");
+    const resolved = requireTransition(
+      submitCombatDecision(
+        reactionPending,
+        {
+          type: "respond-to-pending-decision",
+          id: combatDecisionIdSchema.parse("decision:signed-resource-history-decline"),
+          actorId: secondCombatantId,
+          expectedStateVersion: reactionPending.version,
+          pendingDecisionId: reaction.id,
+          optionId: "decline",
+        },
+        dependencies,
+      ),
+    );
+    expect(validateFightState(resolved.state)).toEqual([]);
+    expect(resolved.state.actionHistory.at(-1)).toMatchObject({
+      type: "use-move",
+      moveId: "move-freestyle-straining-aura-explosion",
+      resourceChanges: expect.arrayContaining([
+        expect.objectContaining({
+          affectedCombatantId: secondCombatantId,
+          resource: "ki",
+          operation: "lose",
+          amount: 2,
+        }),
+      ]),
+    });
+  });
+
   it("offers Death Ball's optional defer choice and persists its boosted execution", () => {
     const dependencies = createDeferredDependencies("death-ball-resume", [1, 20, 20, 1]);
     const created = requireTransition(
@@ -2328,7 +2543,16 @@ describe("generic combat-local move removal", () => {
         { id: `select-move-removal:${remainingMove}`, type: "select-move", moveId: remainingMove },
       ],
     });
-    expect(enumerateLegalDecisions(successfulAttack, firstCombatantId)).toEqual([]);
+    expect(enumerateLegalDecisions(successfulAttack, firstCombatantId)).toEqual([
+      expect.objectContaining({
+        type: "respond-to-pending-decision",
+        optionId: `select-move-removal:${selectedMove}`,
+      }),
+      expect.objectContaining({
+        type: "respond-to-pending-decision",
+        optionId: `select-move-removal:${remainingMove}`,
+      }),
+    ]);
     expect(successfulAttack.resolutionFrames[0]).toMatchObject({
       operation: "select-move-removal",
       eligibleMoveIds: [selectedMove, remainingMove],

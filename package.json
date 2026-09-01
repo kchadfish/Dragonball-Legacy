@@ -26,7 +26,7 @@
     "report:combat-mechanics": "tsx scripts/combat-mechanics-inventory.ts",
     "report:combat-capabilities": "tsx scripts/combat-capability-matrix.ts > docs/architecture/combat-engine-capability-matrix.md",
     "report:ai-capabilities": "tsx scripts/ai-capability-matrix.ts > docs/architecture/ai-engine-capability-matrix.md",
-    "report:simulation-moves": "tsx scripts/generate-simulation-move-report.ts && prettier --write docs/architecture/simulation-move-balance-matrix.json",
+    "report:simulation-moves": "tsx scripts/generate-simulation-move-report.ts && prettier --write docs/architecture/simulation-move-balance-matrix.json docs/architecture/simulation-move-dossiers.json",
     "report:simulation-coverage": "tsx scripts/generate-simulation-move-coverage.ts && prettier --write docs/architecture/simulation-move-coverage.json",
     "benchmark:ai": "tsx scripts/benchmark-ai.ts",
     "validate:combat-capability-closure": "tsx scripts/validate-combat-capability-closure.ts",

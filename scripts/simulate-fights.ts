@@ -7,15 +7,22 @@ import {
   runSimulationMatrix,
   runSimulationSeries,
   createSimulationMoveBalanceReport,
+  createSimulationMoveDossiers,
   renderSimulationReportCsv,
   renderSimulationReportJson,
   renderSimulationReportMarkdown,
+  renderSimulationMoveDossiersJson,
+  renderSimulationMoveDossiersMarkdown,
   createSimulationCompletionAudit,
   simulationMoveCoverageArtifactSchema,
   validateSimulationCoverageCells,
   validateSimulationMoveClosure,
   verifySimulationReplay,
   runSimulationMoveCoverage,
+  runSimulationMoveCoverageCatalog,
+  resumeSimulationMoveCoverage,
+  runSimulationBenchmark,
+  canonicalHash,
   canonicalJson,
 } from "../packages/simulation/src/index.js";
 import type {
@@ -23,14 +30,26 @@ import type {
   SimulationMatrixRequest,
   SimulationReplayRecord,
   SimulationSeriesRequest,
+  SimulationCoveragePopulation,
+  SimulationNaturalAiProfile,
 } from "../packages/simulation/src/index.js";
 
 const usage = `Usage: npm run simulate -- <command> [--format json|csv|markdown]
 
-Commands: fight, series, matrix, catalog-run, resume, replay, report, move-report, closure, custom-review, benchmark`;
+Commands: fight, series, matrix, catalog-run, resume, replay, report, move-report, dossiers, closure, custom-review, benchmark`;
+
+const optionFor = (args: readonly string[], name: string): string | undefined => {
+  const inline = args.find((argument) => argument.startsWith(`${name}=`));
+  if (inline !== undefined) return inline.slice(name.length + 1);
+  const index = args.indexOf(name);
+  return index < 0 ? undefined : args[index + 1];
+};
+
+const hasOption = (args: readonly string[], name: string): boolean =>
+  args.some((argument) => argument === name || argument.startsWith(`${name}=`));
 
 const formatFor = (args: readonly string[]): "json" | "csv" | "markdown" => {
-  const value = args[args.indexOf("--format") + 1];
+  const value = optionFor(args, "--format");
   if (value === undefined || value === "json" || value === "csv" || value === "markdown")
     return value ?? "json";
   throw new RangeError(`Unsupported report format: ${value}`);
@@ -49,7 +68,7 @@ const writeBundle = async (name: string, content: string): Promise<void> => {
 };
 
 const inputFor = async (args: readonly string[]): Promise<Record<string, unknown>> => {
-  const path = args[args.indexOf("--input") + 1];
+  const path = optionFor(args, "--input");
   if (path === undefined)
     throw new RangeError("Simulation command requires --input <manifest.json>.");
   const value = JSON.parse(
@@ -64,12 +83,36 @@ const coverageArtifactFor = async (path = "docs/architecture/simulation-move-cov
   simulationMoveCoverageArtifactSchema.parse(JSON.parse(await readFile(path, "utf8")) as unknown);
 
 const positiveOption = (args: readonly string[], name: string, fallback: number): number => {
-  const value = args[args.indexOf(name) + 1];
+  const value = optionFor(args, name);
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1)
     throw new RangeError(`${name} requires a positive integer.`);
   return parsed;
+};
+
+const catalogPopulationFor = (
+  args: readonly string[],
+): SimulationCoveragePopulation | undefined => {
+  const value = optionFor(args, "--population");
+  if (value === undefined) return undefined;
+  if (value !== "natural" && value !== "isolation" && value !== "forced")
+    throw new RangeError("Catalog population must be natural, isolation, or forced.");
+  return value;
+};
+
+const naturalProfileFor = (args: readonly string[]): SimulationNaturalAiProfile | undefined => {
+  const value = optionFor(args, "--natural-profile");
+  if (value === undefined) return undefined;
+  if (
+    value !== "profile:normal" &&
+    value !== "profile:hard" &&
+    value !== "profile:simulation-quality"
+  )
+    throw new RangeError(
+      "--natural-profile must be profile:normal, profile:hard, or profile:simulation-quality.",
+    );
+  return value;
 };
 
 const dateForRequest = (value: Record<string, unknown>): Record<string, unknown> => ({
@@ -98,6 +141,7 @@ const main = async (): Promise<void> => {
       "replay",
       "report",
       "move-report",
+      "dossiers",
       "closure",
       "custom-review",
       "benchmark",
@@ -105,9 +149,13 @@ const main = async (): Promise<void> => {
   )
     throw new RangeError(`Unknown simulation command: ${command}`);
   if (command === "move-report") {
-    const artifact = await coverageArtifactFor(args[args.indexOf("--artifact") + 1]);
+    const artifact = await coverageArtifactFor(optionFor(args, "--artifact"));
     const report = createSimulationMoveBalanceReport(artifact.dataset, undefined, {
       errors: artifact.errors,
+      coverageCells: artifact.coverageCells,
+      metricsByMove: artifact.metricsByMove,
+      stratifiedAccumulators: artifact.stratifiedAccumulators,
+      generatedFrom: artifact.generatedFrom,
     });
     const format = formatFor(args);
     const content =
@@ -120,7 +168,7 @@ const main = async (): Promise<void> => {
     return;
   }
   if (command === "closure") {
-    const artifact = await coverageArtifactFor(args[args.indexOf("--artifact") + 1]);
+    const artifact = await coverageArtifactFor(optionFor(args, "--artifact"));
     const issues = [
       ...validateSimulationMoveClosure(artifact.dataset),
       ...validateSimulationCoverageCells(artifact.coverageCells),
@@ -131,32 +179,104 @@ const main = async (): Promise<void> => {
     console.log("Simulation move closure is complete.");
     return;
   }
+  if (command === "dossiers") {
+    const artifact = await coverageArtifactFor(optionFor(args, "--artifact"));
+    const dossiers = createSimulationMoveDossiers(artifact.dataset, {
+      errors: artifact.errors,
+      coverageCells: artifact.coverageCells,
+      metricsByMove: artifact.metricsByMove,
+      stratifiedAccumulators: artifact.stratifiedAccumulators,
+      generatedFrom: artifact.generatedFrom,
+    });
+    const format = formatFor(args);
+    if (format === "csv") throw new RangeError("Dossiers support json or markdown format only.");
+    const content =
+      format === "markdown"
+        ? renderSimulationMoveDossiersMarkdown(dossiers)
+        : `${renderSimulationMoveDossiersJson(dossiers)}\n`;
+    await writeBundle(`catalog-dossiers.${format === "markdown" ? "md" : "json"}`, content);
+    return;
+  }
   if (command === "benchmark") {
-    const artifact = await coverageArtifactFor(args[args.indexOf("--artifact") + 1]);
-    console.log(
-      JSON.stringify({
-        command,
-        mechanicsIdentity: artifact.dataset.mechanicsIdentity,
-        moveCount: artifact.dataset.records.length,
-        coverageCellCount: artifact.coverageCells.length,
-      }),
-    );
+    const preset = optionFor(args, "--preset") ?? "fast";
+    if (
+      preset !== "fast" &&
+      preset !== "long" &&
+      preset !== "transformation" &&
+      preset !== "control-heavy"
+    )
+      throw new RangeError(
+        "Benchmark preset must be fast, long, transformation, or control-heavy.",
+      );
+    const benchmarkStarted = Date.now();
+    const benchmarkResult = runSimulationBenchmark({
+      benchmarkId: preset,
+      iterations: positiveOption(args, "--iterations", 1),
+    });
+    const elapsedMilliseconds = Date.now() - benchmarkStarted;
+    const measuredBenchmark = {
+      ...benchmarkResult,
+      elapsedMilliseconds,
+      averageMilliseconds: Number((elapsedMilliseconds / benchmarkResult.iterations).toFixed(3)),
+      benchmarkHash: "",
+    };
+    const benchmark = {
+      ...measuredBenchmark,
+      benchmarkHash: canonicalHash({ ...measuredBenchmark, benchmarkHash: undefined }),
+    };
+    await writeBundle("benchmark.json", `${canonicalJson(benchmark)}\n`);
     return;
   }
   if (command === "catalog-run") {
-    const population = args[args.indexOf("--population") + 1] as "isolation" | "forced" | undefined;
-    if (population !== undefined && population !== "isolation" && population !== "forced")
-      throw new RangeError("Catalog population must be isolation or forced.");
-    const moveOption = args[args.indexOf("--moves") + 1];
-    const result = runSimulationMoveCoverage({
+    const population = catalogPopulationFor(args);
+    const moveOption = optionFor(args, "--moves");
+    const populationsOption = optionFor(args, "--populations");
+    const sourceArtifactPath = optionFor(args, "--artifact");
+    const sourceArtifact =
+      sourceArtifactPath === undefined ? undefined : await coverageArtifactFor(sourceArtifactPath);
+    if (population !== undefined && populationsOption !== undefined)
+      throw new RangeError("Use either --population or --populations, not both.");
+    const coverageOptions = {
       targetFights: positiveOption(args, "--target-fights", 250),
       minimumEligibleStates: positiveOption(args, "--minimum-eligible", 250),
-      concurrency: args.includes("--workers") ? positiveOption(args, "--workers", 1) : 1,
-      ...(args.includes("--workers") ? { workers: positiveOption(args, "--workers", 1) } : {}),
+      concurrency: hasOption(args, "--workers") ? positiveOption(args, "--workers", 1) : 1,
+      ...(hasOption(args, "--workers") ? { workers: positiveOption(args, "--workers", 1) } : {}),
       population,
+      ...(hasOption(args, "--natural-approval")
+        ? {
+            naturalOverlayApprovalReference: optionFor(args, "--natural-approval") ?? "",
+          }
+        : {}),
+      ...(hasOption(args, "--natural-profile")
+        ? {
+            naturalProfileId: naturalProfileFor(args),
+          }
+        : {}),
+      retryFailed: hasOption(args, "--retry-failed"),
       moveIds: moveOption === undefined ? undefined : moveOption.split(",").filter(Boolean),
-    });
-    await writeBundle("catalog-coverage.json", `${canonicalJson(result.artifact)}\n`);
+    };
+    const result =
+      populationsOption === undefined && sourceArtifact === undefined
+        ? runSimulationMoveCoverage(coverageOptions)
+        : runSimulationMoveCoverageCatalog({
+            ...coverageOptions,
+            ...(sourceArtifact === undefined ? {} : { resumeFrom: sourceArtifact }),
+            ...(populationsOption === undefined
+              ? {}
+              : {
+                  populations: populationsOption.split(",").filter(Boolean) as readonly (
+                    "natural" | "isolation" | "forced"
+                  )[],
+                }),
+          });
+    const outputPath = optionFor(args, "--output");
+    if (outputPath === undefined) {
+      await writeBundle("catalog-coverage.json", `${canonicalJson(result.artifact)}\n`);
+    } else {
+      if (outputPath.trim().length === 0) throw new RangeError("--output requires a path.");
+      await writeFile(outputPath, `${canonicalJson(result.artifact)}\n`, "utf8");
+      console.log(outputPath);
+    }
     return;
   }
   if (command === "fight") {
@@ -182,6 +302,48 @@ const main = async (): Promise<void> => {
     return;
   }
   if (command === "resume") {
+    const artifactPath = optionFor(args, "--artifact");
+    if (artifactPath !== undefined) {
+      const artifact = await coverageArtifactFor(artifactPath);
+      const targetFights = positiveOption(
+        args,
+        "--target-fights",
+        artifact.generatedFrom.targetFights,
+      );
+      const minimumEligibleStates = positiveOption(
+        args,
+        "--minimum-eligible",
+        artifact.generatedFrom.minimumEligibleStates,
+      );
+      const population = catalogPopulationFor(args);
+      const resumeOptions = {
+        targetFights,
+        minimumEligibleStates,
+        concurrency: hasOption(args, "--workers") ? positiveOption(args, "--workers", 1) : 4,
+        ...(hasOption(args, "--workers") ? { workers: positiveOption(args, "--workers", 1) } : {}),
+        ...(hasOption(args, "--natural-approval")
+          ? {
+              naturalOverlayApprovalReference: optionFor(args, "--natural-approval") ?? "",
+            }
+          : {}),
+        retryFailed: hasOption(args, "--retry-failed"),
+        naturalProfileId: naturalProfileFor(args),
+        moveIds: optionFor(args, "--moves")?.split(",").filter(Boolean),
+      };
+      const result =
+        artifact.generatedFrom.population === undefined
+          ? runSimulationMoveCoverageCatalog({
+              ...resumeOptions,
+              resumeFrom: artifact,
+              ...(population === undefined ? {} : { populations: [population] }),
+            })
+          : resumeSimulationMoveCoverage(artifact, {
+              ...resumeOptions,
+              population,
+            });
+      await writeBundle("catalog-resume.json", `${canonicalJson(result.artifact)}\n`);
+      return;
+    }
     await writeBundle(
       "series-resume.json",
       JSON.stringify(
@@ -218,9 +380,13 @@ const main = async (): Promise<void> => {
     return;
   }
   if (command === "report") {
-    const artifact = await coverageArtifactFor(args[args.indexOf("--artifact") + 1]);
+    const artifact = await coverageArtifactFor(optionFor(args, "--artifact"));
     const report = createSimulationMoveBalanceReport(artifact.dataset, undefined, {
       errors: artifact.errors,
+      coverageCells: artifact.coverageCells,
+      metricsByMove: artifact.metricsByMove,
+      stratifiedAccumulators: artifact.stratifiedAccumulators,
+      generatedFrom: artifact.generatedFrom,
     });
     const format = formatFor(args);
     const content =

@@ -5,7 +5,7 @@ import {
   combatantIdSchema,
   type LegalDecision,
 } from "@dragonball-resurgence/combat-engine";
-import { normalProfile } from "@dragonball-resurgence/ai-engine";
+import { normalProfile, SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
 
 import {
   SIMULATION_PRECISION_LOOKS,
@@ -16,6 +16,10 @@ import {
   createSimulationExposureRecipes,
   createSimulationMoveCoverageDataset,
   createSimulationMoveCoverageArtifact,
+  createSimulationMoveBalanceReport,
+  runSimulationBenchmark,
+  mergeSimulationMoveCoverageArtifacts,
+  recordSimulationMoveFunnel,
   createSimulationCoverageMatrix,
   createSimulationCoverageCell,
   updateSimulationCoverageCell,
@@ -26,7 +30,10 @@ import {
   mergeSimulationStratifiedAccumulators,
   runSimulationRequests,
   runSimulationRequestsWithWorkers,
+  runSimulationFight,
   runSimulationMoveCoverage,
+  runSimulationMoveCoverageCatalog,
+  resumeSimulationMoveCoverage,
   selectForcedSimulationDecision,
   simulationMoveCoverageArtifactSchema,
   validateSimulationMoveCoverageArtifact,
@@ -150,6 +157,91 @@ describe("simulation v2 contracts", () => {
     ]);
   });
 
+  it("counts triggered move-used events separately from submitted move resolutions", () => {
+    const moveId = "move-aoyosumu-braced-energy-beam";
+    const base = createSyntheticArchetypes()[0]!;
+    const styleId = CANONICAL_COMBAT_MECHANICS_VIEW.moves.find(
+      (move) => move.id === moveId,
+    )?.styleId;
+    if (styleId === undefined) throw new Error(`Missing canonical style for ${moveId}.`);
+    const templateA = {
+      ...base,
+      id: "simulation-template:v2-funnel-attacker",
+      styleId,
+      moveIds: [moveId],
+    };
+    const templateB = {
+      ...base,
+      id: "simulation-template:v2-funnel-defender",
+      moveIds: [],
+    };
+    const result = runSimulationFight({
+      schemaVersion: "simulation-contracts:v1",
+      runId: "simulation-run:v2-funnel",
+      scenario: createScenario({
+        id: "simulation-scenario:v2-funnel",
+        family: "move-isolation",
+        checkpointId: "early",
+        templateAId: templateA.id,
+        templateBId: templateB.id,
+        variantId: "simulation-variant:baseline",
+        retention: "diagnostic",
+        limits: { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 },
+        stoppingPolicy: "continue",
+        deferred: false,
+      }),
+      templateA,
+      templateB,
+      profileA: SIMULATION_QUALITY_PROFILE,
+      profileB: SIMULATION_QUALITY_PROFILE,
+      rootSeed: 1_427_251_991,
+      iteration: 0,
+      mirror: "original",
+      fixedTime: new Date("2026-01-01T00:00:00.000Z"),
+      mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW,
+      decisionPolicy: {
+        type: "forced-target-first",
+        targetDefinitionId: moveId,
+        fallback: "first-legal",
+      },
+    });
+    expect(result.failure).toBeUndefined();
+    expect(result.diagnostics?.moveFunnels[moveId]).toMatchObject({
+      submitted: 2,
+      resolved: 2,
+      successful: 1,
+      valueProducing: 1,
+    });
+  }, 90_000);
+
+  it("requires approval before scheduling natural TF1 exposure", () => {
+    const moveId = TF1_SIMULATION_TEMPLATES[0]!.moveIds[0]!;
+    expect(() =>
+      runSimulationMoveCoverage({
+        moveIds: [moveId],
+        targetFights: 1,
+        minimumEligibleStates: 1,
+        population: "natural",
+        concurrency: 1,
+      }),
+    ).toThrow(/requires a reference/i);
+    const result = runSimulationMoveCoverage({
+      moveIds: [moveId],
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      population: "natural",
+      naturalOverlayApprovalReference: "staff:test-natural-overlay",
+      naturalProfileId: "profile:normal",
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+      concurrency: 1,
+    });
+    expect(result.artifact.generatedFrom.naturalPopulation).toBe("approved");
+    expect(new Set(result.artifact.coverageCells.map((cell) => cell.cellId)).size).toBe(
+      result.artifact.coverageCells.length,
+    );
+    expect(result.artifact.coverageCells.every((cell) => cell.population === "natural")).toBe(true);
+  }, 30_000);
+
   it("requires path-specific exercise before a coverage cell can be sufficient", () => {
     const baseCell = {
       cellId: "simulation-cell:path-exercise",
@@ -198,6 +290,7 @@ describe("simulation v2 contracts", () => {
       minimumEligibleStates: 1,
       concurrency: 1,
       population: "isolation",
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
     });
     expect(
       isolation.artifact.coverageCells
@@ -205,10 +298,219 @@ describe("simulation v2 contracts", () => {
         .every((cell) => cell.status === "not-scheduled"),
     ).toBe(true);
     expect(isolation.artifact.errors).toHaveLength(isolation.failures.length);
+    expect(
+      isolation.artifact.generatedFrom.representativeReplaySeedsByMove?.isolation[moveId],
+    ).toHaveLength(2);
+    expect(isolation.artifact.metricsByMove?.isolation[moveId]).toMatchObject({
+      moveId,
+      population: "isolation",
+      completedFights: 2,
+      observability: { diagnosticFights: 2, summaryOnlyFights: 0 },
+      orientationCounts: { original: 1, mirrored: 1 },
+    });
+    expect(isolation.artifact.stratifiedAccumulators?.isolation[moveId]).toMatchObject({
+      stratumId: `isolation:${moveId}`,
+      completedPairs: 1,
+      errorCount: 0,
+    });
+    const report = createSimulationMoveBalanceReport(isolation.artifact.dataset, undefined, {
+      errors: isolation.artifact.errors,
+      coverageCells: isolation.artifact.coverageCells,
+      metricsByMove: isolation.artifact.metricsByMove,
+      stratifiedAccumulators: isolation.artifact.stratifiedAccumulators,
+      generatedFrom: isolation.artifact.generatedFrom,
+    });
+    expect(
+      report.pairedEffects.find(
+        (effect) => effect.id === `isolation:${moveId}:target-control-damage`,
+      ),
+    ).toMatchObject({ completedPairs: 1, intervalMethod: "paired-bootstrap-95" });
     expect(isolation.artifact.coverageCells.some((cell) => cell.population === "forced")).toBe(
       false,
     );
   }, 15_000);
+
+  it("merges population artifacts with separate denominators", () => {
+    const moveId = "move-akaikaru-firestorm";
+    const funnel = {
+      equipped: 1,
+      eligible: 1,
+      affordable: 1,
+      selected: 1,
+      submitted: 1,
+      resolved: 1,
+      successful: 1,
+      valueProducing: 1,
+      decisionFunnel: {
+        equipped: 1,
+        eligible: 1,
+        affordable: 1,
+        selected: 1,
+        submitted: 1,
+        resolved: 1,
+        successful: 1,
+        valueProducing: 1,
+      },
+      triggerFunnel: {
+        applicable: 1,
+        triggered: 1,
+        activated: 1,
+        resolved: 1,
+        successful: 1,
+        valueProducing: 1,
+      },
+    } as const;
+    const artifactFor = (population: "isolation" | "forced") => {
+      const dataset = recordSimulationMoveFunnel(
+        createSimulationMoveCoverageDataset(),
+        { [moveId]: funnel },
+        population,
+        { targetFights: 1, minimumEligibleStates: 1 },
+      );
+      const cells = createSimulationCoverageMatrix(dataset, ["move-isolation"], "early", {
+        targetFights: 1,
+        minimumEligibleStates: 1,
+        populations: [population],
+        mechanicPaths: ["decision", "trigger"],
+      }).map((cell) =>
+        updateSimulationCoverageCell(cell, {
+          completedFights: 1,
+          eligibleStates: 1,
+          selectedStates: cell.mechanicPath === "decision" ? 1 : 0,
+          triggeredStates: cell.mechanicPath === "trigger" ? 1 : 0,
+        }),
+      );
+      return createSimulationMoveCoverageArtifact({
+        generatedFrom: {
+          mechanicsIdentity: dataset.mechanicsIdentity,
+          scenarioFamily: "move-isolation",
+          checkpointId: "early",
+          targetFights: 1,
+          minimumEligibleStates: 1,
+          isolationRunCount: 1,
+          population,
+          populationRunCounts: {
+            natural: 0,
+            isolation: population === "isolation" ? 1 : 0,
+            forced: population === "forced" ? 1 : 0,
+          },
+          naturalPopulation: "draft",
+          source: `test:${population}`,
+        },
+        dataset,
+        coverageCells: cells,
+      });
+    };
+    const merged = mergeSimulationMoveCoverageArtifacts([
+      artifactFor("isolation"),
+      artifactFor("forced"),
+    ]);
+    const record = merged.dataset.records.find((candidate) => candidate.moveId === moveId)!;
+    expect(record.populationFunnels?.isolation.eligible).toBe(1);
+    expect(record.populationFunnels?.forced.eligible).toBe(1);
+    expect(record.funnel.eligible).toBe(2);
+    expect(record.isolationStatus).toBe("observed-sufficient");
+    expect(record.forcedStatus).toBe("observed-sufficient");
+    expect(merged.generatedFrom.populationRunCounts).toEqual({
+      natural: 0,
+      isolation: 1,
+      forced: 1,
+    });
+  }, 15_000);
+
+  it("resumes a population artifact without replaying prior deterministic attempts", () => {
+    const moveId = "move-akaikaru-firestorm";
+    const initial = runSimulationMoveCoverage({
+      moveIds: [moveId],
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      concurrency: 1,
+      population: "isolation",
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+    });
+    const resumed = resumeSimulationMoveCoverage(initial.artifact, {
+      targetFights: 2,
+      minimumEligibleStates: 1,
+      concurrency: 1,
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+    });
+    const cell = resumed.artifact.coverageCells.find(
+      (candidate) => candidate.moveId === moveId && candidate.mechanicPath === "decision",
+    );
+    expect(resumed.runCount).toBe(2);
+    expect(resumed.artifact.generatedFrom.targetFights).toBe(2);
+    expect(resumed.artifact.generatedFrom.populationAttemptedFightsByMove?.isolation[moveId]).toBe(
+      4,
+    );
+    expect(cell?.targetFights).toBe(2);
+    expect(cell?.completedFights).toBeGreaterThanOrEqual(1);
+    expect(resumed.artifact.errors).toHaveLength(initial.artifact.errors.length);
+  }, 15_000);
+
+  it("resumes a merged catalog artifact without pooling population attempts", () => {
+    const moveId = "move-akaikaru-firestorm";
+    const limits = { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 };
+    const initial = runSimulationMoveCoverageCatalog({
+      moveIds: [moveId],
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      concurrency: 1,
+      populations: ["isolation", "forced"],
+      limits,
+    });
+    const resumed = runSimulationMoveCoverageCatalog({
+      moveIds: [moveId],
+      targetFights: 2,
+      minimumEligibleStates: 1,
+      concurrency: 1,
+      populations: ["isolation", "forced"],
+      resumeFrom: initial.artifact,
+      limits,
+    });
+    expect(resumed.runCount).toBe(4);
+    expect(resumed.artifact.generatedFrom.population).toBeUndefined();
+    expect(resumed.artifact.generatedFrom.populationAttemptedFightsByMove).toMatchObject({
+      isolation: { [moveId]: 4 },
+      forced: { [moveId]: 4 },
+    });
+    expect(resumed.artifact.generatedFrom.populationRunCounts).toMatchObject({
+      isolation: 4,
+      forced: 4,
+    });
+  }, 30_000);
+
+  it("adds an absent population at the current precision during catalog resume", () => {
+    const moveId = "move-akaikaru-firestorm";
+    const limits = { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 };
+    const isolation = runSimulationMoveCoverageCatalog({
+      moveIds: [moveId],
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      concurrency: 1,
+      populations: ["isolation"],
+      limits,
+    });
+    const merged = runSimulationMoveCoverageCatalog({
+      moveIds: [moveId],
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      concurrency: 1,
+      populations: ["forced"],
+      resumeFrom: isolation.artifact,
+      limits,
+    });
+    expect(merged.runCount).toBe(2);
+    expect(merged.artifact.generatedFrom.population).toBeUndefined();
+    expect(merged.artifact.generatedFrom.populationRunCounts).toMatchObject({
+      isolation: 2,
+      forced: 2,
+    });
+    expect(
+      merged.artifact.coverageCells.filter(
+        (cell) => cell.moveId === moveId && cell.population === "forced",
+      ),
+    ).toHaveLength(2);
+  }, 30_000);
 
   it("uses one semantic pair identity for mirrored orientations", () => {
     const template = createSyntheticArchetypes()[0]!;
@@ -309,17 +611,42 @@ describe("simulation v2 contracts", () => {
       fixedTime: new Date("2026-01-01T00:00:00.000Z"),
       mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW,
     });
-    const requests = [requestFor(0), requestFor(1)];
+    const requests = [0, 1, 2, 3].map(requestFor);
     const sequential = runSimulationRequests({
       requests,
       stoppingPolicy: "continue",
       concurrency: 1,
     });
-    const workers = runSimulationRequestsWithWorkers({
+    const oneWorker = runSimulationRequestsWithWorkers({
+      requests,
+      stoppingPolicy: "continue",
+      workers: 1,
+    });
+    const twoWorkers = runSimulationRequestsWithWorkers({
       requests,
       stoppingPolicy: "continue",
       workers: 2,
     });
-    expect(canonicalHash(sequential.results)).toBe(canonicalHash(workers.results));
-  });
+    const fourWorkers = runSimulationRequestsWithWorkers({
+      requests,
+      stoppingPolicy: "continue",
+      workers: 4,
+    });
+    const expectedHash = canonicalHash(sequential.results);
+    expect(canonicalHash(oneWorker.results)).toBe(expectedHash);
+    expect(canonicalHash(twoWorkers.results)).toBe(expectedHash);
+    expect(canonicalHash(fourWorkers.results)).toBe(expectedHash);
+  }, 90_000);
+
+  it("executes the fast benchmark preset with canonical output", () => {
+    const result = runSimulationBenchmark({
+      benchmarkId: "fast",
+      iterations: 1,
+    });
+
+    expect(result.result).toBe("passed");
+    expect(result.completedCount).toBe(1);
+    expect(result.totalTransitions).toBeGreaterThan(0);
+    expect(result.benchmarkHash).toMatch(/^fnv1a-32:/);
+  }, 30_000);
 });

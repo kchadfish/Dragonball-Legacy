@@ -191,6 +191,8 @@ const updateMoveFunnels = (
     observation.transition.pendingDecision !== undefined ||
     ("pendingDecision" in observation.transition.state &&
       observation.transition.state.pendingDecision !== undefined);
+  const submittedMoveId =
+    observation.decision?.type === "use-move" ? observation.decision.moveId : undefined;
   const valueProducing = facts.some(
     (event) =>
       (typeField(event) === "damage-applied" &&
@@ -209,7 +211,7 @@ const updateMoveFunnels = (
       !(
         type === "attack-resolved" ||
         type === "deferred-move-performed" ||
-        (type === "move-used" && !hasPendingDecision)
+        (type === "move-used" && !hasPendingDecision && moveId === submittedMoveId)
       )
     )
       continue;

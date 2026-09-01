@@ -15,6 +15,7 @@ import {
   createSyntheticArchetypes,
   estimateSimulationBudget,
   createSimulationMoveBalanceReport,
+  createSimulationMoveDossiers,
   createSimulationMoveCoverageDataset,
   createSimulationMoveCoverageArtifact,
   createSimulationCompletionAudit,
@@ -96,11 +97,19 @@ describe("simulation Phase 4 through 15 foundations", () => {
     expect(renderSimulationReportJson(report)).toContain(report.freshnessHash);
     expect(renderSimulationReportCsv(report).split("\n")[0]).toContain("moveId");
     expect(renderSimulationReportMarkdown(report)).toContain("Simulation move balance matrix");
+    expect(report.intervals.some((interval) => interval.intervalMethod === "not-estimated")).toBe(
+      true,
+    );
+    expect(report.effectSizes).toHaveLength(report.rows.length * 3);
+    expect(report.comparableRationale).toHaveLength(report.rows.length * 3);
+    expect(createSimulationMoveDossiers(createSimulationMoveCoverageDataset())).toHaveLength(
+      report.rows.length,
+    );
     expect(adjustSimulationPValues([{ identity: "p", pValue: 0.01 }])[0]).toMatchObject({
       adjustedPValue: 0.01,
       exploratoryFlag: true,
     });
-  });
+  }, 30_000);
 
   it("tracks coverage strata, comparable cohorts, and bounded budget estimates", () => {
     const move = CANONICAL_COMBAT_MECHANICS_VIEW.moves[0]!;
@@ -136,7 +145,7 @@ describe("simulation Phase 4 through 15 foundations", () => {
         ["move-isolation"],
         "early",
       ),
-    ).toHaveLength(createSimulationMoveCoverageDataset().records.length * 2);
+    ).toHaveLength(createSimulationMoveCoverageDataset().records.length * 3);
     const cohort = createSimulationComparableCohort(
       CANONICAL_COMBAT_MECHANICS_VIEW,
       move.id,

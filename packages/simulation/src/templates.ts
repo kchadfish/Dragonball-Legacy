@@ -952,6 +952,16 @@ export const approveSimulationTf1Overlay = (
   });
 };
 
+/** Approves the complete checked-in TF1 overlay set under one review reference. */
+export const approveAllSimulationTf1Overlays = (
+  approvalReference: string,
+): readonly SimulationTemplate[] =>
+  Object.freeze(
+    TF1_SIMULATION_TEMPLATES.map((template) =>
+      approveSimulationTf1Overlay(template, approvalReference),
+    ),
+  );
+
 const failure = (
   type:
     | "invalid-template"

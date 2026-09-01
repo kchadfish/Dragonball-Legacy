@@ -14,7 +14,7 @@ export interface SimulationCompletionAudit {
   readonly auditHash: string;
 }
 
-const aggregateCellStatus = (
+export const aggregateSimulationCoverageCellStatus = (
   cells: readonly SimulationCoverageCell[],
 ): SimulationCoverageCell["status"] => {
   if (cells.every((cell) => cell.status === "not-scheduled")) return "not-scheduled";
@@ -29,6 +29,15 @@ const aggregateCellStatus = (
   return "observed-low-sample";
 };
 
+const statusForPopulation = (
+  record: SimulationMoveCoverageDataset["records"][number],
+  population: "natural" | "isolation" | "forced",
+): string => {
+  if (population === "natural") return record.naturalStatus;
+  if (population === "isolation") return record.isolationStatus;
+  return record.forcedStatus;
+};
+
 /* eslint-disable sonarjs/cognitive-complexity -- Coverage consistency compares two bounded population dimensions. */
 const validateCoverageConsistency = (
   dataset: SimulationMoveCoverageDataset,
@@ -39,7 +48,7 @@ const validateCoverageConsistency = (
     coverageCells.map((cell) => [`${cell.moveId}:${cell.population}:${cell.mechanicPath}`, cell]),
   );
   for (const record of dataset.records)
-    for (const population of ["natural", "isolation"] as const) {
+    for (const population of ["natural", "isolation", "forced"] as const) {
       const populationCells: SimulationCoverageCell[] = [];
       for (const mechanicPath of record.requiredMechanicPaths) {
         const cell = cells.get(`${record.moveId}:${population}:${mechanicPath}`);
@@ -48,8 +57,8 @@ const validateCoverageConsistency = (
         else populationCells.push(cell);
       }
       if (populationCells.length !== record.requiredMechanicPaths.length) continue;
-      const expectedStatus = aggregateCellStatus(populationCells);
-      const actualStatus = population === "natural" ? record.naturalStatus : record.isolationStatus;
+      const expectedStatus = aggregateSimulationCoverageCellStatus(populationCells);
+      const actualStatus = statusForPopulation(record, population);
       if (actualStatus !== expectedStatus)
         issues.push(
           `Coverage status mismatch for ${record.moveId}:${population}; record=${actualStatus}, cells=${expectedStatus}.`,

@@ -268,6 +268,19 @@ export interface SimulationPairedDifferenceAggregate {
   readonly observations: readonly SimulationPairedObservation[];
 }
 
+export const simulationPairedDifferenceAggregateSchema = z
+  .object({
+    count: z.number().int().nonnegative(),
+    meanVariance: simulationMeanVarianceSchema,
+    positiveCount: z.number().int().nonnegative(),
+    negativeCount: z.number().int().nonnegative(),
+    equalCount: z.number().int().nonnegative(),
+    observations: z.array(
+      z.object({ identity: z.string().min(1), difference: finiteNumber }).strict(),
+    ),
+  })
+  .strict();
+
 export const createSimulationPairedDifferenceAggregate =
   (): SimulationPairedDifferenceAggregate => ({
     count: 0,
@@ -673,6 +686,26 @@ export interface SimulationStratifiedAccumulator {
   readonly primaryMetricHalfWidth?: number;
   readonly accumulatorHash: string;
 }
+
+export const simulationStratifiedAccumulatorSchema = z
+  .object({
+    schemaVersion: z.literal("simulation-stratified-accumulator:v2"),
+    stratumId: z.string().min(1),
+    completedPairs: z.number().int().nonnegative(),
+    winsA: z.number().int().nonnegative(),
+    winsB: z.number().int().nonnegative(),
+    draws: z.number().int().nonnegative(),
+    turns: simulationMeanVarianceSchema,
+    damageA: simulationMeanVarianceSchema,
+    damageB: simulationMeanVarianceSchema,
+    pairedDifferences: simulationPairedDifferenceAggregateSchema,
+    representativeSeeds: z.array(z.number().int().nonnegative().max(4_294_967_295)).max(8),
+    errorCount: z.number().int().nonnegative(),
+    precision: z.enum(["not-started", "pilot", "precise", "low-precision"]),
+    primaryMetricHalfWidth: finiteNumber.optional(),
+    accumulatorHash: z.string().min(1),
+  })
+  .strict();
 
 const requireObservationNumber = (value: number, label: string): void => {
   if (!Number.isFinite(value) || value < 0)

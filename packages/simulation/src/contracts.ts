@@ -507,7 +507,7 @@ export interface SimulationClosureReport {
 export interface SimulationCoordinatorRequest {
   readonly requests: readonly SimulationFightRequest[];
   readonly stoppingPolicy: SimulationStoppingPolicy;
-  /** Bounded local scheduling; worker threads remain a later implementation. */
+  /** Bounded deterministic scheduling for local or worker-backed execution. */
   readonly concurrency?: number;
   readonly control?: SimulationControl;
   readonly onProgress?: (progress: SimulationProgress) => void;

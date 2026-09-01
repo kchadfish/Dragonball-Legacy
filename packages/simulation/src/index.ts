@@ -22,6 +22,7 @@ export * from "./ids.js";
 export * from "./matrix.js";
 export * from "./move-coverage.js";
 export * from "./move-coverage-runner.js";
+export * from "./metrics.js";
 export * from "./performance.js";
 export * from "./reports.js";
 export * from "./policy.js";

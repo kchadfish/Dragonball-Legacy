@@ -13,7 +13,12 @@ const nonNegativeInteger = z.number().int().nonnegative();
 export const SIMULATION_MOVE_COVERAGE_SCHEMA_VERSION = "simulation-move-coverage:v2" as const;
 export type SimulationMechanicPath = "decision" | "trigger";
 export const simulationMechanicPathSchema = z.enum(["decision", "trigger"]);
-type SimulationMoveCoveragePopulation = "natural" | "isolation" | "forced";
+export type SimulationMoveCoveragePopulation = "natural" | "isolation" | "forced";
+export const SIMULATION_MOVE_COVERAGE_POPULATIONS = [
+  "natural",
+  "isolation",
+  "forced",
+] as const satisfies readonly SimulationMoveCoveragePopulation[];
 
 export interface SimulationDecisionFunnel {
   readonly equipped: number;
@@ -48,6 +53,10 @@ export interface SimulationMoveFunnel {
   readonly decisionFunnel: SimulationDecisionFunnel;
   readonly triggerFunnel: SimulationTriggerFunnel;
 }
+
+export type SimulationPopulationFunnels = Readonly<
+  Record<SimulationMoveCoveragePopulation, SimulationMoveFunnel>
+>;
 
 const decisionFunnelSchema = z
   .object({
@@ -143,6 +152,14 @@ export const simulationMoveFunnelSchema = z
     });
   });
 
+export const simulationPopulationFunnelsSchema = z
+  .object({
+    natural: simulationMoveFunnelSchema,
+    isolation: simulationMoveFunnelSchema,
+    forced: simulationMoveFunnelSchema,
+  })
+  .strict();
+
 export type SimulationMoveCoverageStatus =
   | "observed-sufficient"
   | "observed-low-sample"
@@ -183,6 +200,8 @@ export interface SimulationMoveCoverageRecord {
   readonly sourcePath: string;
   readonly capabilityIdentity: string;
   readonly funnel: SimulationMoveFunnel;
+  /** Per-population denominators; `funnel` is their aggregate projection. */
+  readonly populationFunnels?: SimulationPopulationFunnels;
   readonly requiredMechanicPaths: readonly SimulationMechanicPath[];
   readonly naturalStatus: SimulationMoveCoverageStatus;
   readonly isolationStatus: SimulationMoveCoverageStatus;
@@ -203,6 +222,7 @@ export const simulationMoveCoverageRecordSchema = z
     sourcePath: z.string().min(1),
     capabilityIdentity: z.string().min(1),
     funnel: simulationMoveFunnelSchema,
+    populationFunnels: simulationPopulationFunnelsSchema.optional(),
     requiredMechanicPaths: z.array(simulationMechanicPathSchema).min(1),
     naturalStatus: simulationMoveCoverageStatusSchema,
     isolationStatus: simulationMoveCoverageStatusSchema,
@@ -242,7 +262,7 @@ export interface SimulationMoveFunnelObservation {
   readonly valueProducing: boolean;
 }
 
-const funnelFor = (): SimulationMoveFunnel => ({
+export const createEmptySimulationMoveFunnel = (): SimulationMoveFunnel => ({
   equipped: 0,
   eligible: 0,
   affordable: 0,
@@ -271,6 +291,8 @@ const funnelFor = (): SimulationMoveFunnel => ({
   },
 });
 
+const funnelFor = createEmptySimulationMoveFunnel;
+
 const capabilityIdentityFor = (move: MoveDefinition): string =>
   canonicalHash({
     id: move.id,
@@ -290,6 +312,11 @@ const recordFor = (move: MoveDefinition): SimulationMoveCoverageRecord =>
     sourcePath: move.source.path,
     capabilityIdentity: capabilityIdentityFor(move),
     funnel: funnelFor(),
+    populationFunnels: {
+      natural: funnelFor(),
+      isolation: funnelFor(),
+      forced: funnelFor(),
+    },
     requiredMechanicPaths: ["decision", "trigger"] as const,
     naturalStatus: "unobserved" as const,
     isolationStatus: "unobserved" as const,
@@ -319,7 +346,10 @@ export const updateSimulationMoveCoverage = (
   record: SimulationMoveCoverageRecord,
   funnel: SimulationMoveFunnel,
   statuses: Partial<
-    Pick<SimulationMoveCoverageRecord, "naturalStatus" | "isolationStatus" | "forcedStatus">
+    Pick<
+      SimulationMoveCoverageRecord,
+      "naturalStatus" | "isolationStatus" | "forcedStatus" | "populationFunnels"
+    >
   >,
 ): SimulationMoveCoverageRecord =>
   (() => {
@@ -361,6 +391,23 @@ const addFunnels = (
   },
 });
 
+export const addSimulationMoveFunnels = addFunnels;
+
+const populationFunnelsFor = (record: SimulationMoveCoverageRecord): SimulationPopulationFunnels =>
+  record.populationFunnels ?? {
+    natural: funnelFor(),
+    isolation: funnelFor(),
+    forced: funnelFor(),
+  };
+
+export const aggregateSimulationMoveFunnels = (
+  populationFunnels: SimulationPopulationFunnels,
+): SimulationMoveFunnel =>
+  SIMULATION_MOVE_COVERAGE_POPULATIONS.reduce(
+    (aggregate, population) => addFunnels(aggregate, populationFunnels[population]),
+    funnelFor(),
+  );
+
 const statusFor = (
   funnel: SimulationMoveFunnel,
   targetFights: number,
@@ -389,9 +436,16 @@ export const recordSimulationMoveFunnel = (
   const records = dataset.records.map((record) => {
     const observed = moveFunnels[record.moveId];
     if (observed === undefined) return record;
-    const funnel = addFunnels(record.funnel, observed);
-    const status = statusFor(funnel, targetFights, minimumEligibleStates);
+    const currentPopulationFunnels = populationFunnelsFor(record);
+    const updatedPopulationFunnels = {
+      ...currentPopulationFunnels,
+      [population]: addFunnels(currentPopulationFunnels[population], observed),
+    } as SimulationPopulationFunnels;
+    const populationFunnel = updatedPopulationFunnels[population];
+    const funnel = aggregateSimulationMoveFunnels(updatedPopulationFunnels);
+    const status = statusFor(populationFunnel, targetFights, minimumEligibleStates);
     return updateSimulationMoveCoverage(record, funnel, {
+      populationFunnels: updatedPopulationFunnels,
       naturalStatus: population === "natural" ? status : record.naturalStatus,
       isolationStatus: population === "isolation" ? status : record.isolationStatus,
       forcedStatus: population === "forced" ? status : record.forcedStatus,
@@ -489,7 +543,7 @@ export const validateSimulationMoveClosure = (
     status === "observed-sufficient" || status === "sufficient";
   const validateStatus = (
     record: SimulationMoveCoverageRecord,
-    population: "natural" | "isolation",
+    population: "natural" | "isolation" | "forced",
     status: SimulationMoveCoverageStatus,
     decisionId: string | undefined,
   ): void => {
@@ -525,6 +579,7 @@ export const validateSimulationMoveClosure = (
       record.isolationStatus,
       record.isolationScopeDecisionId ?? reviewedExclusions[`${record.moveId}:isolation`],
     );
+    validateStatus(record, "forced", record.forcedStatus, undefined);
     if (record.requiredMechanicPaths.length === 0)
       issues.push(`Move has no required mechanic paths: ${record.moveId}`);
   }

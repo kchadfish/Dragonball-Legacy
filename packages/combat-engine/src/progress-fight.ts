@@ -653,8 +653,9 @@ const transitionFrom = (
     scheduledWork: scheduledWorkAtTransition(state),
   };
   const violations = validateFightState(normalizedState, mechanicsViewForState(normalizedState));
-  if (violations.length > 0)
+  if (violations.length > 0) {
     return { ok: false, error: { type: "invalid-fight-state", violations } };
+  }
 
   return { ok: true, value: { state: normalizedState, events } };
 };
@@ -877,15 +878,16 @@ const resourceChangeHistoryFor = (
 ): readonly ResourceChangeHistoryRecord[] =>
   changes.flatMap((change) => {
     let operation: ResourceChangeHistoryRecord["operation"] | undefined;
-    if (change.operation === "gain") operation = "gain";
-    else if (change.operation === "lose" || change.operation === "drain") operation = "lose";
+    if (change.operation === "gain") operation = change.amount < 0 ? "lose" : "gain";
+    else if (change.operation === "lose" || change.operation === "drain")
+      operation = change.amount < 0 ? "gain" : "lose";
     if (operation === undefined) return [];
     return [
       {
         affectedCombatantId: change.target === "self" ? actorId : targetId,
         resource: change.resource,
         operation,
-        amount: change.amount,
+        amount: Math.abs(change.amount),
         turnNumber,
         ...(change.sourceCombatantId === undefined
           ? {}
@@ -14724,6 +14726,8 @@ interface AttackResolutionOptions {
   readonly counterAction?: CounterActionReference;
   /** Post-defense reaction state already paid the counter activation cost. */
   readonly counterActionActivationCostPaid?: boolean;
+  /** Resuming an already-declared restricted move must not charge its use twice. */
+  readonly ignoreRestrictedUse?: boolean;
   readonly deferMoveChoice?: "defer" | "decline";
   readonly deferredExecution?: {
     readonly activeEffectId: ActiveEffectId;
@@ -16588,6 +16592,7 @@ const resolveConvertedAttackMove = (
     costOverride,
     counterAction,
     counterActionActivationCostPaid,
+    ignoreRestrictedUse,
     deferMoveChoice,
     deferredExecution,
     skipActionPhaseEffectIndex,
@@ -16740,7 +16745,7 @@ const resolveConvertedAttackMove = (
       ...(selectedCostModifications ?? []),
     ],
     costOverride ?? deferredMoveCostOverrideFor(deferredExecution, copiedSourceResolution),
-    deferredExecution !== undefined,
+    ignoreRestrictedUse || deferredExecution !== undefined,
   );
   if (failure !== undefined) return { ok: false, error: failure };
   if (shouldRequestMoveDefense(state, target, classifiedMove, blockableAttack, requestDefense)) {
@@ -17688,10 +17693,11 @@ export const enumerateLegalDecisions = (
   if (!mechanicsViewMatchesState(state, view)) return [];
   if (state.schemaVersion !== 5 || state.scheduledWork === undefined)
     return enumerateLegalDecisions(normalizeLegacyFightState(state), combatantId, view);
+  if (state.status !== "active") return [];
   if (
-    state.status !== "active" ||
-    (state.phase !== "action" && state.phase !== "counter" && state.phase !== "upkeep") ||
-    (state.pendingDecision === undefined && state.activeCombatantId !== combatantId)
+    state.pendingDecision === undefined &&
+    ((state.phase !== "action" && state.phase !== "counter" && state.phase !== "upkeep") ||
+      state.activeCombatantId !== combatantId)
   )
     return [];
   if (state.pendingDecision !== undefined) {
@@ -22162,6 +22168,12 @@ const automaticCounterEffectUses = (
         },
       ];
 
+const uniquePendingDecisionOptions = (
+  options: readonly PendingDecisionOption[],
+): readonly PendingDecisionOption[] => [
+  ...new Map(options.map((option) => [option.id, option])).values(),
+];
+
 const postDefenseReaction = (
   state: ActiveFightState,
   frame: Extract<
@@ -22184,7 +22196,7 @@ const postDefenseReaction = (
     "defense",
     resolvedRolls,
   );
-  const defenderOptions = [
+  const defenderOptions = uniquePendingDecisionOptions([
     ...combatResultReactionOptions(state, frame, defender.id, resolvedRolls),
     ...combatResultNegationOptions(state, frame, defender.id, resolvedRolls),
     ...closeShaveReactionOptions(state, defender.id),
@@ -22196,8 +22208,8 @@ const postDefenseReaction = (
       type: "activate-effect" as const,
       itemId: item.id,
     })),
-  ];
-  const attackerOptions = [
+  ]);
+  const attackerOptions: PendingDecisionOption[] = [
     ...combatResultReactionOptions(state, frame, attacker.id, resolvedRolls),
     ...combatResultNegationOptions(state, frame, attacker.id, resolvedRolls),
   ];
@@ -22230,10 +22242,11 @@ const postDefenseReaction = (
     ),
   );
   const reactionCombatantId = defenderOptions.length > 0 ? defender.id : attacker.id;
-  const options =
+  const options = uniquePendingDecisionOptions(
     reactionCombatantId === defender.id
       ? defenderOptions
-      : [...attackerOptions, ...genericAttackerOptions];
+      : [...attackerOptions, ...genericAttackerOptions],
+  );
   return options.length === 0
     ? undefined
     : {
@@ -22387,6 +22400,9 @@ const requestPostDefenseReaction = (
         pendingDecisionId,
         reactionCombatantId: reaction.combatantId,
         attack: frame.attack,
+        ...(frame.deferredExecution === undefined
+          ? {}
+          : { deferredExecution: frame.deferredExecution }),
         naturalRolls: rolls.map((roll) => ({
           attack: roll.attackNaturalResult,
           defense: roll.defenseNaturalResult,
@@ -22686,7 +22702,8 @@ const requestAttackerPostDefenseReaction = (
       effectIndices: choice.effectIndices,
     })),
   );
-  if (options.length === 0) return undefined;
+  const uniqueOptions = uniquePendingDecisionOptions(options);
+  if (uniqueOptions.length === 0) return undefined;
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
   const nextState: ActiveFightState = {
     ...withoutPendingResolution(state),
@@ -22696,7 +22713,7 @@ const requestAttackerPostDefenseReaction = (
       stateVersion: state.version + 1,
       combatantId: attacker.id,
       type: "post-defense-roll",
-      options: [{ id: "decline", type: "decline" }, ...options],
+      options: uniquePendingDecisionOptions([{ id: "decline", type: "decline" }, ...uniqueOptions]),
     },
     resolutionFrames: [{ ...frame, pendingDecisionId, reactionCombatantId: attacker.id }],
   };
@@ -23405,8 +23422,12 @@ const resumePostDefenseAttack = (
       dependencies,
       {
         requestDefense: false,
+        ignoreRestrictedUse: true,
         ...copiedAttackResolutionOptions(pendingAttack),
         ...modifiers,
+        ...(frame.deferredExecution === undefined
+          ? {}
+          : { deferredExecution: frame.deferredExecution }),
         ...(frame.candidateFacts === undefined ? {} : { candidateFacts: frame.candidateFacts }),
       },
     );

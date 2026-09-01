@@ -2615,6 +2615,61 @@ describe("basic attacks", () => {
     expect(counterAttack.state).toMatchObject({ phase: "end", resolutionFrames: [] });
   });
 
+  it("permits a counter attack to request the target's defense response", () => {
+    const { state, dependencies } = createActionState([5, 30, 5, 10]);
+    const counterTransition = requireTransition(
+      submitCombatDecision(
+        state,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:counter-defense-source"),
+          actorId: attackerId,
+          expectedStateVersion: 1,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+    const counterState = requireActiveState(counterTransition.state);
+    const targetArmed = {
+      ...counterState,
+      combatants: {
+        ...counterState.combatants,
+        [attackerId]: {
+          ...counterState.combatants[attackerId],
+          moveIds: ["move-aoyosumu-defiant-stance"],
+        },
+      },
+    } satisfies ActiveFightState;
+
+    const defenseRequest = requireTransition(
+      submitCombatDecision(
+        targetArmed,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:counter-defense-attack"),
+          actorId: defenderId,
+          expectedStateVersion: targetArmed.version,
+          basicAttack: "basic-kick",
+          targetCombatantId: attackerId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(defenseRequest.state).toMatchObject({
+      phase: "counter",
+      pendingDecision: { type: "defense-response", combatantId: attackerId },
+      resolutionFrames: [
+        expect.objectContaining({
+          stage: "awaiting-defense",
+          returnPhase: "counter",
+        }),
+      ],
+    });
+  });
+
   it("pauses for a defender-owned Block and resolves the selected converted Block", () => {
     const { state, dependencies } = createActionState([12]);
     const blockState: ActiveFightState = {

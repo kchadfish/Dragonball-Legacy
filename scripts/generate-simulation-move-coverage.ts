@@ -21,11 +21,26 @@ const moveIdsFromEnv = (): readonly string[] | undefined => {
   return moveIds;
 };
 
-const populationFromEnv = (): "isolation" | "forced" | undefined => {
+const populationFromEnv = (): "natural" | "isolation" | "forced" | undefined => {
   const value = process.env.SIMULATION_COVERAGE_POPULATION;
   if (value === undefined) return undefined;
-  if (value !== "isolation" && value !== "forced")
-    throw new RangeError("SIMULATION_COVERAGE_POPULATION must be isolation or forced.");
+  if (value !== "natural" && value !== "isolation" && value !== "forced")
+    throw new RangeError("SIMULATION_COVERAGE_POPULATION must be natural, isolation, or forced.");
+  return value;
+};
+
+const naturalProfileFromEnv = ():
+  "profile:normal" | "profile:hard" | "profile:simulation-quality" | undefined => {
+  const value = process.env.SIMULATION_COVERAGE_NATURAL_PROFILE;
+  if (value === undefined) return undefined;
+  if (
+    value !== "profile:normal" &&
+    value !== "profile:hard" &&
+    value !== "profile:simulation-quality"
+  )
+    throw new RangeError(
+      "SIMULATION_COVERAGE_NATURAL_PROFILE must be profile:normal, profile:hard, or profile:simulation-quality.",
+    );
   return value;
 };
 
@@ -35,6 +50,8 @@ const result = runSimulationMoveCoverage({
   concurrency: positiveIntegerFromEnv("SIMULATION_COVERAGE_CONCURRENCY"),
   workers: positiveIntegerFromEnv("SIMULATION_COVERAGE_WORKERS"),
   population: populationFromEnv(),
+  naturalOverlayApprovalReference: process.env.SIMULATION_COVERAGE_NATURAL_APPROVAL,
+  naturalProfileId: naturalProfileFromEnv(),
   moveIds: moveIdsFromEnv(),
 });
 await writeFile(

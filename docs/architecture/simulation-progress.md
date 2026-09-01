@@ -14,12 +14,30 @@ cannot create an invalid counter phase without a resolved counter action.
 Simulation coverage and move artifacts are versioned as v2. Coverage now
 separates decision and trigger funnels, natural/isolation/forced populations,
 failure-aware states, registered scope decisions, precision looks, and
-stratified mergeable accumulators. TF1 overlays are deterministic drafts with
+stratified mergeable accumulators. Population artifacts now persist root-seed,
+fixed-time, and per-move attempt offsets so `resume` advances a precision look
+without replaying prior attempts or pooling denominators. Catalog iterations
+now emit deterministic original/mirrored orientations under one semantic pair
+identity. TF1 overlays are deterministic drafts with
 the canonical 1/4/5/2/2 slot limits and remain blocked for natural evidence
 until explicitly approved. The catalog runner no longer converts setup,
 underexposure, AI, or combat failures into exclusions. The checked-in pilot
 artifact is intentionally not closure-complete until the catalog run and
 overlay approval produce sufficient required cells.
+
+The v2 artifact now also persists bounded per-population, per-move combat
+seeds for representative replay reruns. The pure move-balance report consumes
+coverage cells and publishes Wilson interval evidence for decision and trigger
+funnels, descriptive population effect sizes with explicit non-causal and
+exposure-only rationale, comparable-selection rationale, and representative
+seed projections. The CLI exposes deterministic `dossiers` output, and the
+checked-in pilot currently contains 499 move records, 998 mirrored orientation
+runs, 998 decision/trigger cells, and zero run failures.
+
+Merged catalog artifacts can resume only the requested existing populations;
+population attempt offsets are merged as cumulative maxima so continuation does
+not double-count prior orientations. Closure validation now requires decision
+and trigger cells for natural, isolation, and forced populations.
 
 ## 2026-08-30 - SIM-080 mechanics-view integration
 
@@ -198,8 +216,9 @@ The earlier v1 isolation pilot is retained as historical context only. It used
 completion evidence and are rejected by the v2 validators. The replacement v2
 pilot runs all 499 canonical moves through the normal combat decision-point,
 AI selection, submission, advance, and structured-event observation boundaries
-with separate decision and trigger cells. It records 1,996 required cells,
-explicit `not-scheduled`, `observed-low-sample`, `eligible-never-selected`,
+with separate decision and trigger cells. The current pilot records 998
+required cells and explicit `not-scheduled`, `observed-low-sample`,
+`eligible-never-selected`,
 and `runner-failure` states, plus typed failure slots; it intentionally does
 not claim catalog closure. Natural coverage remains blocked until the 36 draft
 TF1 overlays are explicitly approved.
@@ -210,11 +229,36 @@ validation, and the generated artifact at
 `simulation-move-coverage.json`. The remaining release gate is the final
 repository `npm run quality` run after all edits are complete.
 
+## 2026-09-01 - SIM-1550 through SIM-1600 metric and report projections
+
+Completed the v2 observability projection without changing authoritative fight
+state. The runner now streams mergeable per-move metrics for outcomes, damage,
+overkill, remaining resources, Ki efficiency, action economy, attack outcomes,
+statuses, transformations, restricted use, deferred sequences, stalls, event
+and die outcomes, policy/orientation counts, and diagnostic versus summary-only
+coverage. Mirrored runs share one semantic pair identity and produce separate
+paired target-versus-control accumulators with deterministic bootstrap
+intervals; population namespaces remain distinct.
+
+The generated report projections are now available as JSON, Markdown, and CSV,
+with a metric dictionary, denominators, confidence intervals, effect sizes,
+paired effects, comparability rationale, replay seeds, and follow-up targets.
+Per-move dossiers are scoped to one move, so they do not duplicate the full
+catalog's metrics. The CLI benchmark presets execute real simulation requests
+and emit deterministic hashes rather than placeholder timing records.
+
+Evidence: the isolation pilot completed 499 moves across 998 mirrored runs with
+zero failures; report freshness verified at `fnv1a-32:b9684ffb`; all 14 v2
+contract tests pass, including worker equivalence, pair merging, report
+effects, and the executable fast benchmark. Natural and forced production
+populations remain intentionally unpopulated pending the required TF1 approval
+reference.
+
 ## Known limits and next step
 
 Remaining work is release verification and future evidence maintenance: rerun
 the frozen manifests at the configured precision looks, approve the TF1
 overlays, resolve every runtime failure, and keep the canonical report
-projections fresh. The worker-partition executor preserves sequential hashes
-and merge order, while a true OS-worker implementation remains an operational
-follow-up; benchmark drift must not alter correctness thresholds.
+projections fresh. The worker-backed executor preserves sequential hashes and
+merge order. Natural coverage remains an explicit approval-controlled
+population, and benchmark drift must not alter correctness thresholds.

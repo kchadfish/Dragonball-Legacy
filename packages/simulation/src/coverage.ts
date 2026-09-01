@@ -207,7 +207,7 @@ export const createSimulationCoverageMatrix = (
   } = {},
 ): readonly SimulationCoverageCell[] => {
   if (scenarioFamilies.length === 0) throw new RangeError("Coverage requires a scenario family.");
-  const populations = options.populations ?? ["natural", "isolation"];
+  const populations = options.populations ?? ["natural", "isolation", "forced"];
   const mechanicPaths = options.mechanicPaths ?? ["decision"];
   const cells: SimulationCoverageCell[] = [];
   for (const record of dataset.records)

@@ -1551,6 +1551,12 @@ export type ResolutionFrame =
         | CopiedMoveAttackReference;
       /** All rolled dice are persisted before an after-roll reaction can modify resolution. */
       readonly naturalRolls: readonly { readonly attack: number; readonly defense: number }[];
+      /** Deferred execution identity retained through a post-defense reaction. */
+      readonly deferredExecution?: {
+        readonly activeEffectId: ActiveEffectId;
+        readonly declarationDecisionId: CombatDecisionId;
+        readonly damageOverridePercent?: number;
+      };
       /** Declarative after-defense effects resolved from the persisted roll results. */
       readonly resultOverrides: readonly ("stopped" | "successful" | undefined)[];
       /** Numeric substitutions established before the contest, retained for deterministic replay. */

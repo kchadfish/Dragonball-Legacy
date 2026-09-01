@@ -1,3 +1,5 @@
+import { MessageChannel, Worker, receiveMessageOnPort } from "node:worker_threads";
+
 import {
   type SimulationCoordinatorRequest,
   type SimulationCoordinatorResult,
@@ -62,10 +64,7 @@ const normalizeResult = (
   return { ok: false, error: failureForResult(fightRequest, result) };
 };
 
-/**
- * Deterministic bounded local scheduler. Synchronous execution keeps result
- * ordering stable; worker-backed execution can be added behind this contract.
- */
+/** Deterministic bounded local scheduler with stable request-index ordering. */
 export const runSimulationRequests = (
   request: SimulationCoordinatorRequest,
 ): SimulationCoordinatorResult => {
@@ -103,55 +102,171 @@ export const runSimulationRequests = (
   };
 };
 
-/**
- * Deterministic worker-executor facade. Each partition uses the same
- * sequential reference runner and results are merged by request index, so a
- * later Node worker implementation can replace the partition body without
- * changing logical results or canonical hashes.
- */
+interface WorkerReply {
+  readonly type: "result" | "error";
+  readonly result?: SimulationFightExecutionResult;
+  readonly detail?: string;
+}
+
+interface ActiveWorker {
+  readonly worker: Worker;
+  readonly port: MessageChannel["port1"];
+  readonly index: number;
+}
+
+interface WorkerBatchState {
+  readonly active: ActiveWorker[];
+  readonly resultSlots: Array<CoordinatorResult | undefined>;
+  completed: number;
+  nextIndex: number;
+  stoppedEarly: boolean;
+}
+
+const workerModuleUrl = (): URL =>
+  new URL(
+    import.meta.url.endsWith(".ts") ? "./coordinator-worker.ts" : "./coordinator-worker.js",
+    import.meta.url,
+  );
+
+const createWorker = (): ActiveWorker => {
+  const channel = new MessageChannel();
+  const moduleUrl = workerModuleUrl();
+  const importExpression = moduleUrl.pathname.endsWith(".ts")
+    ? `import { tsImport } from "tsx/esm/api"; tsImport(${JSON.stringify(moduleUrl.href)}, import.meta.url)`
+    : `import(${JSON.stringify(moduleUrl.href)})`;
+  const bootstrap = `
+    import { workerData } from "node:worker_threads";
+    ${importExpression}.catch((error) => {
+      workerData.replyPort.postMessage({ type: "error", detail: error instanceof Error ? error.message : String(error) });
+    });
+  `;
+  const worker = new Worker(bootstrap, {
+    eval: true,
+    execArgv: process.execArgv,
+    workerData: { replyPort: channel.port2 },
+    transferList: [channel.port2],
+  });
+  channel.port1.unref();
+  worker.unref();
+  return { worker, port: channel.port1, index: -1 };
+};
+
+const terminateWorkers = (workers: readonly ActiveWorker[]) => {
+  for (const activeWorker of workers) void activeWorker.worker.terminate();
+};
+
+const normalizedWorkerReply = (
+  request: SimulationCoordinatorRequest["requests"][number],
+  reply: WorkerReply,
+): CoordinatorResult =>
+  reply.type === "result" && reply.result !== undefined
+    ? normalizeResult(request, reply.result)
+    : {
+        ok: false,
+        error: {
+          type: "unexpected-runner-failure",
+          detail: reply.detail ?? "Worker did not return a simulation result.",
+        },
+      };
+
+const launchWorker = (
+  state: WorkerBatchState,
+  requests: readonly SimulationCoordinatorRequest["requests"][number][],
+): void => {
+  const index = state.nextIndex++;
+  const created = createWorker();
+  state.active.push({ ...created, index });
+  created.worker.postMessage({ request: requests[index] });
+};
+
+const consumeWorkerReply = (
+  state: WorkerBatchState,
+  activeIndex: number,
+  requests: readonly SimulationCoordinatorRequest["requests"][number][],
+  stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
+  onProgress: SimulationCoordinatorRequest["onProgress"],
+): boolean => {
+  const activeWorker = state.active[activeIndex]!;
+  const reply = receiveMessageOnPort(activeWorker.port)?.message as WorkerReply | undefined;
+  if (reply === undefined) return false;
+  state.active.splice(activeIndex, 1);
+  void activeWorker.worker.terminate();
+  const request = requests[activeWorker.index]!;
+  const normalized = normalizedWorkerReply(request, reply);
+  state.resultSlots[activeWorker.index] = normalized;
+  state.completed += 1;
+  onProgress?.({
+    completed: state.completed,
+    total: requests.length,
+    runId: request.runId,
+    result: normalized,
+  });
+  if (!normalized.ok && stoppingPolicy === "fail-fast") {
+    state.stoppedEarly = true;
+    terminateWorkers(state.active);
+    state.active.length = 0;
+  } else if (state.nextIndex < requests.length) launchWorker(state, requests);
+  return true;
+};
+
+const consumeAvailableWorkerReplies = (
+  state: WorkerBatchState,
+  requests: readonly SimulationCoordinatorRequest["requests"][number][],
+  stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
+  onProgress: SimulationCoordinatorRequest["onProgress"],
+): boolean => {
+  let progressed = false;
+  for (let activeIndex = state.active.length - 1; activeIndex >= 0; activeIndex -= 1) {
+    if (consumeWorkerReply(state, activeIndex, requests, stoppingPolicy, onProgress))
+      progressed = true;
+    if (state.stoppedEarly) break;
+  }
+  return progressed;
+};
+
+const runWorkerBatch = (
+  requests: readonly SimulationCoordinatorRequest["requests"][number][],
+  workers: number,
+  stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
+  onProgress?: SimulationCoordinatorRequest["onProgress"],
+): SimulationCoordinatorResult => {
+  if (requests.length === 0) return { results: [], stoppedEarly: false };
+  const state: WorkerBatchState = {
+    active: [],
+    resultSlots: [],
+    completed: 0,
+    nextIndex: 0,
+    stoppedEarly: false,
+  };
+  const waitBuffer = new Int32Array(new SharedArrayBuffer(4));
+  while (state.active.length < Math.min(workers, requests.length)) launchWorker(state, requests);
+  while (state.active.length > 0) {
+    if (!consumeAvailableWorkerReplies(state, requests, stoppingPolicy, onProgress))
+      Atomics.wait(waitBuffer, 0, 0, 1);
+  }
+  return {
+    results: state.resultSlots.filter(
+      (result): result is CoordinatorResult => result !== undefined,
+    ),
+    stoppedEarly: state.stoppedEarly,
+  };
+};
+
+/** Executes requests on actual Node worker threads and merges by request index. */
 export const runSimulationRequestsWithWorkers = (
   request: SimulationCoordinatorRequest & { readonly workers: number },
 ): SimulationCoordinatorResult => {
   if (!Number.isInteger(request.workers) || request.workers < 1)
     throw new RangeError("Simulation worker count must be a positive integer.");
-  const partitions = Array.from(
-    { length: Math.min(request.workers, request.requests.length) },
-    () =>
-      [] as {
-        readonly index: number;
-        readonly request: SimulationCoordinatorRequest["requests"][number];
-      }[],
-  );
-  request.requests.forEach((fightRequest, index) => {
-    partitions[index % partitions.length]?.push({ index, request: fightRequest });
-  });
-  const indexedResults: Array<CoordinatorResult | undefined> = [];
-  let stoppedEarly = false;
-  for (const partition of partitions) {
-    if (stoppedEarly) break;
-    const partitionResult = runSimulationRequests({
+  if (request.control !== undefined)
+    return runSimulationRequests({
       ...request,
-      requests: partition.map((entry) => entry.request),
-      concurrency: 1,
-      onProgress: undefined,
+      concurrency: request.workers,
     });
-    partitionResult.results.forEach((result, resultIndex) => {
-      const source = partition[resultIndex]!;
-      indexedResults[source.index] = result;
-    });
-    stoppedEarly ||= partitionResult.stoppedEarly;
-  }
-  const results = indexedResults.filter(
-    (result): result is CoordinatorResult => result !== undefined,
+  return runWorkerBatch(
+    request.requests,
+    request.workers,
+    request.stoppingPolicy,
+    request.onProgress,
   );
-  results.forEach((result, index) => {
-    const fightRequest = request.requests[index]!;
-    request.onProgress?.({
-      completed: index + 1,
-      total: request.requests.length,
-      runId: fightRequest.runId,
-      result,
-    });
-  });
-  return { results, stoppedEarly };
 };
