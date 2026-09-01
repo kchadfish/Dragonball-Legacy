@@ -623,3 +623,173 @@ export const adjustSimulationPValues = (
     }))
     .sort((left, right) => left.identity.localeCompare(right.identity));
 };
+
+export const SIMULATION_PRECISION_LOOKS = Object.freeze([250, 500, 1_000, 2_000, 5_000, 10_000]);
+
+export type SimulationPrecisionStatus = "not-started" | "pilot" | "precise" | "low-precision";
+
+export const simulationPrecisionTargetFor = (completedPairs: number): number => {
+  if (!Number.isInteger(completedPairs) || completedPairs < 0)
+    throw new RangeError("Completed pair count must be a non-negative integer.");
+  return SIMULATION_PRECISION_LOOKS.find((look) => completedPairs < look) ?? 10_000;
+};
+
+export const simulationPrecisionStatus = (
+  completedPairs: number,
+  primaryMetricHalfWidth?: number,
+): SimulationPrecisionStatus => {
+  if (completedPairs === 0) return "not-started";
+  if (completedPairs < 250) return "pilot";
+  if (primaryMetricHalfWidth === undefined)
+    return completedPairs >= 10_000 ? "low-precision" : "pilot";
+  if (completedPairs >= 10_000 && primaryMetricHalfWidth > 0.05) return "low-precision";
+  return primaryMetricHalfWidth <= 0.05 ? "precise" : "pilot";
+};
+
+export interface SimulationStratifiedObservation {
+  readonly pairId: string;
+  readonly winner: "a" | "b" | "draw";
+  readonly turns: number;
+  readonly damageA: number;
+  readonly damageB: number;
+  readonly primaryDifference?: number;
+  readonly representativeSeed?: number;
+}
+
+export interface SimulationStratifiedAccumulator {
+  readonly schemaVersion: "simulation-stratified-accumulator:v2";
+  readonly stratumId: string;
+  readonly completedPairs: number;
+  readonly winsA: number;
+  readonly winsB: number;
+  readonly draws: number;
+  readonly turns: SimulationMeanVariance;
+  readonly damageA: SimulationMeanVariance;
+  readonly damageB: SimulationMeanVariance;
+  readonly pairedDifferences: SimulationPairedDifferenceAggregate;
+  readonly representativeSeeds: readonly number[];
+  readonly errorCount: number;
+  readonly precision: SimulationPrecisionStatus;
+  readonly primaryMetricHalfWidth?: number;
+  readonly accumulatorHash: string;
+}
+
+const requireObservationNumber = (value: number, label: string): void => {
+  if (!Number.isFinite(value) || value < 0)
+    throw new RangeError(`${label} must be finite and non-negative.`);
+};
+
+const accumulatorWithHash = (
+  accumulator: Omit<SimulationStratifiedAccumulator, "accumulatorHash">,
+): SimulationStratifiedAccumulator => ({
+  ...accumulator,
+  accumulatorHash: canonicalHash(accumulator),
+});
+
+export const createSimulationStratifiedAccumulator = (
+  stratumId: string,
+): SimulationStratifiedAccumulator => {
+  if (stratumId.trim().length === 0) throw new RangeError("Stratum identity is required.");
+  return accumulatorWithHash({
+    schemaVersion: "simulation-stratified-accumulator:v2",
+    stratumId,
+    completedPairs: 0,
+    winsA: 0,
+    winsB: 0,
+    draws: 0,
+    turns: createSimulationMeanVariance(),
+    damageA: createSimulationMeanVariance(),
+    damageB: createSimulationMeanVariance(),
+    pairedDifferences: createSimulationPairedDifferenceAggregate(),
+    representativeSeeds: [],
+    errorCount: 0,
+    precision: "not-started",
+  });
+};
+
+export const addSimulationStratifiedObservation = (
+  accumulator: SimulationStratifiedAccumulator,
+  observation: SimulationStratifiedObservation,
+): SimulationStratifiedAccumulator => {
+  if (observation.pairId.trim().length === 0) throw new RangeError("Pair identity is required.");
+  if (
+    accumulator.pairedDifferences.observations.some(
+      (entry) => entry.identity === observation.pairId,
+    )
+  )
+    throw new RangeError(`Duplicate stratified pair identity: ${observation.pairId}.`);
+  if (!Number.isInteger(observation.turns) || observation.turns < 0)
+    throw new RangeError("Fight turns must be a non-negative integer.");
+  requireObservationNumber(observation.damageA, "Damage A");
+  requireObservationNumber(observation.damageB, "Damage B");
+  const completedPairs = accumulator.completedPairs + 1;
+  const primaryDifference =
+    observation.primaryDifference ?? observation.damageA - observation.damageB;
+  const pairedDifferences = addSimulationPairedDifference(
+    accumulator.pairedDifferences,
+    observation.pairId,
+    primaryDifference,
+  );
+  const winsA = accumulator.winsA + (observation.winner === "a" ? 1 : 0);
+  const halfWidth = wilsonHalfWidth(summarizeSimulationRate(winsA, completedPairs));
+  return accumulatorWithHash({
+    ...accumulator,
+    completedPairs,
+    winsA,
+    winsB: accumulator.winsB + (observation.winner === "b" ? 1 : 0),
+    draws: accumulator.draws + (observation.winner === "draw" ? 1 : 0),
+    turns: addSimulationValue(accumulator.turns, observation.turns),
+    damageA: addSimulationValue(accumulator.damageA, observation.damageA),
+    damageB: addSimulationValue(accumulator.damageB, observation.damageB),
+    pairedDifferences,
+    representativeSeeds:
+      observation.representativeSeed === undefined
+        ? accumulator.representativeSeeds
+        : [...new Set([...accumulator.representativeSeeds, observation.representativeSeed])]
+            .sort((left, right) => left - right)
+            .slice(0, 8),
+    precision: simulationPrecisionStatus(completedPairs, halfWidth),
+    primaryMetricHalfWidth: halfWidth,
+  });
+};
+
+export const mergeSimulationStratifiedAccumulators = (
+  left: SimulationStratifiedAccumulator,
+  right: SimulationStratifiedAccumulator,
+): SimulationStratifiedAccumulator => {
+  if (left.stratumId !== right.stratumId)
+    throw new RangeError("Stratified accumulators must have matching stratum identities.");
+  const pairedDifferences = mergeSimulationPairedDifferences(
+    left.pairedDifferences,
+    right.pairedDifferences,
+  );
+  const merged = {
+    ...left,
+    completedPairs: left.completedPairs + right.completedPairs,
+    winsA: left.winsA + right.winsA,
+    winsB: left.winsB + right.winsB,
+    draws: left.draws + right.draws,
+    turns: mergeSimulationMeanVariances(left.turns, right.turns),
+    damageA: mergeSimulationMeanVariances(left.damageA, right.damageA),
+    damageB: mergeSimulationMeanVariances(left.damageB, right.damageB),
+    pairedDifferences,
+    representativeSeeds: [...new Set([...left.representativeSeeds, ...right.representativeSeeds])]
+      .sort((a, b) => a - b)
+      .slice(0, 8),
+    errorCount: left.errorCount + right.errorCount,
+  };
+  const halfWidth =
+    merged.completedPairs > 0
+      ? wilsonHalfWidth(summarizeSimulationRate(merged.winsA, merged.completedPairs))
+      : undefined;
+  return accumulatorWithHash({
+    ...merged,
+    precision: simulationPrecisionStatus(merged.completedPairs, halfWidth),
+    ...(halfWidth === undefined ? {} : { primaryMetricHalfWidth: halfWidth }),
+  });
+};
+
+export const markSimulationStratifiedError = (
+  accumulator: SimulationStratifiedAccumulator,
+): SimulationStratifiedAccumulator =>
+  accumulatorWithHash({ ...accumulator, errorCount: accumulator.errorCount + 1 });

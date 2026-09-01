@@ -14,8 +14,26 @@ import {
 } from "./contracts.js";
 import { simulationScenarioIdSchema, simulationRunIdSchema } from "./ids.js";
 import { runSimulationRequests } from "./coordinator.js";
+import { simulationPrecisionStatus } from "./statistics.js";
 
 const suffixFor = (value: string): string => value.slice(value.indexOf(":") + 1);
+
+const semanticPairIdentity = (input: {
+  readonly iteration: number;
+  readonly templateA: SimulationFightRequest["templateA"];
+  readonly templateB: SimulationFightRequest["templateB"];
+  readonly profileA: SimulationFightRequest["profileA"];
+  readonly profileB: SimulationFightRequest["profileB"];
+}): string =>
+  canonicalHash({
+    iteration: input.iteration,
+    members: [
+      { template: canonicalHash(input.templateA), profile: input.profileA.identity },
+      { template: canonicalHash(input.templateB), profile: input.profileB.identity },
+    ].sort((left, right) =>
+      `${left.template}:${left.profile.id}`.localeCompare(`${right.template}:${right.profile.id}`),
+    ),
+  });
 
 const requestFor = (
   base: SimulationFightRequest,
@@ -63,13 +81,13 @@ export const createSimulationFightSpecs = (
         schemaVersion: "simulation-contracts:v1" as const,
         iteration,
         mirror,
-        pairId: canonicalHash([
-          fightRequest.templateA.id,
-          fightRequest.templateB.id,
-          fightRequest.profileA.identity.id,
-          fightRequest.profileB.identity.id,
+        pairId: semanticPairIdentity({
           iteration,
-        ]),
+          templateA: fightRequest.templateA,
+          templateB: fightRequest.templateB,
+          profileA: fightRequest.profileA,
+          profileB: fightRequest.profileB,
+        }),
         request: fightRequest,
       };
     });
@@ -147,6 +165,20 @@ export const runSimulationSeries = (request: SimulationSeriesRequest): Simulatio
     incompletePairCount,
     resumedFightCount: progressOffset,
     checkpoint: mergedCheckpoint,
+    manifestHash: mergedCheckpoint.manifestHash,
+    pairedAggregate: {
+      pairCount: parsed.iterations,
+      completePairs: parsed.iterations - incompletePairCount,
+      orientationCount: completedEntries.length,
+    },
+    precisionStatus: simulationPrecisionStatus(
+      parsed.mirrored ? parsed.iterations - incompletePairCount : completedCount,
+    ),
+    resumability: {
+      checkpointSchemaVersion: "simulation-checkpoint:v1",
+      resumedFightCount: progressOffset,
+      complete: incompletePairCount === 0 && !coordinated.stoppedEarly,
+    },
     seriesHash: canonicalHash({
       seriesId: parsed.seriesId,
       manifestHash: mergedCheckpoint.manifestHash,

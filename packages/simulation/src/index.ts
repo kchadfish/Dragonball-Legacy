@@ -17,6 +17,7 @@ export * from "./coverage-artifacts.js";
 export * from "./budgets.js";
 export * from "./benchmarks.js";
 export * from "./decision-boundary.js";
+export * from "./exposure.js";
 export * from "./ids.js";
 export * from "./matrix.js";
 export * from "./move-coverage.js";

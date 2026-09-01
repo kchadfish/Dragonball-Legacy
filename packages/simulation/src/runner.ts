@@ -32,6 +32,9 @@ import type { SimulationDecisionRecord } from "./ai-selection.js";
 import { SIMULATION_SCOPE_VERSION } from "./scope.js";
 import { runSimulationTransitionDriver } from "./transition-driver.js";
 import type { SimulationMoveFunnel } from "./move-coverage.js";
+import { selectForcedSimulationDecision } from "./exposure.js";
+
+type MoveFunnelStage = Exclude<keyof SimulationMoveFunnel, "decisionFunnel" | "triggerFunnel">;
 
 const mechanicsFor = (request: SimulationFightRequest): AiMechanicsView => ({
   version: request.mechanicsView.version,
@@ -76,17 +79,53 @@ const emptyMoveFunnel = (): SimulationMoveFunnel => ({
   resolved: 0,
   successful: 0,
   valueProducing: 0,
+  decisionFunnel: {
+    equipped: 0,
+    eligible: 0,
+    affordable: 0,
+    selected: 0,
+    submitted: 0,
+    resolved: 0,
+    successful: 0,
+    valueProducing: 0,
+  },
+  triggerFunnel: {
+    applicable: 0,
+    triggered: 0,
+    activated: 0,
+    resolved: 0,
+    successful: 0,
+    valueProducing: 0,
+  },
 });
 
 const incrementMoveFunnel = (
   funnels: Record<string, SimulationMoveFunnel>,
   moveId: string,
-  stages: readonly (keyof SimulationMoveFunnel)[],
+  stages: readonly MoveFunnelStage[],
 ): void => {
   const current = funnels[moveId] ?? emptyMoveFunnel();
   const next = { ...current };
-  for (const stage of stages) next[stage] += 1;
+  const decisionFunnel = { ...current.decisionFunnel };
+  for (const stage of stages) {
+    next[stage] += 1;
+    decisionFunnel[stage] += 1;
+  }
+  next.decisionFunnel = decisionFunnel;
   funnels[moveId] = next;
+};
+
+type TriggerFunnelStage = keyof SimulationMoveFunnel["triggerFunnel"];
+
+const incrementTriggerFunnel = (
+  funnels: Record<string, SimulationMoveFunnel>,
+  moveId: string,
+  stages: readonly TriggerFunnelStage[],
+): void => {
+  const current = funnels[moveId] ?? emptyMoveFunnel();
+  const triggerFunnel = { ...current.triggerFunnel };
+  for (const stage of stages) triggerFunnel[stage] += 1;
+  funnels[moveId] = { ...current, triggerFunnel };
 };
 
 /* eslint-disable sonarjs/cognitive-complexity, complexity -- One observer owns the structured event vocabulary at the combat boundary. */
@@ -104,6 +143,42 @@ const updateMoveFunnels = (
       incrementMoveFunnel(funnels, candidate.moveId, ["equipped", "eligible", "affordable"]);
   if (observation.decision?.type === "use-move")
     incrementMoveFunnel(funnels, observation.decision.moveId, ["selected", "submitted"]);
+
+  for (const mechanicObservation of observation.transition.mechanicObservations ?? []) {
+    if (
+      mechanicObservation.subject !== "move" &&
+      mechanicObservation.subject !== "block" &&
+      mechanicObservation.subject !== "effect"
+    )
+      continue;
+    if (mechanicObservation.category === "trigger")
+      incrementTriggerFunnel(funnels, mechanicObservation.definitionId, [
+        "applicable",
+        "triggered",
+      ]);
+    if (mechanicObservation.category === "activation")
+      incrementTriggerFunnel(funnels, mechanicObservation.definitionId, [
+        "applicable",
+        "triggered",
+        "activated",
+      ]);
+    if (mechanicObservation.category === "resolution")
+      incrementTriggerFunnel(funnels, mechanicObservation.definitionId, [
+        "applicable",
+        "triggered",
+        "activated",
+        "resolved",
+      ]);
+    if (mechanicObservation.category === "value")
+      incrementTriggerFunnel(funnels, mechanicObservation.definitionId, [
+        "applicable",
+        "triggered",
+        "activated",
+        "resolved",
+        "successful",
+        "valueProducing",
+      ]);
+  }
 
   const facts = observation.transition.events.map(
     (event) => event as unknown as Record<string, unknown>,
@@ -150,7 +225,7 @@ const updateMoveFunnels = (
   }
   for (const { moveId, successful } of resolutions.values()) {
     const effectiveSuccess = successful || valueProducing;
-    const stages: (keyof SimulationMoveFunnel)[] = ["resolved"];
+    const stages: MoveFunnelStage[] = ["resolved"];
     if (effectiveSuccess) stages.push("successful");
     if (effectiveSuccess && valueProducing) stages.push("valueProducing");
     incrementMoveFunnel(funnels, moveId, stages);
@@ -396,7 +471,17 @@ export const runSimulationFight = (
       return failureResult(request, { type: "malformed-input", detail: first.error.detail });
     if (!second.ok)
       return failureResult(request, { type: "malformed-input", detail: second.error.detail });
-    const pairId = canonicalHash([first.value.templateHash, second.value.templateHash]);
+    const pairId = canonicalHash({
+      iteration: request.iteration ?? 0,
+      members: [
+        { template: first.value.templateHash, profile: request.profileA.identity },
+        { template: second.value.templateHash, profile: request.profileB.identity },
+      ].sort((left, right) =>
+        `${left.template}:${left.profile.id}`.localeCompare(
+          `${right.template}:${right.profile.id}`,
+        ),
+      ),
+    });
     const common = {
       rootSeed: request.rootSeed,
       scenarioId: request.scenario.id,
@@ -419,6 +504,7 @@ export const runSimulationFight = (
       clock: new FixedClock(request.fixedTime),
       ids: new BranchCombatIdSource([request.runId, pairId]),
       retainDiagnosticTrace: diagnosticsEnabled,
+      retainMechanicObservations: diagnosticsEnabled,
       mechanicsView: request.mechanicsView,
     };
     const runtime = createCombatRuntime(request.mechanicsView);
@@ -489,7 +575,11 @@ export const runSimulationFight = (
         };
         const selected = selectSimulationDecision(aiRequest);
         if (!selected.ok) return { error: { type: "ai-failure", failure: selected.error } };
-        const chosen: LegalDecision = selected.value.decision;
+        const chosen: LegalDecision =
+          request.decisionPolicy?.type === "forced-target-first"
+            ? (selectForcedSimulationDecision(legalDecisions, request.decisionPolicy) ??
+              selected.value.decision)
+            : selected.value.decision;
         aiRecords[actorIsA ? "a" : "b"] = selected.value.simulationRecord;
         evaluations.push(...selected.value.evaluations);
         summaries.actorActions += 1;

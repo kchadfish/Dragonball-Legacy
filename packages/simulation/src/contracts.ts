@@ -17,7 +17,9 @@ import {
   simulationTemplateIdSchema,
   simulationVariantIdSchema,
 } from "./ids.js";
+import { simulationDecisionPolicySchema, type SimulationDecisionPolicy } from "./exposure.js";
 import { simulationMoveFunnelSchema, type SimulationMoveFunnel } from "./move-coverage.js";
+import type { SimulationPrecisionStatus } from "./statistics.js";
 
 export const SIMULATION_CONTRACT_VERSION = "simulation-contracts:v1" as const;
 
@@ -70,6 +72,27 @@ const transformationProfileSchema = z
   })
   .strict();
 
+export const simulationTf1OverlaySchema = z
+  .object({
+    schemaVersion: z.literal("simulation-tf1-overlay:v1"),
+    status: z.enum(["draft", "approved"]),
+    generatedFrom: z.string().min(1),
+    slotLimits: z
+      .object({
+        mastery: z.literal(1),
+        skill: z.literal(4),
+        advancedAttack: z.literal(5),
+        signature: z.literal(2),
+        block: z.literal(2),
+      })
+      .strict(),
+    moveIds: uniqueStrings,
+    overlayHash: z.string().min(1),
+    approvalReference: z.string().min(1).optional(),
+  })
+  .strict();
+export type SimulationTf1Overlay = z.output<typeof simulationTf1OverlaySchema>;
+
 export const simulationTemplateSchema = z
   .object({
     schemaVersion: z.literal(SIMULATION_CONTRACT_VERSION),
@@ -105,6 +128,7 @@ export const simulationTemplateSchema = z
     moveIds: uniqueStrings,
     itemIds: uniqueStrings,
     transformationProfiles: z.array(transformationProfileSchema),
+    loadoutOverlay: simulationTf1OverlaySchema.optional(),
     gaps: z.array(simulationGapSchema),
     aiProfileId: z.string().min(1),
   })
@@ -249,6 +273,7 @@ export interface SimulationFightRequest {
   readonly mirror?: "original" | "mirrored";
   readonly fixedTime: Date;
   readonly mechanicsView: import("@dragonball-resurgence/combat-engine").CombatMechanicsView;
+  readonly decisionPolicy?: SimulationDecisionPolicy;
 }
 
 export const simulationFightRequestSchema = z
@@ -271,6 +296,7 @@ export const simulationFightRequestSchema = z
     mechanicsView: z.custom<import("@dragonball-resurgence/combat-engine").CombatMechanicsView>(
       (value) => typeof value === "object" && value !== null,
     ),
+    decisionPolicy: simulationDecisionPolicySchema.optional(),
   })
   .strict();
 
@@ -551,6 +577,18 @@ export interface SimulationSeriesResult {
   readonly incompletePairCount: number;
   readonly resumedFightCount: number;
   readonly checkpoint: SimulationSeriesCheckpoint;
+  readonly manifestHash: string;
+  readonly pairedAggregate: Readonly<{
+    readonly pairCount: number;
+    readonly completePairs: number;
+    readonly orientationCount: number;
+  }>;
+  readonly precisionStatus: SimulationPrecisionStatus;
+  readonly resumability: Readonly<{
+    readonly checkpointSchemaVersion: "simulation-checkpoint:v1";
+    readonly resumedFightCount: number;
+    readonly complete: boolean;
+  }>;
   readonly seriesHash: string;
 }
 
@@ -580,6 +618,8 @@ export interface SimulationMatrixResult {
   readonly series: readonly SimulationSeriesResult[];
   readonly estimatedFightCount: number;
   readonly stoppedEarly: boolean;
+  readonly manifestHash: string;
+  readonly precisionStatus: SimulationPrecisionStatus;
   readonly matrixHash: string;
 }
 

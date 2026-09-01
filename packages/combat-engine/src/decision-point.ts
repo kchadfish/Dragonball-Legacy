@@ -3,6 +3,21 @@ import type { CombatantId } from "./ids.js";
 import { enumerateLegalDecisions } from "./progress-fight.js";
 import type { CombatMechanicsView } from "./mechanics-view.js";
 
+export type NonEmptyLegalDecisions = readonly [LegalDecision, ...LegalDecision[]];
+
+const requiredLegalDecisions = (
+  state: FightState,
+  actorId: CombatantId,
+  mechanicsView: CombatMechanicsView | undefined,
+): NonEmptyLegalDecisions => {
+  const legalDecisions = enumerateLegalDecisions(state, actorId, mechanicsView);
+  if (legalDecisions.length === 0)
+    throw new RangeError(
+      `Combat decision point has no legal decisions for ${actorId} at state version ${state.version}.`,
+    );
+  return legalDecisions as NonEmptyLegalDecisions;
+};
+
 /** Combat-owned instruction for the next ordinary transition boundary. */
 export type CombatDecisionPoint =
   | {
@@ -13,7 +28,7 @@ export type CombatDecisionPoint =
       readonly type: "decision-required";
       readonly stateVersion: number;
       readonly actorId: CombatantId;
-      readonly legalDecisions: readonly LegalDecision[];
+      readonly legalDecisions: NonEmptyLegalDecisions;
     }
   | {
       readonly type: "completed";
@@ -35,7 +50,7 @@ export const getCombatDecisionPoint = (
       type: "decision-required",
       stateVersion: state.version,
       actorId,
-      legalDecisions: enumerateLegalDecisions(state, actorId, mechanicsView),
+      legalDecisions: requiredLegalDecisions(state, actorId, mechanicsView),
     };
   }
   if (state.phase === "action" || state.phase === "counter") {
@@ -44,7 +59,7 @@ export const getCombatDecisionPoint = (
       type: "decision-required",
       stateVersion: state.version,
       actorId,
-      legalDecisions: enumerateLegalDecisions(state, actorId, mechanicsView),
+      legalDecisions: requiredLegalDecisions(state, actorId, mechanicsView),
     };
   }
   return { type: "advance", stateVersion: state.version };

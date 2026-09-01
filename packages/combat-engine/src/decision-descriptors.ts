@@ -5,7 +5,13 @@ import type {
   NumericExpression,
 } from "@dragonball-resurgence/game-data";
 
-import type { ActiveFightState, FightState, LegalDecision, PendingDecision } from "./contracts.js";
+import type {
+  ActiveFightState,
+  CombatDefinitionProvenance,
+  FightState,
+  LegalDecision,
+  PendingDecision,
+} from "./contracts.js";
 import { compileEffectPlan } from "./effect-executors.js";
 import { compileItemEffectPlan } from "./item-effect-adapters.js";
 import { itemUsePolicyFor } from "./item-effects-runtime.js";
@@ -188,6 +194,8 @@ export interface CombatDecisionDescriptor {
     readonly type: LegalDecision["type"];
     readonly category: DecisionCategory;
   };
+  /** Present on engine-produced descriptors; optional for older consumer-owned fixtures. */
+  readonly definitionProvenance?: readonly CombatDefinitionProvenance[];
   readonly actionConsumption: DecisionActionConsumption;
   readonly costs: readonly AuthoritativeDecisionCost[];
   readonly effects: readonly DecisionEffectFact[];
@@ -776,6 +784,93 @@ const immediateOutcomeFor = (
   };
 };
 
+const definitionProvenanceFor = (
+  state: FightState,
+  decision: LegalDecision,
+  effects: readonly DecisionEffectFact[],
+  selection: DecisionSelectionFact | undefined,
+  view: CombatMechanicsView,
+): readonly CombatDefinitionProvenance[] => {
+  const provenance: CombatDefinitionProvenance[] = [];
+  const add = (entry: CombatDefinitionProvenance): void => {
+    const key = `${entry.kind}:${entry.definitionId}:${entry.effectIndex ?? ""}:${entry.activeEffectId ?? ""}:${entry.pendingDecisionId ?? ""}`;
+    if (
+      provenance.some(
+        (candidate) =>
+          `${candidate.kind}:${candidate.definitionId}:${candidate.effectIndex ?? ""}:${candidate.activeEffectId ?? ""}:${candidate.pendingDecisionId ?? ""}` ===
+          key,
+      )
+    )
+      return;
+    provenance.push(entry);
+  };
+  if (decision.type === "use-move") {
+    const move = view.indexes.moves.get(decision.moveId);
+    add({
+      kind: move?.category === "block" ? "block" : "move",
+      definitionId: decision.moveId,
+    });
+  } else if (decision.type === "basic-attack") {
+    add({ kind: "move", definitionId: `basic-attack:${decision.basicAttack}` });
+  } else if (decision.type === "use-item") add({ kind: "item", definitionId: decision.itemId });
+  else if (decision.type === "activate-transformation")
+    add({ kind: "transformation", definitionId: decision.transformationId });
+  else if (decision.type === "deactivate-transformation") {
+    const transformationId =
+      state.status === "active"
+        ? state.combatants[decision.actorId]?.transformation?.transformationId
+        : undefined;
+    if (transformationId !== undefined)
+      add({ kind: "transformation", definitionId: transformationId });
+  } else if (decision.type === "respond-to-pending-decision") {
+    add({
+      kind: "pending-response",
+      definitionId: decision.pendingDecisionId,
+      pendingDecisionId: decision.pendingDecisionId,
+    });
+    const pending = state.status === "active" ? state.pendingDecision : undefined;
+    const selected = new Set(selection?.selectedOptionIds ?? decision.selectedOptionIds);
+    for (const option of pending?.options ?? []) {
+      if (!selected.has(option.id)) continue;
+      if (option.moveId !== undefined) {
+        const move = view.indexes.moves.get(option.moveId);
+        add({
+          kind: move?.category === "block" ? "block" : "move",
+          definitionId: option.moveId,
+          pendingDecisionId: decision.pendingDecisionId,
+        });
+      }
+      if (option.itemId !== undefined)
+        add({
+          kind: "item",
+          definitionId: option.itemId,
+          pendingDecisionId: decision.pendingDecisionId,
+        });
+      if (option.transformationId !== undefined)
+        add({
+          kind: "transformation",
+          definitionId: option.transformationId,
+          pendingDecisionId: decision.pendingDecisionId,
+        });
+      for (const effectIndex of option.effectIndices ?? [])
+        if (option.moveId !== undefined)
+          add({
+            kind: "effect",
+            definitionId: option.moveId,
+            effectIndex,
+            pendingDecisionId: decision.pendingDecisionId,
+          });
+    }
+  }
+  for (const effect of effects)
+    add({
+      kind: "effect",
+      definitionId: effect.sourceDefinitionId,
+      effectIndex: effect.sourceEffectIndex,
+    });
+  return Object.freeze(provenance);
+};
+
 /** Describes one engine-enumerated decision from compiled combat facts. */
 export const describeLegalDecision = (
   state: FightState,
@@ -803,9 +898,11 @@ export const describeLegalDecision = (
   const tacticalSetup =
     activeState === undefined ? undefined : tacticalSetupFor(activeState, decision, effects);
   const terminal = decision.type === "surrender" ? "surrender-loss" : "none";
+  const definitionProvenance = definitionProvenanceFor(state, decision, effects, selection, view);
   return {
     key,
     identity: { type: decision.type, category },
+    definitionProvenance,
     actionConsumption,
     costs,
     effects,

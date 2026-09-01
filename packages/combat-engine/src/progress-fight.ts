@@ -207,6 +207,7 @@ import {
   scheduledWorkFromResolutionFrame,
   type ScheduledCombatWork,
 } from "./fight-flow-scheduler.js";
+import { collectCombatMechanicObservations } from "./mechanic-observations.js";
 
 type CandidateFactRoll = Pick<
   AttackDieRoll,
@@ -291,10 +292,48 @@ const diagnosticTransitionContext = (dependencies: CombatDependencies) => {
 const withDiagnosticTransitionTrace = (
   result: CombatResult<CombatTransition>,
   entries: readonly CalculationTraceEntry[] | undefined,
+  observations: readonly import("./contracts.js").CombatMechanicObservation[] | undefined,
 ): CombatResult<CombatTransition> =>
-  result.ok && entries !== undefined
-    ? { ok: true, value: { ...result.value, diagnosticTrace: entries } }
+  result.ok
+    ? {
+        ok: true,
+        value: {
+          ...result.value,
+          ...(entries === undefined ? {} : { diagnosticTrace: entries }),
+          ...(observations === undefined ? {} : { mechanicObservations: observations }),
+        },
+      }
     : result;
+
+const withMechanicTransitionObservations = (
+  result: CombatResult<CombatTransition>,
+  previousState: FightState,
+  submittedDecision: LegalDecision | undefined,
+  dependencies: CombatDependencies,
+): CombatResult<CombatTransition> => {
+  if (!result.ok || dependencies.retainMechanicObservations !== true) return result;
+  const legalDecisions =
+    previousState.status === "active"
+      ? enumerateLegalDecisions(
+          previousState,
+          previousState.pendingDecision?.combatantId ?? previousState.activeCombatantId,
+          dependencies.mechanicsView,
+        )
+      : [];
+  return {
+    ok: true,
+    value: {
+      ...result.value,
+      mechanicObservations: collectCombatMechanicObservations({
+        previousState,
+        transition: result.value,
+        legalDecisions,
+        submittedDecision,
+        mechanicsView: mechanicsViewFor(dependencies.mechanicsView),
+      }),
+    },
+  };
+};
 
 const moveRemovalTargetId = (
   application: MoveRemovalApplication,
@@ -750,6 +789,35 @@ const nextActiveCombatantId = (state: ActiveFightState): CombatantId | undefined
   Object.values(state.combatants).find(
     (combatant) => combatant.id !== state.activeCombatantId && combatant.status === "active",
   )?.id;
+
+const isCounterContinuationAction = (state: ActiveFightState, combatantId: CombatantId) => {
+  const previousAction = state.actionHistory.at(-1);
+  return (
+    (previousAction?.type === "basic-attack" || previousAction?.type === "use-move") &&
+    previousAction.counter === true &&
+    previousAction.targetCombatantId === combatantId
+  );
+};
+
+const counterHandoffRequired = (
+  state: ActiveFightState,
+  combatantId: CombatantId,
+  counterContinues: boolean,
+) =>
+  counterContinues ||
+  state.phase === "counter" ||
+  (state.phase === "action" && isCounterContinuationAction(state, combatantId));
+
+const phaseAfterCounterOpportunity = (
+  counterContinues: boolean,
+  counterAction: CounterActionReference | undefined,
+): "counter" | "action" | "end" => {
+  if (!counterContinues) return "end";
+  return counterAction === undefined ? "action" : "counter";
+};
+
+const counterActionFieldFor = (counterAction: CounterActionReference | undefined) =>
+  counterAction === undefined ? {} : { counterAction };
 
 type ResolvedActionDecision = Exclude<
   CombatDecision,
@@ -7317,7 +7385,7 @@ const appendConvertedAttackOutcomeEvents = (
     createPhaseChangedEvent(
       state,
       dependencies,
-      context.counterContinues ? "counter" : "end",
+      phaseAfterCounterOpportunity(context.counterContinues, context.counterAction),
       nextEventSequence(state, events),
       decision.id,
     ),
@@ -8414,8 +8482,12 @@ const createConvertedAttackMoveState = (
         winnerCombatantId: attackerDefeated ? target.id : attacker.id,
       },
     };
-  const nextActiveCombatant =
-    context.counterContinues || state.phase === "counter" ? target.id : state.activeCombatantId;
+  const counterFrameReady = context.counterContinues && context.counterAction !== undefined;
+  const counterContinuationAction =
+    state.phase === "action" && isCounterContinuationAction(state, attacker.id);
+  const nextActiveCombatant = counterHandoffRequired(state, attacker.id, context.counterContinues)
+    ? target.id
+    : state.activeCombatantId;
   const consumedExtraActionEffects = consumeExtraActionForDecision(state, decision);
   const scheduledWork = scheduledWorkAfterExtraActionConsumption(state, decision);
   const activeEffectsBeforeConsumption = [
@@ -8438,11 +8510,11 @@ const createConvertedAttackMoveState = (
   const continueWithExtraAction =
     state.phase === "action" &&
     !context.counterContinues &&
+    !counterContinuationAction &&
     hasAvailableExtraAction({ ...state, activeEffects, scheduledWork }, attacker.id);
-  let nextPhase: "counter" | "action" | "end";
-  if (context.counterContinues) nextPhase = "counter";
-  else if (continueWithExtraAction) nextPhase = "action";
-  else nextPhase = "end";
+  const nextPhase: "counter" | "action" | "end" = continueWithExtraAction
+    ? "action"
+    : phaseAfterCounterOpportunity(context.counterContinues, context.counterAction);
   const phaseOperation = scheduledPhaseOperation(
     nextPhase,
     continueWithExtraAction ? attacker.id : nextActiveCombatant,
@@ -8454,7 +8526,7 @@ const createConvertedAttackMoveState = (
     activeEffects,
     scheduledWork,
     actionHistory,
-    resolutionFrames: context.counterContinues
+    resolutionFrames: counterFrameReady
       ? [
           {
             id: dependencies.ids.nextResolutionFrameId(),
@@ -8464,9 +8536,7 @@ const createConvertedAttackMoveState = (
             targetCombatantId: target.id,
             returnPhase: state.phase === "counter" ? "counter" : "action",
             stage: "awaiting-counter",
-            ...(context.counterAction === undefined
-              ? {}
-              : { counterAction: context.counterAction }),
+            ...counterActionFieldFor(context.counterAction),
           },
         ]
       : [],
@@ -17185,8 +17255,9 @@ const createBasicAttackState = (
         },
       }
     : (() => {
-        const nextActiveCombatantId =
-          counterContinues || state.phase === "counter" ? target.id : state.activeCombatantId;
+        const nextActiveCombatantId = counterHandoffRequired(state, attacker.id, counterContinues)
+          ? target.id
+          : state.activeCombatantId;
         const phaseOperation = scheduledPhaseOperation(
           counterContinues ? "counter" : "end",
           nextActiveCombatantId,
@@ -17221,7 +17292,7 @@ const createBasicAttackState = (
                   targetCombatantId: target.id,
                   returnPhase: state.phase === "counter" ? "counter" : "action",
                   stage: "awaiting-counter" as const,
-                  ...(counterAction === undefined ? {} : { counterAction }),
+                  ...counterActionFieldFor(counterAction),
                 },
               ]
             : [],
@@ -17648,11 +17719,14 @@ export const enumerateLegalDecisions = (
   const extraActionDecisions =
     extraAction === undefined
       ? unlockedDecisions
-      : unlockedDecisions.filter((decision) =>
-          availableExtraActionsFor(state, combatantId).some((candidate) =>
-            extraActionMatchesDecision(state, candidate, decision),
-          ),
-        );
+      : (() => {
+          const matching = unlockedDecisions.filter((decision) =>
+            availableExtraActionsFor(state, combatantId).some((candidate) =>
+              extraActionMatchesDecision(state, candidate, decision),
+            ),
+          );
+          return matching.length === 0 ? unlockedDecisions : matching;
+        })();
   const constrainedDecisions =
     force === undefined
       ? extraActionDecisions
@@ -19008,8 +19082,14 @@ export const advanceFight = (
     };
   const context = diagnosticTransitionContext(dependencies);
   return withDiagnosticTransitionTrace(
-    canonicalizePublicTransition(advanceFightInternal(state, context.dependencies)),
+    withMechanicTransitionObservations(
+      canonicalizePublicTransition(advanceFightInternal(state, context.dependencies)),
+      state,
+      undefined,
+      context.dependencies,
+    ),
     context.entries,
+    undefined,
   );
 };
 
@@ -30351,9 +30431,17 @@ export const submitCombatDecision = (
     };
   const context = diagnosticTransitionContext(dependencies);
   return withDiagnosticTransitionTrace(
-    canonicalizePublicTransition(
-      submitCombatDecisionInternal(state, inputDecision, context.dependencies),
+    withMechanicTransitionObservations(
+      canonicalizePublicTransition(
+        submitCombatDecisionInternal(state, inputDecision, context.dependencies),
+      ),
+      state,
+      inputDecision.type === "cancel-fight"
+        ? undefined
+        : (inputDecision as unknown as LegalDecision),
+      context.dependencies,
     ),
     context.entries,
+    undefined,
   );
 };

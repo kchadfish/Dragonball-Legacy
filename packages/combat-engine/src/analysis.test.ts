@@ -74,6 +74,17 @@ describe("combat analysis boundary", () => {
     expect(descriptor.actionConsumption).toBe("action");
     expect(descriptor.costs[0]?.resource).toBe("ki");
     expect(descriptor.effects.length).toBeGreaterThan(0);
+    const firstEffect = descriptor.effects[0]!;
+    expect(descriptor.definitionProvenance).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "move", definitionId: "move-akaikaru-firestorm" }),
+        expect.objectContaining({
+          kind: "effect",
+          definitionId: "move-akaikaru-firestorm",
+          effectIndex: firstEffect.sourceEffectIndex,
+        }),
+      ]),
+    );
     expect(descriptor.immediateOutcome.version).toBe("immediate-outcome:v1");
     expect(descriptor.immediateOutcome.damage[0]?.possibleLethality).toBe(false);
     expect(descriptor.immediateOutcome.damage[0]?.amount?.maximum).toBeGreaterThan(0);

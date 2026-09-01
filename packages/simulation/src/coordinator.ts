@@ -102,3 +102,56 @@ export const runSimulationRequests = (
     stoppedEarly,
   };
 };
+
+/**
+ * Deterministic worker-executor facade. Each partition uses the same
+ * sequential reference runner and results are merged by request index, so a
+ * later Node worker implementation can replace the partition body without
+ * changing logical results or canonical hashes.
+ */
+export const runSimulationRequestsWithWorkers = (
+  request: SimulationCoordinatorRequest & { readonly workers: number },
+): SimulationCoordinatorResult => {
+  if (!Number.isInteger(request.workers) || request.workers < 1)
+    throw new RangeError("Simulation worker count must be a positive integer.");
+  const partitions = Array.from(
+    { length: Math.min(request.workers, request.requests.length) },
+    () =>
+      [] as {
+        readonly index: number;
+        readonly request: SimulationCoordinatorRequest["requests"][number];
+      }[],
+  );
+  request.requests.forEach((fightRequest, index) => {
+    partitions[index % partitions.length]?.push({ index, request: fightRequest });
+  });
+  const indexedResults: Array<CoordinatorResult | undefined> = [];
+  let stoppedEarly = false;
+  for (const partition of partitions) {
+    if (stoppedEarly) break;
+    const partitionResult = runSimulationRequests({
+      ...request,
+      requests: partition.map((entry) => entry.request),
+      concurrency: 1,
+      onProgress: undefined,
+    });
+    partitionResult.results.forEach((result, resultIndex) => {
+      const source = partition[resultIndex]!;
+      indexedResults[source.index] = result;
+    });
+    stoppedEarly ||= partitionResult.stoppedEarly;
+  }
+  const results = indexedResults.filter(
+    (result): result is CoordinatorResult => result !== undefined,
+  );
+  results.forEach((result, index) => {
+    const fightRequest = request.requests[index]!;
+    request.onProgress?.({
+      completed: index + 1,
+      total: request.requests.length,
+      runId: fightRequest.runId,
+      result,
+    });
+  });
+  return { results, stoppedEarly };
+};

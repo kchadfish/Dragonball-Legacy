@@ -10,6 +10,7 @@ export * from "./conflict-policy.js";
 export * from "./create-fight.js";
 export * from "./dependencies.js";
 export * from "./mechanics-view.js";
+export * from "./mechanic-observations.js";
 export * from "./combat-runtime.js";
 export * from "./declarative-runtime.js";
 export * from "./decision-descriptors.js";

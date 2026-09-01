@@ -21,9 +21,20 @@ const moveIdsFromEnv = (): readonly string[] | undefined => {
   return moveIds;
 };
 
+const populationFromEnv = (): "isolation" | "forced" | undefined => {
+  const value = process.env.SIMULATION_COVERAGE_POPULATION;
+  if (value === undefined) return undefined;
+  if (value !== "isolation" && value !== "forced")
+    throw new RangeError("SIMULATION_COVERAGE_POPULATION must be isolation or forced.");
+  return value;
+};
+
 const result = runSimulationMoveCoverage({
   targetFights: positiveIntegerFromEnv("SIMULATION_COVERAGE_TARGET"),
+  minimumEligibleStates: positiveIntegerFromEnv("SIMULATION_COVERAGE_MINIMUM_ELIGIBLE"),
   concurrency: positiveIntegerFromEnv("SIMULATION_COVERAGE_CONCURRENCY"),
+  workers: positiveIntegerFromEnv("SIMULATION_COVERAGE_WORKERS"),
+  population: populationFromEnv(),
   moveIds: moveIdsFromEnv(),
 });
 await writeFile(

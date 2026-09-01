@@ -64,6 +64,18 @@ export type CombatSourceReference =
       readonly mastery: "novice" | "intermediate" | "mastered";
     };
 
+export type CombatDefinitionProvenanceKind =
+  "move" | "block" | "pending-response" | "effect" | "item" | "transformation";
+
+/** Stable catalog provenance for a legal decision and its selected effects. */
+export interface CombatDefinitionProvenance {
+  readonly kind: CombatDefinitionProvenanceKind;
+  readonly definitionId: string;
+  readonly effectIndex?: number;
+  readonly activeEffectId?: ActiveEffectId;
+  readonly pendingDecisionId?: PendingDecisionId;
+}
+
 /** A passive declarative change to one moveset slot capacity. */
 export interface SlotCapacityModification {
   readonly sourceCombatantId: CombatantId;
@@ -2364,6 +2376,33 @@ export interface CombatTransition {
   readonly pendingDecision?: PendingDecision;
   /** Optional calculation diagnostics; omitted unless explicitly retained. */
   readonly diagnosticTrace?: CombatDiagnosticTrace;
+  /** Optional mechanic telemetry; omitted unless explicitly retained. */
+  readonly mechanicObservations?: readonly CombatMechanicObservation[];
+}
+
+export type CombatMechanicObservationCategory =
+  "opportunity" | "availability" | "trigger" | "activation" | "resolution" | "outcome" | "value";
+
+export type CombatMechanicObservationSubject =
+  "move" | "block" | "pending-response" | "effect" | "item" | "transformation" | "basic-attack";
+
+/**
+ * Immutable, non-authoritative telemetry for one combat transition. It is
+ * deliberately separate from events and FightState so retention cannot alter
+ * replay identity, random consumption, or authoritative combat behavior.
+ */
+export interface CombatMechanicObservation {
+  readonly schemaVersion: "combat-mechanic-observation:v1";
+  readonly category: CombatMechanicObservationCategory;
+  readonly subject: CombatMechanicObservationSubject;
+  readonly definitionId: string;
+  readonly effectIndex?: number;
+  readonly activeEffectId?: ActiveEffectId;
+  readonly pendingDecisionId?: PendingDecisionId;
+  readonly combatantId?: CombatantId;
+  readonly targetCombatantId?: CombatantId;
+  readonly detail: string;
+  readonly value?: boolean | number | string;
 }
 
 export type CombatFailure =

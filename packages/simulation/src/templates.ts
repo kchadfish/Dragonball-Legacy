@@ -11,6 +11,7 @@ import {
   type MaterializedSimulationTemplate,
   type SimulationGap,
   type SimulationTemplate,
+  type SimulationTf1Overlay,
   type SimulationTemplateResult,
 } from "./contracts.js";
 
@@ -45,13 +46,23 @@ const styleIds: Readonly<Record<string, string>> = {
   Kurokonwaku: "style-kurokonwaku",
   Midorikatai: "style-midorikatai",
 };
-const transformationIds: Readonly<Record<string, string>> = {
+const transformationIds: Readonly<Partial<Record<string, string>>> = {
   "Semi-Perfect": "transformation-bio-androids-1-semi-perfect-form",
   "Giant Form": "transformation-namek-1-giant-form",
   "High Tension": "transformation-humans-1-high-tension",
   "Maintained Malfunction": "transformation-androids-1-maintained-malfunction",
   Evil: "transformation-majins-1-evil-form",
   Oozaru: "transformation-saiyans-1-oozaru",
+};
+
+const transformationIdFor = (name: string, raceId: string): string => {
+  if (name === "High Tension" && raceId === "race-hybrid-saiyan")
+    return "transformation-hybrid-saiyan-1-high-tension";
+  if (name === "Oozaru" && raceId === "race-hybrid-saiyan")
+    return "transformation-hybrid-saiyan-1-oozaru";
+  const transformationId = transformationIds[name];
+  if (transformationId === undefined) throw new RangeError(`Unknown TF1 transformation ${name}.`);
+  return transformationId;
 };
 
 type SourceRow = readonly [
@@ -689,7 +700,7 @@ const sourceRows: readonly SourceRow[] = [
 const gapFor = (path: string): SimulationGap => ({
   kind: "loadout",
   reason:
-    "TF1 sheet has source names but no reviewed canonical ID overlay; moves, items, traits, and universal Ki policy remain unresolved.",
+    "TF1 loadout overlay is draft evidence and requires explicit approval before natural-population use.",
   provenance: {
     path,
     text: "TF1 loadout fields require reviewed overlay before materialization.",
@@ -697,7 +708,76 @@ const gapFor = (path: string): SimulationGap => ({
   },
 });
 
-const sourceTemplateFor = (row: SourceRow): SimulationTemplate => {
+const distributedSlice = (
+  values: readonly string[],
+  count: number,
+  offset: number,
+): readonly string[] =>
+  Array.from(
+    { length: Math.min(count, values.length) },
+    (_, index) => values[(offset + index) % values.length]!,
+  );
+
+const overlayMovesFor = (
+  view: CombatMechanicsView,
+  styleId: string,
+  masteryName: string,
+  rowIndex: number,
+): readonly string[] => {
+  const styled = view.moves.filter((move) => move.styleId === styleId);
+  const byCategory = (category: string): readonly string[] =>
+    styled
+      .filter((move) => move.category === category)
+      .map((move) => move.id)
+      .sort((left, right) => left.localeCompare(right));
+  const mastery = byCategory("mastery");
+  if (mastery.length === 0) throw new RangeError(`No mastery move found for ${styleId}.`);
+  const selectedMastery =
+    styled.find((move) => move.category === "mastery" && move.name === masteryName)?.id ??
+    mastery[0]!;
+  const skills = byCategory("skill");
+  const advancedAttacks = byCategory("advanced-attack");
+  const signatures = byCategory("signature");
+  const blocks = byCategory("block");
+  return [
+    selectedMastery,
+    ...distributedSlice(skills, 4, rowIndex * 4),
+    ...distributedSlice(advancedAttacks, 5, rowIndex * 5),
+    ...distributedSlice(signatures, 2, rowIndex * 2),
+    ...distributedSlice(blocks, 2, rowIndex * 2),
+  ];
+};
+
+const overlayFor = (
+  templateId: string,
+  styleId: string,
+  masteryName: string,
+  moveIds: readonly string[],
+): SimulationTf1Overlay => {
+  const generatedFrom = `${templateId}:${styleId}:${masteryName}`;
+  const slotLimits = {
+    mastery: 1 as const,
+    skill: 4 as const,
+    advancedAttack: 5 as const,
+    signature: 2 as const,
+    block: 2 as const,
+  };
+  const overlayHash = canonicalHash({ generatedFrom, slotLimits, moveIds });
+  return {
+    schemaVersion: "simulation-tf1-overlay:v1",
+    status: "draft",
+    generatedFrom,
+    slotLimits,
+    moveIds: [...moveIds],
+    overlayHash,
+  };
+};
+
+const sourceTemplateFor = (
+  row: SourceRow,
+  rowIndex: number,
+  view: CombatMechanicsView,
+): SimulationTemplate => {
   const [
     file,
     style,
@@ -716,9 +796,11 @@ const sourceTemplateFor = (row: SourceRow): SimulationTemplate => {
     dexteritySp,
   ] = row;
   const path = `${sourceRoot}/${style}/${file}.md`;
+  const templateId = `simulation-template:tf1-${file.replaceAll("_", "-")}`;
+  const moveIds = overlayMovesFor(view, styleIds[style], mastery, rowIndex);
   return simulationTemplateSchema.parse({
     schemaVersion: "simulation-contracts:v1",
-    id: `simulation-template:tf1-${file.replaceAll("_", "-")}`,
+    id: templateId,
     label: mastery,
     kind: "tf1-source",
     checkpointId: "tf1",
@@ -739,22 +821,25 @@ const sourceTemplateFor = (row: SourceRow): SimulationTemplate => {
     maximumHitPoints: hp,
     stats: { power, dexterity, dexterityBonus: Number(dexterityBonus) },
     raceTraitIds: [],
-    moveIds: [],
+    moveIds,
     itemIds: [],
     transformationProfiles: [
       {
-        transformationId: transformationIds[transformation],
+        transformationId: transformationIdFor(transformation, raceIds[race]),
         rollSides: tfMastery === "mastered" ? 100 : 20,
         mastery: tfMastery,
       },
     ],
+    loadoutOverlay: overlayFor(templateId, styleIds[style], mastery, moveIds),
     gaps: [gapFor(path)],
     aiProfileId: profileId,
   });
 };
 
 export const TF1_SIMULATION_TEMPLATES: readonly SimulationTemplate[] = Object.freeze(
-  sourceRows.map(sourceTemplateFor),
+  sourceRows.map((row, rowIndex) =>
+    sourceTemplateFor(row, rowIndex, CANONICAL_COMBAT_MECHANICS_VIEW),
+  ),
 );
 
 const syntheticNames = [
@@ -846,6 +931,27 @@ export const ALL_SIMULATION_TEMPLATES = (
 ): readonly SimulationTemplate[] =>
   Object.freeze([...TF1_SIMULATION_TEMPLATES, ...createSyntheticArchetypes(view)]);
 
+/** Marks a checked-in draft overlay approved without changing its chosen moves. */
+export const approveSimulationTf1Overlay = (
+  template: SimulationTemplate,
+  approvalReference: string,
+): SimulationTemplate => {
+  if (template.kind !== "tf1-source" || template.loadoutOverlay === undefined)
+    throw new RangeError(`Template ${template.id} does not have a TF1 overlay.`);
+  if (approvalReference.trim().length === 0)
+    throw new RangeError("TF1 overlay approval requires a reference.");
+  const overlay = {
+    ...template.loadoutOverlay,
+    status: "approved" as const,
+    approvalReference,
+  };
+  return simulationTemplateSchema.parse({
+    ...template,
+    loadoutOverlay: overlay,
+    gaps: [],
+  });
+};
+
 const failure = (
   type:
     | "invalid-template"
@@ -878,6 +984,48 @@ export const validateSimulationTemplate = (
       value.id,
       "TF1 source template is blocked until reviewed loadout overlays are supplied.",
     );
+  if (value.kind === "tf1-source" && value.loadoutOverlay?.status !== "approved")
+    return failure(
+      "unsupported-template",
+      value.id,
+      "TF1 source template requires an approved loadout overlay before execution.",
+    );
+  if (value.kind === "tf1-source" && value.loadoutOverlay !== undefined) {
+    const overlay = value.loadoutOverlay;
+    if (
+      canonicalHash({
+        generatedFrom: overlay.generatedFrom,
+        slotLimits: overlay.slotLimits,
+        moveIds: overlay.moveIds,
+      }) !== overlay.overlayHash
+    )
+      return failure("invalid-template", value.id, "TF1 loadout overlay hash is stale.");
+    if (canonicalHash(overlay.moveIds) !== canonicalHash(value.moveIds))
+      return failure(
+        "incompatible-loadout",
+        value.id,
+        "TF1 loadout overlay move IDs do not match the template loadout.",
+      );
+    const counts = new Map<string, number>();
+    for (const moveId of overlay.moveIds) {
+      const category = view.indexes.moves.get(moveId)?.category;
+      if (category !== undefined) counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
+    const limits: Readonly<Record<string, number>> = {
+      mastery: overlay.slotLimits.mastery,
+      skill: overlay.slotLimits.skill,
+      "advanced-attack": overlay.slotLimits.advancedAttack,
+      signature: overlay.slotLimits.signature,
+      block: overlay.slotLimits.block,
+    };
+    for (const [category, count] of counts)
+      if (count > (limits[category] ?? 0))
+        return failure(
+          "incompatible-loadout",
+          value.id,
+          `TF1 loadout overlay exceeds the ${category} slot limit.`,
+        );
+  }
   const race = view.indexes.races.get(value.raceId);
   if (race === undefined)
     return failure("unknown-reference", value.id, `Unknown race ${value.raceId}.`);

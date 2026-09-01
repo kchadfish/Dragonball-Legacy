@@ -10,7 +10,9 @@ import {
 const artifact = simulationMoveCoverageArtifactSchema.parse(
   JSON.parse(await readFile("docs/architecture/simulation-move-coverage.json", "utf8")) as unknown,
 );
-const report = createSimulationMoveBalanceReport(artifact.dataset);
+const report = createSimulationMoveBalanceReport(artifact.dataset, undefined, {
+  errors: artifact.errors,
+});
 await writeFile(
   "docs/architecture/simulation-move-balance-matrix.json",
   `${renderSimulationReportJson(report)}\n`,

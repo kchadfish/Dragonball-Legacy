@@ -9,6 +9,7 @@ import {
   type SimulationSeriesResult,
 } from "./contracts.js";
 import { runSimulationSeries } from "./series.js";
+import { simulationPrecisionStatus } from "./statistics.js";
 
 const fightCountFor = (request: SimulationSeriesRequest): number =>
   request.iterations * (request.mirrored ? 2 : 1);
@@ -77,6 +78,13 @@ export const runSimulationMatrix = (request: SimulationMatrixRequest): Simulatio
     series,
     estimatedFightCount,
     stoppedEarly,
+    manifestHash: canonicalHash({
+      matrixId: parsed.matrixId,
+      series: series.map((entry) => entry.manifestHash),
+    }),
+    precisionStatus: simulationPrecisionStatus(
+      series.reduce((total, entry) => total + entry.pairedAggregate.completePairs, 0),
+    ),
     matrixHash: canonicalHash({
       matrixId: parsed.matrixId,
       series: series.map((entry) => entry.seriesHash),

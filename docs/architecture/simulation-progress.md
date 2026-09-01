@@ -4,6 +4,23 @@ This is the verified handoff record for `@dragonball-resurgence/simulation`.
 Roadmap prose remains the implementation authority; this file records what is
 implemented, the evidence for it, and the next executable item.
 
+## 2026-08-31 - SIM-V2 Monte Carlo closure work
+
+Combat transitions now optionally retain immutable mechanic observations with
+definition provenance while preserving state, event, random, and replay
+identities. Decision-required points are non-empty, and counter continuation
+cannot create an invalid counter phase without a resolved counter action.
+
+Simulation coverage and move artifacts are versioned as v2. Coverage now
+separates decision and trigger funnels, natural/isolation/forced populations,
+failure-aware states, registered scope decisions, precision looks, and
+stratified mergeable accumulators. TF1 overlays are deterministic drafts with
+the canonical 1/4/5/2/2 slot limits and remain blocked for natural evidence
+until explicitly approved. The catalog runner no longer converts setup,
+underexposure, AI, or combat failures into exclusions. The checked-in pilot
+artifact is intentionally not closure-complete until the catalog run and
+overlay approval produce sufficient required cells.
+
 ## 2026-08-30 - SIM-080 mechanics-view integration
 
 Simulation decision-boundary adapters now accept a bound combat runtime. The
@@ -174,25 +191,18 @@ owned by the combat identity.
 - Existing combat decision-point and semantic-progress tests remain the
   authoritative engine-level evidence for those contracts.
 
-## 2026-08-31 - SIM-800 through SIM-1540 executable evidence and closure
+## 2026-08-31 - SIM-800 through SIM-1540 executable evidence (superseded pilot)
 
-The deterministic all-move isolation manifest now runs every one of the 499
-canonical moves through the normal combat decision-point, AI selection,
-submission, advance, and structured-event observation boundaries. The default
-coverage envelope is 30 turns, 500 transitions, and 20 semantic no-progress
-transitions per fight, with a target of 10 completed simulation runs and 10
-eligible states per move and a bounded two-times retry budget. The final
-artifact records 9,980 attempts, 280 sufficient isolation cells, and 219
-reviewed isolation exclusions. Natural coverage is explicitly excluded under
-the reviewed TF1/loadout policy; no natural selection evidence is inferred.
-
-The exclusions retain the measured population and funnel evidence. They cover
-only moves with no authoritative legal exposure, repeated authoritative
-runtime failure, or bounded underexposure; they are not balance conclusions
-and require setup or combat-runtime review before re-inclusion. The artifact
-and dataset hashes are validated before closure, and the balance JSON/Markdown
-projection is generated from that artifact with freshness hash
-`fnv1a-32:aafe399b`.
+The earlier v1 isolation pilot is retained as historical context only. It used
+10 attempts and free-text exclusion accounting, so its 219 exclusions are not
+completion evidence and are rejected by the v2 validators. The replacement v2
+pilot runs all 499 canonical moves through the normal combat decision-point,
+AI selection, submission, advance, and structured-event observation boundaries
+with separate decision and trigger cells. It records 1,996 required cells,
+explicit `not-scheduled`, `observed-low-sample`, `eligible-never-selected`,
+and `runner-failure` states, plus typed failure slots; it intentionally does
+not claim catalog closure. Natural coverage remains blocked until the 36 draft
+TF1 overlays are explicitly approved.
 
 Evidence: simulation typecheck, focused Phase 1-3/Phase 4-15/statistics tests,
 simulation boundary validation, move-closure validation, report freshness
@@ -203,9 +213,8 @@ repository `npm run quality` run after all edits are complete.
 ## Known limits and next step
 
 Remaining work is release verification and future evidence maintenance: rerun
-the frozen manifests when the mechanics identity changes, replace reviewed
-exclusions only after a setup or combat-runtime correction, and keep the
-canonical report projections fresh. Worker-backed concurrency remains
-deferred because the deterministic local scheduler is the current measured
-execution path; benchmark drift is reported rather than allowed to alter
-correctness thresholds.
+the frozen manifests at the configured precision looks, approve the TF1
+overlays, resolve every runtime failure, and keep the canonical report
+projections fresh. The worker-partition executor preserves sequential hashes
+and merge order, while a true OS-worker implementation remains an operational
+follow-up; benchmark drift must not alter correctness thresholds.

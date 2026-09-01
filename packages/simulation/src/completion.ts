@@ -6,7 +6,7 @@ import {
 } from "./move-coverage.js";
 
 export interface SimulationCompletionAudit {
-  readonly schemaVersion: "simulation-completion-audit:v1";
+  readonly schemaVersion: "simulation-completion-audit:v2";
   readonly catalogHash: string;
   readonly coverageCellCount: number;
   readonly issues: readonly string[];
@@ -14,13 +14,19 @@ export interface SimulationCompletionAudit {
   readonly auditHash: string;
 }
 
-const recordStatusForCell = (
-  cell: SimulationCoverageCell,
-): "sufficient" | "excluded" | "observed" | "unobserved" => {
-  if (cell.status === "observed-sufficient") return "sufficient";
-  if (cell.status === "excluded") return "excluded";
-  if (cell.status === "underexposed") return "observed";
-  return "unobserved";
+const aggregateCellStatus = (
+  cells: readonly SimulationCoverageCell[],
+): SimulationCoverageCell["status"] => {
+  if (cells.every((cell) => cell.status === "not-scheduled")) return "not-scheduled";
+  if (cells.every((cell) => cell.status === "unobserved")) return "unobserved";
+  if (cells.some((cell) => cell.status === "runner-failure")) return "runner-failure";
+  if (cells.some((cell) => cell.status === "invalid-fixture")) return "invalid-fixture";
+  if (cells.some((cell) => cell.status === "eligible-never-selected"))
+    return "eligible-never-selected";
+  if (cells.every((cell) => cell.status === "never-eligible")) return "never-eligible";
+  if (cells.every((cell) => cell.status === "observed-sufficient")) return "observed-sufficient";
+  if (cells.every((cell) => cell.status === "audited-out-of-scope")) return "audited-out-of-scope";
+  return "observed-low-sample";
 };
 
 /* eslint-disable sonarjs/cognitive-complexity -- Coverage consistency compares two bounded population dimensions. */
@@ -29,24 +35,25 @@ const validateCoverageConsistency = (
   coverageCells: readonly SimulationCoverageCell[],
 ): readonly string[] => {
   const issues: string[] = [];
-  const cells = new Map(coverageCells.map((cell) => [`${cell.moveId}:${cell.population}`, cell]));
+  const cells = new Map(
+    coverageCells.map((cell) => [`${cell.moveId}:${cell.population}:${cell.mechanicPath}`, cell]),
+  );
   for (const record of dataset.records)
     for (const population of ["natural", "isolation"] as const) {
-      const cell = cells.get(`${record.moveId}:${population}`);
-      if (cell === undefined) {
-        issues.push(`Missing ${population} coverage cell for ${record.moveId}.`);
-        continue;
+      const populationCells: SimulationCoverageCell[] = [];
+      for (const mechanicPath of record.requiredMechanicPaths) {
+        const cell = cells.get(`${record.moveId}:${population}:${mechanicPath}`);
+        if (cell === undefined)
+          issues.push(`Missing ${population}/${mechanicPath} coverage cell for ${record.moveId}.`);
+        else populationCells.push(cell);
       }
-      const expectedStatus = recordStatusForCell(cell);
+      if (populationCells.length !== record.requiredMechanicPaths.length) continue;
+      const expectedStatus = aggregateCellStatus(populationCells);
       const actualStatus = population === "natural" ? record.naturalStatus : record.isolationStatus;
       if (actualStatus !== expectedStatus)
         issues.push(
-          `Coverage status mismatch for ${record.moveId}:${population}; record=${actualStatus}, cell=${cell.status}.`,
+          `Coverage status mismatch for ${record.moveId}:${population}; record=${actualStatus}, cells=${expectedStatus}.`,
         );
-      const recordReason =
-        population === "natural" ? record.naturalExclusionReason : record.isolationExclusionReason;
-      if (cell.exclusionReason !== undefined && recordReason !== cell.exclusionReason)
-        issues.push(`Coverage exclusion reason mismatch for ${record.moveId}:${population}.`);
     }
   return issues;
 };
@@ -62,7 +69,7 @@ export const createSimulationCompletionAudit = (
     ...validateCoverageConsistency(dataset, coverageCells),
   ];
   const audit = {
-    schemaVersion: "simulation-completion-audit:v1" as const,
+    schemaVersion: "simulation-completion-audit:v2" as const,
     catalogHash: dataset.datasetHash,
     coverageCellCount: coverageCells.length,
     issues,

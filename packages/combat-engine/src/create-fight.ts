@@ -33,6 +33,7 @@ import {
   scheduledWorkFromLegacyEffect,
   scheduledWorkFromResolutionFrame,
 } from "./fight-flow-scheduler.js";
+import { collectCombatMechanicObservations } from "./mechanic-observations.js";
 
 const activeTransformationRaceIds = new Set([
   "race-humans",
@@ -688,36 +689,47 @@ export const createFight = (
     return { ok: false, error: { type: "invalid-fight-state", violations } };
   }
 
+  const transition: CombatTransition = {
+    state: stateWithScheduledWork,
+    events: [
+      {
+        id: dependencies.ids.nextEventId(),
+        sequence: 1,
+        fightId,
+        type: "fight-started",
+        mode: state.mode,
+      },
+      ...initiative.tieBreakerRolls.map((roll, index) => ({
+        id: dependencies.ids.nextEventId(),
+        sequence: index + 2,
+        fightId,
+        type: "initiative-rolled" as const,
+        combatantId: roll.combatantId,
+        naturalResult: roll.naturalResult,
+        result: roll.result,
+      })),
+      {
+        id: dependencies.ids.nextEventId(),
+        sequence: state.eventSequence,
+        fightId,
+        type: "turn-started",
+        combatantId: activeCombatantId,
+        turnNumber: state.turnNumber,
+      },
+    ],
+  };
   return {
     ok: true,
     value: {
-      state: stateWithScheduledWork,
-      events: [
-        {
-          id: dependencies.ids.nextEventId(),
-          sequence: 1,
-          fightId,
-          type: "fight-started",
-          mode: state.mode,
-        },
-        ...initiative.tieBreakerRolls.map((roll, index) => ({
-          id: dependencies.ids.nextEventId(),
-          sequence: index + 2,
-          fightId,
-          type: "initiative-rolled" as const,
-          combatantId: roll.combatantId,
-          naturalResult: roll.naturalResult,
-          result: roll.result,
-        })),
-        {
-          id: dependencies.ids.nextEventId(),
-          sequence: state.eventSequence,
-          fightId,
-          type: "turn-started",
-          combatantId: activeCombatantId,
-          turnNumber: state.turnNumber,
-        },
-      ],
+      ...transition,
+      ...(dependencies.retainMechanicObservations === true
+        ? {
+            mechanicObservations: collectCombatMechanicObservations({
+              transition,
+              mechanicsView: mechanics,
+            }),
+          }
+        : {}),
     },
   };
 };

@@ -120,10 +120,15 @@ describe("simulation Phase 4 through 15 foundations", () => {
     const sufficient = updateSimulationCoverageCell(cell, {
       completedFights: 10,
       eligibleStates: 10,
+      selectedStates: 10,
     });
     expect(sufficient.status).toBe("observed-sufficient");
     expect(validateSimulationCoverageCells([sufficient])).toEqual([]);
-    const half = updateSimulationCoverageCell(cell, { completedFights: 5, eligibleStates: 5 });
+    const half = updateSimulationCoverageCell(cell, {
+      completedFights: 5,
+      eligibleStates: 5,
+      selectedStates: 5,
+    });
     expect(mergeSimulationCoverageCells(half, half).status).toBe("observed-sufficient");
     expect(
       createSimulationCoverageMatrix(

@@ -262,6 +262,8 @@ export interface CombatDependencies {
   readonly retainDiagnosticTrace?: boolean;
   /** Ephemeral sink installed by a public transition while diagnostics are requested. */
   readonly diagnosticTraceSink?: CalculationTraceSink;
+  /** Opt-in mechanic telemetry; never enters FightState, events, or replay identity. */
+  readonly retainMechanicObservations?: boolean;
   /** The immutable catalog/configuration environment for this transition. */
   readonly mechanicsView?: CombatMechanicsView;
 }

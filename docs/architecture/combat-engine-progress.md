@@ -49,6 +49,20 @@ to be incomplete. Once CE-100 is complete, the generated capability matrix
 should replace the manual coverage table below as the authoritative
 per-occurrence record.
 
+## 2026-08-31 - Mechanic observation and counter-scheduling correction
+
+`CombatDecisionDescriptor` now carries definition provenance for engine-owned
+move, block, pending-response, effect, item, and transformation definitions.
+When `retainMechanicObservations` is enabled, public transitions may also carry
+immutable opportunity, availability, trigger, activation, resolution, outcome,
+and value observations. These diagnostics are deliberately excluded from
+state, events, randomness, and replay hashes.
+
+The generic counter continuation path now requires a resolved counter action
+before scheduling counter phase. This preserves the invariant that every
+counter phase has an awaiting-counter frame and prevents valid simulation
+fixtures from being converted into runner exclusions.
+
 ## Active delivery scope
 
 The requested scope is deterministic, versioned, invariant-checked combat for

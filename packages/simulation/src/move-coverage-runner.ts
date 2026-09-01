@@ -6,10 +6,11 @@ import { SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
 import type { MoveDefinition } from "@dragonball-resurgence/game-data";
 
 import {
-  createSimulationCoverageMatrix,
   createSimulationCoverageCell,
+  createSimulationCoverageMatrix,
   updateSimulationCoverageCell,
   type SimulationCoverageCell,
+  type SimulationCoveragePopulation,
 } from "./coverage.js";
 import {
   createSimulationMoveCoverageArtifact,
@@ -18,50 +19,52 @@ import {
 import type { SimulationFailure, SimulationFightRequest, SimulationTemplate } from "./contracts.js";
 import {
   createSimulationMoveCoverageDataset,
-  excludeSimulationMoveCoverage,
   recordSimulationMoveFunnel,
+  type SimulationMoveCoverageDataset,
   updateSimulationMoveCoverage,
+  type SimulationMoveCoverageStatus,
 } from "./move-coverage.js";
-import { runSimulationRequests } from "./coordinator.js";
+import { runSimulationRequests, runSimulationRequestsWithWorkers } from "./coordinator.js";
 import { createScenario } from "./scenarios.js";
-
-const naturalExclusionReason =
-  "Natural coverage is a reviewed v1 exclusion: no canonical loadout currently pins this move to a natural selection cohort, and the TF1 source sheets retain unresolved loadout gaps.";
 
 const slugFor = (moveId: string): string => moveId.replaceAll(":", "-");
 
-const isolationStatusFor = (
-  status: SimulationCoverageCell["status"],
-): "sufficient" | "excluded" | "observed" | "unobserved" => {
-  if (status === "observed-sufficient") return "sufficient";
-  if (status === "excluded") return "excluded";
-  if (status === "underexposed") return "observed";
-  return "unobserved";
+const failureDetailFor = (failure: SimulationFailure): string => {
+  if ("detail" in failure) return failure.detail;
+  if (failure.type === "exhausted-safeguard") return failure.reason;
+  return failure.type;
 };
 
-const failureReasonFor = (failures: readonly { readonly failure: SimulationFailure }[]): string => {
-  const types = [...new Set(failures.map((entry) => entry.failure.type))].sort((left, right) =>
-    left.localeCompare(right),
-  );
-  return `Reviewed v1 isolation exclusion: all deterministic isolation attempts failed at the authoritative simulation boundary (${types.join(", ")}); this is not balance evidence and requires combat/runtime remediation before re-inclusion.`;
+const statusForIsolationCells = (
+  failures: readonly unknown[],
+  decisionCell: SimulationCoverageCell,
+  triggerCell: SimulationCoverageCell,
+): SimulationMoveCoverageStatus => {
+  if (failures.length > 0) return "runner-failure";
+  if (decisionCell.status === "observed-sufficient" && triggerCell.status === "observed-sufficient")
+    return "observed-sufficient";
+  if (
+    decisionCell.status === "eligible-never-selected" ||
+    triggerCell.status === "eligible-never-selected"
+  )
+    return "eligible-never-selected";
+  if (decisionCell.status === "unobserved" && triggerCell.status === "unobserved")
+    return "never-eligible";
+  return "observed-low-sample";
 };
 
-const noExposureReason =
-  "Reviewed v1 isolation exclusion: the move never appeared in an authoritative legal decision set within the bounded deterministic isolation manifest; this is not balance evidence and requires a setup-context or combat-scope review before re-inclusion.";
-
-const isolationExclusionFor = (
-  failures: readonly { readonly failure: SimulationFailure }[],
-  eligibleStates: number,
-  completedFights: number,
-  targetFights: number,
-  minimumEligibleStates: number,
-  maximumAttempts: number,
-): string | undefined => {
-  if (failures.length >= maximumAttempts) return failureReasonFor(failures);
-  if (eligibleStates === 0) return noExposureReason;
-  if (completedFights < targetFights || eligibleStates < minimumEligibleStates)
-    return `Reviewed v1 isolation exclusion: the bounded deterministic isolation manifest produced ${completedFights} completed runs and ${eligibleStates} eligible states, below the required ${targetFights} runs and ${minimumEligibleStates} eligible states; this is not balance evidence and requires a setup-context or combat-scope review before re-inclusion.`;
-  return undefined;
+const failureTypeForCell = (
+  failure: SimulationFailure,
+): "invalid-fixture" | "runner-failure" | "ai-failure" | "combat-failure" | "not-scheduled" => {
+  if (failure.type === "ai-failure" || failure.type === "combat-failure") return failure.type;
+  if (
+    failure.type === "malformed-input" ||
+    failure.type === "unknown-reference" ||
+    failure.type === "incompatible-loadout" ||
+    failure.type === "unsupported-scope"
+  )
+    return "invalid-fixture";
+  return "runner-failure";
 };
 
 const templateFor = (
@@ -109,6 +112,7 @@ const requestFor = (
   rootSeed: number,
   fixedTime: Date,
   view: CombatMechanicsView,
+  population: SimulationCoveragePopulation,
 ): SimulationFightRequest => {
   const slug = slugFor(move.id);
   const styleId = move.styleId ?? "style-freestyle";
@@ -124,7 +128,7 @@ const requestFor = (
     [],
     "style-freestyle",
     view,
-    1,
+    220,
   );
   const scenario = createScenario({
     id: `simulation-scenario:move-isolation-${slug}-${iteration + 1}`,
@@ -151,6 +155,15 @@ const requestFor = (
     mirror: "original",
     fixedTime,
     mechanicsView: view,
+    ...(population === "forced"
+      ? {
+          decisionPolicy: {
+            type: "forced-target-first" as const,
+            targetDefinitionId: move.id,
+            fallback: "first-legal" as const,
+          },
+        }
+      : {}),
   };
 };
 
@@ -161,7 +174,9 @@ export interface SimulationMoveCoverageRunOptions {
   readonly targetFights?: number;
   readonly minimumEligibleStates?: number;
   readonly concurrency?: number;
+  readonly workers?: number;
   readonly moveIds?: readonly string[];
+  readonly population?: SimulationCoveragePopulation;
 }
 
 export interface SimulationMoveCoverageRunResult {
@@ -176,6 +191,220 @@ export interface SimulationMoveCoverageRunResult {
   }[];
 }
 
+type CoveragePath = "decision" | "trigger";
+
+interface CoveragePathCounts {
+  eligible: number;
+  selected: number;
+  triggered: number;
+}
+
+interface MoveCoverageFailure {
+  readonly moveId: string;
+  readonly runId: string;
+  readonly failure: SimulationFailure;
+}
+
+interface MoveCoverageAccumulation {
+  dataset: SimulationMoveCoverageDataset;
+  runCount: number;
+  failedRunCount: number;
+  failureTypes: Partial<Record<SimulationFailure["type"], number>>;
+  failures: MoveCoverageFailure[];
+  failuresByMove: Map<string, MoveCoverageFailure[]>;
+}
+
+const accumulateFunnelCounts = (
+  countsByPath: Map<CoveragePath, CoveragePathCounts>,
+  funnel: NonNullable<NonNullable<SimulationMoveCoverageDataset["records"][number]["funnel"]>>,
+) => {
+  const decision = countsByPath.get("decision") ?? { eligible: 0, selected: 0, triggered: 0 };
+  countsByPath.set("decision", {
+    eligible: decision.eligible + funnel.decisionFunnel.eligible,
+    selected: decision.selected + funnel.decisionFunnel.selected,
+    triggered: decision.triggered,
+  });
+  const trigger = countsByPath.get("trigger") ?? { eligible: 0, selected: 0, triggered: 0 };
+  countsByPath.set("trigger", {
+    eligible: trigger.eligible + funnel.triggerFunnel.applicable,
+    selected: trigger.selected,
+    triggered: trigger.triggered + funnel.triggerFunnel.triggered,
+  });
+};
+
+const accumulateMoveResult = (
+  accumulation: MoveCoverageAccumulation,
+  move: MoveDefinition,
+  runId: string,
+  result: ReturnType<typeof runSimulationRequests>["results"][number],
+  countsByPath: Map<CoveragePath, CoveragePathCounts>,
+  targetFights: number,
+  minimumEligibleStates: number,
+  population: SimulationCoveragePopulation,
+) => {
+  accumulation.runCount += 1;
+  if (!result.ok) {
+    accumulation.failedRunCount += 1;
+    accumulation.failureTypes[result.error.type] =
+      (accumulation.failureTypes[result.error.type] ?? 0) + 1;
+    const failure = { moveId: move.id, runId, failure: result.error };
+    accumulation.failures.push(failure);
+    const moveFailures = accumulation.failuresByMove.get(move.id) ?? [];
+    moveFailures.push(failure);
+    accumulation.failuresByMove.set(move.id, moveFailures);
+    return;
+  }
+  const funnel = result.value.diagnostics?.moveFunnels[move.id];
+  if (funnel === undefined) return;
+  accumulateFunnelCounts(countsByPath, funnel);
+  accumulation.dataset = recordSimulationMoveFunnel(
+    accumulation.dataset,
+    { [move.id]: funnel },
+    population,
+    { targetFights, minimumEligibleStates },
+  );
+};
+
+const executionCellsForMove = ({
+  move,
+  cells,
+  countsByPath,
+  completedFights,
+  failures,
+  population,
+}: {
+  readonly move: MoveDefinition;
+  readonly cells: Map<string, SimulationCoverageCell>;
+  readonly countsByPath: Map<CoveragePath, CoveragePathCounts>;
+  readonly completedFights: number;
+  readonly failures: readonly MoveCoverageFailure[];
+  readonly population: SimulationCoveragePopulation;
+}) => {
+  for (const mechanicPath of ["decision", "trigger"] as const) {
+    const key = `${move.id}:${mechanicPath}`;
+    const cell = cells.get(key);
+    if (cell === undefined) throw new RangeError(`Missing ${population} cell for ${key}.`);
+    const counts = countsByPath.get(mechanicPath) ?? { eligible: 0, selected: 0, triggered: 0 };
+    const updated = updateSimulationCoverageCell(cell, {
+      completedFights,
+      eligibleStates: counts.eligible,
+      selectedStates: counts.selected,
+      triggeredStates: counts.triggered,
+    });
+    cells.set(
+      key,
+      failures.length === 0
+        ? updated
+        : createSimulationCoverageCell({
+            ...updated,
+            status: "runner-failure",
+            failureType: failureTypeForCell(failures[0]!.failure),
+          }),
+    );
+  }
+};
+
+const runCoverageRequestsForMove = ({
+  move,
+  options,
+  view,
+  rootSeed,
+  fixedTime,
+  maximumAttempts,
+  targetFights,
+  minimumEligibleStates,
+  population,
+  executionCells,
+  accumulation,
+}: {
+  readonly move: MoveDefinition;
+  readonly options: SimulationMoveCoverageRunOptions;
+  readonly view: CombatMechanicsView;
+  readonly rootSeed: number;
+  readonly fixedTime: Date;
+  readonly maximumAttempts: number;
+  readonly targetFights: number;
+  readonly minimumEligibleStates: number;
+  readonly population: SimulationCoveragePopulation;
+  readonly executionCells: Map<string, SimulationCoverageCell>;
+  readonly accumulation: MoveCoverageAccumulation;
+}) => {
+  const requests = Array.from({ length: maximumAttempts }, (_, iteration) =>
+    requestFor(move, iteration, rootSeed, fixedTime, view, population),
+  );
+  const coordinated =
+    options.workers === undefined
+      ? runSimulationRequests({
+          requests,
+          stoppingPolicy: "continue",
+          concurrency: options.concurrency ?? 4,
+        })
+      : runSimulationRequestsWithWorkers({
+          requests,
+          stoppingPolicy: "continue",
+          workers: options.workers,
+        });
+  const countsByPath = new Map<CoveragePath, CoveragePathCounts>();
+  for (const [resultIndex, result] of coordinated.results.entries())
+    accumulateMoveResult(
+      accumulation,
+      move,
+      requests[resultIndex]?.runId ?? "unknown",
+      result,
+      countsByPath,
+      targetFights,
+      minimumEligibleStates,
+      population,
+    );
+  executionCellsForMove({
+    move,
+    cells: executionCells,
+    countsByPath,
+    completedFights: coordinated.results.filter((result) => result.ok).length,
+    failures: accumulation.failuresByMove.get(move.id) ?? [],
+    population,
+  });
+};
+
+const finalizedDataset = (
+  view: CombatMechanicsView,
+  dataset: SimulationMoveCoverageDataset,
+  executionCells: Map<string, SimulationCoverageCell>,
+  population: SimulationCoveragePopulation,
+  failuresByMove: ReadonlyMap<string, readonly MoveCoverageFailure[]>,
+) =>
+  createSimulationMoveCoverageDataset(
+    view,
+    dataset.records.map((record) => {
+      const decisionCell = executionCells.get(`${record.moveId}:decision`);
+      const triggerCell = executionCells.get(`${record.moveId}:trigger`);
+      if (decisionCell === undefined || triggerCell === undefined)
+        throw new RangeError(`Missing ${population} cells for ${record.moveId}.`);
+      const failures = failuresByMove.get(record.moveId) ?? [];
+      const executionStatus = statusForIsolationCells(failures, decisionCell, triggerCell);
+      return updateSimulationMoveCoverage(record, record.funnel, {
+        naturalStatus: "not-scheduled",
+        ...(population === "forced"
+          ? { forcedStatus: executionStatus }
+          : { isolationStatus: executionStatus }),
+      });
+    }),
+  );
+
+const finalCoverageCells = (
+  naturalCells: ReadonlyMap<string, SimulationCoverageCell>,
+  executionCells: ReadonlyMap<string, SimulationCoverageCell>,
+) =>
+  Object.freeze(
+    [...naturalCells.values(), ...executionCells.values()]
+      .map((cell) =>
+        cell.population === "natural"
+          ? createSimulationCoverageCell({ ...cell, status: "not-scheduled" })
+          : cell,
+      )
+      .sort((left, right) => left.cellId.localeCompare(right.cellId)),
+  );
+
 /**
  * Executes deterministic isolation runs for every public move. The only
  * outcome source is the normal simulation runner; this operation merely
@@ -187,40 +416,35 @@ export const runSimulationMoveCoverage = (
   const view = options.mechanicsView ?? CANONICAL_COMBAT_MECHANICS_VIEW;
   const rootSeed = options.rootSeed ?? 1_427_251_991;
   const fixedTime = options.fixedTime ?? new Date("2026-01-01T00:00:00.000Z");
-  const targetFights = options.targetFights ?? 10;
-  const minimumEligibleStates = options.minimumEligibleStates ?? 10;
-  const concurrency = options.concurrency ?? 4;
+  const targetFights = options.targetFights ?? 250;
+  const minimumEligibleStates = options.minimumEligibleStates ?? 250;
+  const population = options.population ?? "isolation";
   const maximumAttempts = Math.min(10_000, targetFights * 2);
   let dataset = createSimulationMoveCoverageDataset(view);
   const cells = createSimulationCoverageMatrix(dataset, ["move-isolation"], "early", {
     targetFights,
     minimumEligibleStates,
-    populations: ["natural", "isolation"],
+    populations: Array.from(new Set<SimulationCoveragePopulation>(["natural", population])),
+    mechanicPaths: ["decision", "trigger"],
   });
   const naturalCells = new Map(
     cells
       .filter((cell) => cell.population === "natural")
-      .map((cell) => [
-        cell.moveId,
-        createSimulationCoverageCell({
-          ...cell,
-          status: "excluded",
-          exclusionReason: naturalExclusionReason,
-        }),
-      ]),
+      .map((cell) => [`${cell.moveId}:${cell.mechanicPath}`, cell]),
   );
-  const isolationCells = new Map(
-    cells.filter((cell) => cell.population === "isolation").map((cell) => [cell.moveId, cell]),
+  const executionCells = new Map(
+    cells
+      .filter((cell) => cell.population === population)
+      .map((cell) => [`${cell.moveId}:${cell.mechanicPath}`, cell]),
   );
-  let runCount = 0;
-  let failedRunCount = 0;
-  const failureTypes: Partial<Record<SimulationFailure["type"], number>> = {};
-  const failures: Array<{
-    readonly moveId: string;
-    readonly runId: string;
-    readonly failure: SimulationFailure;
-  }> = [];
-  const failuresByMove = new Map<string, typeof failures>();
+  const accumulation: MoveCoverageAccumulation = {
+    dataset,
+    runCount: 0,
+    failedRunCount: 0,
+    failureTypes: {},
+    failures: [],
+    failuresByMove: new Map(),
+  };
   const selectedMoves =
     options.moveIds === undefined
       ? [...view.moves]
@@ -230,95 +454,28 @@ export const runSimulationMoveCoverage = (
           return move;
         });
   const orderedMoves = [...selectedMoves].sort((left, right) => left.id.localeCompare(right.id));
-  for (const move of orderedMoves) {
-    const requests = Array.from({ length: maximumAttempts }, (_, iteration) =>
-      requestFor(move, iteration, rootSeed, fixedTime, view),
-    );
-    const coordinated = runSimulationRequests({
-      requests,
-      stoppingPolicy: "continue",
-      concurrency,
+  for (const move of orderedMoves)
+    runCoverageRequestsForMove({
+      move,
+      options,
+      view,
+      rootSeed,
+      fixedTime,
+      maximumAttempts,
+      targetFights,
+      minimumEligibleStates,
+      population,
+      executionCells,
+      accumulation,
     });
-    let completedFights = 0;
-    let eligibleStates = 0;
-    for (const result of coordinated.results) {
-      runCount += 1;
-      if (!result.ok) {
-        failedRunCount += 1;
-        failureTypes[result.error.type] = (failureTypes[result.error.type] ?? 0) + 1;
-        const failure = {
-          moveId: move.id,
-          runId: requests[coordinated.results.indexOf(result)]?.runId ?? "unknown",
-          failure: result.error,
-        };
-        failures.push(failure);
-        const moveFailures = failuresByMove.get(move.id) ?? [];
-        moveFailures.push(failure);
-        failuresByMove.set(move.id, moveFailures);
-        continue;
-      }
-      completedFights += 1;
-      const funnel = result.value.diagnostics?.moveFunnels[move.id];
-      if (funnel !== undefined) {
-        eligibleStates += funnel.eligible;
-        dataset = recordSimulationMoveFunnel(dataset, { [move.id]: funnel }, "isolation", {
-          targetFights,
-          minimumEligibleStates,
-        });
-      }
-    }
-    const cell = isolationCells.get(move.id);
-    if (cell === undefined) throw new RangeError("Missing isolation cell for selected move.");
-    isolationCells.set(
-      move.id,
-      updateSimulationCoverageCell(cell, { completedFights, eligibleStates }),
-    );
-  }
-  dataset = createSimulationMoveCoverageDataset(
+  dataset = finalizedDataset(
     view,
-    dataset.records.map((record) => {
-      const isolationCell = isolationCells.get(record.moveId);
-      if (isolationCell === undefined)
-        throw new RangeError(`Missing isolation cell for ${record.moveId}.`);
-      const moveFailures = failuresByMove.get(record.moveId) ?? [];
-      const isolationExclusion = isolationExclusionFor(
-        moveFailures,
-        isolationCell.eligibleStates,
-        isolationCell.completedFights,
-        targetFights,
-        minimumEligibleStates,
-        maximumAttempts,
-      );
-      const finalCell =
-        isolationExclusion === undefined
-          ? isolationCell
-          : createSimulationCoverageCell({
-              ...isolationCell,
-              status: "excluded",
-              exclusionReason: isolationExclusion,
-            });
-      isolationCells.set(record.moveId, finalCell);
-      const naturalRecord = excludeSimulationMoveCoverage(
-        record,
-        "natural",
-        naturalExclusionReason,
-      );
-      const recordWithExclusion =
-        isolationExclusion === undefined
-          ? naturalRecord
-          : excludeSimulationMoveCoverage(naturalRecord, "isolation", isolationExclusion);
-      return updateSimulationMoveCoverage(recordWithExclusion, record.funnel, {
-        naturalStatus: "excluded",
-        isolationStatus:
-          isolationExclusion === undefined ? isolationStatusFor(finalCell.status) : "excluded",
-      });
-    }),
+    accumulation.dataset,
+    executionCells,
+    population,
+    accumulation.failuresByMove,
   );
-  const finalCells = Object.freeze(
-    [...naturalCells.values(), ...isolationCells.values()].sort((left, right) =>
-      left.cellId.localeCompare(right.cellId),
-    ),
-  );
+  const finalCells = finalCoverageCells(naturalCells, executionCells);
   const artifact = createSimulationMoveCoverageArtifact({
     generatedFrom: {
       mechanicsIdentity: view.identity.contentHash,
@@ -326,12 +483,25 @@ export const runSimulationMoveCoverage = (
       checkpointId: "early",
       targetFights,
       minimumEligibleStates,
-      isolationRunCount: runCount,
-      naturalPopulation: "reviewed-exclusion",
+      isolationRunCount: Math.max(accumulation.runCount, 1),
+      naturalPopulation: "draft",
+      mechanicPaths: ["decision", "trigger"],
       source: "simulation-move-coverage-runner:v2",
     },
     dataset,
     coverageCells: finalCells,
+    errors: accumulation.failures.map(({ moveId, runId, failure }) => ({
+      moveId,
+      runId,
+      type: failure.type,
+      detail: failureDetailFor(failure),
+    })),
   });
-  return { artifact, runCount, failedRunCount, failureTypes, failures };
+  return {
+    artifact,
+    runCount: accumulation.runCount,
+    failedRunCount: accumulation.failedRunCount,
+    failureTypes: accumulation.failureTypes,
+    failures: accumulation.failures,
+  };
 };
