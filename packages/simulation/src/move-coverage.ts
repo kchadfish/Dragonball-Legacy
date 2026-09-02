@@ -533,6 +533,7 @@ export const validateSimulationMoveClosure = (
   dataset: SimulationMoveCoverageDataset,
   reviewedExclusions: Readonly<Partial<Record<string, string>>> = {},
   mechanicsView: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
+  options: Readonly<{ allowNaturalNotScheduled?: boolean }> = {},
 ): readonly string[] => {
   const issues: string[] = [];
   if (dataset.mechanicsIdentity !== mechanicsView.identity.contentHash)
@@ -548,6 +549,12 @@ export const validateSimulationMoveClosure = (
     decisionId: string | undefined,
   ): void => {
     if (sufficient(status)) return;
+    if (
+      population === "natural" &&
+      status === "not-scheduled" &&
+      options.allowNaturalNotScheduled === true
+    )
+      return;
     if (status === "audited-out-of-scope" && decisionId !== undefined) {
       if (scopeDecisionForId(decisionId) === undefined)
         issues.push(

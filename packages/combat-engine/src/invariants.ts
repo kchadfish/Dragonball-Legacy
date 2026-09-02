@@ -875,6 +875,17 @@ const hasValidNextActionModifierDetails = (
     effect.modifier.type !== "resource-cost" ||
     (runtimeValue(effect.modifier.resource) === "hp" &&
       runtimeValue(effect.modifier.operation) === "add");
+  const validCostModifierDetails =
+    effect.modifier.type !== "cost-modifier" || Number.isFinite(effect.modifier.multiplier);
+  const validResourceModifierDetails =
+    effect.modifier.type !== "resource-modifier" ||
+    ((effect.modifier.resource === "hp" || runtimeValue(effect.modifier.resource) === "ki") &&
+      (effect.modifier.operation === "gain" ||
+        runtimeValue(effect.modifier.operation) === "lose") &&
+      Number.isFinite(effect.modifier.multiplier) &&
+      (effect.modifier.cap === undefined ||
+        (runtimeValue(effect.modifier.cap.type) === "maximum" &&
+          Number.isFinite(effect.modifier.cap.value))));
   const validCreatedAfterActionCount =
     effect.createdAfterActionCount === undefined || validCounter(effect.createdAfterActionCount, 0);
   const validRollCap = (
@@ -919,6 +930,8 @@ const hasValidNextActionModifierDetails = (
       (effect.modifier.resource === "hp" || runtimeValue(effect.modifier.resource) === "ki") &&
       runtimeValue(effect.modifier.basis) === "damage-percent") ||
     effect.modifier.type === "resource-cost" ||
+    effect.modifier.type === "cost-modifier" ||
+    effect.modifier.type === "resource-modifier" ||
     effect.modifier.type === "cost" ||
     effect.modifier.type === "combat-result" ||
     effect.modifier.type === "roll-definition" ||
@@ -932,6 +945,8 @@ const hasValidNextActionModifierDetails = (
     validDamageBasis &&
     validResourceOperation &&
     validResourceCostOperation &&
+    validCostModifierDetails &&
+    validResourceModifierDetails &&
     hasValidCostModifierDetails(effect.modifier) &&
     validCombatResult &&
     validRollDefinition &&

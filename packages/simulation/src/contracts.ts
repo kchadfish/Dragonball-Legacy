@@ -115,6 +115,17 @@ export const simulationTemplateSchema = z
       })
       .strict(),
     startingKiPolicy: z.literal("rules-default"),
+    /** Values transcribed from a source sheet; omitted for generated fixtures. */
+    startingKi: positiveInteger.optional(),
+    maximumKi: positiveInteger.optional(),
+    specialization: z
+      .object({
+        type: z.enum(["strength", "energy"]),
+        level: positiveInteger,
+        damageType: z.enum(["physical", "energy"]),
+      })
+      .strict()
+      .optional(),
     transformationName: z.string().min(1).optional(),
     maximumHitPoints: finiteNumber.positive(),
     stats: z
@@ -127,6 +138,8 @@ export const simulationTemplateSchema = z
     raceTraitIds: uniqueStrings,
     moveIds: uniqueStrings,
     itemIds: uniqueStrings,
+    /** Source quantities remain explicit even though the combat boundary uses unique item IDs. */
+    itemQuantities: z.record(z.string().min(1), positiveInteger).optional(),
     transformationProfiles: z.array(transformationProfileSchema),
     loadoutOverlay: simulationTf1OverlaySchema.optional(),
     gaps: z.array(simulationGapSchema),

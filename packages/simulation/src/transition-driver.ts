@@ -202,7 +202,9 @@ export const runSimulationTransitionDriver = (
     const step = guardedStepFor(options, state);
     if (step.type === "stop") break;
     if (step.type === "failure") return { ok: false, state, failure: step.failure };
-    if (!step.result.ok) return { ok: false, state, failure: combatFailure(step.result.error) };
+    if (!step.result.ok) {
+      return { ok: false, state, failure: combatFailure(step.result.error) };
+    }
     const priorState = state;
     const appended = appendTransition(
       options,

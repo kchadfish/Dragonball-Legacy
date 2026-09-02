@@ -10,6 +10,14 @@ import { runSimulationFight } from "./runner.js";
 
 type CoordinatorResult = SimulationCoordinatorResult["results"][number];
 
+/** Internal execution controls that do not alter the public fight contract. */
+export interface SimulationCoordinatorExecutionOptions {
+  /** Stream progress without retaining the completed result array. */
+  readonly retainResults?: boolean;
+}
+
+type CoordinatorRequest = SimulationCoordinatorRequest & SimulationCoordinatorExecutionOptions;
+
 const failureFor = (
   request: SimulationCoordinatorRequest["requests"][number],
 ): SimulationFailure => ({
@@ -65,12 +73,11 @@ const normalizeResult = (
 };
 
 /** Deterministic bounded local scheduler with stable request-index ordering. */
-export const runSimulationRequests = (
-  request: SimulationCoordinatorRequest,
-): SimulationCoordinatorResult => {
+export const runSimulationRequests = (request: CoordinatorRequest): SimulationCoordinatorResult => {
   const concurrency = request.concurrency ?? 1;
   if (!Number.isInteger(concurrency) || concurrency < 1)
     throw new RangeError("Simulation concurrency must be a positive integer.");
+  const retainResults = request.retainResults !== false;
   const results: Array<CoordinatorResult | undefined> = [];
   let stoppedEarly = false;
   let nextIndex = 0;
@@ -85,7 +92,7 @@ export const runSimulationRequests = (
         fightRequest,
         runSimulationFight(fightRequest, request.control),
       );
-      results[index] = normalized;
+      if (retainResults) results[index] = normalized;
       completed += 1;
       request.onProgress?.({
         completed,
@@ -106,17 +113,24 @@ interface WorkerReply {
   readonly type: "result" | "error";
   readonly result?: SimulationFightExecutionResult;
   readonly detail?: string;
+  readonly fatal?: boolean;
+}
+
+interface PooledWorker {
+  readonly worker: Worker;
+  readonly port: MessageChannel["port1"];
+  busy: boolean;
 }
 
 interface ActiveWorker {
-  readonly worker: Worker;
-  readonly port: MessageChannel["port1"];
+  readonly pooled: PooledWorker;
   readonly index: number;
 }
 
 interface WorkerBatchState {
   readonly active: ActiveWorker[];
   readonly resultSlots: Array<CoordinatorResult | undefined>;
+  readonly retainResults: boolean;
   completed: number;
   nextIndex: number;
   stoppedEarly: boolean;
@@ -128,7 +142,7 @@ const workerModuleUrl = (): URL =>
     import.meta.url,
   );
 
-const createWorker = (): ActiveWorker => {
+const createWorker = (): PooledWorker => {
   const channel = new MessageChannel();
   const moduleUrl = workerModuleUrl();
   const importExpression = moduleUrl.pathname.endsWith(".ts")
@@ -137,7 +151,7 @@ const createWorker = (): ActiveWorker => {
   const bootstrap = `
     import { workerData } from "node:worker_threads";
     ${importExpression}.catch((error) => {
-      workerData.replyPort.postMessage({ type: "error", detail: error instanceof Error ? error.message : String(error) });
+      workerData.replyPort.postMessage({ type: "error", fatal: true, detail: error instanceof Error ? error.message : String(error) });
     });
   `;
   const worker = new Worker(bootstrap, {
@@ -148,11 +162,31 @@ const createWorker = (): ActiveWorker => {
   });
   channel.port1.unref();
   worker.unref();
-  return { worker, port: channel.port1, index: -1 };
+  return { worker, port: channel.port1, busy: false };
 };
 
-const terminateWorkers = (workers: readonly ActiveWorker[]) => {
-  for (const activeWorker of workers) void activeWorker.worker.terminate();
+const workerPool: PooledWorker[] = [];
+
+const acquireWorker = (): PooledWorker => {
+  const available = workerPool.find((candidate) => !candidate.busy);
+  const pooled = available ?? createWorker();
+  if (available === undefined) workerPool.push(pooled);
+  pooled.busy = true;
+  return pooled;
+};
+
+const releaseWorker = (pooled: PooledWorker): void => {
+  pooled.busy = false;
+};
+
+const discardWorker = (pooled: PooledWorker): void => {
+  const poolIndex = workerPool.indexOf(pooled);
+  if (poolIndex >= 0) workerPool.splice(poolIndex, 1);
+  void pooled.worker.terminate();
+};
+
+const terminateWorkers = (workers: readonly ActiveWorker[]): void => {
+  for (const activeWorker of workers) discardWorker(activeWorker.pooled);
 };
 
 const normalizedWorkerReply = (
@@ -174,9 +208,9 @@ const launchWorker = (
   requests: readonly SimulationCoordinatorRequest["requests"][number][],
 ): void => {
   const index = state.nextIndex++;
-  const created = createWorker();
-  state.active.push({ ...created, index });
-  created.worker.postMessage({ request: requests[index] });
+  const pooled = acquireWorker();
+  state.active.push({ pooled, index });
+  pooled.worker.postMessage({ request: requests[index] });
 };
 
 const consumeWorkerReply = (
@@ -187,13 +221,14 @@ const consumeWorkerReply = (
   onProgress: SimulationCoordinatorRequest["onProgress"],
 ): boolean => {
   const activeWorker = state.active[activeIndex]!;
-  const reply = receiveMessageOnPort(activeWorker.port)?.message as WorkerReply | undefined;
+  const reply = receiveMessageOnPort(activeWorker.pooled.port)?.message as WorkerReply | undefined;
   if (reply === undefined) return false;
   state.active.splice(activeIndex, 1);
-  void activeWorker.worker.terminate();
+  if (reply.fatal === true) discardWorker(activeWorker.pooled);
+  else releaseWorker(activeWorker.pooled);
   const request = requests[activeWorker.index]!;
   const normalized = normalizedWorkerReply(request, reply);
-  state.resultSlots[activeWorker.index] = normalized;
+  if (state.retainResults) state.resultSlots[activeWorker.index] = normalized;
   state.completed += 1;
   onProgress?.({
     completed: state.completed,
@@ -228,12 +263,14 @@ const runWorkerBatch = (
   requests: readonly SimulationCoordinatorRequest["requests"][number][],
   workers: number,
   stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
+  retainResults: boolean,
   onProgress?: SimulationCoordinatorRequest["onProgress"],
 ): SimulationCoordinatorResult => {
   if (requests.length === 0) return { results: [], stoppedEarly: false };
   const state: WorkerBatchState = {
     active: [],
     resultSlots: [],
+    retainResults,
     completed: 0,
     nextIndex: 0,
     stoppedEarly: false,
@@ -254,7 +291,7 @@ const runWorkerBatch = (
 
 /** Executes requests on actual Node worker threads and merges by request index. */
 export const runSimulationRequestsWithWorkers = (
-  request: SimulationCoordinatorRequest & { readonly workers: number },
+  request: CoordinatorRequest & { readonly workers: number },
 ): SimulationCoordinatorResult => {
   if (!Number.isInteger(request.workers) || request.workers < 1)
     throw new RangeError("Simulation worker count must be a positive integer.");
@@ -267,6 +304,7 @@ export const runSimulationRequestsWithWorkers = (
     request.requests,
     request.workers,
     request.stoppingPolicy,
+    request.retainResults !== false,
     request.onProgress,
   );
 };

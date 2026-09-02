@@ -66,6 +66,11 @@ export interface SimulationCoverageCell {
   readonly cellHash: string;
 }
 
+export interface SimulationCoverageValidationOptions {
+  /** A draft natural population is represented explicitly as not scheduled. */
+  readonly allowNaturalNotScheduled?: boolean;
+}
+
 const precisionSchema = z
   .object({
     completedPairs: z.number().int().nonnegative(),
@@ -285,6 +290,7 @@ export const mergeSimulationCoverageCells = (
 
 export const validateSimulationCoverageCells = (
   cells: readonly SimulationCoverageCell[],
+  options: SimulationCoverageValidationOptions = {},
 ): readonly string[] => {
   const issues: string[] = [];
   const seen = new Set<string>();
@@ -297,6 +303,11 @@ export const validateSimulationCoverageCells = (
       else if (scopeDecisionForId(cell.scopeDecisionId) === undefined)
         issues.push(`Coverage cell has an unregistered scope decision: ${cell.cellId}`);
     } else if (
+      !(
+        options.allowNaturalNotScheduled === true &&
+        cell.population === "natural" &&
+        cell.status === "not-scheduled"
+      ) &&
       [
         "unobserved",
         "underexposed",

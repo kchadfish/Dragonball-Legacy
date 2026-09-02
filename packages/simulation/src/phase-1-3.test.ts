@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
-import { CANONICAL_COMBAT_MECHANICS_VIEW } from "@dragonball-resurgence/combat-engine";
+import {
+  BranchCombatIdSource,
+  CANONICAL_COMBAT_MECHANICS_VIEW,
+  FixedClock,
+  SeededRandomSource,
+  createCombatRuntime,
+} from "@dragonball-resurgence/combat-engine";
 
 import {
   ALL_SIMULATION_TEMPLATES,
@@ -25,6 +31,7 @@ import {
   runSimulationSeries,
   reviewCustomMove,
   expandSimulationScenarios,
+  SIMULATION_SCENARIO_FAMILIES,
   simulationReplayRecordSchema,
   simulationTemplateSchema,
   validateSimulationCheckpoint,
@@ -112,15 +119,90 @@ describe("simulation Phase 1 through 3 contracts", () => {
         template.source.path.startsWith("balance-testing/"),
       ),
     ).toBe(true);
+    expect(TF1_SIMULATION_TEMPLATES.every((template) => template.source.text.includes("TF1"))).toBe(
+      true,
+    );
     expect(
-      TF1_SIMULATION_TEMPLATES.every((template) =>
-        template.gaps.some((gap) => gap.kind === "loadout"),
-      ),
+      TF1_SIMULATION_TEMPLATES.every((template) => template.loadoutOverlay?.status === "draft"),
     ).toBe(true);
+    expect(TF1_SIMULATION_TEMPLATES.every((template) => template.moveIds.length >= 14)).toBe(true);
+    expect(TF1_SIMULATION_TEMPLATES.every((template) => template.itemIds.length > 0)).toBe(true);
+    expect(TF1_SIMULATION_TEMPLATES.every((template) => template.raceTraitIds.length > 0)).toBe(
+      true,
+    );
     expect(
-      TF1_SIMULATION_TEMPLATES.every((template) => !validateSimulationTemplate(template).ok),
+      TF1_SIMULATION_TEMPLATES.every((template) => validateSimulationTemplate(template).ok),
     ).toBe(true);
+    expect(TF1_SIMULATION_TEMPLATES[0]?.moveIds.slice(0, 3)).toEqual([
+      "move-akaikaru-adrenaline-rush-mastery",
+      "move-akaikaru-swift-reaction",
+      "move-akaikaru-speed-demon",
+    ]);
+    expect(TF1_SIMULATION_TEMPLATES[0]).toMatchObject({
+      itemIds: ["item-equipment-nanomachine", "item-technology-self-destruct-device"],
+      raceTraitIds: ["race-trait-bio-androids-regeneration", "race-trait-saiyans-saiyan-might"],
+      startingKi: 5,
+      maximumKi: 10,
+      specialization: { type: "strength", level: 1, damageType: "physical" },
+    });
+    expect(TF1_SIMULATION_TEMPLATES[10]).toMatchObject({ startingKi: 6 });
+    expect(TF1_SIMULATION_TEMPLATES[10]?.raceTraitIds).toEqual([
+      "race-trait-bio-androids-regeneration",
+      "race-trait-saiyans-saiyan-might",
+      "race-trait-namek-meditative-preparation",
+    ]);
+    expect(TF1_SIMULATION_TEMPLATES[31]?.itemQuantities).toEqual({
+      "item-equipment-first-aid-kit": 2,
+    });
   });
+
+  it("materializes every TF1 template and crosses the normal combat boundary", () => {
+    const materialized = TF1_SIMULATION_TEMPLATES.map((template) =>
+      materializeSimulationTemplate(template, CANONICAL_COMBAT_MECHANICS_VIEW),
+    );
+    expect(materialized.every((result) => result.ok)).toBe(true);
+    const runtime = createCombatRuntime(CANONICAL_COMBAT_MECHANICS_VIEW);
+    const setupResults = materialized.map((result, index) =>
+      result.ok
+        ? runtime.createFight(
+            { mode: "spar", combatants: [result.value.input, result.value.input] },
+            {
+              random: new SeededRandomSource(index + 1),
+              clock: new FixedClock(new Date("2026-01-01T00:00:00.000Z")),
+              ids: new BranchCombatIdSource([`tf1-boundary-${index + 1}`]),
+              mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW,
+            },
+          )
+        : result,
+    );
+    expect(setupResults.every((result) => result.ok)).toBe(true);
+    const template = TF1_SIMULATION_TEMPLATES[0]!;
+    const scenario = createScenario({
+      id: "simulation-scenario:tf1-boundary",
+      family: "symmetric-control",
+      checkpointId: "tf1",
+      templateAId: template.id,
+      templateBId: template.id,
+      variantId: "simulation-variant:baseline",
+      retention: "summary",
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+      stoppingPolicy: "continue",
+      deferred: false,
+    });
+    const result = runSimulationFight({
+      schemaVersion: "simulation-contracts:v1",
+      runId: "simulation-run:tf1-boundary",
+      scenario,
+      templateA: template,
+      templateB: template,
+      profileA: SIMULATION_QUALITY_PROFILE,
+      profileB: SIMULATION_QUALITY_PROFILE,
+      rootSeed: 1,
+      fixedTime: new Date("2026-01-01T00:00:00.000Z"),
+      mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW,
+    });
+    expect(result.failure).toBeUndefined();
+  }, 30_000);
 
   it("materializes all synthetic archetypes without creating runtime state", () => {
     const templates = createSyntheticArchetypes();
@@ -230,6 +312,25 @@ describe("simulation Phase 1 through 3 contracts", () => {
     );
     expect(expansion.checkpointCatalogHash).toBe(customCheckpoints.catalogHash);
     expect(expansion.scenarios[0].checkpointId).toBe("custom");
+
+    const fullExpansion = expandSimulationScenarios(templates);
+    expect(new Set(fullExpansion.scenarios.map((candidate) => candidate.family))).toEqual(
+      new Set(SIMULATION_SCENARIO_FAMILIES),
+    );
+    expect(fullExpansion.scenarios.every((candidate) => candidate.note !== undefined)).toBe(true);
+    expect(
+      fullExpansion.scenarios.find((candidate) => candidate.family === "transformation-timing"),
+    ).toMatchObject({ checkpointId: "tf1" });
+    const syntheticIds = new Set(createSyntheticArchetypes().map((template) => template.id));
+    expect(
+      fullExpansion.scenarios.every(
+        (candidate) =>
+          syntheticIds.has(candidate.templateAId) && syntheticIds.has(candidate.templateBId),
+      ),
+    ).toBe(true);
+    const canonicalBefore = canonicalHash(CANONICAL_COMBAT_MECHANICS_VIEW);
+    ALL_SIMULATION_TEMPLATES();
+    expect(canonicalHash(CANONICAL_COMBAT_MECHANICS_VIEW)).toBe(canonicalBefore);
   });
 
   it("runs a deterministic synthetic fight through the public boundaries", () => {
@@ -400,7 +501,10 @@ describe("simulation Phase 1 through 3 contracts", () => {
 
   it("contains invalid, cancelled, and deferred requests without contaminating later fights", () => {
     const synthetic = createSyntheticArchetypes()[0];
-    const blocked = TF1_SIMULATION_TEMPLATES[0];
+    const blocked = {
+      ...TF1_SIMULATION_TEMPLATES[0],
+      moveIds: ["move:missing"],
+    };
     const scenarioFor = (id: string, deferred = false) =>
       createScenario({
         id: `simulation-scenario:${id}`,

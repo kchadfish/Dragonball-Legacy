@@ -46,6 +46,7 @@
     "simulate:move-report": "tsx scripts/simulate-fights.ts move-report",
     "simulate:closure": "tsx scripts/simulate-fights.ts closure",
     "simulate:custom-review": "tsx scripts/simulate-fights.ts custom-review",
+    "simulate:custom-run": "tsx scripts/simulate-fights.ts custom-run",
     "simulate:benchmark": "tsx scripts/simulate-fights.ts benchmark",
     "validate:npc-ai-readiness": "tsx scripts/npc-ai-readiness.ts --validate",
     "validate:game-data": "tsx scripts/validate-game-data.ts",

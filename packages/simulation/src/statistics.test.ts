@@ -18,6 +18,7 @@ import {
   simulationStandardDeviation,
   simulationVariance,
   summarizeSimulationRate,
+  twoSidedSimulationRatePValue,
   adjustSimulationPValues,
   wilsonInterval,
 } from "./index.js";
@@ -96,6 +97,9 @@ describe("simulation mergeable statistics", () => {
     expect(first.estimate).toBe(2);
     expect(first.lower).toBeLessThanOrEqual(first.upper);
     expect(summarizeSimulationRate(5, 10).rate).toBe(0.5);
+    expect(
+      twoSidedSimulationRatePValue(summarizeSimulationRate(5, 10), summarizeSimulationRate(5, 10)),
+    ).toBe(1);
     expect(
       adjustSimulationPValues([
         { identity: "b", pValue: 0.04 },

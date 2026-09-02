@@ -14,6 +14,8 @@ import {
   renderSimulationMoveDossiersJson,
   renderSimulationMoveDossiersMarkdown,
   createSimulationCompletionAudit,
+  DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS,
+  executeCustomMoveHarness,
   simulationMoveCoverageArtifactSchema,
   validateSimulationCoverageCells,
   validateSimulationMoveClosure,
@@ -36,7 +38,7 @@ import type {
 
 const usage = `Usage: npm run simulate -- <command> [--format json|csv|markdown]
 
-Commands: fight, series, matrix, catalog-run, resume, replay, report, move-report, dossiers, closure, custom-review, benchmark`;
+Commands: fight, series, matrix, catalog-run, resume, replay, report, move-report, dossiers, closure, custom-review, custom-run, benchmark`;
 
 const optionFor = (args: readonly string[], name: string): string | undefined => {
   const inline = args.find((argument) => argument.startsWith(`${name}=`));
@@ -91,6 +93,48 @@ const positiveOption = (args: readonly string[], name: string, fallback: number)
   return parsed;
 };
 
+const unsignedOption = (args: readonly string[], name: string, fallback: number): number => {
+  const value = optionFor(args, name);
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 2 ** 32 - 1)
+    throw new RangeError(`${name} requires an unsigned 32-bit integer.`);
+  return parsed;
+};
+
+const customHarnessOptionsFor = (args: readonly string[]) => ({
+  schemaVersion: DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.schemaVersion,
+  rootSeed: unsignedOption(args, "--root-seed", DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.rootSeed),
+  pairCount: positiveOption(args, "--pair-count", DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.pairCount),
+  maximumBuilds: positiveOption(
+    args,
+    "--maximum-builds",
+    DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.maximumBuilds,
+  ),
+  workers: positiveOption(args, "--workers", DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.workers),
+  maximumTurns: positiveOption(
+    args,
+    "--maximum-turns",
+    DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.maximumTurns,
+  ),
+  maximumTransitions: positiveOption(
+    args,
+    "--maximum-transitions",
+    DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.maximumTransitions,
+  ),
+  semanticNoProgressLimit: positiveOption(
+    args,
+    "--semantic-no-progress-limit",
+    DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.semanticNoProgressLimit,
+  ),
+  bootstrapResamples: positiveOption(
+    args,
+    "--bootstrap-resamples",
+    DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.bootstrapResamples,
+  ),
+  fixedTime: optionFor(args, "--fixed-time") ?? DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS.fixedTime,
+});
+
 const catalogPopulationFor = (
   args: readonly string[],
 ): SimulationCoveragePopulation | undefined => {
@@ -144,6 +188,7 @@ const main = async (): Promise<void> => {
       "dossiers",
       "closure",
       "custom-review",
+      "custom-run",
       "benchmark",
     ].includes(command)
   )
@@ -169,11 +214,20 @@ const main = async (): Promise<void> => {
   }
   if (command === "closure") {
     const artifact = await coverageArtifactFor(optionFor(args, "--artifact"));
+    const allowsNaturalNotScheduled =
+      artifact.generatedFrom.naturalPopulation === "draft" &&
+      artifact.generatedFrom.naturalPopulationBlocker !== undefined;
     const issues = [
-      ...validateSimulationMoveClosure(artifact.dataset),
-      ...validateSimulationCoverageCells(artifact.coverageCells),
+      ...validateSimulationMoveClosure(artifact.dataset, {}, undefined, {
+        allowNaturalNotScheduled: allowsNaturalNotScheduled,
+      }),
+      ...validateSimulationCoverageCells(artifact.coverageCells, {
+        allowNaturalNotScheduled: allowsNaturalNotScheduled,
+      }),
     ];
-    const audit = createSimulationCompletionAudit(artifact.dataset, artifact.coverageCells);
+    const audit = createSimulationCompletionAudit(artifact.dataset, artifact.coverageCells, {
+      allowNaturalNotScheduled: allowsNaturalNotScheduled,
+    });
     if (!audit.complete) issues.push(...audit.issues.filter((issue) => !issues.includes(issue)));
     if (issues.length > 0) throw new Error(`Move closure is incomplete:\n${issues.join("\n")}`);
     console.log("Simulation move closure is complete.");
@@ -225,6 +279,13 @@ const main = async (): Promise<void> => {
       benchmarkHash: canonicalHash({ ...measuredBenchmark, benchmarkHash: undefined }),
     };
     await writeBundle("benchmark.json", `${canonicalJson(benchmark)}\n`);
+    return;
+  }
+  if (command === "custom-run") {
+    if (formatFor(args) !== "json")
+      throw new RangeError("Custom harness output supports json only.");
+    const dossier = executeCustomMoveHarness(await inputFor(args), customHarnessOptionsFor(args));
+    await writeBundle("custom-move-dossier.json", `${canonicalJson(dossier)}\n`);
     return;
   }
   if (command === "catalog-run") {

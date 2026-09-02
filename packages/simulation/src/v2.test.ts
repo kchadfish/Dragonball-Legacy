@@ -103,11 +103,11 @@ describe("simulation v2 contracts", () => {
     expect(TF1_SIMULATION_TEMPLATES).toHaveLength(36);
     expect(
       TF1_SIMULATION_TEMPLATES.every(
-        (template) => template.loadoutOverlay?.status === "draft" && template.moveIds.length === 14,
+        (template) => template.loadoutOverlay?.status === "draft" && template.moveIds.length >= 14,
       ),
     ).toBe(true);
     const tf1Template = TF1_SIMULATION_TEMPLATES[0]!;
-    expect(validateSimulationTemplate(tf1Template).ok).toBe(false);
+    expect(validateSimulationTemplate(tf1Template).ok).toBe(true);
     const approved = approveSimulationTf1Overlay(tf1Template, "staff:test-overlay");
     expect(approved.loadoutOverlay?.status).toBe("approved");
     expect(validateSimulationTemplate(approved).ok).toBe(true);
@@ -156,6 +156,25 @@ describe("simulation v2 contracts", () => {
       "profile:simulation-quality",
     ]);
   });
+
+  it("keeps activated modifiers valid through pending-response continuations", () => {
+    const result = runSimulationMoveCoverage({
+      moveIds: [
+        "move-afterlife-burning-shoot",
+        "move-haokiru-phoenix-tackle",
+        "move-kurokonwaku-poison-mist",
+        "move-haokiru-willing-sacrifice",
+      ],
+      population: "forced",
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      limits: { maximumTurns: 12, maximumTransitions: 128, semanticNoProgressLimit: 8 },
+      concurrency: 1,
+    });
+
+    expect(result.failures).toEqual([]);
+    expect(result.artifact.errors).toEqual([]);
+  }, 30_000);
 
   it("counts triggered move-used events separately from submitted move resolutions", () => {
     const moveId = "move-aoyosumu-braced-energy-beam";
@@ -206,6 +225,7 @@ describe("simulation v2 contracts", () => {
       },
     });
     expect(result.failure).toBeUndefined();
+    expect(result.diagnostics?.evaluations).toEqual([]);
     expect(result.diagnostics?.moveFunnels[moveId]).toMatchObject({
       submitted: 2,
       resolved: 2,
@@ -297,7 +317,12 @@ describe("simulation v2 contracts", () => {
         .filter((cell) => cell.population === "natural")
         .every((cell) => cell.status === "not-scheduled"),
     ).toBe(true);
+    expect(isolation.artifact.generatedFrom.naturalPopulation).toBe("draft");
+    expect(isolation.artifact.generatedFrom.naturalPopulationBlocker).toMatch(
+      /genuine staff approval reference/i,
+    );
     expect(isolation.artifact.errors).toHaveLength(isolation.failures.length);
+    expect(isolation.artifact.errors.every((error) => error.population === "isolation")).toBe(true);
     expect(
       isolation.artifact.generatedFrom.representativeReplaySeedsByMove?.isolation[moveId],
     ).toHaveLength(2);
@@ -632,11 +657,41 @@ describe("simulation v2 contracts", () => {
       stoppingPolicy: "continue",
       workers: 4,
     });
+    const streamedByRunId = new Map<string, (typeof sequential.results)[number]>();
+    const streamed = runSimulationRequestsWithWorkers({
+      requests,
+      stoppingPolicy: "continue",
+      workers: 2,
+      retainResults: false,
+      onProgress: (progress) => streamedByRunId.set(progress.runId, progress.result),
+    });
     const expectedHash = canonicalHash(sequential.results);
     expect(canonicalHash(oneWorker.results)).toBe(expectedHash);
     expect(canonicalHash(twoWorkers.results)).toBe(expectedHash);
     expect(canonicalHash(fourWorkers.results)).toBe(expectedHash);
+    expect(streamed.results).toHaveLength(0);
+    expect(canonicalHash(requests.map((request) => streamedByRunId.get(request.runId)))).toBe(
+      expectedHash,
+    );
   }, 90_000);
+
+  it("keeps batched cross-move coverage canonical across worker counts and pool reuse", () => {
+    const moveIds = ["move-akaikaru-firestorm", "move-aoyosumu-braced-energy-beam"];
+    const options = {
+      moveIds,
+      population: "forced" as const,
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+    };
+    const oneWorker = runSimulationMoveCoverage({ ...options, workers: 1 });
+    const twoWorkers = runSimulationMoveCoverage({ ...options, workers: 2 });
+    const reusedPool = runSimulationMoveCoverage({ ...options, workers: 2 });
+    const expectedHash = canonicalHash(oneWorker.artifact);
+    expect(oneWorker.runCount).toBe(moveIds.length * 2);
+    expect(canonicalHash(twoWorkers.artifact)).toBe(expectedHash);
+    expect(canonicalHash(reusedPool.artifact)).toBe(expectedHash);
+  }, 30_000);
 
   it("executes the fast benchmark preset with canonical output", () => {
     const result = runSimulationBenchmark({

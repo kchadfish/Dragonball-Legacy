@@ -273,10 +273,10 @@ const runtimeOptional = <T>(value: T | undefined): T | undefined => value;
 const definedOption = <K extends string, V>(key: K, value: V | undefined): Record<K, V> | object =>
   value === undefined ? {} : { [key]: value };
 
-const invalidFightState = (state: CombatTransition["state"]): CombatFailure => ({
-  type: "invalid-fight-state",
-  violations: validateFightState(state, mechanicsViewForState(state)),
-});
+const invalidFightState = (state: CombatTransition["state"]): CombatFailure => {
+  const violations = validateFightState(state, mechanicsViewForState(state));
+  return { type: "invalid-fight-state", violations };
+};
 
 const diagnosticTransitionContext = (dependencies: CombatDependencies) => {
   if (dependencies.retainDiagnosticTrace !== true)
@@ -8492,8 +8492,9 @@ const createConvertedAttackMoveState = (
     : state.activeCombatantId;
   const consumedExtraActionEffects = consumeExtraActionForDecision(state, decision);
   const scheduledWork = scheduledWorkAfterExtraActionConsumption(state, decision);
-  const activeEffectsBeforeConsumption = [
-    ...effectsAfterAttackResolution(state, {
+  const activeEffectsBeforeConsumption = activeEffectsAfterAdditions(
+    state,
+    effectsAfterAttackResolution(state, {
       attackerId: attacker.id,
       defenderId: target.id,
       turnNumber: state.turnNumber,
@@ -8501,8 +8502,8 @@ const createConvertedAttackMoveState = (
       rolls: context.roll.rolls,
       move: context.move,
     }).filter((effect) => effect.id !== context.deferredEffectId),
-    ...context.activatedEffects,
-  ].filter((effect) => !context.consumedActiveEffectIds.includes(effect.id));
+    context.activatedEffects,
+  ).filter((effect) => !context.consumedActiveEffectIds.includes(effect.id));
   const activeEffects = activeEffectsBeforeConsumption.flatMap((effect) => {
     if (effect.type !== "extra-action") return [effect];
     if (!state.activeEffects.some((candidate) => candidate.id === effect.id)) return [effect];
@@ -17278,14 +17279,18 @@ const createBasicAttackState = (
           // counter chain ends, leave that original actor active at End so the
           // normal phase advance hands the next turn to the countering defender.
           combatants: restoredCombatants,
-          activeEffects: effectsAfterAttackResolution(state, {
-            attackerId: attacker.id,
-            defenderId: target.id,
-            turnNumber: state.turnNumber,
-            outcome: resolution.outcome,
-            rolls: [resolution],
-            basicAttack: decision.basicAttack,
-          }).concat(activatedEffects ?? []),
+          activeEffects: activeEffectsAfterAdditions(
+            state,
+            effectsAfterAttackResolution(state, {
+              attackerId: attacker.id,
+              defenderId: target.id,
+              turnNumber: state.turnNumber,
+              outcome: resolution.outcome,
+              rolls: [resolution],
+              basicAttack: decision.basicAttack,
+            }),
+            activatedEffects ?? [],
+          ),
           actionHistory,
           resolutionFrames: counterContinues
             ? [
@@ -17482,9 +17487,6 @@ const scheduledWorkAfterExtraActionConsumption = (
         ];
   });
 };
-
-const hasAvailableExtraAction = (state: ActiveFightState, combatantId: CombatantId) =>
-  availableExtraActionFor(state, combatantId) !== undefined;
 
 const itemUseGroupsUsedByCombatant = (state: ActiveFightState, combatantId: CombatantId) =>
   new Set(
@@ -17683,6 +17685,40 @@ const unlockedLegalDecisions = (
     );
   });
 
+const decisionCostsAreAffordable = (state: ActiveFightState, decision: LegalDecision) => {
+  const actor = state.combatants[decision.actorId];
+  return probeLegalDecisionCosts(state, decision).every(
+    (cost) => cost.resource !== "ki" || cost.effective <= actor.ki.current,
+  );
+};
+
+const hasAffordableMatchingExtraAction = (
+  state: ActiveFightState,
+  combatantId: CombatantId,
+  allowance: Extract<ActiveCombatEffect, { readonly type: "extra-action" }>,
+) => {
+  const opponentId = nextActiveCombatantId(state);
+  if (opponentId === undefined) return false;
+  const unlocked = unlockedLegalDecisions(
+    state,
+    combatantId,
+    baseLegalDecisions(state, combatantId, opponentId),
+  );
+  const matching = unlocked.filter((decision) =>
+    extraActionMatchesDecision(state, allowance, decision),
+  );
+  return (
+    matching.length === 0 ||
+    matching.some((decision) => decisionCostsAreAffordable(state, decision))
+  );
+};
+
+function hasAvailableExtraAction(state: ActiveFightState, combatantId: CombatantId) {
+  return availableExtraActionsFor(state, combatantId).some((allowance) =>
+    hasAffordableMatchingExtraAction(state, combatantId, allowance),
+  );
+}
+
 /** Returns every currently supported player decision for the requested combatant. */
 export const enumerateLegalDecisions = (
   state: CombatTransition["state"],
@@ -17727,8 +17763,10 @@ export const enumerateLegalDecisions = (
       ? unlockedDecisions
       : (() => {
           const matching = unlockedDecisions.filter((decision) =>
-            availableExtraActionsFor(state, combatantId).some((candidate) =>
-              extraActionMatchesDecision(state, candidate, decision),
+            availableExtraActionsFor(state, combatantId).some(
+              (candidate) =>
+                extraActionMatchesDecision(state, candidate, decision) &&
+                decisionCostsAreAffordable(state, decision),
             ),
           );
           return matching.length === 0 ? unlockedDecisions : matching;
@@ -17738,11 +17776,7 @@ export const enumerateLegalDecisions = (
       ? extraActionDecisions
       : extraActionDecisions.filter((decision) => satisfiesForcedAction(state, force, decision));
   const actor = state.combatants[combatantId];
-  return constrainedDecisions.filter((decision) =>
-    probeLegalDecisionCosts(state, decision).every(
-      (cost) => cost.resource !== "ki" || cost.effective <= actor.ki.current,
-    ),
-  );
+  return constrainedDecisions.filter((decision) => decisionCostsAreAffordable(state, decision));
 };
 
 type DeferredMoveEffect = Extract<ActiveCombatEffect, { readonly type: "deferred-move" }>;

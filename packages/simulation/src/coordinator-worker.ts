@@ -1,6 +1,9 @@
 import { parentPort, workerData, type MessagePort } from "node:worker_threads";
 
-import { createCombatMechanicsView } from "@dragonball-resurgence/combat-engine";
+import {
+  createCombatMechanicsView,
+  type CombatMechanicsView,
+} from "@dragonball-resurgence/combat-engine";
 
 import { runSimulationFight } from "./runner.js";
 import type { SimulationFightRequest } from "./contracts.js";
@@ -13,20 +16,33 @@ interface WorkerReply {
 
 const replyPort = (workerData as { readonly replyPort: MessagePort }).replyPort;
 if (parentPort === null) throw new Error("Simulation worker requires a parent port.");
+replyPort.unref();
+
+const mechanicsViews = new Map<string, CombatMechanicsView>();
+
+const mechanicsViewFor = (
+  sourceView: SimulationFightRequest["mechanicsView"],
+): CombatMechanicsView => {
+  const identity = sourceView.identity.contentHash;
+  const cached = mechanicsViews.get(identity);
+  if (cached !== undefined) return cached;
+  const mechanicsView = createCombatMechanicsView({
+    rules: sourceView.rules,
+    rulesVersion: sourceView.rulesVersion,
+    moves: sourceView.moves,
+    items: sourceView.items,
+    transformations: sourceView.transformations,
+    races: sourceView.races,
+    genericClasses: sourceView.genericClasses,
+  });
+  mechanicsViews.set(identity, mechanicsView);
+  return mechanicsView;
+};
 
 parentPort.on("message", (value) => {
   const message = value as { readonly request: SimulationFightRequest };
   try {
-    const sourceView = message.request.mechanicsView;
-    const mechanicsView = createCombatMechanicsView({
-      rules: sourceView.rules,
-      rulesVersion: sourceView.rulesVersion,
-      moves: sourceView.moves,
-      items: sourceView.items,
-      transformations: sourceView.transformations,
-      races: sourceView.races,
-      genericClasses: sourceView.genericClasses,
-    });
+    const mechanicsView = mechanicsViewFor(message.request.mechanicsView);
     const result = runSimulationFight({ ...message.request, mechanicsView });
     replyPort.postMessage({ type: "result", result } satisfies WorkerReply);
   } catch (error) {

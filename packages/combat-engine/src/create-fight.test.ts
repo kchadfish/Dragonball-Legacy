@@ -745,6 +745,43 @@ describe("createFight", () => {
 });
 
 describe("validateFightState", () => {
+  it("accepts persisted cost and resource modifier-transformer effects", () => {
+    const createdFight = createFight(input, createDependencies());
+    if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");
+
+    const validState = {
+      ...createdFight.value.state,
+      activeEffects: [
+        {
+          id: activeEffectIdSchema.parse("active-effect:valid-cost-modifier"),
+          type: "modify-next-action",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-afterlife-hellzone-grenade",
+          modifier: { type: "cost-modifier", multiplier: 1.5 },
+        },
+        {
+          id: activeEffectIdSchema.parse("active-effect:valid-resource-modifier"),
+          type: "modify-next-action",
+          sourceCombatantId: firstCombatantId,
+          targetCombatantId: firstCombatantId,
+          sourceDefinitionId: "move-haokiru-phoenix-tackle",
+          scope: "next-turn",
+          availableFromTurn: createdFight.value.state.turnNumber + 1,
+          modifier: {
+            type: "resource-modifier",
+            resource: "hp",
+            operation: "gain",
+            multiplier: 2,
+            cap: { type: "maximum", value: 66 },
+          },
+        },
+      ],
+    } as FightState;
+
+    expect(validateFightState(validState)).toEqual([]);
+  });
+
   it("rejects a floating relation target that is not an active combatant", () => {
     const createdFight = createFight(input, createDependencies());
     if (!createdFight.ok) throw new Error("Expected initial fight creation to succeed.");

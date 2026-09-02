@@ -1,6 +1,10 @@
 import { writeFile } from "node:fs/promises";
 
-import { canonicalJson, runSimulationMoveCoverage } from "../packages/simulation/src/index.js";
+import {
+  canonicalJson,
+  runSimulationMoveCoverage,
+  runSimulationMoveCoverageCatalog,
+} from "../packages/simulation/src/index.js";
 
 const positiveIntegerFromEnv = (name: string): number | undefined => {
   const value = process.env[name];
@@ -44,7 +48,28 @@ const naturalProfileFromEnv = ():
   return value;
 };
 
-const result = runSimulationMoveCoverage({
+const populationsFromEnv = (): readonly ("natural" | "isolation" | "forced")[] | undefined => {
+  const value = process.env.SIMULATION_COVERAGE_POPULATIONS;
+  if (value === undefined) return undefined;
+  const populations = value
+    .split(",")
+    .map((population) => population.trim())
+    .filter(Boolean);
+  if (
+    populations.length === 0 ||
+    populations.some(
+      (population) =>
+        population !== "natural" && population !== "isolation" && population !== "forced",
+    ) ||
+    new Set(populations).size !== populations.length
+  )
+    throw new RangeError(
+      "SIMULATION_COVERAGE_POPULATIONS must contain unique natural, isolation, or forced values.",
+    );
+  return populations as readonly ("natural" | "isolation" | "forced")[];
+};
+
+const coverageOptions = {
   targetFights: positiveIntegerFromEnv("SIMULATION_COVERAGE_TARGET"),
   minimumEligibleStates: positiveIntegerFromEnv("SIMULATION_COVERAGE_MINIMUM_ELIGIBLE"),
   concurrency: positiveIntegerFromEnv("SIMULATION_COVERAGE_CONCURRENCY"),
@@ -53,7 +78,12 @@ const result = runSimulationMoveCoverage({
   naturalOverlayApprovalReference: process.env.SIMULATION_COVERAGE_NATURAL_APPROVAL,
   naturalProfileId: naturalProfileFromEnv(),
   moveIds: moveIdsFromEnv(),
-});
+};
+const populations = populationsFromEnv();
+const result =
+  populations === undefined
+    ? runSimulationMoveCoverage(coverageOptions)
+    : runSimulationMoveCoverageCatalog({ ...coverageOptions, populations });
 await writeFile(
   "docs/architecture/simulation-move-coverage.json",
   `${canonicalJson(result.artifact)}\n`,

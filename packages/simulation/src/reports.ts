@@ -11,8 +11,11 @@ import type {
   SimulationMoveFunnel,
 } from "./move-coverage.js";
 import {
+  adjustSimulationPValues,
   seededBootstrapPairedDifference,
   summarizeSimulationRate,
+  twoSidedSimulationRatePValue,
+  type AdjustedSimulationPValue,
   type SimulationInterval,
   type SimulationRateSummary,
   type SimulationStratifiedAccumulator,
@@ -47,6 +50,13 @@ export interface SimulationReport {
   readonly intervals: readonly SimulationReportInterval[];
   readonly effectSizes: readonly SimulationReportEffectSize[];
   readonly pairedEffects: readonly SimulationReportPairedEffect[];
+  readonly multipleComparison: Readonly<{
+    readonly schemaVersion: "simulation-multiple-comparison:v1";
+    readonly method: "benjamini-hochberg";
+    readonly falseDiscoveryRate: 0.05;
+    readonly tests: readonly AdjustedSimulationPValue[];
+    readonly rationale: string;
+  }>;
   readonly comparableRationale: readonly SimulationReportComparableRationale[];
   readonly representativeReplaySeeds: Readonly<Record<string, readonly number[]>>;
   readonly metricsByMove: Readonly<Record<string, SimulationMoveMetrics>>;
@@ -90,6 +100,9 @@ export interface SimulationReportEffectSize {
   readonly interval: SimulationInterval | null;
   readonly intervalMethod: "wilson-difference-envelope" | "not-estimated";
   readonly sampleCount: number;
+  readonly pValue: number | null;
+  readonly adjustedPValue?: number;
+  readonly exploratoryFlag?: boolean;
   readonly paired: false;
   readonly rationale: string;
 }
@@ -385,6 +398,10 @@ const effectSizesForMove = (
             },
       intervalMethod: difference === null ? "not-estimated" : "wilson-difference-envelope",
       sampleCount: (baseline?.denominator ?? 0) + (comparison?.denominator ?? 0),
+      pValue:
+        baseline === null || comparison === null
+          ? null
+          : twoSidedSimulationRatePValue(baseline, comparison),
       paired: false,
       rationale:
         difference === null
@@ -576,12 +593,40 @@ export const createSimulationMoveBalanceReport = (
       return record === undefined ? [] : intervalsForMove(record, coverageCells, errors);
     }),
   );
-  const effectSizes = Object.freeze(
+  const unadjustedEffectSizes = Object.freeze(
     rows.flatMap((row) => {
       const record = dataset.records.find((candidate) => candidate.moveId === row.id);
       return record === undefined ? [] : effectSizesForMove(record);
     }),
   );
+  const multipleComparisonTests = adjustSimulationPValues(
+    unadjustedEffectSizes.flatMap((effect) =>
+      effect.pValue === null ? [] : [{ identity: effect.id, pValue: effect.pValue }],
+    ),
+  );
+  const multipleComparisonById = new Map(
+    multipleComparisonTests.map((test) => [test.identity, test]),
+  );
+  const effectSizes = Object.freeze(
+    unadjustedEffectSizes.map((effect) => {
+      const adjustment = multipleComparisonById.get(effect.id);
+      return adjustment === undefined
+        ? effect
+        : {
+            ...effect,
+            adjustedPValue: adjustment.adjustedPValue,
+            exploratoryFlag: adjustment.exploratoryFlag,
+          };
+    }),
+  );
+  const multipleComparison = Object.freeze({
+    schemaVersion: "simulation-multiple-comparison:v1" as const,
+    method: "benjamini-hochberg" as const,
+    falseDiscoveryRate: 0.05 as const,
+    tests: multipleComparisonTests,
+    rationale:
+      "Benjamini-Hochberg controls exploratory rate-contrast triage only; it never converts isolation or forced evidence into a balance conclusion.",
+  });
   const comparableRationale = Object.freeze(
     rows.flatMap((row) => {
       const record = dataset.records.find((candidate) => candidate.moveId === row.id);
@@ -641,6 +686,7 @@ export const createSimulationMoveBalanceReport = (
     intervals,
     effectSizes,
     pairedEffects,
+    multipleComparison,
     comparableRationale,
     representativeReplaySeeds,
     metricsByMove,
@@ -660,6 +706,7 @@ export const createSimulationMoveBalanceReport = (
     intervals,
     effectSizes,
     pairedEffects,
+    multipleComparison,
     comparableRationale,
     representativeReplaySeeds,
     metricsByMove,
@@ -756,7 +803,7 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
   const section = (
     name: string,
     header: readonly string[],
-    rows: readonly (string | number)[][],
+    rows: readonly (string | number | boolean)[][],
   ) => {
     lines.push("", `# ${name}`, header.map(escapeCsv).join(","));
     for (const row of rows) lines.push(row.map(escapeCsv).join(","));
@@ -801,6 +848,9 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
       "comparisonPopulation",
       "estimate",
       "interval",
+      "pValue",
+      "adjustedPValue",
+      "exploratoryFlag",
       "rationale",
     ],
     report.effectSizes.map((effect) => [
@@ -811,6 +861,9 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
       effect.comparisonPopulation,
       effect.estimate ?? "",
       canonicalJson(effect.interval),
+      effect.pValue ?? "",
+      effect.adjustedPValue ?? "",
+      effect.exploratoryFlag ?? "",
       effect.rationale,
     ]),
   );
@@ -826,6 +879,16 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
       effect.estimate ?? "",
       canonicalJson(effect.interval),
       effect.rationale,
+    ]),
+  );
+  section(
+    "multiple-comparison",
+    ["identity", "pValue", "adjustedPValue", "exploratoryFlag"],
+    report.multipleComparison.tests.map((test) => [
+      test.identity,
+      test.pValue,
+      test.adjustedPValue,
+      test.exploratoryFlag,
     ]),
   );
   section(
@@ -889,5 +952,5 @@ export const renderSimulationReportMarkdown = (report: SimulationReport): string
     generatedFrom: report.generatedFrom,
     manifest: report.manifest,
     freshnessHash: report.freshnessHash,
-  })}${jsonSection("Combat metrics", report.metricsByMove)}${jsonSection("Stratified accumulators", report.stratifiedAccumulators)}${jsonSection("Intervals", report.intervals)}${jsonSection("Effect sizes", report.effectSizes)}${jsonSection("Paired effects", report.pairedEffects)}${jsonSection("Comparable rationale", report.comparableRationale)}${jsonSection("Representative replay seeds", report.representativeReplaySeeds)}${jsonSection("Follow-up targets", report.followUpTargets)}${errorSection}`;
+  })}${jsonSection("Combat metrics", report.metricsByMove)}${jsonSection("Stratified accumulators", report.stratifiedAccumulators)}${jsonSection("Intervals", report.intervals)}${jsonSection("Effect sizes", report.effectSizes)}${jsonSection("Paired effects", report.pairedEffects)}${jsonSection("Multiple-comparison adjustment", report.multipleComparison)}${jsonSection("Comparable rationale", report.comparableRationale)}${jsonSection("Representative replay seeds", report.representativeReplaySeeds)}${jsonSection("Follow-up targets", report.followUpTargets)}${errorSection}`;
 };

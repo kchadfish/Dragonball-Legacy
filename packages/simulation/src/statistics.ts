@@ -458,6 +458,36 @@ export const summarizeSimulationRate = (
   };
 };
 
+const standardNormalCdf = (value: number): number => {
+  const absolute = Math.abs(value);
+  const t = 1 / (1 + 0.2316419 * absolute);
+  const polynomial =
+    0.31938153 * t -
+    0.356563782 * t ** 2 +
+    1.781477937 * t ** 3 -
+    1.821255978 * t ** 4 +
+    1.330274429 * t ** 5;
+  const density = Math.exp(-(absolute * absolute) / 2) / Math.sqrt(2 * Math.PI);
+  const upperTail = density * polynomial;
+  return value >= 0 ? 1 - upperTail : upperTail;
+};
+
+/** Two-sided normal-approximation p-value for an exploratory unpaired rate contrast. */
+export const twoSidedSimulationRatePValue = (
+  baseline: SimulationRateSummary,
+  comparison: SimulationRateSummary,
+): number => {
+  if (baseline.rate === comparison.rate) return 1;
+  const pooledDenominator = baseline.denominator + comparison.denominator;
+  const pooledRate = (baseline.numerator + comparison.numerator) / Math.max(1, pooledDenominator);
+  const standardError = Math.sqrt(
+    pooledRate * (1 - pooledRate) * (1 / baseline.denominator + 1 / comparison.denominator),
+  );
+  if (standardError === 0) return baseline.rate === comparison.rate ? 1 : 0;
+  const zScore = Math.abs(comparison.rate - baseline.rate) / standardError;
+  return rounded(Math.min(1, 2 * (1 - standardNormalCdf(zScore))));
+};
+
 export interface SimulationRateSamplingPolicy {
   readonly targetHalfWidth: number;
   readonly maximumCompletedPairs: number;

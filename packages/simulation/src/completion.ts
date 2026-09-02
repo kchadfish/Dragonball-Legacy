@@ -1,5 +1,9 @@
 import { canonicalHash } from "./canonical.js";
-import { validateSimulationCoverageCells, type SimulationCoverageCell } from "./coverage.js";
+import {
+  validateSimulationCoverageCells,
+  type SimulationCoverageCell,
+  type SimulationCoverageValidationOptions,
+} from "./coverage.js";
 import {
   validateSimulationMoveClosure,
   type SimulationMoveCoverageDataset,
@@ -13,6 +17,8 @@ export interface SimulationCompletionAudit {
   readonly complete: boolean;
   readonly auditHash: string;
 }
+
+export type SimulationCompletionAuditOptions = SimulationCoverageValidationOptions;
 
 export const aggregateSimulationCoverageCellStatus = (
   cells: readonly SimulationCoverageCell[],
@@ -71,10 +77,11 @@ const validateCoverageConsistency = (
 export const createSimulationCompletionAudit = (
   dataset: SimulationMoveCoverageDataset,
   coverageCells: readonly SimulationCoverageCell[],
+  options: SimulationCompletionAuditOptions = {},
 ): SimulationCompletionAudit => {
   const issues = [
-    ...validateSimulationMoveClosure(dataset),
-    ...validateSimulationCoverageCells(coverageCells),
+    ...validateSimulationMoveClosure(dataset, {}, undefined, options),
+    ...validateSimulationCoverageCells(coverageCells, options),
     ...validateCoverageConsistency(dataset, coverageCells),
   ];
   const audit = {

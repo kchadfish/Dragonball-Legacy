@@ -21,12 +21,17 @@ import {
 export const SIMULATION_MOVE_COVERAGE_ARTIFACT_VERSION =
   "simulation-move-coverage-artifact:v2" as const;
 
+export const SIMULATION_NATURAL_POPULATION_BLOCKER =
+  "TF1 loadout overlays remain draft evidence and require a genuine staff approval reference before natural-population production coverage can run.";
+
 export type SimulationCoverageArtifactErrorType =
   SimulationFailure["type"] | "invalid-fixture" | "runner-failure";
 
 export interface SimulationCoverageArtifactError {
   readonly moveId: string;
   readonly runId: string;
+  /** Population ownership was added in v2.1; omitted values remain readable for legacy artifacts. */
+  readonly population?: SimulationCoveragePopulation;
   readonly type: SimulationCoverageArtifactErrorType;
   readonly detail: string;
 }
@@ -62,6 +67,7 @@ export interface SimulationMoveCoverageArtifact {
     readonly naturalProfileId?: string;
     readonly naturalOverlayApprovalReference?: string;
     readonly naturalPopulation: "draft" | "approved" | "observed" | "reviewed-exclusion";
+    readonly naturalPopulationBlocker?: string;
     readonly mechanicPaths?: readonly ("decision" | "trigger")[];
     readonly source: string;
   }>;
@@ -122,6 +128,7 @@ const artifactMetadataSchema = z
     naturalProfileId: z.string().min(1).optional(),
     naturalOverlayApprovalReference: z.string().min(1).optional(),
     naturalPopulation: z.enum(["draft", "approved", "observed", "reviewed-exclusion"]),
+    naturalPopulationBlocker: z.string().min(1).optional(),
     mechanicPaths: z
       .array(z.enum(["decision", "trigger"]))
       .min(1)
@@ -157,6 +164,7 @@ export const simulationMoveCoverageArtifactSchema = z
         .object({
           moveId: z.string().min(1),
           runId: z.string().min(1),
+          population: z.enum(["natural", "isolation", "forced"]).optional(),
           type: z.enum([
             "malformed-input",
             "unknown-reference",
@@ -218,6 +226,9 @@ export const validateSimulationMoveCoverageArtifact = (
   artifact: SimulationMoveCoverageArtifact,
 ): readonly string[] => {
   const issues: string[] = [];
+  const allowsNaturalNotScheduled =
+    artifact.generatedFrom.naturalPopulation === "draft" &&
+    artifact.generatedFrom.naturalPopulationBlocker !== undefined;
   if (artifact.dataset.mechanicsIdentity !== artifact.generatedFrom.mechanicsIdentity)
     issues.push("Coverage artifact dataset identity does not match its manifest identity.");
   const expectedHash = canonicalHash({
@@ -236,6 +247,10 @@ export const validateSimulationMoveCoverageArtifact = (
   });
   if (artifact.dataset.datasetHash !== expectedDatasetHash)
     issues.push("Coverage dataset hash is stale or invalid.");
-  issues.push(...validateSimulationCoverageCells(artifact.coverageCells));
+  issues.push(
+    ...validateSimulationCoverageCells(artifact.coverageCells, {
+      allowNaturalNotScheduled: allowsNaturalNotScheduled,
+    }),
+  );
   return issues;
 };

@@ -247,4 +247,24 @@ describe("simulation Phase 4 through 15 foundations", () => {
       excludeSimulationMoveCoverage(first, "natural", "Reviewed test exclusion.").naturalStatus,
     ).toBe("excluded");
   });
+
+  it("accepts natural not-scheduled cells only with an explicit draft blocker", () => {
+    const cell = createSimulationCoverageCell({
+      cellId: "simulation-cell:natural-blocked",
+      moveId: "move-akaikaru-firestorm",
+      scenarioFamily: "move-isolation",
+      checkpointId: "early",
+      population: "natural",
+      strata: { category: "advanced-attack" },
+      targetFights: 1,
+      minimumEligibleStates: 1,
+      completedFights: 0,
+      eligibleStates: 0,
+      status: "not-scheduled",
+    });
+    expect(validateSimulationCoverageCells([cell])).toContain(
+      "Coverage cell is not sufficient or registered out of scope: simulation-cell:natural-blocked",
+    );
+    expect(validateSimulationCoverageCells([cell], { allowNaturalNotScheduled: true })).toEqual([]);
+  });
 });

@@ -11,6 +11,8 @@ import {
 } from "@dragonball-resurgence/combat-engine";
 import {
   createAiRandomSource,
+  resolveDifficultySettings,
+  resolveEffectiveAiAnalysisCapabilities,
   type AiMechanicsView,
   type CandidateEvaluation,
 } from "@dragonball-resurgence/ai-engine";
@@ -27,9 +29,13 @@ import {
 import { simulationFightRequestSchema } from "./contracts.js";
 import { allocateSimulationSeed, simulationScenarioIdentityHash } from "./seeds.js";
 import { materializeSimulationTemplate } from "./templates.js";
-import { SIMULATION_AI_EVALUATOR_VERSION, selectSimulationDecision } from "./ai-selection.js";
+import {
+  SIMULATION_AI_EVALUATOR_VERSION,
+  SIMULATION_AI_PIPELINE_VERSION,
+  selectSimulationDecision,
+} from "./ai-selection.js";
 import type { SimulationDecisionRecord } from "./ai-selection.js";
-import { SIMULATION_SCOPE_VERSION } from "./scope.js";
+import { SIMULATION_AI_SEED_DERIVATION_VERSION, SIMULATION_SCOPE_VERSION } from "./scope.js";
 import { runSimulationTransitionDriver } from "./transition-driver.js";
 import type { SimulationMoveFunnel } from "./move-coverage.js";
 import { selectForcedSimulationDecision } from "./exposure.js";
@@ -43,6 +49,77 @@ const mechanicsFor = (request: SimulationFightRequest): AiMechanicsView => ({
   items: request.mechanicsView.items,
   transformations: request.mechanicsView.transformations,
 });
+
+const forcedSimulationDecisionRecordFor = (
+  request: Parameters<typeof resolveEffectiveAiAnalysisCapabilities>[0],
+): SimulationDecisionRecord => {
+  const difficulty = resolveDifficultySettings(request.profile.difficulty);
+  return {
+    schemaVersion: "simulation-decision-record:v1",
+    requestedProfile: {
+      id: request.profile.identity.id,
+      version: request.profile.identity.version,
+    },
+    pipelineVersion: SIMULATION_AI_PIPELINE_VERSION,
+    evaluatorVersion: SIMULATION_AI_EVALUATOR_VERSION,
+    requestedCapabilities: request.analysis?.capabilities ?? "not-declared",
+    effectiveCapabilities: resolveEffectiveAiAnalysisCapabilities(request),
+    seedDerivationVersion: SIMULATION_AI_SEED_DERIVATION_VERSION,
+    workLimits: {
+      candidateLimit: difficulty.candidateLimit,
+      outcomeLimit: difficulty.responseLimit,
+      nodeLimit: difficulty.maxNodes,
+      probeLimit: difficulty.maxProbes,
+    },
+  };
+};
+
+type SimulationDecisionSelection =
+  | {
+      readonly ok: true;
+      readonly value: {
+        readonly decision: LegalDecision;
+        readonly evaluations: readonly CandidateEvaluation[];
+        readonly simulationRecord: SimulationDecisionRecord;
+      };
+    }
+  | {
+      readonly ok: false;
+      readonly error: Extract<
+        ReturnType<typeof selectSimulationDecision>,
+        { readonly ok: false }
+      >["error"];
+    };
+
+const simulationDecisionFor = (
+  aiRequest: Parameters<typeof selectSimulationDecision>[0],
+  legalDecisions: readonly LegalDecision[],
+  policy: SimulationFightRequest["decisionPolicy"],
+): SimulationDecisionSelection => {
+  const forcedDecision =
+    policy?.type === "forced-target-first"
+      ? selectForcedSimulationDecision(legalDecisions, policy)
+      : undefined;
+  if (forcedDecision !== undefined)
+    return {
+      ok: true,
+      value: {
+        decision: forcedDecision,
+        evaluations: [],
+        simulationRecord: forcedSimulationDecisionRecordFor(aiRequest),
+      },
+    };
+  const selected = selectSimulationDecision(aiRequest);
+  if (!selected.ok) return selected;
+  return {
+    ok: true,
+    value: {
+      decision: selected.value.decision,
+      evaluations: selected.value.evaluations,
+      simulationRecord: selected.value.simulationRecord,
+    },
+  };
+};
 
 const initialSummary = (): {
   actorActions: number;
@@ -575,13 +652,9 @@ export const runSimulationFight = (
           },
           diagnosticRetention: diagnosticsEnabled ? ("full" as const) : ("none" as const),
         };
-        const selected = selectSimulationDecision(aiRequest);
+        const selected = simulationDecisionFor(aiRequest, legalDecisions, request.decisionPolicy);
         if (!selected.ok) return { error: { type: "ai-failure", failure: selected.error } };
-        const chosen: LegalDecision =
-          request.decisionPolicy?.type === "forced-target-first"
-            ? (selectForcedSimulationDecision(legalDecisions, request.decisionPolicy) ??
-              selected.value.decision)
-            : selected.value.decision;
+        const chosen = selected.value.decision;
         aiRecords[actorIsA ? "a" : "b"] = selected.value.simulationRecord;
         evaluations.push(...selected.value.evaluations);
         summaries.actorActions += 1;

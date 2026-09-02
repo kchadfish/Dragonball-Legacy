@@ -20,6 +20,7 @@ import {
 } from "./coverage.js";
 import {
   createSimulationMoveCoverageArtifact,
+  SIMULATION_NATURAL_POPULATION_BLOCKER,
   type SimulationMoveCoverageArtifact,
 } from "./coverage-artifacts.js";
 import type {
@@ -306,6 +307,16 @@ type CoordinatedResult = ReturnType<typeof runSimulationRequests>["results"][num
 type SuccessfulCoordinatedResult = Extract<CoordinatedResult, { readonly ok: true }>;
 type PairWinner = "a" | "b" | "draw";
 
+interface PlannedCoverageRequest {
+  readonly move: MoveDefinition;
+  readonly request: SimulationFightRequest;
+}
+
+interface CoveragePairResult {
+  readonly request: SimulationFightRequest;
+  readonly result: CoordinatedResult;
+}
+
 const accumulateFunnelCounts = (
   countsByPath: Map<CoveragePath, CoveragePathCounts>,
   funnel: NonNullable<NonNullable<SimulationMoveCoverageDataset["records"][number]["funnel"]>>,
@@ -489,37 +500,31 @@ const accumulateStratifiedPair = (
   accumulation.stratifiedAccumulators.set(move.id, accumulator);
 };
 
-const runCoverageRequestsForMove = ({
+const coverageRequestsForMove = ({
   move,
-  options,
   view,
   rootSeed,
   fixedTime,
   targetFights,
-  minimumEligibleStates,
   population,
   naturalTemplates,
   naturalProfile,
   limits,
   priorAttempts,
-  executionCells,
   accumulation,
 }: {
   readonly move: MoveDefinition;
-  readonly options: SimulationMoveCoverageRunOptions;
   readonly view: CombatMechanicsView;
   readonly rootSeed: number;
   readonly fixedTime: Date;
   readonly targetFights: number;
-  readonly minimumEligibleStates: number;
   readonly population: SimulationCoveragePopulation;
   readonly naturalTemplates: readonly SimulationTemplate[] | undefined;
   readonly naturalProfile: AiProfile;
   readonly limits: SimulationLimits;
   readonly priorAttempts: number;
-  readonly executionCells: Map<string, SimulationCoverageCell>;
   readonly accumulation: MoveCoverageAccumulation;
-}) => {
+}): readonly PlannedCoverageRequest[] => {
   const iterationOffset = Math.floor(priorAttempts / 2);
   const remainingAttempts = Math.max(0, targetFights * 2 - priorAttempts);
   const requests = Array.from({ length: remainingAttempts }, (_, index) => {
@@ -539,46 +544,137 @@ const runCoverageRequestsForMove = ({
     );
   });
   accumulation.attemptedFightsByMove.set(move.id, priorAttempts + requests.length);
-  const coordinated =
-    options.workers === undefined
-      ? runSimulationRequests({
-          requests,
-          stoppingPolicy: "continue",
-          concurrency: options.concurrency ?? 4,
-        })
-      : runSimulationRequestsWithWorkers({
-          requests,
-          stoppingPolicy: "continue",
-          workers: options.workers,
-        });
-  const countsByPath = new Map<CoveragePath, CoveragePathCounts>();
-  for (const [resultIndex, result] of coordinated.results.entries())
-    accumulateMoveResult(
-      accumulation,
-      move,
-      requests[resultIndex]?.runId ?? "unknown",
-      result,
-      countsByPath,
-      targetFights,
-      minimumEligibleStates,
-      population,
-    );
-  for (let index = 0; index < coordinated.results.length; index += 2)
+  return requests.map((request) => ({ move, request }));
+};
+
+const processCoverageResult = ({
+  plan,
+  result,
+  accumulation,
+  countsByMove,
+  completedFightsByMove,
+  pairsByMove,
+  targetFights,
+  minimumEligibleStates,
+  population,
+}: {
+  readonly plan: PlannedCoverageRequest;
+  readonly result: CoordinatedResult;
+  readonly accumulation: MoveCoverageAccumulation;
+  readonly countsByMove: Map<string, Map<CoveragePath, CoveragePathCounts>>;
+  readonly completedFightsByMove: Map<string, number>;
+  readonly pairsByMove: Map<string, CoveragePairResult[]>;
+  readonly targetFights: number;
+  readonly minimumEligibleStates: number;
+  readonly population: SimulationCoveragePopulation;
+}): void => {
+  const countsByPath =
+    countsByMove.get(plan.move.id) ?? new Map<CoveragePath, CoveragePathCounts>();
+  countsByMove.set(plan.move.id, countsByPath);
+  accumulateMoveResult(
+    accumulation,
+    plan.move,
+    plan.request.runId,
+    result,
+    countsByPath,
+    targetFights,
+    minimumEligibleStates,
+    population,
+  );
+  if (result.ok)
+    completedFightsByMove.set(plan.move.id, (completedFightsByMove.get(plan.move.id) ?? 0) + 1);
+  const pair = pairsByMove.get(plan.move.id) ?? [];
+  pair.push({ request: plan.request, result });
+  if (pair.length === 2) {
     accumulateStratifiedPair(
       accumulation,
-      move,
-      coordinated.results.slice(index, index + 2),
-      requests.slice(index, index + 2),
+      plan.move,
+      pair.map((entry) => entry.result),
+      pair.map((entry) => entry.request),
       population,
     );
-  executionCellsForMove({
-    move,
-    cells: executionCells,
-    countsByPath,
-    completedFights: coordinated.results.filter((result) => result.ok).length,
-    failures: accumulation.failuresByMove.get(move.id) ?? [],
-    population,
-  });
+    pairsByMove.delete(plan.move.id);
+  } else pairsByMove.set(plan.move.id, pair);
+};
+
+interface CoverageRequestBatchResult {
+  readonly countsByMove: Map<string, Map<CoveragePath, CoveragePathCounts>>;
+  readonly completedFightsByMove: Map<string, number>;
+  readonly pairsByMove: Map<string, CoveragePairResult[]>;
+}
+
+const runCoverageRequestBatch = ({
+  plannedRequests,
+  options,
+  accumulation,
+  targetFights,
+  minimumEligibleStates,
+  population,
+}: {
+  readonly plannedRequests: readonly PlannedCoverageRequest[];
+  readonly options: SimulationMoveCoverageRunOptions;
+  readonly accumulation: MoveCoverageAccumulation;
+  readonly targetFights: number;
+  readonly minimumEligibleStates: number;
+  readonly population: SimulationCoveragePopulation;
+}): CoverageRequestBatchResult => {
+  const countsByMove = new Map<string, Map<CoveragePath, CoveragePathCounts>>();
+  const completedFightsByMove = new Map<string, number>();
+  const pairsByMove = new Map<string, CoveragePairResult[]>();
+  const requestIndexByRunId = new Map(
+    plannedRequests.map((plan, index) => [plan.request.runId, index]),
+  );
+  if (requestIndexByRunId.size !== plannedRequests.length)
+    throw new RangeError("Coverage requests must have unique run IDs.");
+  const pendingResults = new Map<number, CoordinatedResult>();
+  let nextResultIndex = 0;
+  const consumeProgress = (progress: {
+    readonly runId: string;
+    readonly result: CoordinatedResult;
+  }) => {
+    const index = requestIndexByRunId.get(progress.runId);
+    if (index === undefined) throw new RangeError(`Unknown coverage result ${progress.runId}.`);
+    pendingResults.set(index, progress.result);
+    while (pendingResults.has(nextResultIndex)) {
+      const result = pendingResults.get(nextResultIndex)!;
+      pendingResults.delete(nextResultIndex);
+      processCoverageResult({
+        plan: plannedRequests[nextResultIndex]!,
+        result,
+        accumulation,
+        countsByMove,
+        completedFightsByMove,
+        pairsByMove,
+        targetFights,
+        minimumEligibleStates,
+        population,
+      });
+      nextResultIndex += 1;
+    }
+  };
+  if (plannedRequests.length > 0) {
+    const requests = plannedRequests.map((plan) => plan.request);
+    const coordinated =
+      options.workers === undefined
+        ? runSimulationRequests({
+            requests,
+            stoppingPolicy: "continue",
+            concurrency: options.concurrency ?? 4,
+            retainResults: false,
+            onProgress: consumeProgress,
+          })
+        : runSimulationRequestsWithWorkers({
+            requests,
+            stoppingPolicy: "continue",
+            workers: options.workers,
+            retainResults: false,
+            onProgress: consumeProgress,
+          });
+    if (coordinated.stoppedEarly) throw new Error("Coverage coordinator stopped unexpectedly.");
+  }
+  if (pendingResults.size !== 0 || nextResultIndex !== plannedRequests.length)
+    throw new Error("Coverage coordinator did not stream every planned result.");
+  return { countsByMove, completedFightsByMove, pairsByMove };
 };
 
 const finalizedDataset = (
@@ -682,7 +778,10 @@ const previousAttemptsForMove = (
   );
   return (
     (decisionCell?.completedFights ?? 0) +
-    resumeFrom.errors.filter((error) => error.moveId === moveId).length
+    resumeFrom.errors.filter(
+      (error) =>
+        error.moveId === moveId && legacyErrorPopulationFor(resumeFrom, error) === population,
+    ).length
   );
 };
 
@@ -691,7 +790,10 @@ const hasRetryableFailureForMove = (
   population: SimulationCoveragePopulation,
   moveId: string,
 ): boolean =>
-  resumeFrom?.errors.some((error) => error.moveId === moveId) === true ||
+  resumeFrom?.errors.some(
+    (error) =>
+      error.moveId === moveId && legacyErrorPopulationFor(resumeFrom, error) === population,
+  ) === true ||
   resumeFrom?.coverageCells.some(
     (cell) =>
       cell.moveId === moveId &&
@@ -900,15 +1002,13 @@ export const runSimulationMoveCoverage = (
   };
   const selectedMoves = selectedMovesFor(options, view, resumeFrom, population);
   const orderedMoves = [...selectedMoves].sort((left, right) => left.id.localeCompare(right.id));
-  for (const move of orderedMoves)
-    runCoverageRequestsForMove({
+  const plannedRequests = orderedMoves.flatMap((move) =>
+    coverageRequestsForMove({
       move,
-      options,
       view,
       rootSeed,
       fixedTime,
       targetFights,
-      minimumEligibleStates,
       population,
       naturalTemplates,
       naturalProfile,
@@ -917,9 +1017,36 @@ export const runSimulationMoveCoverage = (
         options.retryFailed === true && hasRetryableFailureForMove(resumeFrom, population, move.id)
           ? 0
           : previousAttemptsForMove(resumeFrom, population, move.id),
-      executionCells,
       accumulation,
+    }),
+  );
+  const { countsByMove, completedFightsByMove, pairsByMove } = runCoverageRequestBatch({
+    plannedRequests,
+    options,
+    accumulation,
+    targetFights,
+    minimumEligibleStates,
+    population,
+  });
+  for (const move of orderedMoves) {
+    const pair = pairsByMove.get(move.id);
+    if (pair !== undefined)
+      accumulateStratifiedPair(
+        accumulation,
+        move,
+        pair.map((entry) => entry.result),
+        pair.map((entry) => entry.request),
+        population,
+      );
+    executionCellsForMove({
+      move,
+      cells: executionCells,
+      countsByPath: countsByMove.get(move.id) ?? new Map<CoveragePath, CoveragePathCounts>(),
+      completedFights: completedFightsByMove.get(move.id) ?? 0,
+      failures: accumulation.failuresByMove.get(move.id) ?? [],
+      population,
     });
+  }
   dataset = finalizedDataset(
     view,
     accumulation.dataset,
@@ -985,6 +1112,7 @@ export const runSimulationMoveCoverage = (
     ...accumulation.failures.map(({ moveId, runId, failure }) => ({
       moveId,
       runId,
+      population,
       type: failure.type,
       detail: failureDetailFor(failure),
     })),
@@ -1004,6 +1132,9 @@ export const runSimulationMoveCoverage = (
       rootSeed,
       fixedTime: fixedTime.toISOString(),
       naturalPopulation: population === "natural" ? "approved" : "draft",
+      ...(population === "natural"
+        ? {}
+        : { naturalPopulationBlocker: SIMULATION_NATURAL_POPULATION_BLOCKER }),
       mechanicPaths: ["decision", "trigger"],
       source: "simulation-move-coverage-runner:v2",
       ...(population === "natural"
@@ -1134,6 +1265,34 @@ const rebaseCoverageCell = (
   });
 };
 
+const failureCellStatus = (status: SimulationCoverageCell["status"]): boolean =>
+  status === "invalid-fixture" || status === "runner-failure";
+
+const legacyErrorPopulationFor = (
+  source: SimulationMoveCoverageArtifact,
+  error: SimulationMoveCoverageArtifact["errors"][number],
+): SimulationCoveragePopulation | undefined => {
+  if (error.population !== undefined) return error.population;
+  if (source.generatedFrom.population !== undefined) return source.generatedFrom.population;
+  const matchingPopulations = SIMULATION_MOVE_COVERAGE_POPULATIONS.filter((population) =>
+    source.coverageCells.some(
+      (cell) =>
+        cell.population === population &&
+        cell.moveId === error.moveId &&
+        failureCellStatus(cell.status) &&
+        (cell.failureType === error.type ||
+          (cell.failureType === "runner-failure" && error.type === "unexpected-runner-failure")),
+    ),
+  );
+  return matchingPopulations.length === 1 ? matchingPopulations[0] : undefined;
+};
+
+const errorsForPopulationResume = (
+  source: SimulationMoveCoverageArtifact,
+  population: SimulationCoveragePopulation,
+): readonly SimulationMoveCoverageArtifact["errors"][number][] =>
+  source.errors.filter((error) => legacyErrorPopulationFor(source, error) === population);
+
 const populationArtifactForResume = (
   source: SimulationMoveCoverageArtifact,
   population: SimulationCoveragePopulation,
@@ -1180,7 +1339,7 @@ const populationArtifactForResume = (
     coverageCells,
     metricsByMove: source.metricsByMove,
     stratifiedAccumulators: source.stratifiedAccumulators,
-    errors: source.errors,
+    errors: errorsForPopulationResume(source, population),
   });
 };
 
@@ -1465,7 +1624,13 @@ const errorsForArtifacts = (
     ...new Map(
       artifacts
         .flatMap((artifact) => artifact.errors)
-        .map((error) => [`${error.moveId}:${error.runId}:${error.type}:${error.detail}`, error]),
+        .map(
+          (error) =>
+            [
+              `${error.population ?? "unknown"}:${error.moveId}:${error.runId}:${error.type}:${error.detail}`,
+              error,
+            ] as const,
+        ),
     ).values(),
   ].sort((left, right) =>
     `${left.moveId}:${left.runId}:${left.type}`.localeCompare(
@@ -1499,6 +1664,9 @@ export const mergeSimulationMoveCoverageArtifacts = (
       populationAttemptedFightsByMove: populationAttemptedFightsByMoveFor(artifacts),
       representativeReplaySeedsByMove: representativeReplaySeedsByMoveFor(artifacts),
       naturalPopulation: naturalArtifact === undefined ? "draft" : "approved",
+      ...(naturalArtifact === undefined
+        ? { naturalPopulationBlocker: SIMULATION_NATURAL_POPULATION_BLOCKER }
+        : {}),
       mechanicPaths: ["decision", "trigger"],
       source: "simulation-move-coverage-catalog:v2",
       ...(naturalArtifact === undefined

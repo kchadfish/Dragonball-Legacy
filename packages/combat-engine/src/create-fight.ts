@@ -35,14 +35,15 @@ import {
 } from "./fight-flow-scheduler.js";
 import { collectCombatMechanicObservations } from "./mechanic-observations.js";
 
-const activeTransformationRaceIds = new Set([
+export const COMBAT_ACTIVE_TRANSFORMATION_RACE_IDS = [
   "race-humans",
   "race-saiyans",
   "race-hybrid-saiyan",
   "race-namek",
   "race-changeling",
   "race-bio-androids",
-]);
+] as const;
+const activeTransformationRaceIds = new Set<string>(COMBAT_ACTIVE_TRANSFORMATION_RACE_IDS);
 
 const toFightSetupIssues = (error: {
   readonly issues: readonly { readonly path: readonly PropertyKey[]; readonly message: string }[];

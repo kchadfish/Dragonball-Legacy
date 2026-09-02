@@ -15,10 +15,17 @@ const artifact = simulationMoveCoverageArtifactSchema.parse(
 );
 const expectedMoveIds = new Set(CANONICAL_COMBAT_MECHANICS_VIEW.moves.map((move) => move.id));
 const actualMoveIds = new Set(artifact.dataset.records.map((record) => record.moveId));
+const allowsNaturalNotScheduled =
+  artifact.generatedFrom.naturalPopulation === "draft" &&
+  artifact.generatedFrom.naturalPopulationBlocker !== undefined;
 const issues = [
   ...validateSimulationMoveCoverageArtifact(artifact),
-  ...validateSimulationMoveClosure(artifact.dataset, {}, CANONICAL_COMBAT_MECHANICS_VIEW),
-  ...validateSimulationCoverageCells(artifact.coverageCells),
+  ...validateSimulationMoveClosure(artifact.dataset, {}, CANONICAL_COMBAT_MECHANICS_VIEW, {
+    allowNaturalNotScheduled: allowsNaturalNotScheduled,
+  }),
+  ...validateSimulationCoverageCells(artifact.coverageCells, {
+    allowNaturalNotScheduled: allowsNaturalNotScheduled,
+  }),
   ...[...expectedMoveIds]
     .filter((moveId) => !actualMoveIds.has(moveId))
     .map((moveId) => `Coverage artifact lacks canonical move: ${moveId}`),
@@ -26,7 +33,9 @@ const issues = [
     .filter((moveId) => !expectedMoveIds.has(moveId))
     .map((moveId) => `Coverage artifact contains unknown move: ${moveId}`),
 ];
-const audit = createSimulationCompletionAudit(artifact.dataset, artifact.coverageCells);
+const audit = createSimulationCompletionAudit(artifact.dataset, artifact.coverageCells, {
+  allowNaturalNotScheduled: allowsNaturalNotScheduled,
+});
 if (!audit.complete) issues.push(...audit.issues.filter((issue) => !issues.includes(issue)));
 if (issues.length > 0) {
   console.error(`Simulation move closure has ${issues.length} issue(s):`);
