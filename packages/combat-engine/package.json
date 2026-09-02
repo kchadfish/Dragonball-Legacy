@@ -21,7 +21,7 @@
   "dependencies": {
     "@dragonball-resurgence/game-config": "0.1.0",
     "@dragonball-resurgence/game-data": "0.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "scripts": {
     "build": "tsc --build",
