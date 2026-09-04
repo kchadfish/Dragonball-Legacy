@@ -4,6 +4,38 @@ This is the verified handoff record for `@dragonball-resurgence/simulation`.
 Roadmap prose remains the implementation authority; this file records what is
 implemented, the evidence for it, and the next executable item.
 
+## 2026-09-02 - SIM-V3 coverage, retention, and deterministic orchestration
+
+The simulation coverage artifact and coverage cells now use v3 contracts.
+Coverage targets are expressed as mirrored `targetPairs`; the deprecated
+`targetFights` CLI/API alias remains accepted only when supplied alone. Cell
+sampling and observation are separate dimensions, with explicit evidence roles
+for natural observation, mechanic exposure, and balance controls. v1/v2
+artifacts are rejected on resume and closure paths.
+
+Coverage retention is compact: it keeps foldable counters, terminal state/event/
+decision hashes, replay manifest hashes, and bounded representative seeds while
+omitting transitions, evaluations, state histories, and diagnostic traces.
+Metrics and mirrored-pair accumulators retain stable composite keys for
+population, profile, exposure context, and evidence role; merge operations do
+not pool those strata. Checkpoints are v3, batch-sized at 25 pairs, and are
+written atomically by the canonical generator and CLI.
+
+Natural coverage defaults to the Normal profile and approved TF1 source
+overlays. Stable identities deduplicate identical natural fights and credit
+every applicable equipped move. Isolation uses matched target-present,
+target-removed, and comparable-replacement contexts with legal-set-only
+controlled selection. Forced coverage uses legal target-first decisions and
+stops at `coverage-satisfied` while the fight is still active; it records no
+win-rate or precision evidence. Maximum turns, transitions, and semantic
+no-progress safeguards produce typed stalls and never manufacture completion.
+
+The checked-in artifact is a deterministic pilot at target pair look 1 with
+complete isolation/forced catalog scheduling and an explicit draft natural
+population blocker. A full approved Normal natural production run remains the
+next data-generation operation; the report, matrix, CSV, and dossiers are
+regenerated from the v3 artifact and freshness-validated.
+
 ## 2026-08-31 - SIM-V2 Monte Carlo closure work
 
 Combat transitions now optionally retain immutable mechanic observations with
@@ -18,9 +50,10 @@ stratified mergeable accumulators. Population artifacts now persist root-seed,
 fixed-time, and per-move attempt offsets so `resume` advances a precision look
 without replaying prior attempts or pooling denominators. Catalog iterations
 now emit deterministic original/mirrored orientations under one semantic pair
-identity. TF1 overlays are deterministic drafts with
-the canonical 1/4/5/2/2 slot limits and remain blocked for natural evidence
-until explicitly approved. The catalog runner no longer converts setup,
+identity. TF1 overlays use the repository-authoritative source
+`repository:balance-testing/tf1:v1` with the canonical 1/4/5/2/2 slot limits.
+Unsupported source fields remain explicit capability or item limitations. The
+catalog runner no longer converts setup,
 underexposure, AI, or combat failures into exclusions. The checked-in pilot
 artifact is intentionally not closure-complete until the catalog run and
 overlay approval produce sufficient required cells.
@@ -58,8 +91,8 @@ template validation/materialization, deterministic scenario expansion, closure
 reporting, and an explicit containment coordinator.
 
 The 36 TF1 balance sheets are source-linked typed fixtures with their recorded
-stats, SP allocation, race/class/style/mastery/transformation identity, and an
-explicit loadout blocker; no missing move, item, trait, or Ki policy was
+stats, SP allocation, race/class/style/mastery/transformation identity, and
+explicit capability limitations; no missing move, item, trait, or Ki policy was
 invented. Twelve synthetic archetypes materialize against the supplied
 mechanics view. `runSimulationFight` creates fresh IDs, clock, combat RNG, and
 keyed fighter AI streams, then drives only the combat decision-point boundary.
@@ -121,8 +154,10 @@ unobserved until scenario coverage is run and reviewed.
 - Public package versions: `ai-engine`, `combat-engine`, `game-config`, and
   `game-data` at `0.1.0`
 - Catalog baseline: 499 moves, 24 races, and 80 transformations
-- AI baseline: `profile:simulation-quality`, profile version `ai-profile:v1`,
-  with declared effective analysis capabilities required for quality requests
+- AI baseline: Normal natural production with `profile:normal`; controlled and
+  forced exposure use `profile:simulation-quality`, profile version
+  `ai-profile:v1`, with declared effective analysis capabilities required for
+  quality requests
 - Provisional safeguards: maximum 100 turns, maximum 1,000 transitions,
   semantic no-progress limit 3, with bounded deterministic concurrency
 - Transformation families: Humans, Saiyans, Hybrid-Saiyans, Namekians,
@@ -220,8 +255,9 @@ with separate decision and trigger cells. The current pilot records 998
 required cells and explicit `not-scheduled`, `observed-low-sample`,
 `eligible-never-selected`,
 and `runner-failure` states, plus typed failure slots; it intentionally does
-not claim catalog closure. Natural coverage remains blocked until the 36 draft
-TF1 overlays are explicitly approved.
+not claim catalog closure. Natural coverage now uses the repository-authoritative
+TF1 source; unsupported specialization, Ki, inventory-quantity, and out-of-scope
+mechanics remain visible as limitations in artifact and report metadata.
 
 Evidence: simulation typecheck, focused Phase 1-3/Phase 4-15/statistics tests,
 simulation boundary validation, move-closure validation, report freshness
@@ -247,18 +283,35 @@ Per-move dossiers are scoped to one move, so they do not duplicate the full
 catalog's metrics. The CLI benchmark presets execute real simulation requests
 and emit deterministic hashes rather than placeholder timing records.
 
-Evidence: the isolation pilot completed 499 moves across 998 mirrored runs with
-zero failures; report freshness verified at `fnv1a-32:b9684ffb`; all 14 v2
-contract tests pass, including worker equivalence, pair merging, report
-effects, and the executable fast benchmark. Natural and forced production
-populations remain intentionally unpopulated pending the required TF1 approval
-reference.
+Evidence: the prior isolation pilot completed 499 moves across 998 mirrored runs
+with zero failures; it is superseded by the context-stratified catalog
+implementation. The new production artifact must be regenerated at the
+configured precision looks and verified by closure and freshness checks.
+
+## 2026-09-02 - Monte Carlo catalog orchestration
+
+The catalog runner now authorizes TF1 through
+`repository:balance-testing/tf1:v1`, retains source capability limitations,
+and combines approved TF1 anchors with deterministic generated, synthetic, and
+per-move fallback templates. Natural Normal, Hard, and Simulation Quality
+profiles remain selectable and reportable independently. Isolation coverage is
+stratified into target-present, target-removed, and comparable-replacement
+contexts; forced target-first evidence remains diagnostic and separate from
+natural evidence.
+
+Coverage cells retain profile/context strata, Wilson precision state, per-context
+attempt offsets, and deterministic look continuation at 250, 500, 1,000, 2,000,
+5,000, and 10,000 mirrored pairs. CLI catalog and resume workflows support
+population, profile, context, retry, output, and reproducible resume selection.
+The canonical production run still requires execution at the declared looks;
+the checked-in artifact is not marked closure-complete until that run finishes.
 
 ## Known limits and next step
 
-Remaining work is release verification and future evidence maintenance: rerun
-the frozen manifests at the configured precision looks, approve the TF1
-overlays, resolve every runtime failure, and keep the canonical report
-projections fresh. The worker-backed executor preserves sequential hashes and
-merge order. Natural coverage remains an explicit approval-controlled
-population, and benchmark drift must not alter correctness thresholds.
+Remaining work is release verification and evidence generation: run natural AI
+coverage separately for Normal, Hard, and Simulation Quality profiles, run the
+isolation contexts and forced diagnostic population, continue incomplete cells
+through the declared precision looks, resolve every runtime failure, regenerate
+the canonical JSON/CSV/Markdown/dossiers, and run the closure, freshness, and
+final quality gates. The worker-backed executor preserves sequential hashes and
+merge order; forced evidence remains exposure-only.

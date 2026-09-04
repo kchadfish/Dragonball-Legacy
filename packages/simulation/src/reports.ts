@@ -1,7 +1,10 @@
 import { canonicalHash, canonicalJson } from "./canonical.js";
-import type { SimulationCoverageArtifactError } from "./coverage-artifacts.js";
-import type { SimulationMoveCoverageArtifact } from "./coverage-artifacts.js";
-import type { SimulationCoverageCell } from "./coverage.js";
+import {
+  SIMULATION_MOVE_COVERAGE_ARTIFACT_VERSION,
+  type SimulationCoverageArtifactError,
+  type SimulationMoveCoverageArtifact,
+} from "./coverage-artifacts.js";
+import { createSimulationCoverageCell, type SimulationCoverageCell } from "./coverage.js";
 import type { SimulationMoveMetrics } from "./metrics.js";
 import { compareSimulationRates } from "./comparisons.js";
 import type {
@@ -35,6 +38,16 @@ export interface SimulationReport {
     readonly mechanicsIdentity: string;
     readonly inputHash: string;
     readonly coverageSchemaVersion: string;
+    readonly naturalPopulation?: SimulationMoveCoverageArtifact["generatedFrom"]["naturalPopulation"];
+    readonly naturalProfileId?: string;
+    readonly naturalOverlayApprovalReference?: string;
+    readonly naturalOverlayAuthority?: "repository" | "external-approval";
+    readonly templateProvenance?: string;
+    readonly exposureContexts?: readonly (
+      "target-present" | "target-removed" | "comparable-replacement"
+    )[];
+    readonly precisionLook?: number;
+    readonly sourceLimitations?: readonly string[];
   }>;
   readonly manifest: Readonly<{
     readonly populations: readonly ["natural", "isolation", "forced"];
@@ -60,7 +73,11 @@ export interface SimulationReport {
   readonly comparableRationale: readonly SimulationReportComparableRationale[];
   readonly representativeReplaySeeds: Readonly<Record<string, readonly number[]>>;
   readonly metricsByMove: Readonly<Record<string, SimulationMoveMetrics>>;
+  readonly metricsByStratum: Readonly<Record<string, SimulationMoveMetrics>>;
   readonly stratifiedAccumulators: Readonly<Record<string, SimulationStratifiedAccumulator>>;
+  readonly stratifiedAccumulatorsByStratum: Readonly<
+    Record<string, SimulationStratifiedAccumulator>
+  >;
   readonly anomalies: readonly string[];
   readonly followUpTargets: readonly string[];
   readonly errors: readonly SimulationCoverageArtifactError[];
@@ -112,6 +129,7 @@ export interface SimulationReportPairedEffect {
   readonly moveId: string;
   readonly population: SimulationMoveCoveragePopulation;
   readonly metric: "target-control-damage";
+  readonly stratumId?: string;
   readonly completedPairs: number;
   readonly targetWins: number;
   readonly controlWins: number;
@@ -138,6 +156,10 @@ export interface SimulationMoveBalanceReportOptions {
   readonly metricsByMove?: NonNullable<SimulationMoveCoverageArtifact["metricsByMove"]>;
   readonly stratifiedAccumulators?: NonNullable<
     SimulationMoveCoverageArtifact["stratifiedAccumulators"]
+  >;
+  readonly metricsByStratum?: NonNullable<SimulationMoveCoverageArtifact["metricsByStratum"]>;
+  readonly stratifiedAccumulatorsByStratum?: NonNullable<
+    SimulationMoveCoverageArtifact["stratifiedAccumulatorsByStratum"]
   >;
   readonly generatedFrom?: SimulationMoveCoverageArtifact["generatedFrom"];
 }
@@ -262,24 +284,23 @@ const fallbackCellFor = (
   record: SimulationMoveCoverageRecord,
   population: SimulationMoveCoveragePopulation,
   mechanicPath: "decision" | "trigger",
-): SimulationCoverageCell => ({
-  schemaVersion: "simulation-coverage-cell:v2",
-  cellId: `simulation-cell:report-${record.moveId}-${population}-${mechanicPath}`,
-  moveId: record.moveId,
-  scenarioFamily: "move-isolation",
-  mechanicPath,
-  checkpointId: "unknown",
-  population,
-  strata: { category: record.category },
-  targetFights: 1,
-  minimumEligibleStates: 1,
-  completedFights: 0,
-  eligibleStates: 0,
-  selectedStates: 0,
-  triggeredStates: 0,
-  status: "not-scheduled",
-  cellHash: "report-only",
-});
+): SimulationCoverageCell =>
+  createSimulationCoverageCell({
+    cellId: `simulation-cell:report-${record.moveId}-${population}-${mechanicPath}`,
+    moveId: record.moveId,
+    scenarioFamily: "move-isolation",
+    mechanicPath,
+    checkpointId: "unknown",
+    population,
+    strata: { category: record.category },
+    targetPairs: 1,
+    minimumEligibleStates: 1,
+    completedFights: 0,
+    eligibleStates: 0,
+    selectedStates: 0,
+    triggeredStates: 0,
+    status: "not-scheduled",
+  });
 
 type ReportIntervalMetric = readonly [string, number, number];
 
@@ -415,35 +436,49 @@ const pairedEffectsFor = (
   record: SimulationMoveCoverageRecord,
   accumulators: Readonly<Record<string, SimulationStratifiedAccumulator>>,
   rootSeed: number,
+  accumulatorsByStratum?: Readonly<Record<string, SimulationStratifiedAccumulator>>,
 ): readonly SimulationReportPairedEffect[] =>
   populations.flatMap((population) => {
-    const accumulatorKey = `${population}:${record.moveId}`;
-    if (!Object.hasOwn(accumulators, accumulatorKey)) return [];
-    const accumulator = accumulators[accumulatorKey]!;
-    const observations = accumulator.pairedDifferences.observations;
-    const bootstrap =
-      observations.length === 0
-        ? undefined
-        : seededBootstrapPairedDifference(observations, rootSeed, {
-            resamples: 10_000,
-            confidence: 0.95,
-          });
-    let rationale =
-      "Mirrored isolation target-versus-control contrast is exposure evidence only; it is not a causal balance conclusion.";
-    if (population === "natural")
-      rationale =
-        "Mirrored target-versus-control damage contrast for natural evidence; it is descriptive and does not approve balance.";
-    if (population === "forced")
-      rationale =
-        "Mirrored forced-exposure contrast is execution evidence only and is never pooled into natural balance evidence.";
-    const intervalMethod: SimulationReportPairedEffect["intervalMethod"] =
-      bootstrap === undefined ? "not-estimated" : "paired-bootstrap-95";
-    return [
-      {
-        id: `${population}:${record.moveId}:target-control-damage`,
+    const canonicalEntries = Object.entries(accumulatorsByStratum ?? {}).filter(
+      ([stratumId, accumulator]) =>
+        stratumId.startsWith(`simulation-stratum:${population}:${record.moveId}:`) &&
+        accumulator.stratumId === stratumId,
+    );
+    const entries =
+      canonicalEntries.length > 0
+        ? canonicalEntries
+        : (() => {
+            const accumulatorKey = `${population}:${record.moveId}`;
+            const accumulator = accumulators[accumulatorKey];
+            if (!Object.hasOwn(accumulators, accumulatorKey)) return [];
+            return [[accumulatorKey, accumulator] as const];
+          })();
+    return entries.map(([stratumId, accumulator]) => {
+      const observations = accumulator.pairedDifferences.observations;
+      const bootstrap =
+        observations.length === 0
+          ? undefined
+          : seededBootstrapPairedDifference(observations, rootSeed, {
+              resamples: 10_000,
+              confidence: 0.95,
+            });
+      let rationale =
+        "Mirrored isolation target-versus-control contrast is exposure evidence only; it is not a causal balance conclusion.";
+      if (population === "natural")
+        rationale =
+          "Mirrored target-versus-control damage contrast for natural evidence; it is descriptive and does not approve balance.";
+      if (population === "forced")
+        rationale =
+          "Mirrored forced-exposure contrast is execution evidence only and is never pooled into natural balance evidence.";
+      const intervalMethod: SimulationReportPairedEffect["intervalMethod"] =
+        bootstrap === undefined ? "not-estimated" : "paired-bootstrap-95";
+      const idPrefix = canonicalEntries.length > 0 ? `${stratumId}:` : `${record.moveId}:`;
+      return {
+        id: `${population}:${idPrefix}target-control-damage`,
         moveId: record.moveId,
         population,
         metric: "target-control-damage" as const,
+        stratumId,
         completedPairs: accumulator.completedPairs,
         targetWins: accumulator.winsA,
         controlWins: accumulator.winsB,
@@ -461,8 +496,8 @@ const pairedEffectsFor = (
         ...(bootstrap === undefined ? {} : { bootstrapSeed: bootstrap.seed }),
         paired: true as const,
         rationale,
-      },
-    ];
+      };
+    });
   });
 
 const comparableRationaleFor = (
@@ -570,11 +605,23 @@ export const createSimulationMoveBalanceReport = (
     scopeVersion: "simulation-scope:v2",
     mechanicsIdentity: dataset.mechanicsIdentity,
     inputHash: dataset.datasetHash,
-    coverageSchemaVersion: "simulation-move-coverage:v2",
+    coverageSchemaVersion: SIMULATION_MOVE_COVERAGE_ARTIFACT_VERSION,
+    ...(options.generatedFrom === undefined
+      ? {}
+      : {
+          naturalPopulation: options.generatedFrom.naturalPopulation,
+          naturalProfileId: options.generatedFrom.naturalProfileId,
+          naturalOverlayApprovalReference: options.generatedFrom.naturalOverlayApprovalReference,
+          naturalOverlayAuthority: options.generatedFrom.naturalOverlayAuthority,
+          templateProvenance: options.generatedFrom.naturalOverlayApprovalReference,
+          exposureContexts: options.generatedFrom.exposureContexts,
+          precisionLook: options.generatedFrom.targetPairs ?? options.generatedFrom.targetFights,
+          sourceLimitations: options.generatedFrom.sourceLimitations,
+        }),
   } as const;
   const manifest = {
     populations: ["natural", "isolation", "forced"] as const,
-    strata: ["population", "category"] as const,
+    strata: ["population", "category", "profile", "exposure-context"] as const,
     denominators: [
       "completed-fights",
       "eligible-states",
@@ -658,12 +705,42 @@ export const createSimulationMoveBalanceReport = (
       Object.entries(metrics).map(([moveId, metric]) => [`${population}:${moveId}`, metric]),
     ),
   ) as Readonly<Record<string, SimulationMoveMetrics>>;
+  const metricsByStratum = Object.fromEntries(
+    Object.entries(options.metricsByStratum ?? {}).flatMap(([population, metrics]) =>
+      Object.entries(metrics).map(([stratumId, metric]) => [`${population}:${stratumId}`, metric]),
+    ),
+  ) as Readonly<Record<string, SimulationMoveMetrics>>;
+  const stratifiedAccumulatorsByStratum = Object.fromEntries(
+    Object.entries(options.stratifiedAccumulatorsByStratum ?? {}).flatMap(
+      ([population, accumulators]) =>
+        Object.entries(accumulators).map(([stratumId, accumulator]) => [
+          `${population}:${stratumId}`,
+          accumulator,
+        ]),
+    ),
+  ) as Readonly<Record<string, SimulationStratifiedAccumulator>>;
   const pairedEffects = Object.freeze(
     rows.flatMap((row) => {
       const record = dataset.records.find((candidate) => candidate.moveId === row.id);
-      return record === undefined
-        ? []
-        : pairedEffectsFor(record, stratifiedAccumulators, options.generatedFrom?.rootSeed ?? 0);
+      if (record === undefined) return [];
+      let pairedAccumulatorsByStratum: Readonly<Record<string, SimulationStratifiedAccumulator>> =
+        {};
+      if (options.stratifiedAccumulatorsByStratum !== undefined)
+        pairedAccumulatorsByStratum = Object.fromEntries(
+          Object.entries(options.stratifiedAccumulatorsByStratum).flatMap(
+            ([population, accumulators]) =>
+              Object.entries(accumulators).map(([stratumId, accumulator]) => [
+                `${population}:${stratumId}`,
+                accumulator,
+              ]),
+          ),
+        );
+      return pairedEffectsFor(
+        record,
+        stratifiedAccumulators,
+        options.generatedFrom?.rootSeed ?? 0,
+        pairedAccumulatorsByStratum,
+      );
     }),
   );
   const followUpTargets = rows
@@ -690,7 +767,9 @@ export const createSimulationMoveBalanceReport = (
     comparableRationale,
     representativeReplaySeeds,
     metricsByMove,
+    metricsByStratum,
     stratifiedAccumulators,
+    stratifiedAccumulatorsByStratum,
     anomalies,
     followUpTargets,
     errors,
@@ -710,7 +789,9 @@ export const createSimulationMoveBalanceReport = (
     comparableRationale,
     representativeReplaySeeds,
     metricsByMove,
+    metricsByStratum,
     stratifiedAccumulators,
+    stratifiedAccumulatorsByStratum,
     anomalies,
     followUpTargets,
     errors,
@@ -728,7 +809,9 @@ export const createSimulationMoveBalanceReport = (
       comparableRationale,
       representativeReplaySeeds,
       metricsByMove,
+      metricsByStratum,
       stratifiedAccumulators,
+      stratifiedAccumulatorsByStratum,
       anomalies,
       followUpTargets,
       errors,
@@ -773,6 +856,34 @@ export const createSimulationMoveDossiers = (
                   ),
                 ]),
               ) as NonNullable<SimulationMoveBalanceReportOptions["stratifiedAccumulators"]>),
+        metricsByStratum:
+          options.metricsByStratum === undefined
+            ? undefined
+            : (Object.fromEntries(
+                populations.map((population) => [
+                  population,
+                  Object.fromEntries(
+                    Object.entries(options.metricsByStratum?.[population] ?? {}).filter(
+                      ([stratumId]) => stratumId.includes(`:${record.moveId}:`),
+                    ),
+                  ),
+                ]),
+              ) as NonNullable<SimulationMoveBalanceReportOptions["metricsByStratum"]>),
+        stratifiedAccumulatorsByStratum:
+          options.stratifiedAccumulatorsByStratum === undefined
+            ? undefined
+            : (Object.fromEntries(
+                populations.map((population) => [
+                  population,
+                  Object.fromEntries(
+                    Object.entries(
+                      options.stratifiedAccumulatorsByStratum?.[population] ?? {},
+                    ).filter(([stratumId]) => stratumId.includes(`:${record.moveId}:`)),
+                  ),
+                ]),
+              ) as NonNullable<
+                SimulationMoveBalanceReportOptions["stratifiedAccumulatorsByStratum"]
+              >),
       };
       return createSimulationMoveBalanceReport(
         { ...dataset, records: [record] },
@@ -823,6 +934,11 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
     "metrics",
     ["id", "metric"],
     Object.entries(report.metricsByMove).map(([id, metric]) => [id, canonicalJson(metric)]),
+  );
+  section(
+    "metrics-by-stratum",
+    ["id", "metric"],
+    Object.entries(report.metricsByStratum).map(([id, metric]) => [id, canonicalJson(metric)]),
   );
   section(
     "intervals",
@@ -879,6 +995,14 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
       effect.estimate ?? "",
       canonicalJson(effect.interval),
       effect.rationale,
+    ]),
+  );
+  section(
+    "stratified-accumulators-by-stratum",
+    ["id", "accumulator"],
+    Object.entries(report.stratifiedAccumulatorsByStratum).map(([id, accumulator]) => [
+      id,
+      canonicalJson(accumulator),
     ]),
   );
   section(
@@ -952,5 +1076,5 @@ export const renderSimulationReportMarkdown = (report: SimulationReport): string
     generatedFrom: report.generatedFrom,
     manifest: report.manifest,
     freshnessHash: report.freshnessHash,
-  })}${jsonSection("Combat metrics", report.metricsByMove)}${jsonSection("Stratified accumulators", report.stratifiedAccumulators)}${jsonSection("Intervals", report.intervals)}${jsonSection("Effect sizes", report.effectSizes)}${jsonSection("Paired effects", report.pairedEffects)}${jsonSection("Multiple-comparison adjustment", report.multipleComparison)}${jsonSection("Comparable rationale", report.comparableRationale)}${jsonSection("Representative replay seeds", report.representativeReplaySeeds)}${jsonSection("Follow-up targets", report.followUpTargets)}${errorSection}`;
+  })}${jsonSection("Combat metrics", report.metricsByMove)}${jsonSection("Stratified combat metrics", report.metricsByStratum)}${jsonSection("Stratified accumulators", report.stratifiedAccumulators)}${jsonSection("Stratified paired accumulators", report.stratifiedAccumulatorsByStratum)}${jsonSection("Intervals", report.intervals)}${jsonSection("Effect sizes", report.effectSizes)}${jsonSection("Paired effects", report.pairedEffects)}${jsonSection("Multiple-comparison adjustment", report.multipleComparison)}${jsonSection("Comparable rationale", report.comparableRationale)}${jsonSection("Representative replay seeds", report.representativeReplaySeeds)}${jsonSection("Follow-up targets", report.followUpTargets)}${errorSection}`;
 };

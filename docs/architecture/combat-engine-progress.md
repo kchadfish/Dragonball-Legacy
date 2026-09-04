@@ -5895,3 +5895,19 @@ not change legal enumeration or transition behavior. Combat analysis also
 classifies completed probes into stable outcome categories (`stopped`, normal
 or critical success, block/counter, status success, and lethal) so AI does not
 reimplement combat result semantics.
+
+## 2026-09-03 - Extra-action liveness for empty legal intersections
+
+The generic extra-action scheduler now treats an allowance as actionable only
+when its declared category and affordability intersect the current legal
+decision set. An upkeep allowance with no matching legal decision, such as a
+CONSTANT Skill allowance when the combatant owns no CONSTANT Skill, now hands
+off to the action phase instead of returning the same semantic state until the
+simulation safeguard fires. The change uses the existing legal-decision
+enumeration and applies equally to scheduled and active extra-action effects;
+it does not add definition-specific behavior.
+
+A public transition regression covers the no-match upkeep boundary alongside
+the existing next-turn extra-action cases. The simulation package runtime was
+rebuilt before catalog regeneration so package-entrypoint consumers execute the
+same scheduler implementation as source-level combat tests.

@@ -17,14 +17,18 @@ const expected = createSimulationMoveBalanceReport(artifact.dataset, undefined, 
   errors: artifact.errors,
   coverageCells: artifact.coverageCells,
   metricsByMove: artifact.metricsByMove,
+  metricsByStratum: artifact.metricsByStratum,
   stratifiedAccumulators: artifact.stratifiedAccumulators,
+  stratifiedAccumulatorsByStratum: artifact.stratifiedAccumulatorsByStratum,
   generatedFrom: artifact.generatedFrom,
 });
 const expectedDossiers = createSimulationMoveDossiers(artifact.dataset, {
   errors: artifact.errors,
   coverageCells: artifact.coverageCells,
   metricsByMove: artifact.metricsByMove,
+  metricsByStratum: artifact.metricsByStratum,
   stratifiedAccumulators: artifact.stratifiedAccumulators,
+  stratifiedAccumulatorsByStratum: artifact.stratifiedAccumulatorsByStratum,
   generatedFrom: artifact.generatedFrom,
 });
 const json = JSON.parse(

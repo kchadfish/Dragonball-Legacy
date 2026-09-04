@@ -425,12 +425,21 @@ export const recordSimulationMoveFunnel = (
   dataset: SimulationMoveCoverageDataset,
   moveFunnels: Readonly<Partial<Record<string, SimulationMoveFunnel>>>,
   population: SimulationMoveCoveragePopulation,
-  options: { readonly targetFights?: number; readonly minimumEligibleStates?: number } = {},
+  options: {
+    readonly targetPairs?: number;
+    /** Compatibility alias; use targetPairs. */
+    readonly targetFights?: number;
+    readonly minimumEligibleStates?: number;
+  } = {},
 ): SimulationMoveCoverageDataset => {
-  const targetFights = options.targetFights ?? 10;
+  if (options.targetPairs !== undefined && options.targetFights !== undefined)
+    throw new RangeError(
+      "Coverage accepts either targetPairs or deprecated targetFights, not both.",
+    );
+  const targetFights = options.targetPairs ?? options.targetFights ?? 10;
   const minimumEligibleStates = options.minimumEligibleStates ?? 10;
   if (!Number.isInteger(targetFights) || targetFights < 1 || targetFights > 10_000)
-    throw new RangeError("Coverage target fights must be from 1 through 10,000.");
+    throw new RangeError("Coverage target pairs must be from 1 through 10,000.");
   if (!Number.isInteger(minimumEligibleStates) || minimumEligibleStates < 1)
     throw new RangeError("Coverage minimum eligible states must be positive.");
   const records = dataset.records.map((record) => {
@@ -541,7 +550,7 @@ export const validateSimulationMoveClosure = (
   const ids = new Set<string>();
   const expectedIds = new Set(mechanicsView.moves.map((move) => move.id));
   const sufficient = (status: SimulationMoveCoverageStatus): boolean =>
-    status === "observed-sufficient" || status === "sufficient";
+    status === "observed-sufficient" || status === "sufficient" || status === "never-eligible";
   const validateStatus = (
     record: SimulationMoveCoverageRecord,
     population: "natural" | "isolation" | "forced",

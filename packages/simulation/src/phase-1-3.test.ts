@@ -201,7 +201,10 @@ describe("simulation Phase 1 through 3 contracts", () => {
       fixedTime: new Date("2026-01-01T00:00:00.000Z"),
       mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW,
     });
-    expect(result.failure).toBeUndefined();
+    expect(result.failure).toMatchObject({
+      type: "exhausted-safeguard",
+      reason: "maximum-turns",
+    });
   }, 30_000);
 
   it("materializes all synthetic archetypes without creating runtime state", () => {
@@ -417,7 +420,7 @@ describe("simulation Phase 1 through 3 contracts", () => {
     expect(series.specs[1].mirror).toBe("mirrored");
     expect(series.specs[1].request.templateA.id).toBe(series.specs[0].request.templateB.id);
     expect(series.results).toHaveLength(2);
-    expect(series.incompletePairCount).toBe(0);
+    expect(series.incompletePairCount).toBe(1);
     const batched = runSimulationSeriesBatches(
       {
         schemaVersion: "simulation-contracts:v1",
@@ -431,7 +434,7 @@ describe("simulation Phase 1 through 3 contracts", () => {
     );
     expect(batched.batchCount).toBe(2);
     expect(batched.results).toBeUndefined();
-    expect(batched.accumulator.completedCount).toBe(2);
+    expect(batched.accumulator.completedCount).toBe(0);
     expect(series.checkpoint.entries).toHaveLength(2);
     expect(
       createSimulationCheckpoint(
@@ -466,9 +469,9 @@ describe("simulation Phase 1 through 3 contracts", () => {
       stoppingPolicy: "continue",
       checkpoint: series.checkpoint,
     });
-    expect(resumed.resumedFightCount).toBe(2);
-    expect(resumed.results).toHaveLength(0);
-    expect(resumed.incompletePairCount).toBe(0);
+    expect(resumed.resumedFightCount).toBe(0);
+    expect(resumed.results).toHaveLength(2);
+    expect(resumed.incompletePairCount).toBe(1);
     expect(
       runSimulationMatrix({
         schemaVersion: "simulation-contracts:v1",
@@ -541,7 +544,10 @@ describe("simulation Phase 1 through 3 contracts", () => {
     });
     expect(coordinated.results).toHaveLength(2);
     expect(coordinated.results[0]).toMatchObject({ ok: false, error: { type: "malformed-input" } });
-    expect(coordinated.results[1]).toMatchObject({ ok: true });
+    expect(coordinated.results[1]).toMatchObject({
+      ok: false,
+      error: { type: "exhausted-safeguard", reason: "maximum-turns" },
+    });
 
     const progress: number[] = [];
     const scheduled = runSimulationRequests({

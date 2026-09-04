@@ -23,6 +23,14 @@ export const simulationDecisionPolicySchema = z.discriminatedUnion("type", [
       fallback: z.enum(["first-legal", "pass"]),
     })
     .strict(),
+  z
+    .object({
+      type: z.literal("controlled-legal-preference"),
+      preferredDefinitionIds: z.array(z.string().min(1)).min(1),
+      baselineDefinitionId: z.string().min(1),
+      fallback: z.literal("first-legal"),
+    })
+    .strict(),
 ]);
 export type SimulationDecisionPolicy = z.output<typeof simulationDecisionPolicySchema>;
 
@@ -93,7 +101,7 @@ export const createSimulationExposureRecipes = (
       const decisionPolicy: SimulationDecisionPolicy =
         population === "forced"
           ? { type: "forced-target-first", targetDefinitionId: move.id, fallback: "first-legal" }
-          : { type: "natural-ai", profileId: SIMULATION_NATURAL_AI_PROFILES[2] };
+          : { type: "natural-ai", profileId: SIMULATION_NATURAL_AI_PROFILES[0] };
       const base = {
         schemaVersion: "simulation-exposure-recipe:v1" as const,
         recipeId: `simulation-recipe:${population}-${move.id}-${mechanicPath}`,
@@ -128,13 +136,27 @@ const definitionIdFor = (decision: LegalDecision): string | undefined => {
       return decision.transformationId;
     case "deactivate-transformation":
       return `transformation:${decision.actorId}`;
+    case "basic-attack":
+      return "basic-attack";
     case "pass":
     case "power-up":
     case "surrender":
-    case "basic-attack":
     case "respond-to-pending-decision":
       return undefined;
   }
+};
+
+const controlledDecisionFor = (
+  legalDecisions: readonly LegalDecision[],
+  policy: Extract<SimulationDecisionPolicy, { readonly type: "controlled-legal-preference" }>,
+): LegalDecision | undefined => {
+  for (const definitionId of [...policy.preferredDefinitionIds, policy.baselineDefinitionId]) {
+    const decision = legalDecisions.find(
+      (candidate) => definitionIdFor(candidate) === definitionId,
+    );
+    if (decision !== undefined) return decision;
+  }
+  return legalDecisions[0];
 };
 
 /** Selects only from the engine-supplied legal set; it never synthesizes a decision. */
@@ -146,3 +168,9 @@ export const selectForcedSimulationDecision = (
   (policy.fallback === "pass"
     ? legalDecisions.find((decision) => decision.type === "pass")
     : legalDecisions[0]);
+
+/** Selects an arm-specific preference without invoking AI scoring or lookahead. */
+export const selectControlledSimulationDecision = (
+  legalDecisions: readonly LegalDecision[],
+  policy: Extract<SimulationDecisionPolicy, { readonly type: "controlled-legal-preference" }>,
+): LegalDecision | undefined => controlledDecisionFor(legalDecisions, policy);

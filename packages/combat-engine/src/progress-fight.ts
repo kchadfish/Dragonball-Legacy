@@ -8514,7 +8514,10 @@ const createConvertedAttackMoveState = (
     state.phase === "action" &&
     !context.counterContinues &&
     !counterContinuationAction &&
-    hasAvailableExtraAction({ ...state, activeEffects, scheduledWork }, attacker.id);
+    hasAvailableExtraAction(
+      { ...state, combatants, actionHistory, activeEffects, scheduledWork },
+      attacker.id,
+    );
   const nextPhase: "counter" | "action" | "end" = continueWithExtraAction
     ? "action"
     : phaseAfterCounterOpportunity(context.counterContinues, context.counterAction);
@@ -17707,10 +17710,7 @@ const hasAffordableMatchingExtraAction = (
   const matching = unlocked.filter((decision) =>
     extraActionMatchesDecision(state, allowance, decision),
   );
-  return (
-    matching.length === 0 ||
-    matching.some((decision) => decisionCostsAreAffordable(state, decision))
-  );
+  return matching.some((decision) => decisionCostsAreAffordable(state, decision));
 };
 
 function hasAvailableExtraAction(state: ActiveFightState, combatantId: CombatantId) {
@@ -17775,7 +17775,6 @@ export const enumerateLegalDecisions = (
     force === undefined
       ? extraActionDecisions
       : extraActionDecisions.filter((decision) => satisfiesForcedAction(state, force, decision));
-  const actor = state.combatants[combatantId];
   return constrainedDecisions.filter((decision) => decisionCostsAreAffordable(state, decision));
 };
 
@@ -18746,7 +18745,7 @@ const advanceUpkeepFight = (
     dependencies,
   );
   if (deferredExecution !== undefined) return deferredExecution;
-  if (availableExtraActionFor(upkeepExtraActionState, activeCombatant.id) !== undefined) {
+  if (hasAvailableExtraAction(upkeepExtraActionState, activeCombatant.id)) {
     const nextState: ActiveFightState = {
       ...upkeepExtraActionState,
       version: state.version + 1,

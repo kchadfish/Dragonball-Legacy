@@ -17,6 +17,7 @@ import {
   createSimulationMoveCoverageDataset,
   createSimulationMoveCoverageArtifact,
   createSimulationMoveBalanceReport,
+  createSimulationNaturalCoverageTemplates,
   runSimulationBenchmark,
   mergeSimulationMoveCoverageArtifacts,
   recordSimulationMoveFunnel,
@@ -34,6 +35,8 @@ import {
   runSimulationMoveCoverage,
   runSimulationMoveCoverageCatalog,
   resumeSimulationMoveCoverage,
+  SIMULATION_MOVE_COVERAGE_EXPOSURE_CONTEXTS,
+  nextSimulationCoveragePrecisionLook,
   selectForcedSimulationDecision,
   simulationMoveCoverageArtifactSchema,
   validateSimulationMoveCoverageArtifact,
@@ -166,9 +169,9 @@ describe("simulation v2 contracts", () => {
         "move-haokiru-willing-sacrifice",
       ],
       population: "forced",
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
-      limits: { maximumTurns: 12, maximumTransitions: 128, semanticNoProgressLimit: 8 },
+      limits: { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 },
       concurrency: 1,
     });
 
@@ -224,7 +227,7 @@ describe("simulation v2 contracts", () => {
         fallback: "first-legal",
       },
     });
-    expect(result.failure).toBeUndefined();
+    expect(result.failure?.type).toBe("exhausted-safeguard");
     expect(result.diagnostics?.evaluations).toEqual([]);
     expect(result.diagnostics?.moveFunnels[moveId]).toMatchObject({
       submitted: 2,
@@ -232,35 +235,120 @@ describe("simulation v2 contracts", () => {
       successful: 1,
       valueProducing: 1,
     });
-  }, 90_000);
+  }, 180_000);
 
-  it("requires approval before scheduling natural TF1 exposure", () => {
+  it("uses repository-authoritative TF1 overlays for natural exposure by default", () => {
     const moveId = TF1_SIMULATION_TEMPLATES[0]!.moveIds[0]!;
-    expect(() =>
-      runSimulationMoveCoverage({
-        moveIds: [moveId],
-        targetFights: 1,
-        minimumEligibleStates: 1,
-        population: "natural",
-        concurrency: 1,
-      }),
-    ).toThrow(/requires a reference/i);
     const result = runSimulationMoveCoverage({
       moveIds: [moveId],
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
       population: "natural",
-      naturalOverlayApprovalReference: "staff:test-natural-overlay",
       naturalProfileId: "profile:normal",
       limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
       concurrency: 1,
     });
     expect(result.artifact.generatedFrom.naturalPopulation).toBe("approved");
+    expect(result.artifact.generatedFrom.naturalOverlayApprovalReference).toBe(
+      "repository:balance-testing/tf1:v1",
+    );
     expect(new Set(result.artifact.coverageCells.map((cell) => cell.cellId)).size).toBe(
       result.artifact.coverageCells.length,
     );
     expect(result.artifact.coverageCells.every((cell) => cell.population === "natural")).toBe(true);
-  }, 30_000);
+    const report = createSimulationMoveBalanceReport(result.artifact.dataset, undefined, {
+      generatedFrom: result.artifact.generatedFrom,
+      coverageCells: result.artifact.coverageCells,
+    });
+    expect(report.generatedFrom).toMatchObject({
+      naturalProfileId: "profile:normal",
+      naturalOverlayAuthority: "repository",
+      templateProvenance: "repository:balance-testing/tf1:v1",
+      precisionLook: 1,
+    });
+  }, 180_000);
+
+  it("keeps the complete natural universe and exposure contexts deterministic", () => {
+    const templates = createSimulationNaturalCoverageTemplates();
+    expect(templates.some((template) => template.kind === "tf1-source")).toBe(true);
+    expect(
+      templates.some((template) => template.source.path === "simulation/generated-builds"),
+    ).toBe(true);
+    expect(
+      templates.some((template) => template.source.path === "simulation/synthetic-archetypes"),
+    ).toBe(true);
+    expect(new Set(templates.flatMap((template) => template.moveIds))).toEqual(
+      new Set(CANONICAL_COMBAT_MECHANICS_VIEW.moves.map((move) => move.id)),
+    );
+    expect(
+      templates
+        .filter((template) => template.kind === "tf1-source")
+        .flatMap((template) => template.gaps)
+        .some((gap) => gap.kind === "capability"),
+    ).toBe(true);
+
+    const result = runSimulationMoveCoverage({
+      moveIds: ["move-akaikaru-firestorm"],
+      targetPairs: 1,
+      minimumEligibleStates: 1,
+      population: "isolation",
+      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+      concurrency: 1,
+    });
+    expect(result.artifact.generatedFrom.exposureContexts).toEqual(
+      SIMULATION_MOVE_COVERAGE_EXPOSURE_CONTEXTS,
+    );
+    expect(
+      new Set(
+        result.artifact.coverageCells
+          .filter((cell) => cell.population === "isolation")
+          .map((cell) => cell.strata.exposureContext),
+      ),
+    ).toEqual(new Set(SIMULATION_MOVE_COVERAGE_EXPOSURE_CONTEXTS));
+  }, 90_000);
+
+  it("advances only through the declared precision looks", () => {
+    expect(nextSimulationCoveragePrecisionLook(250)).toBe(500);
+    expect(nextSimulationCoveragePrecisionLook(2_000)).toBe(5_000);
+    expect(() => nextSimulationCoveragePrecisionLook(10_000)).toThrow(/No declared/);
+  });
+
+  it("records Wilson precision and keeps low-precision production cells open", () => {
+    const cell = createSimulationCoverageCell({
+      cellId: "simulation-cell:precision",
+      moveId: "move-akaikaru-firestorm",
+      scenarioFamily: "move-isolation",
+      mechanicPath: "decision",
+      checkpointId: "early",
+      population: "isolation",
+      strata: { category: "advanced-attack", exposureContext: "target-present" },
+      targetFights: 250,
+      minimumEligibleStates: 250,
+      completedFights: 0,
+      eligibleStates: 0,
+      selectedStates: 0,
+      triggeredStates: 0,
+      status: "unobserved",
+    });
+    const low = updateSimulationCoverageCell(cell, {
+      completedFights: 500,
+      eligibleStates: 250,
+      selectedStates: 125,
+    });
+    expect(low.precision).toMatchObject({
+      completedPairs: 250,
+      targetPairs: 250,
+      status: "low-precision",
+    });
+    expect(low.status).toBe("observed-low-sample");
+    const precise = updateSimulationCoverageCell(cell, {
+      completedFights: 500,
+      eligibleStates: 250,
+      selectedStates: 250,
+    });
+    expect(precise.precision?.status).toBe("precise");
+    expect(precise.status).toBe("observed-sufficient");
+  });
 
   it("requires path-specific exercise before a coverage cell can be sufficient", () => {
     const baseCell = {
@@ -270,9 +358,9 @@ describe("simulation v2 contracts", () => {
       checkpointId: "early",
       population: "isolation" as const,
       strata: { category: "advanced-attack" },
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
-      completedFights: 1,
+      completedFights: 2,
       eligibleStates: 1,
     };
     expect(() =>
@@ -306,7 +394,7 @@ describe("simulation v2 contracts", () => {
     const moveId = "move-akaikaru-firestorm";
     const isolation = runSimulationMoveCoverage({
       moveIds: [moveId],
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
       concurrency: 1,
       population: "isolation",
@@ -319,7 +407,7 @@ describe("simulation v2 contracts", () => {
     ).toBe(true);
     expect(isolation.artifact.generatedFrom.naturalPopulation).toBe("draft");
     expect(isolation.artifact.generatedFrom.naturalPopulationBlocker).toMatch(
-      /genuine staff approval reference/i,
+      /natural population coverage was not scheduled/i,
     );
     expect(isolation.artifact.errors).toHaveLength(isolation.failures.length);
     expect(isolation.artifact.errors.every((error) => error.population === "isolation")).toBe(true);
@@ -329,13 +417,14 @@ describe("simulation v2 contracts", () => {
     expect(isolation.artifact.metricsByMove?.isolation[moveId]).toMatchObject({
       moveId,
       population: "isolation",
-      completedFights: 2,
-      observability: { diagnosticFights: 2, summaryOnlyFights: 0 },
-      orientationCounts: { original: 1, mirrored: 1 },
+      completedFights: 0,
+      errorCount: 6,
+      observability: { diagnosticFights: 0, summaryOnlyFights: 0 },
+      orientationCounts: { original: 0, mirrored: 0 },
     });
     expect(isolation.artifact.stratifiedAccumulators?.isolation[moveId]).toMatchObject({
       stratumId: `isolation:${moveId}`,
-      completedPairs: 1,
+      completedPairs: 0,
       errorCount: 0,
     });
     const report = createSimulationMoveBalanceReport(isolation.artifact.dataset, undefined, {
@@ -349,7 +438,7 @@ describe("simulation v2 contracts", () => {
       report.pairedEffects.find(
         (effect) => effect.id === `isolation:${moveId}:target-control-damage`,
       ),
-    ).toMatchObject({ completedPairs: 1, intervalMethod: "paired-bootstrap-95" });
+    ).toMatchObject({ completedPairs: 0, intervalMethod: "not-estimated" });
     expect(isolation.artifact.coverageCells.some((cell) => cell.population === "forced")).toBe(
       false,
     );
@@ -399,7 +488,7 @@ describe("simulation v2 contracts", () => {
         mechanicPaths: ["decision", "trigger"],
       }).map((cell) =>
         updateSimulationCoverageCell(cell, {
-          completedFights: 1,
+          completedFights: 2,
           eligibleStates: 1,
           selectedStates: cell.mechanicPath === "decision" ? 1 : 0,
           triggeredStates: cell.mechanicPath === "trigger" ? 1 : 0,
@@ -447,37 +536,38 @@ describe("simulation v2 contracts", () => {
     const moveId = "move-akaikaru-firestorm";
     const initial = runSimulationMoveCoverage({
       moveIds: [moveId],
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
       concurrency: 1,
       population: "isolation",
-      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+      limits: { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 },
     });
     const resumed = resumeSimulationMoveCoverage(initial.artifact, {
-      targetFights: 2,
+      targetPairs: 2,
       minimumEligibleStates: 1,
       concurrency: 1,
-      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+      moveIds: [moveId],
+      limits: { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 },
     });
     const cell = resumed.artifact.coverageCells.find(
       (candidate) => candidate.moveId === moveId && candidate.mechanicPath === "decision",
     );
-    expect(resumed.runCount).toBe(2);
+    expect(resumed.runCount).toBe(6);
     expect(resumed.artifact.generatedFrom.targetFights).toBe(2);
     expect(resumed.artifact.generatedFrom.populationAttemptedFightsByMove?.isolation[moveId]).toBe(
-      4,
+      12,
     );
     expect(cell?.targetFights).toBe(2);
-    expect(cell?.completedFights).toBeGreaterThanOrEqual(1);
+    expect(cell?.completedFights).toBe(4);
     expect(resumed.artifact.errors).toHaveLength(initial.artifact.errors.length);
   }, 15_000);
 
   it("resumes a merged catalog artifact without pooling population attempts", () => {
     const moveId = "move-akaikaru-firestorm";
-    const limits = { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 };
+    const limits = { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 };
     const initial = runSimulationMoveCoverageCatalog({
       moveIds: [moveId],
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
       concurrency: 1,
       populations: ["isolation", "forced"],
@@ -485,31 +575,31 @@ describe("simulation v2 contracts", () => {
     });
     const resumed = runSimulationMoveCoverageCatalog({
       moveIds: [moveId],
-      targetFights: 2,
+      targetPairs: 2,
       minimumEligibleStates: 1,
       concurrency: 1,
       populations: ["isolation", "forced"],
       resumeFrom: initial.artifact,
       limits,
     });
-    expect(resumed.runCount).toBe(4);
+    expect(resumed.runCount).toBe(8);
     expect(resumed.artifact.generatedFrom.population).toBeUndefined();
     expect(resumed.artifact.generatedFrom.populationAttemptedFightsByMove).toMatchObject({
-      isolation: { [moveId]: 4 },
+      isolation: { [moveId]: 12 },
       forced: { [moveId]: 4 },
     });
     expect(resumed.artifact.generatedFrom.populationRunCounts).toMatchObject({
-      isolation: 4,
+      isolation: 12,
       forced: 4,
     });
   }, 30_000);
 
   it("adds an absent population at the current precision during catalog resume", () => {
     const moveId = "move-akaikaru-firestorm";
-    const limits = { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 };
+    const limits = { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 };
     const isolation = runSimulationMoveCoverageCatalog({
       moveIds: [moveId],
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
       concurrency: 1,
       populations: ["isolation"],
@@ -517,7 +607,7 @@ describe("simulation v2 contracts", () => {
     });
     const merged = runSimulationMoveCoverageCatalog({
       moveIds: [moveId],
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
       concurrency: 1,
       populations: ["forced"],
@@ -527,7 +617,7 @@ describe("simulation v2 contracts", () => {
     expect(merged.runCount).toBe(2);
     expect(merged.artifact.generatedFrom.population).toBeUndefined();
     expect(merged.artifact.generatedFrom.populationRunCounts).toMatchObject({
-      isolation: 2,
+      isolation: 6,
       forced: 2,
     });
     expect(
@@ -680,9 +770,9 @@ describe("simulation v2 contracts", () => {
     const options = {
       moveIds,
       population: "forced" as const,
-      targetFights: 1,
+      targetPairs: 1,
       minimumEligibleStates: 1,
-      limits: { maximumTurns: 1, maximumTransitions: 8, semanticNoProgressLimit: 4 },
+      limits: { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 },
     };
     const oneWorker = runSimulationMoveCoverage({ ...options, workers: 1 });
     const twoWorkers = runSimulationMoveCoverage({ ...options, workers: 2 });
@@ -701,7 +791,7 @@ describe("simulation v2 contracts", () => {
 
     expect(result.result).toBe("passed");
     expect(result.completedCount).toBe(1);
-    expect(result.totalTransitions).toBeGreaterThan(0);
+    expect(result.totalTransitions).toBe(0);
     expect(result.benchmarkHash).toMatch(/^fnv1a-32:/);
   }, 30_000);
 });

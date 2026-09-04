@@ -9,6 +9,10 @@ import {
 import { runSimulationFight } from "./runner.js";
 
 type CoordinatorResult = SimulationCoordinatorResult["results"][number];
+type CompactSimulationFightRequest = Omit<
+  SimulationCoordinatorRequest["requests"][number],
+  "mechanicsView"
+>;
 
 /** Internal execution controls that do not alter the public fight contract. */
 export interface SimulationCoordinatorExecutionOptions {
@@ -27,17 +31,8 @@ const failureFor = (
 
 const isSuccessfulTermination = (
   reason: SimulationFightExecutionResult["terminationReason"],
-): reason is
-  | "engine-completed"
-  | "maximum-turns"
-  | "maximum-transitions"
-  | "semantic-no-progress"
-  | "cancelled" =>
-  reason === "engine-completed" ||
-  reason === "maximum-turns" ||
-  reason === "maximum-transitions" ||
-  reason === "semantic-no-progress" ||
-  reason === "cancelled";
+): reason is "engine-completed" | "coverage-satisfied" =>
+  reason === "engine-completed" || reason === "coverage-satisfied";
 
 const failureForResult = (
   fightRequest: SimulationCoordinatorRequest["requests"][number],
@@ -46,11 +41,14 @@ const failureForResult = (
   if (result.failure !== undefined) return result.failure;
   switch (result.terminationReason) {
     case "engine-completed":
+    case "coverage-satisfied":
+      return failureFor(fightRequest);
     case "maximum-turns":
     case "maximum-transitions":
     case "semantic-no-progress":
+      return { type: "exhausted-safeguard", reason: result.terminationReason };
     case "cancelled":
-      return failureFor(fightRequest);
+      return { type: "cancelled" };
     case "combat-failure":
       return { type: "combat-failure", failure: result.finalState };
     case "ai-failure":
@@ -119,6 +117,7 @@ interface WorkerReply {
 interface PooledWorker {
   readonly worker: Worker;
   readonly port: MessageChannel["port1"];
+  mechanicsIdentity?: string;
   busy: boolean;
 }
 
@@ -210,7 +209,21 @@ const launchWorker = (
   const index = state.nextIndex++;
   const pooled = acquireWorker();
   state.active.push({ pooled, index });
-  pooled.worker.postMessage({ request: requests[index] });
+  const request = requests[index]!;
+  if (pooled.mechanicsIdentity !== request.mechanicsView.identity.contentHash) {
+    pooled.worker.postMessage({
+      type: "initialize",
+      mechanicsView: request.mechanicsView,
+    });
+    pooled.mechanicsIdentity = request.mechanicsView.identity.contentHash;
+  }
+  const compactRequest: CompactSimulationFightRequest = { ...request };
+  Reflect.deleteProperty(compactRequest, "mechanicsView");
+  pooled.worker.postMessage({
+    type: "fight",
+    mechanicsIdentity: request.mechanicsView.identity.contentHash,
+    request: compactRequest satisfies CompactSimulationFightRequest,
+  });
 };
 
 const consumeWorkerReply = (

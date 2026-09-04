@@ -3,6 +3,7 @@ import {
   FixedClock,
   SeededRandomSource,
   createCombatRuntime,
+  type CombatRuntime,
   type CombatMechanicsView,
 } from "@dragonball-resurgence/combat-engine";
 import { SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
@@ -138,17 +139,21 @@ interface Candidate {
   readonly rank: string;
 }
 
-const sortedUnique = (values: readonly string[]): readonly string[] =>
+const sortedUnique = <T extends string>(values: readonly T[]): readonly T[] =>
   [...new Set(values)].sort((left, right) => left.localeCompare(right));
 
 const sourceCatalogHashFor = (view: CombatMechanicsView): string =>
   canonicalHash({
     mechanicsIdentity: view.identity.contentHash,
-    moves: view.moves.map((move) => move.id).sort(),
-    items: view.items.map((item) => item.id).sort(),
-    transformations: view.transformations.map((transformation) => transformation.id).sort(),
-    races: view.races.map((race) => race.id).sort(),
-    genericClasses: view.genericClasses.map((genericClass) => genericClass.id).sort(),
+    moves: view.moves.map((move) => move.id).sort((left, right) => left.localeCompare(right)),
+    items: view.items.map((item) => item.id).sort((left, right) => left.localeCompare(right)),
+    transformations: view.transformations
+      .map((transformation) => transformation.id)
+      .sort((left, right) => left.localeCompare(right)),
+    races: view.races.map((race) => race.id).sort((left, right) => left.localeCompare(right)),
+    genericClasses: view.genericClasses
+      .map((genericClass) => genericClass.id)
+      .sort((left, right) => left.localeCompare(right)),
   });
 
 const numericSeedFor = (seed: number, value: unknown): number => {
@@ -214,21 +219,15 @@ const specializationFor = (
 const statsFor = (
   archetype: SimulationBuildArchetype,
   role: SimulationBuildScenarioRole,
-): Readonly<{ power: number; dexterity: number; dexterityBonus: number }> => ({
-  power:
-    archetype === "high-power" || archetype === "burst"
-      ? 45
-      : archetype === "resource-efficient"
-        ? 25
-        : 30,
-  dexterity:
-    archetype === "high-dexterity" || role === "attacker"
-      ? 25
-      : archetype === "defensive" || role === "defender"
-        ? 10
-        : 18,
-  dexterityBonus: role === "attacker" ? 1 : 0,
-});
+): Readonly<{ power: number; dexterity: number; dexterityBonus: number }> => {
+  let power = 30;
+  if (archetype === "high-power" || archetype === "burst") power = 45;
+  else if (archetype === "resource-efficient") power = 25;
+  let dexterity = 18;
+  if (archetype === "high-dexterity" || role === "attacker") dexterity = 25;
+  else if (archetype === "defensive" || role === "defender") dexterity = 10;
+  return { power, dexterity, dexterityBonus: role === "attacker" ? 1 : 0 };
+};
 
 const maximumHitPointsFor = (
   archetype: SimulationBuildArchetype,
@@ -251,9 +250,9 @@ const transformationProfileFor = (
   if (!checkpointAllowsTransformation && role !== "transformation-timing") return [];
   if (archetype !== "transformation" && role !== "transformation-timing") return [];
   const race = view.indexes.races.get(raceId);
-  const transformationId = [...(race?.transformationIds ?? [])].sort((left, right) =>
-    left.localeCompare(right),
-  )[0];
+  const transformationId = [...(race?.transformationIds ?? [])]
+    .sort((left, right) => left.localeCompare(right))
+    .at(0);
   if (transformationId === undefined) return [];
   return [{ transformationId, rollSides: 100, mastery: "intermediate" }];
 };
@@ -324,6 +323,28 @@ const candidateFor = (
   };
 };
 
+const candidateDimensionsFor = (
+  request: SimulationBuildGeneratorRequest,
+  raceId: string,
+  classId: string,
+  styleIds: readonly string[],
+): readonly CandidateDimensions[] => {
+  const dimensions: CandidateDimensions[] = [];
+  for (const checkpointId of request.checkpointIds)
+    for (const styleId of styleIds)
+      for (const archetype of request.archetypes)
+        for (const scenarioRole of request.scenarioRoles)
+          dimensions.push({
+            checkpointId,
+            styleId,
+            raceId,
+            classId,
+            archetype,
+            scenarioRole,
+          });
+  return dimensions;
+};
+
 const candidatesFor = (
   view: CombatMechanicsView,
   request: SimulationBuildGeneratorRequest,
@@ -334,21 +355,8 @@ const candidatesFor = (
     [...race.classes]
       .sort((left, right) => left.id.localeCompare(right.id))
       .flatMap((classDefinition) =>
-        request.checkpointIds.flatMap((checkpointId) =>
-          styleIds.flatMap((styleId) =>
-            request.archetypes.flatMap((archetype) =>
-              request.scenarioRoles.map((scenarioRole) =>
-                candidateFor(view, request, {
-                  checkpointId,
-                  styleId,
-                  raceId: race.id,
-                  classId: classDefinition.id,
-                  archetype,
-                  scenarioRole,
-                }),
-              ),
-            ),
-          ),
+        candidateDimensionsFor(request, race.id, classDefinition.id, styleIds).map((dimensions) =>
+          candidateFor(view, request, dimensions),
         ),
       ),
   );
@@ -381,6 +389,7 @@ const validateCandidate = (
   candidate: Candidate,
   view: CombatMechanicsView,
   seed: number,
+  runtime: CombatRuntime,
 ):
   | { readonly ok: true; readonly template: SimulationTemplate }
   | {
@@ -409,7 +418,6 @@ const validateCandidate = (
         reason: materialized.error.detail,
       },
     };
-  const runtime = createCombatRuntime(view);
   const created = runtime.createFight(
     { mode: "spar", combatants: [materialized.value.input, materialized.value.input] },
     {
@@ -457,9 +465,10 @@ export const generateSimulationBuilds = (
   const rejections: SimulationBuildGenerationRejection[] = [];
   const seenMechanicalHashes = new Set<string>();
   let deduplicatedCount = 0;
+  const runtime = createCombatRuntime(view);
   for (const candidate of selectedCandidates) {
     if (builds.length >= request.maximumBuilds) break;
-    const result = validateCandidate(candidate, view, request.seed);
+    const result = validateCandidate(candidate, view, request.seed, runtime);
     if (!result.ok) {
       rejections.push(result.rejection);
       continue;
@@ -474,11 +483,11 @@ export const generateSimulationBuilds = (
   }
   const generatedBuildHashes = builds.map(mechanicalBuildHash);
   const selectedDimensions = {
-    checkpointIds: [...request.checkpointIds].sort(),
+    checkpointIds: sortedUnique(request.checkpointIds),
     styleIds,
     raceIds: sortedUnique(view.races.map((race) => race.id)),
-    archetypes: [...request.archetypes].sort(),
-    scenarioRoles: [...request.scenarioRoles].sort(),
+    archetypes: sortedUnique(request.archetypes),
+    scenarioRoles: sortedUnique(request.scenarioRoles),
   } satisfies SimulationBuildGenerationManifest["selectedDimensions"];
   const manifestWithoutHash = {
     schemaVersion: SIMULATION_BUILD_GENERATOR_VERSION,

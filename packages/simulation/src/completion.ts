@@ -23,15 +23,23 @@ export type SimulationCompletionAuditOptions = SimulationCoverageValidationOptio
 export const aggregateSimulationCoverageCellStatus = (
   cells: readonly SimulationCoverageCell[],
 ): SimulationCoverageCell["status"] => {
-  if (cells.every((cell) => cell.status === "not-scheduled")) return "not-scheduled";
-  if (cells.every((cell) => cell.status === "unobserved")) return "unobserved";
-  if (cells.some((cell) => cell.status === "runner-failure")) return "runner-failure";
-  if (cells.some((cell) => cell.status === "invalid-fixture")) return "invalid-fixture";
-  if (cells.some((cell) => cell.status === "eligible-never-selected"))
+  if (cells.length === 0 || cells.every((cell) => cell.samplingStatus === "not-applicable"))
+    return "not-scheduled";
+  if (cells.every((cell) => cell.samplingStatus === "not-started")) return "unobserved";
+  if (
+    cells.some((cell) => cell.samplingStatus === "failed" && cell.failureType === "runner-failure")
+  )
+    return "runner-failure";
+  if (cells.some((cell) => cell.samplingStatus === "failed")) return "invalid-fixture";
+  if (cells.every((cell) => cell.samplingStatus === "sufficient")) {
+    if (cells.every((cell) => cell.observationStatus === "never-eligible")) return "never-eligible";
+    if (cells.every((cell) => cell.population === "natural")) return "observed-sufficient";
+  }
+  if (cells.some((cell) => cell.observationStatus === "eligible-never-selected"))
     return "eligible-never-selected";
-  if (cells.every((cell) => cell.status === "never-eligible")) return "never-eligible";
-  if (cells.every((cell) => cell.status === "observed-sufficient")) return "observed-sufficient";
-  if (cells.every((cell) => cell.status === "audited-out-of-scope")) return "audited-out-of-scope";
+  if (cells.every((cell) => cell.observationStatus === "never-eligible")) return "never-eligible";
+  if (cells.every((cell) => cell.samplingStatus === "sufficient")) return "observed-sufficient";
+  if (cells.every((cell) => cell.samplingStatus === "excluded")) return "audited-out-of-scope";
   return "observed-low-sample";
 };
 
@@ -50,17 +58,29 @@ const validateCoverageConsistency = (
   coverageCells: readonly SimulationCoverageCell[],
 ): readonly string[] => {
   const issues: string[] = [];
-  const cells = new Map(
-    coverageCells.map((cell) => [`${cell.moveId}:${cell.population}:${cell.mechanicPath}`, cell]),
-  );
+  const cells = new Map<string, SimulationCoverageCell[]>();
+  for (const cell of coverageCells) {
+    const key = `${cell.moveId}:${cell.population}:${cell.mechanicPath}`;
+    const matching = cells.get(key) ?? [];
+    matching.push(cell);
+    cells.set(key, matching);
+  }
   for (const record of dataset.records)
     for (const population of ["natural", "isolation", "forced"] as const) {
       const populationCells: SimulationCoverageCell[] = [];
       for (const mechanicPath of record.requiredMechanicPaths) {
-        const cell = cells.get(`${record.moveId}:${population}:${mechanicPath}`);
-        if (cell === undefined)
+        const matching = cells.get(`${record.moveId}:${population}:${mechanicPath}`) ?? [];
+        if (matching.length === 0)
           issues.push(`Missing ${population}/${mechanicPath} coverage cell for ${record.moveId}.`);
-        else populationCells.push(cell);
+        else {
+          const targetPresent = matching.filter(
+            (cell) => cell.strata.exposureContext === "target-present",
+          );
+          // v3 closure is intentionally based on the target-present
+          // mechanic-exposure arm. Keep the old all-context behavior only for
+          // pre-v3-shaped test fixtures that do not identify an exposure arm.
+          populationCells.push(...(targetPresent.length > 0 ? targetPresent : matching));
+        }
       }
       if (populationCells.length !== record.requiredMechanicPaths.length) continue;
       const expectedStatus = aggregateSimulationCoverageCellStatus(populationCells);

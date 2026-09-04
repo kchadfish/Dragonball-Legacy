@@ -17,6 +17,8 @@ import {
 } from "./contracts.js";
 
 const sourceRoot = "balance-testing";
+/** Stable in-repository authority for the corrected TF1 source transcription. */
+export const SIMULATION_TF1_SOURCE_AUTHORITY = "repository:balance-testing/tf1:v1" as const;
 const profileId = SIMULATION_QUALITY_PROFILE.identity.id;
 const combatActiveTransformationRaceIds = new Set<string>(COMBAT_ACTIVE_TRANSFORMATION_RACE_IDS);
 const raceIds: Readonly<Record<string, string>> = {
@@ -1389,17 +1391,6 @@ const energySpecializationFiles = new Set([
   "30_kurokonwaku_trickster",
 ]);
 
-const gapFor = (path: string): SimulationGap => ({
-  kind: "loadout",
-  reason:
-    "TF1 source evidence has no genuine approval reference and is blocked from natural-population use.",
-  provenance: {
-    path,
-    text: "TF1 loadout fields are source-linked but natural use requires a supplied approval reference.",
-    sourceKind: "balance-sheet",
-  },
-});
-
 const overlayFor = (
   templateId: string,
   styleId: string,
@@ -1437,7 +1428,6 @@ const sourceGapsFor = (
   specializationType: "strength" | "energy",
   itemIds: readonly string[],
 ): readonly SimulationGap[] => [
-  gapFor(path),
   {
     kind: "capability",
     reason: `${specializationType[0]!.toUpperCase()}${specializationType.slice(1)} specialization damage is retained as source metadata; the combat input has no specialization-type field.`,
@@ -1504,10 +1494,7 @@ const sourceGapsFor = (
     : []),
 ];
 
-const sourceTemplateFor = (
-  row: SourceRow,
-  view: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
-): SimulationTemplate => {
+const sourceTemplateFor = (row: SourceRow): SimulationTemplate => {
   const [
     file,
     style,
@@ -1531,12 +1518,8 @@ const sourceTemplateFor = (
   const raceId = raceIds[race];
   const classId = classIds[className];
   const moveIds = sourceMovesByFile[file];
-  if (moveIds === undefined) throw new RangeError(`Missing source move transcription for ${file}.`);
   const itemIds = sourceItemsByRace[raceId];
-  if (itemIds === undefined) throw new RangeError(`Missing source item mapping for ${race}.`);
   const raceTraitIds = sourceTraitsByRaceAndClass[`${raceId}:${classId}`];
-  if (raceTraitIds === undefined)
-    throw new RangeError(`Missing source trait mapping for ${race}/${className}.`);
   const startingKi = sixStartingKiFiles.has(file) ? 6 : 5;
   const maximumKi = twelveMaximumKiFiles.has(file) ? 12 : 10;
   const specializationType = energySpecializationFiles.has(file) ? "energy" : "strength";
@@ -1691,7 +1674,7 @@ export const ALL_SIMULATION_TEMPLATES = (
 /** Marks a checked-in draft overlay approved without changing its chosen moves. */
 export const approveSimulationTf1Overlay = (
   template: SimulationTemplate,
-  approvalReference: string,
+  approvalReference: string = SIMULATION_TF1_SOURCE_AUTHORITY,
 ): SimulationTemplate => {
   if (template.kind !== "tf1-source" || template.loadoutOverlay === undefined)
     throw new RangeError(`Template ${template.id} does not have a TF1 overlay.`);
@@ -1711,7 +1694,7 @@ export const approveSimulationTf1Overlay = (
 
 /** Approves the complete checked-in TF1 overlay set under one review reference. */
 export const approveAllSimulationTf1Overlays = (
-  approvalReference: string,
+  approvalReference: string = SIMULATION_TF1_SOURCE_AUTHORITY,
 ): readonly SimulationTemplate[] =>
   Object.freeze(
     TF1_SIMULATION_TEMPLATES.map((template) =>

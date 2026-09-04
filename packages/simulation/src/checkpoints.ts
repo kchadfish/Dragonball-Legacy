@@ -27,10 +27,12 @@ const requestIdentityFor = (request: SimulationFightRequest) => ({
   profileA: request.profileA.identity,
   profileB: request.profileB.identity,
   rootSeed: request.rootSeed,
+  seedFamilyId: request.seedFamilyId,
   iteration: request.iteration ?? 0,
   mirror: request.mirror ?? "original",
   fixedTime: request.fixedTime.toISOString(),
   mechanics: request.mechanicsView.identity,
+  decisionPolicy: request.decisionPolicy,
 });
 
 export const simulationSeriesManifestHash = (request: {

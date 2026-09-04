@@ -194,7 +194,7 @@ export const simulationLimitsSchema = z
   .strict();
 export type SimulationLimits = z.output<typeof simulationLimitsSchema>;
 
-export const simulationRetentionSchema = z.enum(["summary", "diagnostic"]);
+export const simulationRetentionSchema = z.enum(["summary", "coverage", "diagnostic"]);
 export type SimulationRetention = z.output<typeof simulationRetentionSchema>;
 
 export const simulationStoppingPolicySchema = z.enum(["continue", "fail-fast"]);
@@ -284,6 +284,8 @@ export interface SimulationFightRequest {
   readonly rootSeed: number;
   readonly iteration?: number;
   readonly mirror?: "original" | "mirrored";
+  /** Shared identity for matched arms; keeps their random seed family aligned. */
+  readonly seedFamilyId?: string;
   readonly fixedTime: Date;
   readonly mechanicsView: import("@dragonball-resurgence/combat-engine").CombatMechanicsView;
   readonly decisionPolicy?: SimulationDecisionPolicy;
@@ -305,6 +307,7 @@ export const simulationFightRequestSchema = z
       .max(2 ** 32 - 1),
     iteration: nonNegativeInteger.optional(),
     mirror: z.enum(["original", "mirrored"]).optional(),
+    seedFamilyId: z.string().min(1).optional(),
     fixedTime: z.date(),
     mechanicsView: z.custom<import("@dragonball-resurgence/combat-engine").CombatMechanicsView>(
       (value) => typeof value === "object" && value !== null,
@@ -374,6 +377,7 @@ export type SimulationFailure =
 
 export type SimulationTerminationReason =
   | "engine-completed"
+  | "coverage-satisfied"
   | "maximum-turns"
   | "maximum-transitions"
   | "semantic-no-progress"
@@ -396,6 +400,62 @@ export interface SimulationSummary {
   readonly perDieOutcomes: Readonly<Record<string, number>>;
 }
 
+export interface SimulationCoverageCounters {
+  readonly eventCounts: Readonly<Record<string, number>>;
+  readonly statusCounts: Readonly<Record<string, number>>;
+  readonly attackOutcomes: Readonly<{
+    readonly attempted: number;
+    readonly successful: number;
+    readonly stopped: number;
+    readonly critical: number;
+    readonly counter: number;
+  }>;
+  readonly statuses: Readonly<{
+    readonly applied: number;
+    readonly removed: number;
+    readonly rolled: number;
+    readonly lockoutEvents: number;
+  }>;
+  readonly transformations: Readonly<{
+    readonly activated: number;
+    readonly deactivated: number;
+    readonly rolled: number;
+    readonly cooldownsStarted: number;
+  }>;
+  readonly restrictedUse: Readonly<{
+    readonly moveUses: number;
+    readonly limitChanges: number;
+    readonly movesRemoved: number;
+  }>;
+  readonly sequences: Readonly<{
+    readonly deferredScheduled: number;
+    readonly deferredCancelled: number;
+    readonly deferredPerformed: number;
+    readonly counterChainLimits: number;
+  }>;
+  readonly stalls: Readonly<{
+    readonly actionSkips: number;
+    readonly maximumTurns: number;
+    readonly maximumTransitions: number;
+    readonly semanticNoProgress: number;
+  }>;
+  readonly kiSpent: number;
+  readonly kiGained: number;
+}
+
+/** Bounded evidence folded while retaining no transition or AI diagnostic payload. */
+export interface SimulationCoverageObservation {
+  readonly moveFunnels: Readonly<Record<string, SimulationMoveFunnel>>;
+  readonly counters: SimulationCoverageCounters;
+  readonly overkill: Readonly<{ readonly a: number; readonly b: number }>;
+  readonly terminalHashes: Readonly<{
+    readonly state: string;
+    readonly events: string;
+    readonly decisions: string;
+  }>;
+  readonly replayManifestHash: string;
+}
+
 export interface SimulationDiagnostics {
   readonly legalSetHashes: readonly string[];
   readonly decisionHashes: readonly string[];
@@ -415,6 +475,7 @@ export interface SimulationReplayRecord {
   readonly manifest: {
     readonly scopeVersion: string;
     readonly runId: string;
+    readonly seedFamilyId?: string;
     readonly rootSeed: number;
     readonly scenario: SimulationScenario;
     readonly scenarioHash: string;
@@ -483,6 +544,7 @@ export interface SimulationFightExecutionResult {
   readonly failure?: SimulationFailure;
   readonly transitions: readonly CombatTransition[];
   readonly summary: SimulationSummary;
+  readonly coverage?: SimulationCoverageObservation;
   readonly diagnostics?: SimulationDiagnostics;
   readonly stateHash: string;
   readonly eventHash: string;
@@ -664,6 +726,7 @@ export const simulationSeriesCheckpointSchema = z
           terminationReason: z
             .enum([
               "engine-completed",
+              "coverage-satisfied",
               "maximum-turns",
               "maximum-transitions",
               "semantic-no-progress",

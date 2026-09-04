@@ -20,6 +20,7 @@ export const simulationReplayRecordSchema = z
       .object({
         scopeVersion: z.string().min(1),
         runId: z.string().min(1),
+        seedFamilyId: z.string().min(1).optional(),
         rootSeed: z.number().int().nonnegative(),
         scenario: simulationScenarioSchema,
         scenarioHash: z.string().min(1),
@@ -42,7 +43,7 @@ export const simulationReplayRecordSchema = z
           .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid ISO date."),
         policies: z
           .object({
-            retention: z.enum(["summary", "diagnostic"]),
+            retention: z.enum(["summary", "coverage", "diagnostic"]),
             limits: z
               .object({
                 maximumTurns: z.number().int().positive(),

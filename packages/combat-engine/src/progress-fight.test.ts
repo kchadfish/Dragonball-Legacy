@@ -13238,6 +13238,100 @@ describe("initial turn progression", () => {
     );
   });
 
+  it("advances past an upkeep extra action with no matching legal move", () => {
+    const dependencies = createTestCombatDependencies(
+      [20, 1, 20, 1, 20, 1, 20, 1],
+      new Date("2026-08-22T12:00:00.000Z"),
+      {
+        fightIds: [fightIdSchema.parse("fight:upkeep-extra-action-no-match")],
+        combatantIds: [firstCombatantId, secondCombatantId],
+        activeEffectIds: Array.from({ length: 4 }, (_, index) =>
+          activeEffectIdSchema.parse(`active-effect:upkeep-extra-action-no-match-${index}`),
+        ),
+        eventIds: Array.from({ length: 100 }, (_, index) =>
+          combatEventIdSchema.parse(`event:upkeep-extra-action-no-match-${index}`),
+        ),
+      },
+    );
+    const created = requireTransition(
+      createFight(
+        {
+          mode: "spar",
+          combatants: [
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+              moveIds: ["move-aoyosumu-sky-dance-technique"],
+            },
+            {
+              maximumHitPoints: 100,
+              stats: { power: 20, dexterity: 1, dexterityBonus: 0 },
+              moveIds: [],
+            },
+          ],
+        },
+        dependencies,
+      ),
+    );
+    const action = requireActiveFightState(
+      requireTransition(advanceFight(created.state, dependencies)).state,
+    );
+    const attack = requireActiveFightState(
+      requireTransition(
+        submitCombatDecision(
+          action,
+          {
+            type: "use-move",
+            id: combatDecisionIdSchema.parse("decision:upkeep-extra-action-no-match-attack"),
+            actorId: firstCombatantId,
+            expectedStateVersion: action.version,
+            moveId: "move-aoyosumu-sky-dance-technique",
+            targetCombatantId: secondCombatantId,
+          },
+          dependencies,
+        ),
+      ).state,
+    );
+    const opponentAction = requireActiveFightState(
+      requireTransition(
+        advanceFight(
+          requireActiveFightState(requireTransition(advanceFight(attack, dependencies)).state),
+          dependencies,
+        ),
+      ).state,
+    );
+    const opponentEnd = requireTransition(
+      submitCombatDecision(
+        opponentAction,
+        {
+          type: "pass",
+          id: combatDecisionIdSchema.parse("decision:upkeep-extra-action-no-match-pass"),
+          actorId: secondCombatantId,
+          expectedStateVersion: opponentAction.version,
+        },
+        dependencies,
+      ),
+    );
+    const sourceAction = requireActiveFightState(
+      requireTransition(
+        advanceFight(
+          requireActiveFightState(
+            requireTransition(advanceFight(opponentEnd.state, dependencies)).state,
+          ),
+          dependencies,
+        ),
+      ).state,
+    );
+
+    expect(sourceAction.phase).toBe("action");
+    expect(enumerateLegalDecisions(sourceAction, firstCombatantId)).not.toContainEqual(
+      expect.objectContaining({
+        type: "use-move",
+        moveId: "move-aoyosumu-sky-dance-technique",
+      }),
+    );
+  });
+
   it("offers Launching Kick's next-turn paid activation at the upkeep boundary", () => {
     const dependencies = createTestCombatDependencies(
       [20, 1],

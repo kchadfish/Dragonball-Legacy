@@ -31,6 +31,8 @@ export interface SimulationMoveMetrics {
   readonly schemaVersion: typeof SIMULATION_MOVE_METRICS_SCHEMA_VERSION;
   readonly moveId: string;
   readonly population: SimulationMoveCoveragePopulation;
+  /** Optional for v1 compatibility; v3 coverage metrics always declare the full stratum. */
+  readonly stratumId?: string;
   readonly completedFights: number;
   readonly errorCount: number;
   readonly wins: Readonly<{ readonly a: number; readonly b: number; readonly draw: number }>;
@@ -115,6 +117,7 @@ export const simulationMoveMetricsSchema = z
     schemaVersion: z.literal(SIMULATION_MOVE_METRICS_SCHEMA_VERSION),
     moveId: z.string().min(1),
     population: z.enum(["natural", "isolation", "forced"]),
+    stratumId: z.string().min(1).optional(),
     completedFights: nonNegativeInteger,
     errorCount: nonNegativeInteger,
     wins: z
@@ -247,7 +250,12 @@ const withHash = (metric: ReturnType<typeof metricWithoutHash>): SimulationMoveM
 export const createSimulationMoveMetrics = (
   moveId: string,
   population: SimulationMoveCoveragePopulation,
-): SimulationMoveMetrics => withHash(metricWithoutHash(moveId, population));
+  stratumId?: string,
+): SimulationMoveMetrics =>
+  withHash({
+    ...metricWithoutHash(moveId, population),
+    ...(stratumId === undefined ? {} : { stratumId }),
+  });
 
 const incrementRecord = (record: Readonly<Record<string, number>>, key: string, amount = 1) => ({
   ...record,
@@ -397,8 +405,8 @@ export const addSimulationMoveMetricObservation = (
   const [aId, bId] = combatantIdsFor(result.finalState);
   const a = Object.values(result.finalState.combatants).find((combatant) => combatant.id === aId);
   const b = Object.values(result.finalState.combatants).find((combatant) => combatant.id === bId);
-  const eventCounts = eventMetricCountsFor(eventsFor(result));
-  const overkill = overkillFor(result);
+  const eventCounts = result.coverage?.counters ?? eventMetricCountsFor(eventsFor(result));
+  const overkill = result.coverage?.overkill ?? overkillFor(result);
   const damageA = bId === undefined ? 0 : (result.summary.damageByCombatant[bId] ?? 0);
   const damageB = aId === undefined ? 0 : (result.summary.damageByCombatant[aId] ?? 0);
   const next = {
@@ -520,7 +528,11 @@ export const mergeSimulationMoveMetrics = (
   left: SimulationMoveMetrics,
   right: SimulationMoveMetrics,
 ): SimulationMoveMetrics => {
-  if (left.moveId !== right.moveId || left.population !== right.population)
+  if (
+    left.moveId !== right.moveId ||
+    left.population !== right.population ||
+    left.stratumId !== right.stratumId
+  )
     throw new RangeError("Move metrics must have matching move and population identities.");
   return withHash({
     ...left,

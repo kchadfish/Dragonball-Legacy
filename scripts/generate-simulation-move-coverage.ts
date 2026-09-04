@@ -1,8 +1,8 @@
-import { writeFile } from "node:fs/promises";
+import { rename, writeFile } from "node:fs/promises";
+import { renameSync, writeFileSync } from "node:fs";
 
 import {
   canonicalJson,
-  runSimulationMoveCoverage,
   runSimulationMoveCoverageCatalog,
 } from "../packages/simulation/src/index.js";
 
@@ -48,6 +48,30 @@ const naturalProfileFromEnv = ():
   return value;
 };
 
+const exposureContextsFromEnv = ():
+  readonly ("target-present" | "target-removed" | "comparable-replacement")[] | undefined => {
+  const value = process.env.SIMULATION_COVERAGE_EXPOSURE_CONTEXTS;
+  if (value === undefined) return undefined;
+  const contexts = value
+    .split(",")
+    .map((context) => context.trim())
+    .filter(Boolean);
+  if (
+    contexts.length === 0 ||
+    contexts.some(
+      (context) =>
+        context !== "target-present" &&
+        context !== "target-removed" &&
+        context !== "comparable-replacement",
+    ) ||
+    new Set(contexts).size !== contexts.length
+  )
+    throw new RangeError(
+      "SIMULATION_COVERAGE_EXPOSURE_CONTEXTS must contain unique supported context values.",
+    );
+  return contexts as readonly ("target-present" | "target-removed" | "comparable-replacement")[];
+};
+
 const populationsFromEnv = (): readonly ("natural" | "isolation" | "forced")[] | undefined => {
   const value = process.env.SIMULATION_COVERAGE_POPULATIONS;
   if (value === undefined) return undefined;
@@ -70,25 +94,38 @@ const populationsFromEnv = (): readonly ("natural" | "isolation" | "forced")[] |
 };
 
 const coverageOptions = {
-  targetFights: positiveIntegerFromEnv("SIMULATION_COVERAGE_TARGET"),
+  targetPairs: positiveIntegerFromEnv("SIMULATION_COVERAGE_TARGET"),
   minimumEligibleStates: positiveIntegerFromEnv("SIMULATION_COVERAGE_MINIMUM_ELIGIBLE"),
   concurrency: positiveIntegerFromEnv("SIMULATION_COVERAGE_CONCURRENCY"),
   workers: positiveIntegerFromEnv("SIMULATION_COVERAGE_WORKERS"),
   population: populationFromEnv(),
   naturalOverlayApprovalReference: process.env.SIMULATION_COVERAGE_NATURAL_APPROVAL,
   naturalProfileId: naturalProfileFromEnv(),
+  exposureContexts: exposureContextsFromEnv(),
   moveIds: moveIdsFromEnv(),
 };
+
+const atomicWrite = async (path: string, content: string): Promise<void> => {
+  const temporaryPath = `${path}.tmp-${process.pid}`;
+  await writeFile(temporaryPath, content, "utf8");
+  await rename(temporaryPath, path);
+};
+const atomicWriteSync = (path: string, content: string): void => {
+  const temporaryPath = `${path}.tmp-${process.pid}`;
+  writeFileSync(temporaryPath, content, "utf8");
+  renameSync(temporaryPath, path);
+};
+const outputPath =
+  process.env.SIMULATION_COVERAGE_OUTPUT ?? "docs/architecture/simulation-move-coverage.json";
 const populations = populationsFromEnv();
-const result =
-  populations === undefined
-    ? runSimulationMoveCoverage(coverageOptions)
-    : runSimulationMoveCoverageCatalog({ ...coverageOptions, populations });
-await writeFile(
-  "docs/architecture/simulation-move-coverage.json",
-  `${canonicalJson(result.artifact)}\n`,
-  "utf8",
-);
+const result = runSimulationMoveCoverageCatalog({
+  ...coverageOptions,
+  populations: populations ?? ["natural", "isolation", "forced"],
+  onCheckpoint: (artifact) => {
+    atomicWriteSync(outputPath, `${canonicalJson(artifact)}\n`);
+  },
+});
+await atomicWrite(outputPath, `${canonicalJson(result.artifact)}\n`);
 console.log(
   `Generated ${result.artifact.dataset.records.length} move coverage records from ${result.runCount} runs (${result.failedRunCount} failed: ${JSON.stringify(result.failureTypes)}).`,
 );

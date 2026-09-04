@@ -31,12 +31,15 @@ export interface SimulationTransitionDriverOptions {
   readonly initial: CombatTransition;
   readonly dependencies: CombatDependencies;
   readonly limits: SimulationLimits;
+  /** Keep full transition/decision payloads only for diagnostic retention. */
+  readonly retainDiagnosticPayload?: boolean;
   readonly control?: SimulationControl;
   readonly chooseDecision: (
     state: FightState,
     legalDecisions: readonly LegalDecision[],
   ) => SimulationDriverDecision | { readonly error: SimulationFailure };
   readonly observe?: (observation: SimulationTransitionObservation) => void;
+  readonly stopWhen?: (observation: SimulationTransitionObservation) => boolean;
 }
 
 export interface SimulationTransitionDriverSuccess {
@@ -46,10 +49,12 @@ export interface SimulationTransitionDriverSuccess {
   readonly transitionHashes: readonly string[];
   readonly stateHashes: readonly string[];
   readonly eventHashes: readonly string[];
+  readonly decisionHashes: readonly string[];
   readonly legalSetHashes: readonly string[];
   readonly decisions: readonly LegalDecision[];
   readonly terminationReason:
     | "engine-completed"
+    | "coverage-satisfied"
     | "maximum-turns"
     | "maximum-transitions"
     | "semantic-no-progress"
@@ -136,14 +141,17 @@ const appendTransition = (
   eventHashes: string[],
   legalSetHashes: string[],
   decisions: LegalDecision[],
+  decisionHashes: string[],
+  retainDiagnosticPayload: boolean,
 ): { readonly state: FightState; readonly noProgress: number } => {
   const state = transition.state;
-  allTransitions.push(transition);
+  if (retainDiagnosticPayload) allTransitions.push(transition);
   transitionHashes.push(transitionHash(transition));
   stateHashes.push(canonicalHash(state));
   eventHashes.push(canonicalHash(transition.events));
-  if (legalSetHash !== undefined) legalSetHashes.push(legalSetHash);
-  if (decision !== undefined) decisions.push(decision);
+  if (retainDiagnosticPayload && legalSetHash !== undefined) legalSetHashes.push(legalSetHash);
+  if (retainDiagnosticPayload && decision !== undefined) decisions.push(decision);
+  if (decision !== undefined) decisionHashes.push(canonicalHash(decision));
   options.observe?.({
     priorState,
     transition,
@@ -189,6 +197,8 @@ export const runSimulationTransitionDriver = (
   const eventHashes = [canonicalHash(options.initial.events)];
   const legalSetHashes: string[] = [];
   const decisions: LegalDecision[] = [];
+  const decisionHashes: string[] = [];
+  const retainDiagnosticPayload = options.retainDiagnosticPayload ?? true;
   let noProgress = 0;
   let terminationReason: SimulationTransitionDriverSuccess["terminationReason"] =
     "engine-completed";
@@ -220,9 +230,23 @@ export const runSimulationTransitionDriver = (
       eventHashes,
       legalSetHashes,
       decisions,
+      decisionHashes,
+      retainDiagnosticPayload,
     );
     state = appended.state;
     noProgress = appended.noProgress;
+    if (
+      options.stopWhen?.({
+        priorState,
+        transition: step.result.value,
+        decision: step.decision,
+        legalSetHash: step.legalSetHash,
+        legalDecisions: step.legalDecisions,
+      }) === true
+    ) {
+      terminationReason = "coverage-satisfied";
+      break;
+    }
     if (noProgress >= options.limits.semanticNoProgressLimit) {
       terminationReason = "semantic-no-progress";
       break;
@@ -232,10 +256,11 @@ export const runSimulationTransitionDriver = (
   return {
     ok: true,
     state,
-    transitions: allTransitions,
+    transitions: retainDiagnosticPayload ? allTransitions : [],
     transitionHashes,
     stateHashes,
     eventHashes,
+    decisionHashes,
     legalSetHashes,
     decisions,
     terminationReason,

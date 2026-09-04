@@ -14,6 +14,15 @@ interface WorkerReply {
   readonly detail?: string;
 }
 
+type CompactSimulationFightRequest = Omit<SimulationFightRequest, "mechanicsView">;
+type WorkerMessage =
+  | { readonly type: "initialize"; readonly mechanicsView: SimulationFightRequest["mechanicsView"] }
+  | {
+      readonly type: "fight";
+      readonly mechanicsIdentity: string;
+      readonly request: CompactSimulationFightRequest;
+    };
+
 const replyPort = (workerData as { readonly replyPort: MessagePort }).replyPort;
 if (parentPort === null) throw new Error("Simulation worker requires a parent port.");
 replyPort.unref();
@@ -40,9 +49,15 @@ const mechanicsViewFor = (
 };
 
 parentPort.on("message", (value) => {
-  const message = value as { readonly request: SimulationFightRequest };
   try {
-    const mechanicsView = mechanicsViewFor(message.request.mechanicsView);
+    const message = value as WorkerMessage;
+    if (message.type === "initialize") {
+      mechanicsViewFor(message.mechanicsView);
+      return;
+    }
+    const mechanicsView = mechanicsViews.get(message.mechanicsIdentity);
+    if (mechanicsView === undefined)
+      throw new Error(`Worker mechanics view is not initialized: ${message.mechanicsIdentity}.`);
     const result = runSimulationFight({ ...message.request, mechanicsView });
     replyPort.postMessage({ type: "result", result } satisfies WorkerReply);
   } catch (error) {

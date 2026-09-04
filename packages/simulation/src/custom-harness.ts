@@ -32,10 +32,10 @@ import {
   simulationTemplateSchema,
   type SimulationFightExecutionResult,
   type SimulationFightRequest,
+  type SimulationFailure,
   type SimulationTemplate,
 } from "./contracts.js";
 import { runSimulationRequestsWithWorkers } from "./coordinator.js";
-import { simulationTemplateIdSchema } from "./ids.js";
 
 export const SIMULATION_CUSTOM_HARNESS_VERSION = "simulation-custom-harness:v1" as const;
 export const SIMULATION_CUSTOM_DOSSIER_VERSION = "simulation-custom-dossier:v1" as const;
@@ -244,13 +244,19 @@ const moveShapeIsStructured = (value: unknown): value is MoveDefinition => {
 };
 
 const moveDimensionsFor = (move: MoveDefinition) => {
-  const timing = [...new Set((move.effects ?? []).map((effect) => effect.trigger))].sort();
+  const timing = [...new Set((move.effects ?? []).map((effect) => effect.trigger))].sort(
+    (left, right) => left.localeCompare(right),
+  );
   const resource = [
     move.kiCost === undefined ? "no-ki-cost" : `ki:${move.kiCost}`,
     move.restrictedUses === undefined ? "unrestricted" : `restricted:${move.restrictedUses}`,
   ];
-  const role = [...new Set([move.attack?.type ?? "non-attack", ...move.tags])].sort();
-  const effect = [...new Set(move.mechanics.effectRuleTokens ?? [])].sort();
+  const role = [...new Set([move.attack?.type ?? "non-attack", ...move.tags])].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const effect = [...new Set(move.mechanics.effectRuleTokens ?? [])].sort((left, right) =>
+    left.localeCompare(right),
+  );
   return {
     category: move.category,
     timing,
@@ -295,7 +301,9 @@ const comparableMovesFor = (
 };
 
 const mechanicalSignatureFor = (move: MoveDefinition): string => {
-  const { id: _id, name: _name, source: _source, ...mechanics } = move;
+  const mechanics = Object.fromEntries(
+    Object.entries(move).filter(([key]) => key !== "id" && key !== "name" && key !== "source"),
+  );
   return canonicalHash(mechanics);
 };
 
@@ -316,14 +324,17 @@ const templateWithMove = (
   suffix: string,
 ): SimulationTemplate => {
   const moveIds = [...template.moveIds];
+  const replacementMoveId = move.id;
   const category = move.category;
   const sameCategoryIndex = moveIds.findIndex(
     (moveId) => view.indexes.moves.get(moveId)?.category === category,
   );
-  if (operation === "replace" && sameCategoryIndex >= 0) moveIds[sameCategoryIndex] = move.id;
-  else if (!moveIds.includes(move.id)) {
-    if (category === "mastery" && sameCategoryIndex >= 0) moveIds[sameCategoryIndex] = move.id;
-    else moveIds.push(move.id);
+  if (operation === "replace" && sameCategoryIndex >= 0)
+    moveIds[sameCategoryIndex] = replacementMoveId;
+  else if (!moveIds.includes(replacementMoveId)) {
+    if (category === "mastery" && sameCategoryIndex >= 0)
+      moveIds[sameCategoryIndex] = replacementMoveId;
+    else moveIds.push(replacementMoveId);
   }
   return simulationTemplateSchema.parse({
     ...template,
@@ -361,63 +372,61 @@ const targetWinnerFor = (
 ): "target" | "control" | "draw" | null => {
   if (result.failure !== undefined || result.completion === undefined) return null;
   const combatants = Object.values(result.finalState.combatants) as readonly CombatantState[];
-  const target = combatants[mirror === "original" ? 0 : 1];
+  const target = combatants.at(mirror === "original" ? 0 : 1);
   if (target === undefined) return null;
   if (result.completion.winnerCombatantId === undefined) return "draw";
   return result.completion.winnerCombatantId === target.id ? "target" : "control";
 };
 
-const observationFor = (
-  source: CustomHarnessExecutionResult,
+const terminationReasonForFailure = (
+  failure: SimulationFailure,
+): CustomMoveRunObservation["terminationReason"] => {
+  switch (failure.type) {
+    case "combat-failure":
+      return "combat-failure";
+    case "ai-failure":
+      return "ai-failure";
+    case "unsupported-scope":
+      return "unsupported-scope";
+    case "malformed-input":
+    case "unknown-reference":
+    case "incompatible-loadout":
+      return "invalid-fixture";
+    case "cancelled":
+    case "exhausted-safeguard":
+    case "unexpected-runner-failure":
+    default:
+      return "ai-failure";
+  }
+};
+
+const failedObservationFor = (
+  failure: SimulationFailure,
   mirror: "original" | "mirrored",
   pairId: string,
   requestRunId: string,
+): CustomMoveRunObservation => ({
+  pairId,
+  runId: requestRunId,
+  mirror,
+  ok: false,
+  terminationReason: terminationReasonForFailure(failure),
+  targetWinner: null,
+  targetDamageDealt: null,
+  targetRemainingHitPoints: null,
+  replaySeed: null,
+  failureType: failure.type,
+});
+
+const successfulObservationFor = (
+  result: SimulationFightExecutionResult,
+  mirror: "original" | "mirrored",
 ): CustomMoveRunObservation => {
-  if ("ok" in source && source.ok === false) {
-    const terminationReason =
-      source.error.type === "combat-failure"
-        ? "combat-failure"
-        : source.error.type === "ai-failure"
-          ? "ai-failure"
-          : source.error.type === "unsupported-scope"
-            ? "unsupported-scope"
-            : source.error.type === "malformed-input" ||
-                source.error.type === "unknown-reference" ||
-                source.error.type === "incompatible-loadout"
-              ? "invalid-fixture"
-              : "ai-failure";
-    return {
-      pairId,
-      runId: requestRunId,
-      mirror,
-      ok: false,
-      terminationReason,
-      targetWinner: null,
-      targetDamageDealt: null,
-      targetRemainingHitPoints: null,
-      replaySeed: null,
-      failureType: source.error.type,
-    };
-  }
-  const result = "ok" in source ? source.value : source;
-  if (result.failure !== undefined)
-    return {
-      pairId,
-      runId: result.runId,
-      mirror,
-      ok: false,
-      terminationReason: result.terminationReason,
-      targetWinner: null,
-      targetDamageDealt: null,
-      targetRemainingHitPoints: null,
-      replaySeed: null,
-      failureType: result.failure.type,
-    };
   const combatants = Object.values(result.finalState.combatants) as readonly CombatantState[];
-  const target = combatants[mirror === "original" ? 0 : 1];
-  const control = combatants[mirror === "original" ? 1 : 0];
+  const target = combatants.at(mirror === "original" ? 0 : 1);
+  const control = combatants.at(mirror === "original" ? 1 : 0);
   return {
-    pairId,
+    pairId: result.pairId,
     runId: result.runId,
     mirror,
     ok: result.failure === undefined,
@@ -430,6 +439,21 @@ const observationFor = (
     targetRemainingHitPoints: target?.hitPoints.current ?? null,
     replaySeed: result.replay.manifest.seeds.combat,
   };
+};
+
+const observationFor = (
+  source: CustomHarnessExecutionResult,
+  mirror: "original" | "mirrored",
+  pairId: string,
+  requestRunId: string,
+): CustomMoveRunObservation => {
+  if ("ok" in source && source.ok === false) {
+    return failedObservationFor(source.error, mirror, pairId, requestRunId);
+  }
+  const result = "ok" in source ? source.value : source;
+  if (result.failure !== undefined)
+    return failedObservationFor(result.failure, mirror, result.pairId, result.runId);
+  return successfulObservationFor(result, mirror);
 };
 
 const representativeObservationsFor = (
@@ -630,102 +654,148 @@ const evidenceKeyFor = (
   population: CustomMoveHarnessPopulation,
 ): string => `${arm}:${population}`;
 
-const effectSizesFor = (
+const baselineObservationsFor = (
+  evidence: CustomMovePopulationEvidence,
+  population: CustomMoveHarnessPopulation,
+  observationsByEvidenceKey: ReadonlyMap<string, readonly CustomMoveRunObservation[]>,
+): readonly CustomMoveRunObservation[] =>
+  observationsByEvidenceKey.get(evidenceKeyFor("baseline", population)) ?? evidence.observations;
+
+const targetWinRateEffectFor = (
+  arm: Exclude<CustomMoveHarnessArm, "baseline">,
+  population: CustomMoveHarnessPopulation,
+  baseline: CustomMovePopulationEvidence,
+  comparison: CustomMovePopulationEvidence,
+): CustomMoveEffectSize => {
+  const estimated = baseline.targetWinRate !== null && comparison.targetWinRate !== null;
+  return {
+    arm,
+    population,
+    metric: "target-win-rate",
+    estimate: estimated ? comparison.targetWinRate.rate - baseline.targetWinRate.rate : null,
+    interval: estimated
+      ? {
+          lower: comparison.targetWinRate.lower - baseline.targetWinRate.upper,
+          upper: comparison.targetWinRate.upper - baseline.targetWinRate.lower,
+          confidence: 0.95,
+        }
+      : null,
+    intervalMethod: estimated ? "wilson-difference-envelope" : "not-estimated",
+    completedPairs: comparison.completedPairs,
+    rationale:
+      "Difference uses population-local completed-pair win rates; no denominators are pooled across populations.",
+  };
+};
+
+const pairedDamageFor = (
+  baselineObservations: readonly CustomMoveRunObservation[],
+  comparisonObservations: readonly CustomMoveRunObservation[],
+): readonly SimulationPairedObservation[] => {
+  const baselineByPair = new Map(
+    baselineObservations
+      .filter((observation) => observation.ok && observation.mirror === "original")
+      .map((observation) => [observation.pairId, observation]),
+  );
+  return comparisonObservations
+    .filter((observation) => observation.ok && observation.mirror === "original")
+    .flatMap((observation) => {
+      const base = baselineByPair.get(observation.pairId);
+      if (
+        base === undefined ||
+        base.targetDamageDealt === null ||
+        observation.targetDamageDealt === null
+      )
+        return [];
+      return [
+        {
+          identity: observation.pairId,
+          difference: observation.targetDamageDealt - base.targetDamageDealt,
+        },
+      ];
+    });
+};
+
+const targetDamageEffectFor = (
+  arm: Exclude<CustomMoveHarnessArm, "baseline">,
+  population: CustomMoveHarnessPopulation,
+  pairedDamage: readonly SimulationPairedObservation[],
+  rootSeed: number,
+  bootstrapResamples: number,
+): CustomMoveEffectSize => {
+  if (pairedDamage.length === 0)
+    return {
+      arm,
+      population,
+      metric: "target-damage-dealt",
+      estimate: null,
+      interval: null,
+      intervalMethod: "not-estimated",
+      completedPairs: 0,
+      rationale: "No complete paired observations were available for the target damage metric.",
+    };
+  const bootstrap = seededBootstrapPairedDifference(pairedDamage, rootSeed, {
+    resamples: bootstrapResamples,
+  });
+  return {
+    arm,
+    population,
+    metric: "target-damage-dealt",
+    estimate: bootstrap.estimate,
+    interval: bootstrap,
+    intervalMethod: "paired-bootstrap-95",
+    completedPairs: pairedDamage.length,
+    rationale: "Seeded paired bootstrap compares the same population-local pair identities.",
+  };
+};
+
+const effectSizesForPopulation = (
+  population: CustomMoveHarnessPopulation,
   evidence: readonly CustomMovePopulationEvidence[],
   rootSeed: number,
   bootstrapResamples: number,
   observationsByEvidenceKey: ReadonlyMap<string, readonly CustomMoveRunObservation[]>,
 ): readonly CustomMoveEffectSize[] => {
-  const effects: CustomMoveEffectSize[] = [];
-  for (const population of CUSTOM_MOVE_HARNESS_POPULATIONS) {
-    const baseline = evidence.find(
-      (entry) => entry.arm === "baseline" && entry.population === population,
+  const baseline = evidence.find(
+    (entry) => entry.arm === "baseline" && entry.population === population,
+  );
+  if (baseline === undefined) return [];
+  const baselineObservations = baselineObservationsFor(
+    baseline,
+    population,
+    observationsByEvidenceKey,
+  );
+  return CUSTOM_MOVE_HARNESS_ARMS.filter(
+    (arm): arm is Exclude<CustomMoveHarnessArm, "baseline"> => arm !== "baseline",
+  ).flatMap((arm) => {
+    const comparison = evidence.find(
+      (entry) => entry.arm === arm && entry.population === population,
     );
-    if (baseline === undefined) continue;
-    const baselineObservations =
-      observationsByEvidenceKey.get(evidenceKeyFor("baseline", population)) ??
-      baseline.observations;
-    const baselineByPair = new Map(
-      baselineObservations
-        .filter((observation) => observation.ok && observation.mirror === "original")
-        .map((observation) => [observation.pairId, observation]),
-    );
-    for (const arm of CUSTOM_MOVE_HARNESS_ARMS.filter((candidate) => candidate !== "baseline")) {
-      const comparison = evidence.find(
-        (entry) => entry.arm === arm && entry.population === population,
-      );
-      if (comparison === undefined) continue;
-      const comparisonObservations =
-        observationsByEvidenceKey.get(evidenceKeyFor(arm, population)) ?? comparison.observations;
-      const targetWinEstimate =
-        baseline.targetWinRate === null || comparison.targetWinRate === null
-          ? null
-          : comparison.targetWinRate.rate - baseline.targetWinRate.rate;
-      effects.push({
-        arm,
-        population,
-        metric: "target-win-rate",
-        estimate: targetWinEstimate,
-        interval:
-          baseline.targetWinRate === null || comparison.targetWinRate === null
-            ? null
-            : {
-                lower: comparison.targetWinRate.lower - baseline.targetWinRate.upper,
-                upper: comparison.targetWinRate.upper - baseline.targetWinRate.lower,
-                confidence: 0.95,
-              },
-        intervalMethod: targetWinEstimate === null ? "not-estimated" : "wilson-difference-envelope",
-        completedPairs: comparison.completedPairs,
-        rationale:
-          "Difference uses population-local completed-pair win rates; no denominators are pooled across populations.",
-      });
-      const pairedDamage: SimulationPairedObservation[] = comparisonObservations
-        .filter((observation) => observation.ok && observation.mirror === "original")
-        .flatMap((observation) => {
-          const base = baselineByPair.get(observation.pairId);
-          if (
-            base === undefined ||
-            base.targetDamageDealt === null ||
-            observation.targetDamageDealt === null
-          )
-            return [];
-          return [
-            {
-              identity: observation.pairId,
-              difference: observation.targetDamageDealt - base.targetDamageDealt,
-            },
-          ];
-        });
-      if (pairedDamage.length === 0)
-        effects.push({
-          arm,
-          population,
-          metric: "target-damage-dealt",
-          estimate: null,
-          interval: null,
-          intervalMethod: "not-estimated",
-          completedPairs: 0,
-          rationale: "No complete paired observations were available for the target damage metric.",
-        });
-      else {
-        const bootstrap = seededBootstrapPairedDifference(pairedDamage, rootSeed, {
-          resamples: bootstrapResamples,
-        });
-        effects.push({
-          arm,
-          population,
-          metric: "target-damage-dealt",
-          estimate: bootstrap.estimate,
-          interval: bootstrap,
-          intervalMethod: "paired-bootstrap-95",
-          completedPairs: pairedDamage.length,
-          rationale: "Seeded paired bootstrap compares the same population-local pair identities.",
-        });
-      }
-    }
-  }
-  return effects;
+    if (comparison === undefined) return [];
+    const comparisonObservations =
+      observationsByEvidenceKey.get(evidenceKeyFor(arm, population)) ?? comparison.observations;
+    const pairedDamage = pairedDamageFor(baselineObservations, comparisonObservations);
+    return [
+      targetWinRateEffectFor(arm, population, baseline, comparison),
+      targetDamageEffectFor(arm, population, pairedDamage, rootSeed, bootstrapResamples),
+    ];
+  });
 };
+
+const effectSizesFor = (
+  evidence: readonly CustomMovePopulationEvidence[],
+  rootSeed: number,
+  bootstrapResamples: number,
+  observationsByEvidenceKey: ReadonlyMap<string, readonly CustomMoveRunObservation[]>,
+): readonly CustomMoveEffectSize[] =>
+  CUSTOM_MOVE_HARNESS_POPULATIONS.flatMap((population) =>
+    effectSizesForPopulation(
+      population,
+      evidence,
+      rootSeed,
+      bootstrapResamples,
+      observationsByEvidenceKey,
+    ),
+  );
 
 const emptyDossier = (
   draftId: string,
@@ -848,84 +918,48 @@ const generatedBuildsFor = (
     view,
   );
 
-export const executeCustomMoveHarness = (
-  draft: unknown,
-  input: Partial<CustomMoveHarnessOptions> = {},
-  view: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
-): CustomMoveHarnessDossier => {
-  const parsedDraft = customMoveDraftSchema.safeParse(draft);
-  if (!parsedDraft.success || !moveShapeIsStructured(parsedDraft.data?.move)) {
-    const preflight: CustomMovePreflight = {
-      classification: "malformed",
-      issues: [
-        parsedDraft.success
-          ? "Custom move does not contain a complete structured definition."
-          : parsedDraft.error.message,
-      ],
-    };
-    return emptyDossier(draftIdFor(draft), preflight);
+const moveIdForArm = (
+  arm: CustomMoveHarnessArm,
+  draftMove: MoveDefinition,
+  comparableId: string,
+  renamedMove: MoveDefinition,
+  strongerMove: MoveDefinition | undefined,
+): string => {
+  switch (arm) {
+    case "baseline":
+    case "replacement":
+      return comparableId;
+    case "renamed-control":
+      return renamedMove.id;
+    case "stronger-control":
+      return strongerMove?.id ?? draftMove.id;
+    case "addition":
+      return draftMove.id;
   }
-  const review = reviewCustomMove(parsedDraft.data, view);
-  if (review.preflight.classification !== "executable")
-    return emptyDossier(review.draftId, review.preflight, review.staticFlags);
-  const options = customMoveHarnessOptionsSchema.parse({
-    ...DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS,
-    ...input,
-    schemaVersion: SIMULATION_CUSTOM_HARNESS_VERSION,
-  });
-  const draftMove = parsedDraft.data.move;
-  const comparables = comparableMovesFor(draftMove, view);
-  if (comparables.length === 0) {
-    const preflight = {
-      ...review.preflight,
-      classification: "ambiguous" as const,
-      issues: [...review.preflight.issues, "No typed canonical comparable could be selected."],
-    };
-    return emptyDossier(review.draftId, preflight, review.staticFlags);
-  }
-  const comparable = view.indexes.moves.get(comparables[0]!.moveId);
-  if (comparable === undefined)
-    return emptyDossier(review.draftId, review.preflight, review.staticFlags);
-  let generated: SimulationBuildGenerationResult;
-  try {
-    generated = generatedBuildsFor(draftMove, options.maximumBuilds, options.rootSeed, view);
-  } catch (error) {
-    const preflight: CustomMovePreflight = {
-      ...review.preflight,
-      classification: "declarative-capability-gap",
-      issues: [...review.preflight.issues, error instanceof Error ? error.message : String(error)],
-    };
-    return emptyDossier(review.draftId, preflight, review.staticFlags);
-  }
-  const [baseTemplate, opponentTemplate] = generated.builds;
-  if (baseTemplate === undefined || opponentTemplate === undefined) {
-    const preflight: CustomMovePreflight = {
-      ...review.preflight,
-      classification: "supported-but-out-of-scope",
-      issues: [
-        ...review.preflight.issues,
-        "Automatic generation did not produce two executable builds.",
-      ],
-    };
-    return emptyDossier(review.draftId, preflight, review.staticFlags);
-  }
-  const renamedMove = moveWithId(draftMove, uniqueMoveId(view, draftMove.id, "renamed-control"));
-  const strongerMove = strongerMoveFor(draftMove, view);
+};
+
+type CustomMoveArmView = { readonly view: CombatMechanicsView; readonly moveId: string };
+
+interface CustomMoveVariantSetup {
+  readonly variants: readonly CustomMoveHarnessVariant[];
+  readonly armViews: ReadonlyMap<CustomMoveHarnessArm, CustomMoveArmView>;
+}
+
+const variantSetupFor = (
+  draftMove: MoveDefinition,
+  comparableId: string,
+  renamedMove: MoveDefinition,
+  strongerMove: MoveDefinition | undefined,
+  view: CombatMechanicsView,
+): CustomMoveVariantSetup => {
   const variants: CustomMoveHarnessVariant[] = [];
-  const armViews = new Map<CustomMoveHarnessArm, { view: CombatMechanicsView; moveId: string }>();
+  const armViews = new Map<CustomMoveHarnessArm, CustomMoveArmView>();
   for (const arm of CUSTOM_MOVE_HARNESS_ARMS) {
     try {
-      const variant = variantForArm(arm, draftMove, comparable.id, renamedMove, strongerMove, view);
+      const variant = variantForArm(arm, draftMove, comparableId, renamedMove, strongerMove, view);
       if (arm === "stronger-control" && variant === undefined) continue;
       const armView = variant?.mechanicsView ?? view;
-      const moveId =
-        arm === "baseline" || arm === "replacement"
-          ? comparable.id
-          : arm === "renamed-control"
-            ? renamedMove.id
-            : arm === "stronger-control"
-              ? strongerMove!.id
-              : draftMove.id;
+      const moveId = moveIdForArm(arm, draftMove, comparableId, renamedMove, strongerMove);
       armViews.set(arm, { view: armView, moveId });
       variants.push({
         arm,
@@ -945,12 +979,201 @@ export const executeCustomMoveHarness = (
       });
     }
   }
+  return { variants, armViews };
+};
+
+interface CustomMovePreparedExecution {
+  readonly review: ReturnType<typeof reviewCustomMove>;
+  readonly options: CustomMoveHarnessOptions;
+  readonly draftMove: MoveDefinition;
+  readonly comparables: readonly CustomMoveComparable[];
+  readonly comparable: MoveDefinition;
+  readonly generated: SimulationBuildGenerationResult;
+  readonly baseTemplate: SimulationTemplate;
+  readonly opponentTemplate: SimulationTemplate;
+}
+
+type CustomMovePreparation =
+  | { readonly ok: true; readonly execution: CustomMovePreparedExecution }
+  | { readonly ok: false; readonly dossier: CustomMoveHarnessDossier };
+
+const prepareCustomMoveExecution = (
+  draft: unknown,
+  input: Partial<CustomMoveHarnessOptions>,
+  view: CombatMechanicsView,
+): CustomMovePreparation => {
+  const parsedDraft = customMoveDraftSchema.safeParse(draft);
+  if (!parsedDraft.success || !moveShapeIsStructured(parsedDraft.data?.move)) {
+    const issue = parsedDraft.success
+      ? "Custom move does not contain a complete structured definition."
+      : parsedDraft.error.message;
+    return {
+      ok: false,
+      dossier: emptyDossier(draftIdFor(draft), { classification: "malformed", issues: [issue] }),
+    };
+  }
+  const review = reviewCustomMove(parsedDraft.data, view);
+  if (review.preflight.classification !== "executable")
+    return {
+      ok: false,
+      dossier: emptyDossier(review.draftId, review.preflight, review.staticFlags),
+    };
+  const options = customMoveHarnessOptionsSchema.parse({
+    ...DEFAULT_CUSTOM_MOVE_HARNESS_OPTIONS,
+    ...input,
+    schemaVersion: SIMULATION_CUSTOM_HARNESS_VERSION,
+  });
+  const draftMove = parsedDraft.data.move;
+  const comparables = comparableMovesFor(draftMove, view);
+  if (comparables.length === 0) {
+    const preflight: CustomMovePreflight = {
+      ...review.preflight,
+      classification: "ambiguous",
+      issues: [...review.preflight.issues, "No typed canonical comparable could be selected."],
+    };
+    return {
+      ok: false,
+      dossier: emptyDossier(review.draftId, preflight, review.staticFlags),
+    };
+  }
+  const comparableId = comparables.at(0)?.moveId;
+  const comparable = comparableId === undefined ? undefined : view.indexes.moves.get(comparableId);
+  if (comparable === undefined)
+    return {
+      ok: false,
+      dossier: emptyDossier(review.draftId, review.preflight, review.staticFlags),
+    };
+  let generated: SimulationBuildGenerationResult;
+  try {
+    generated = generatedBuildsFor(draftMove, options.maximumBuilds, options.rootSeed, view);
+  } catch (error) {
+    const preflight: CustomMovePreflight = {
+      ...review.preflight,
+      classification: "declarative-capability-gap",
+      issues: [...review.preflight.issues, error instanceof Error ? error.message : String(error)],
+    };
+    return {
+      ok: false,
+      dossier: emptyDossier(review.draftId, preflight, review.staticFlags),
+    };
+  }
+  const baseTemplate = generated.builds.at(0);
+  const opponentTemplate = generated.builds.at(1);
+  if (baseTemplate === undefined || opponentTemplate === undefined) {
+    const preflight: CustomMovePreflight = {
+      ...review.preflight,
+      classification: "supported-but-out-of-scope",
+      issues: [
+        ...review.preflight.issues,
+        "Automatic generation did not produce two executable builds.",
+      ],
+    };
+    return {
+      ok: false,
+      dossier: emptyDossier(review.draftId, preflight, review.staticFlags),
+    };
+  }
+  return {
+    ok: true,
+    execution: {
+      review,
+      options,
+      draftMove,
+      comparables,
+      comparable,
+      generated,
+      baseTemplate,
+      opponentTemplate,
+    },
+  };
+};
+
+interface CustomMoveEvidenceExecution {
+  readonly evidence: readonly CustomMovePopulationEvidence[];
+  readonly observationsByEvidenceKey: ReadonlyMap<string, readonly CustomMoveRunObservation[]>;
+  readonly anomalies: readonly string[];
+  readonly replaySeeds: Readonly<Record<string, readonly number[]>>;
+}
+
+interface CustomMovePopulationExecution {
+  readonly evidence: CustomMovePopulationEvidence;
+  readonly observations: readonly CustomMoveRunObservation[];
+  readonly anomalies: readonly string[];
+  readonly replaySeeds: readonly number[];
+}
+
+const evidenceForPopulation = ({
+  arm,
+  population,
+  targetTemplate,
+  opponentTemplate,
+  armView,
+  options,
+  fixedTime,
+  limits,
+}: {
+  readonly arm: CustomMoveHarnessArm;
+  readonly population: CustomMoveHarnessPopulation;
+  readonly targetTemplate: SimulationTemplate;
+  readonly opponentTemplate: SimulationTemplate;
+  readonly armView: CustomMoveArmView;
+  readonly options: CustomMoveHarnessOptions;
+  readonly fixedTime: Date;
+  readonly limits: ReturnType<typeof limitsFor>;
+}): CustomMovePopulationExecution => {
+  const opponent =
+    population === "natural"
+      ? opponentTemplate
+      : emptyOpponentTemplate(opponentTemplate, `${arm}-${population}-opponent`);
+  const armResult = resultForArm(
+    arm,
+    population,
+    options.pairCount,
+    targetTemplate,
+    opponent,
+    armView.view,
+    armView.moveId,
+    options.rootSeed,
+    fixedTime,
+    limits,
+    options.workers,
+  );
+  const anomalies = armResult.observations
+    .filter((observation) => !observation.ok)
+    .map(
+      (observation) =>
+        `${arm}:${population}:${observation.runId}:${observation.failureType ?? "unknown-failure"}`,
+    );
+  const replaySeeds = [
+    ...new Set(
+      armResult.observations.flatMap((observation) =>
+        observation.replaySeed === null ? [] : [observation.replaySeed],
+      ),
+    ),
+  ].slice(0, 8);
+  return {
+    evidence: armResult.evidence,
+    observations: armResult.observations,
+    anomalies,
+    replaySeeds,
+  };
+};
+
+const evidenceForArms = (
+  arms: CustomMoveVariantSetup,
+  draftMove: MoveDefinition,
+  baseTemplate: SimulationTemplate,
+  opponentTemplate: SimulationTemplate,
+  options: CustomMoveHarnessOptions,
+): CustomMoveEvidenceExecution => {
   const evidence: CustomMovePopulationEvidence[] = [];
   const observationsByEvidenceKey = new Map<string, readonly CustomMoveRunObservation[]>();
   const anomalies: string[] = [];
-  const replaySeeds: Record<string, number[]> = {};
+  const replaySeeds: Record<string, readonly number[]> = {};
+  const fixedTime = new Date(options.fixedTime);
+  const limits = limitsFor(options);
   for (const arm of CUSTOM_MOVE_HARNESS_ARMS) {
-    const armView = armViews.get(arm);
+    const armView = arms.armViews.get(arm);
     if (armView === undefined) {
       anomalies.push(`${arm}:variant-not-executable`);
       continue;
@@ -964,39 +1187,62 @@ export const executeCustomMoveHarness = (
       `${arm}-target`,
     );
     for (const population of CUSTOM_MOVE_HARNESS_POPULATIONS) {
-      const opponent =
-        population === "natural"
-          ? opponentTemplate
-          : emptyOpponentTemplate(opponentTemplate, `${arm}-${population}-opponent`);
-      const armResult = resultForArm(
+      const populationExecution = evidenceForPopulation({
         arm,
         population,
-        options.pairCount,
         targetTemplate,
-        opponent,
-        armView.view,
-        armView.moveId,
-        options.rootSeed,
-        new Date(options.fixedTime),
-        limitsFor(options),
-        options.workers,
+        opponentTemplate,
+        armView,
+        options,
+        fixedTime,
+        limits,
+      });
+      evidence.push(populationExecution.evidence);
+      observationsByEvidenceKey.set(
+        evidenceKeyFor(arm, population),
+        populationExecution.observations,
       );
-      evidence.push(armResult.evidence);
-      observationsByEvidenceKey.set(evidenceKeyFor(arm, population), armResult.observations);
-      replaySeeds[`${arm}:${population}`] = [
-        ...new Set(
-          armResult.observations.flatMap((observation) =>
-            observation.replaySeed === null ? [] : [observation.replaySeed],
-          ),
-        ),
-      ].slice(0, 8);
-      for (const observation of armResult.observations)
-        if (!observation.ok)
-          anomalies.push(
-            `${arm}:${population}:${observation.runId}:${observation.failureType ?? "unknown-failure"}`,
-          );
+      replaySeeds[`${arm}:${population}`] = populationExecution.replaySeeds;
+      anomalies.push(...populationExecution.anomalies);
     }
   }
+  return { evidence, observationsByEvidenceKey, anomalies, replaySeeds };
+};
+
+export const executeCustomMoveHarness = (
+  draft: unknown,
+  input: Partial<CustomMoveHarnessOptions> = {},
+  view: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
+): CustomMoveHarnessDossier => {
+  const prepared = prepareCustomMoveExecution(draft, input, view);
+  if (!prepared.ok) return prepared.dossier;
+  const {
+    review,
+    options,
+    draftMove,
+    comparables,
+    comparable,
+    generated,
+    baseTemplate,
+    opponentTemplate,
+  } = prepared.execution;
+  const renamedMove = moveWithId(draftMove, uniqueMoveId(view, draftMove.id, "renamed-control"));
+  const strongerMove = strongerMoveFor(draftMove, view);
+  const { variants, armViews } = variantSetupFor(
+    draftMove,
+    comparable.id,
+    renamedMove,
+    strongerMove,
+    view,
+  );
+  const execution = evidenceForArms(
+    { variants, armViews },
+    draftMove,
+    baseTemplate,
+    opponentTemplate,
+    options,
+  );
+  const { evidence, observationsByEvidenceKey, anomalies, replaySeeds } = execution;
   const effectSizes = effectSizesFor(
     evidence,
     options.rootSeed,
