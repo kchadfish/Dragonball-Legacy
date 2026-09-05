@@ -5,6 +5,7 @@ import {
   type SimulationCoordinatorResult,
   type SimulationFightExecutionResult,
   type SimulationFailure,
+  type SimulationFightMetrics,
 } from "./contracts.js";
 import { runSimulationFight } from "./runner.js";
 
@@ -80,16 +81,17 @@ export const runSimulationRequests = (request: CoordinatorRequest): SimulationCo
   let stoppedEarly = false;
   let nextIndex = 0;
   let completed = 0;
+  const control =
+    request.onMetrics === undefined
+      ? request.control
+      : { ...request.control, onMetrics: request.onMetrics };
   while (nextIndex < request.requests.length && !stoppedEarly) {
     const batchSize = Math.min(concurrency, request.requests.length - nextIndex);
     for (let slot = 0; slot < batchSize && !stoppedEarly; slot += 1) {
       const index = nextIndex;
       nextIndex += 1;
       const fightRequest = request.requests[index];
-      const normalized = normalizeResult(
-        fightRequest,
-        runSimulationFight(fightRequest, request.control),
-      );
+      const normalized = normalizeResult(fightRequest, runSimulationFight(fightRequest, control));
       if (retainResults) results[index] = normalized;
       completed += 1;
       request.onProgress?.({
@@ -112,6 +114,7 @@ interface WorkerReply {
   readonly result?: SimulationFightExecutionResult;
   readonly detail?: string;
   readonly fatal?: boolean;
+  readonly metrics?: SimulationFightMetrics;
 }
 
 interface PooledWorker {
@@ -232,6 +235,7 @@ const consumeWorkerReply = (
   requests: readonly SimulationCoordinatorRequest["requests"][number][],
   stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
   onProgress: SimulationCoordinatorRequest["onProgress"],
+  onMetrics: SimulationCoordinatorRequest["onMetrics"],
 ): boolean => {
   const activeWorker = state.active[activeIndex]!;
   const reply = receiveMessageOnPort(activeWorker.pooled.port)?.message as WorkerReply | undefined;
@@ -241,6 +245,7 @@ const consumeWorkerReply = (
   else releaseWorker(activeWorker.pooled);
   const request = requests[activeWorker.index]!;
   const normalized = normalizedWorkerReply(request, reply);
+  if (reply.metrics !== undefined) onMetrics?.(reply.metrics);
   if (state.retainResults) state.resultSlots[activeWorker.index] = normalized;
   state.completed += 1;
   onProgress?.({
@@ -262,10 +267,11 @@ const consumeAvailableWorkerReplies = (
   requests: readonly SimulationCoordinatorRequest["requests"][number][],
   stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
   onProgress: SimulationCoordinatorRequest["onProgress"],
+  onMetrics: SimulationCoordinatorRequest["onMetrics"],
 ): boolean => {
   let progressed = false;
   for (let activeIndex = state.active.length - 1; activeIndex >= 0; activeIndex -= 1) {
-    if (consumeWorkerReply(state, activeIndex, requests, stoppingPolicy, onProgress))
+    if (consumeWorkerReply(state, activeIndex, requests, stoppingPolicy, onProgress, onMetrics))
       progressed = true;
     if (state.stoppedEarly) break;
   }
@@ -278,6 +284,7 @@ const runWorkerBatch = (
   stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
   retainResults: boolean,
   onProgress?: SimulationCoordinatorRequest["onProgress"],
+  onMetrics?: SimulationCoordinatorRequest["onMetrics"],
 ): SimulationCoordinatorResult => {
   if (requests.length === 0) return { results: [], stoppedEarly: false };
   const state: WorkerBatchState = {
@@ -291,7 +298,7 @@ const runWorkerBatch = (
   const waitBuffer = new Int32Array(new SharedArrayBuffer(4));
   while (state.active.length < Math.min(workers, requests.length)) launchWorker(state, requests);
   while (state.active.length > 0) {
-    if (!consumeAvailableWorkerReplies(state, requests, stoppingPolicy, onProgress))
+    if (!consumeAvailableWorkerReplies(state, requests, stoppingPolicy, onProgress, onMetrics))
       Atomics.wait(waitBuffer, 0, 0, 1);
   }
   return {
@@ -319,5 +326,6 @@ export const runSimulationRequestsWithWorkers = (
     request.stoppingPolicy,
     request.retainResults !== false,
     request.onProgress,
+    request.onMetrics,
   );
 };

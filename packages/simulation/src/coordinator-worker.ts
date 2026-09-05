@@ -6,12 +6,13 @@ import {
 } from "@dragonball-resurgence/combat-engine";
 
 import { runSimulationFight } from "./runner.js";
-import type { SimulationFightRequest } from "./contracts.js";
+import type { SimulationFightMetrics, SimulationFightRequest } from "./contracts.js";
 
 interface WorkerReply {
   readonly type: "result" | "error";
   readonly result?: ReturnType<typeof runSimulationFight>;
   readonly detail?: string;
+  readonly metrics?: SimulationFightMetrics;
 }
 
 type CompactSimulationFightRequest = Omit<SimulationFightRequest, "mechanicsView">;
@@ -58,8 +59,12 @@ parentPort.on("message", (value) => {
     const mechanicsView = mechanicsViews.get(message.mechanicsIdentity);
     if (mechanicsView === undefined)
       throw new Error(`Worker mechanics view is not initialized: ${message.mechanicsIdentity}.`);
-    const result = runSimulationFight({ ...message.request, mechanicsView });
-    replyPort.postMessage({ type: "result", result } satisfies WorkerReply);
+    let metrics: SimulationFightMetrics | undefined;
+    const result = runSimulationFight(
+      { ...message.request, mechanicsView },
+      { onMetrics: (value) => (metrics = value) },
+    );
+    replyPort.postMessage({ type: "result", result, metrics } satisfies WorkerReply);
   } catch (error) {
     replyPort.postMessage({
       type: "error",

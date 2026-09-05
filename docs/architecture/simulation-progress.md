@@ -44,6 +44,19 @@ and forced populations with Normal-profile mirrored requests: four workers,
 on the local workspace. This benchmark fixture is performance evidence only;
 it does not replace the pending full Normal natural production run.
 
+The post-optimization production-shaped 50-fight Normal natural measurement is
+recorded in [natural-v3-throughput.json](../../artifacts/simulation/cli-1788619140330/natural-v3-throughput.json).
+It retained the compact coverage path and four workers, took 839,839.517 ms,
+used 3,066,250,000 user and 45,610,000 system CPU microseconds, reached
+1,213,849,600 bytes peak RSS, and recorded 3,783 decisions, 12,047 probes,
+and 9,689 transitions. The authoritative result hash was
+`fnv1a-32:8a8f40ea`; the run was deterministic across repeated measurements.
+The schedule estimator reports 26,258 unique natural matchups and 52,516
+required fights, projecting 245.03 hours. The memory gate passed, but the
+duration gate did not (and 11 of the 50 representative fights hit existing
+typed safeguards or combat failures), so production was intentionally not
+resumed under the stated stop rule.
+
 ## 2026-08-31 - SIM-V2 Monte Carlo closure work
 
 Combat transitions now optionally retain immutable mechanic observations with

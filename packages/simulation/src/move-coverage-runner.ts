@@ -268,10 +268,11 @@ const naturalTemplatePoolFor = (
   );
   const fallbackMoveIdsByStyle = new Map<string, string[]>();
   for (const move of view.moves) {
-    if (representedMoves.has(move.id)) continue;
+    const moveId = move.id;
+    if (representedMoves.has(moveId)) continue;
     const styleId = move.styleId ?? "style-freestyle";
     const moveIds = fallbackMoveIdsByStyle.get(styleId) ?? [];
-    moveIds.push(move.id);
+    moveIds.push(moveId);
     fallbackMoveIdsByStyle.set(styleId, moveIds);
   }
   const fallbackTemplates = [...fallbackMoveIdsByStyle.entries()]
@@ -577,6 +578,43 @@ interface PlannedCoverageRequest {
   readonly request: SimulationFightRequest;
   readonly exposureContext: SimulationMoveCoverageExposureContext;
 }
+
+const plannedCoverageRequestFor = ({
+  move,
+  request,
+  view,
+  population,
+  exposureContext,
+}: {
+  readonly move: MoveDefinition;
+  readonly request: SimulationFightRequest;
+  readonly view: CombatMechanicsView;
+  readonly population: SimulationCoveragePopulation;
+  readonly exposureContext: SimulationMoveCoverageExposureContext;
+}): PlannedCoverageRequest => {
+  const naturalFocalTemplate =
+    request.mirror === "mirrored" ? request.templateB : request.templateA;
+  const creditedMoves =
+    population === "natural"
+      ? [...new Set(naturalFocalTemplate.moveIds)]
+          .map((moveId) => view.indexes.moves.get(moveId))
+          .filter((candidate): candidate is MoveDefinition => candidate !== undefined)
+      : [move];
+  return {
+    move,
+    creditedMoves,
+    stratumId: simulationCoverageStratumIdFor({
+      moveId: move.id,
+      population,
+      profileId:
+        population === "natural" ? request.profileA.identity.id : policyForPopulation(population),
+      exposureContext,
+      evidenceRole: evidenceRoleFor(population, exposureContext),
+    }),
+    request,
+    exposureContext,
+  };
+};
 
 interface CoveragePairResult {
   readonly request: SimulationFightRequest;
@@ -934,68 +972,296 @@ const coverageRequestsForMove = ({
     });
     return contextRequests;
   });
-  return requests.map(({ request, exposureContext }) => {
-    const naturalFocalTemplate =
-      request.mirror === "mirrored" ? request.templateB : request.templateA;
-    const creditedMoves =
-      population === "natural"
-        ? [...new Set(naturalFocalTemplate.moveIds)]
-            .map((moveId) => view.indexes.moves.get(moveId))
-            .filter((candidate): candidate is MoveDefinition => candidate !== undefined)
-        : [move];
-    return {
-      move,
-      creditedMoves,
-      stratumId: simulationCoverageStratumIdFor({
-        moveId: move.id,
-        population,
-        profileId:
-          population === "natural" ? naturalProfile.identity.id : policyForPopulation(population),
-        exposureContext,
-        evidenceRole: evidenceRoleFor(population, exposureContext),
-      }),
-      request,
-      exposureContext,
-    };
-  });
+  return requests.map(({ request, exposureContext }) =>
+    plannedCoverageRequestFor({ move, request, view, population, exposureContext }),
+  );
 };
 
-const naturalCoverageRequestKeyFor = (request: SimulationFightRequest): string =>
+const naturalCoveragePairKeyFor = (request: SimulationFightRequest): string =>
   canonicalHash({
-    seedFamilyId: request.seedFamilyId,
     rootSeed: request.rootSeed,
+    seedFamilyId: request.seedFamilyId,
     iteration: request.iteration ?? 0,
-    mirror: request.mirror ?? "original",
-    templateA: request.templateA.id,
-    templateB: request.templateB.id,
     profileA: request.profileA.identity,
     profileB: request.profileB.identity,
     fixedTime: request.fixedTime.toISOString(),
   });
 
-const deduplicateNaturalCoverageRequests = (
-  plans: readonly PlannedCoverageRequest[],
-): readonly PlannedCoverageRequest[] => {
-  const byKey = new Map<string, PlannedCoverageRequest>();
-  for (const plan of plans) {
-    const key = naturalCoverageRequestKeyFor(plan.request);
-    const existing = byKey.get(key);
-    if (existing === undefined) {
-      byKey.set(key, plan);
-      continue;
+const mergeNaturalCoveragePlans = (
+  left: PlannedCoverageRequest,
+  right: PlannedCoverageRequest,
+): PlannedCoverageRequest => {
+  const creditedMoves = new Map(left.creditedMoves.map((move) => [move.id, move]));
+  for (const move of right.creditedMoves) creditedMoves.set(move.id, move);
+  return {
+    ...left,
+    creditedMoves: [...creditedMoves.values()].sort((a, b) => a.id.localeCompare(b.id)),
+  };
+};
+
+/**
+ * Streams natural requests by deterministic iteration and oriented template
+ * pair. Only one iteration and one 25-pair batch are resident at a time.
+ */
+/* eslint-disable sonarjs/cognitive-complexity -- planner ordering and coverage checks stay atomic. */
+function* naturalCoverageRequestBatches({
+  moves,
+  view,
+  rootSeed,
+  fixedTime,
+  targetPairs,
+  naturalTemplates,
+  naturalProfile,
+  limits,
+  attemptedFightsByMoveAndContext,
+  executionCells,
+}: {
+  readonly moves: readonly MoveDefinition[];
+  readonly view: CombatMechanicsView;
+  readonly rootSeed: number;
+  readonly fixedTime: Date;
+  readonly targetPairs: number;
+  readonly naturalTemplates: readonly SimulationTemplate[];
+  readonly naturalProfile: AiProfile;
+  readonly limits: SimulationLimits;
+  readonly attemptedFightsByMoveAndContext: ReadonlyMap<string, number>;
+  readonly executionCells: ReadonlyMap<string, Pick<SimulationCoverageCell, "samplingStatus">>;
+}): Generator<readonly PlannedCoverageRequest[], void, void> {
+  for (let iteration = 0; iteration < targetPairs; iteration += 1) {
+    const pairGroups = new Map<
+      string,
+      { readonly original?: PlannedCoverageRequest; readonly mirrored?: PlannedCoverageRequest }
+    >();
+    for (const move of moves) {
+      const attempts = attemptedFightsByMoveAndContext.get(`${move.id}:target-present`) ?? 0;
+      if (iteration < Math.floor(attempts / 2)) continue;
+      const plans = (["original", "mirrored"] as const).map((mirror) =>
+        plannedCoverageRequestFor({
+          move,
+          view,
+          population: "natural",
+          exposureContext: "target-present",
+          request: requestFor(
+            move,
+            iteration,
+            rootSeed,
+            fixedTime,
+            view,
+            "natural",
+            naturalTemplates,
+            naturalProfile,
+            limits,
+            mirror,
+            "target-present",
+            "coverage",
+          ),
+        }),
+      );
+      for (const plan of plans) {
+        const pairKey = naturalCoveragePairKeyFor(plan.request);
+        const current = pairGroups.get(pairKey) ?? {};
+        const side = plan.request.mirror === "mirrored" ? "mirrored" : "original";
+        const existing = current[side];
+        pairGroups.set(pairKey, {
+          ...current,
+          [side]: existing === undefined ? plan : mergeNaturalCoveragePlans(existing, plan),
+        });
+      }
     }
-    const creditedMoves = new Map(existing.creditedMoves.map((move) => [move.id, move]));
-    for (const move of plan.creditedMoves) creditedMoves.set(move.id, move);
-    byKey.set(key, {
-      ...existing,
-      creditedMoves: [...creditedMoves.values()].sort((left, right) =>
-        left.id.localeCompare(right.id),
-      ),
+    const pairs = [...pairGroups.values()].flatMap((group) => {
+      const original = group.original;
+      const mirrored = group.mirrored;
+      if (original === undefined || mirrored === undefined)
+        throw new RangeError("Natural planner produced an incomplete mirrored pair.");
+      const creditedMoves = new Map(original.creditedMoves.map((move) => [move.id, move]));
+      for (const move of mirrored.creditedMoves) creditedMoves.set(move.id, move);
+      const allCellsSufficient = [...creditedMoves.keys()].every((moveId) =>
+        ["decision", "trigger"].every(
+          (mechanicPath) =>
+            executionCells.get(`${moveId}:target-present:${mechanicPath}`)?.samplingStatus ===
+            "sufficient",
+        ),
+      );
+      if (allCellsSufficient) return [];
+      const sortedCreditedMoves = [...creditedMoves.values()].sort((a, b) =>
+        a.id.localeCompare(b.id),
+      );
+      return [
+        { ...original, creditedMoves: sortedCreditedMoves },
+        { ...mirrored, creditedMoves: sortedCreditedMoves },
+      ];
     });
+    for (let offset = 0; offset < pairs.length; offset += SIMULATION_COVERAGE_BATCH_SIZE * 2)
+      yield pairs.slice(offset, offset + SIMULATION_COVERAGE_BATCH_SIZE * 2);
   }
-  // Preserve planner order: original/mirrored orientations are adjacent, so
-  // pair accumulation remains aligned after shared natural requests collapse.
-  return [...byKey.values()];
+}
+/* eslint-enable sonarjs/cognitive-complexity */
+
+export interface SimulationNaturalCoverageScheduleOptions {
+  readonly mechanicsView?: CombatMechanicsView;
+  readonly rootSeed?: number;
+  readonly fixedTime?: Date;
+  readonly targetPairs?: number;
+  readonly moveIds?: readonly string[];
+  readonly naturalOverlayApprovalReference?: string;
+  readonly naturalProfileId?: SimulationNaturalAiProfile;
+  readonly limits?: SimulationLimits;
+}
+
+export interface SimulationNaturalCoverageScheduleEstimate {
+  readonly schemaVersion: "simulation-natural-schedule:v1";
+  readonly mechanicsIdentity: string;
+  readonly naturalProfileId: SimulationNaturalAiProfile;
+  readonly targetPairs: number;
+  readonly selectedMoveCount: number;
+  readonly uniqueNaturalMatchups: number;
+  readonly totalRequiredFights: number;
+  readonly scheduleHash: string;
+}
+
+type NaturalScheduleCell = Pick<SimulationCoverageCell, "samplingStatus">;
+
+const naturalScheduleInputsFor = (options: SimulationNaturalCoverageScheduleOptions) => {
+  const view = options.mechanicsView ?? CANONICAL_COMBAT_MECHANICS_VIEW;
+  const targetPairs = options.targetPairs ?? 250;
+  if (!Number.isInteger(targetPairs) || targetPairs < 1)
+    throw new RangeError("Natural schedule targetPairs must be a positive integer.");
+  const selectedMoveIds = options.moveIds === undefined ? undefined : new Set(options.moveIds);
+  const moves = [...view.moves]
+    .filter((move) => selectedMoveIds === undefined || selectedMoveIds.has(move.id))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  if (moves.length === 0) throw new RangeError("Natural schedule requires at least one move.");
+  if (selectedMoveIds !== undefined && selectedMoveIds.size !== moves.length)
+    throw new RangeError("Natural schedule contains an unknown move ID.");
+  const naturalProfileId = options.naturalProfileId ?? SIMULATION_NATURAL_AI_PROFILES[0];
+  const naturalApprovalReference =
+    options.naturalOverlayApprovalReference ?? SIMULATION_TF1_SOURCE_AUTHORITY;
+  const limits =
+    options.limits ??
+    ({
+      maximumTurns: 250,
+      maximumTransitions: 2_500,
+      semanticNoProgressLimit: 100,
+    } satisfies SimulationLimits);
+  return {
+    view,
+    moves,
+    rootSeed: options.rootSeed ?? 1_427_251_991,
+    fixedTime: options.fixedTime ?? new Date("2026-01-01T00:00:00.000Z"),
+    targetPairs,
+    naturalProfileId,
+    naturalTemplates: naturalTemplatePoolFor(view, naturalApprovalReference),
+    naturalProfile: naturalProfileFor(naturalProfileId),
+    limits,
+  };
+};
+
+const advanceNaturalScheduleState = (
+  batch: readonly PlannedCoverageRequest[],
+  attemptedFightsByMoveAndContext: Map<string, number>,
+  executionCells: Map<string, NaturalScheduleCell>,
+  targetPairs: number,
+): void => {
+  advanceNaturalPlanningAttempts(batch, attemptedFightsByMoveAndContext);
+  for (const plan of batch) {
+    for (const move of plan.creditedMoves) {
+      const attempts = attemptedFightsByMoveAndContext.get(`${move.id}:target-present`) ?? 0;
+      if (Math.floor(attempts / 2) < targetPairs) continue;
+      for (const mechanicPath of ["decision", "trigger"] as const)
+        executionCells.set(`${move.id}:target-present:${mechanicPath}`, {
+          samplingStatus: "sufficient",
+        });
+    }
+  }
+};
+
+const advanceNaturalPlanningAttempts = (
+  batch: readonly PlannedCoverageRequest[],
+  attemptedFightsByMoveAndContext: Map<string, number>,
+): void => {
+  for (const plan of batch) {
+    for (const move of plan.creditedMoves) {
+      const contextKey = `${move.id}:target-present`;
+      const attempts = (attemptedFightsByMoveAndContext.get(contextKey) ?? 0) + 1;
+      attemptedFightsByMoveAndContext.set(contextKey, attempts);
+    }
+  }
+};
+
+const forEachNaturalScheduleBatch = (
+  inputs: ReturnType<typeof naturalScheduleInputsFor>,
+  visit: (batch: readonly PlannedCoverageRequest[]) => boolean,
+): void => {
+  const attemptedFightsByMoveAndContext = new Map<string, number>();
+  const executionCells = new Map<string, NaturalScheduleCell>();
+  const planner = naturalCoverageRequestBatches({
+    ...inputs,
+    attemptedFightsByMoveAndContext,
+    executionCells,
+  });
+  for (const batch of planner) {
+    const stop = visit(batch);
+    advanceNaturalScheduleState(
+      batch,
+      attemptedFightsByMoveAndContext,
+      executionCells,
+      inputs.targetPairs,
+    );
+    if (stop) break;
+  }
+};
+
+/** Estimates the deterministic natural schedule without running a fight. */
+export const estimateSimulationNaturalCoverageSchedule = (
+  options: SimulationNaturalCoverageScheduleOptions = {},
+): SimulationNaturalCoverageScheduleEstimate => {
+  const inputs = naturalScheduleInputsFor(options);
+  const entries: {
+    readonly runId: string;
+    readonly pairKey: string;
+    readonly creditedMoveIds: readonly string[];
+  }[] = [];
+  forEachNaturalScheduleBatch(inputs, (batch) => {
+    entries.push(
+      ...batch.map((plan) => ({
+        runId: plan.request.runId,
+        pairKey: naturalCoveragePairKeyFor(plan.request),
+        creditedMoveIds: plan.creditedMoves.map((move) => move.id),
+      })),
+    );
+    return false;
+  });
+  const pairKeys = new Set(entries.map((entry) => entry.pairKey));
+  return {
+    schemaVersion: "simulation-natural-schedule:v1",
+    mechanicsIdentity: inputs.view.identity.contentHash,
+    naturalProfileId: inputs.naturalProfileId,
+    targetPairs: inputs.targetPairs,
+    selectedMoveCount: inputs.moves.length,
+    uniqueNaturalMatchups: pairKeys.size,
+    totalRequiredFights: entries.length,
+    scheduleHash: canonicalHash(entries),
+  };
+};
+
+/** Returns the first deterministic fights from the production-shaped natural schedule. */
+export const createSimulationNaturalCoverageRequests = (
+  options: SimulationNaturalCoverageScheduleOptions & {
+    readonly fightLimit: number;
+  },
+): readonly SimulationFightRequest[] => {
+  if (!Number.isInteger(options.fightLimit) || options.fightLimit < 1)
+    throw new RangeError("Natural schedule fightLimit must be a positive integer.");
+  const inputs = naturalScheduleInputsFor(options);
+  const requests: SimulationFightRequest[] = [];
+  forEachNaturalScheduleBatch(inputs, (batch) => {
+    for (const plan of batch) {
+      requests.push(plan.request);
+      if (requests.length >= options.fightLimit) return true;
+    }
+    return false;
+  });
+  return requests;
 };
 
 const processCoverageResult = ({
@@ -1883,109 +2149,137 @@ export const runSimulationMoveCoverage = (
       errors,
     });
   };
-  const maximumRounds = population === "forced" ? 10 : 1;
-  for (let round = 0; round < maximumRounds; round += 1) {
-    const moveGroups: readonly (readonly MoveDefinition[])[] =
-      population === "natural" ? orderedMoves.map((move) => [move]) : [orderedMoves];
-    for (const moveGroup of moveGroups) {
-      const plannedRequests = moveGroup.flatMap((move) => {
-        const retryingFailure =
-          options.retryFailed === true &&
-          hasRetryableFailureForMove(resumeFrom, population, move.id);
-        const priorAttemptsByContext = new Map(
-          exposureContexts.map((context) => [
-            `${move.id}:${context}`,
-            retryingFailure &&
-            hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context)
-              ? 0
-              : previousAttemptsForMoveAndContext(resumeFrom, population, move.id, context),
-          ]),
-        );
-        const retryExposureContexts = new Set(
-          exposureContexts
-            .filter(
-              (context) =>
-                retryingFailure &&
-                hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context),
-            )
-            .map((context) => `${move.id}:${context}`),
-        );
-        return coverageRequestsForMove({
-          move,
-          view,
-          rootSeed,
-          fixedTime,
-          targetFights,
-          population,
-          naturalTemplates,
-          naturalProfile,
-          limits,
-          priorAttemptsByContext,
-          retryExposureContexts,
-          accumulation,
-          scheduledExposureContexts: incompleteExposureContextsForMove(
-            executionCells,
-            move.id,
+  const processBatch = (plannedRequests: readonly PlannedCoverageRequest[]): void => {
+    if (plannedRequests.length === 0) return;
+    runCoverageRequestBatches({
+      plannedRequests,
+      options,
+      accumulation,
+      targetFights,
+      minimumEligibleStates,
+      population,
+      onBatch: ({ countsByMove, completedFightsByMove, coverageSatisfiedRunsByMove }) => {
+        for (const move of orderedMoves) {
+          executionCellsForMove({
+            move,
+            cells: executionCells,
+            countsByPath: countsByMove,
+            completedFights: completedFightsByMove,
+            coverageSatisfiedRuns: coverageSatisfiedRunsByMove,
+            failuresByContext: accumulation.failuresByMoveAndContext,
             population,
             exposureContexts,
-            targetFights,
-            priorAttemptsByContext,
             view,
-            retention === "coverage" && population === "forced",
-          ),
-          retention,
-        });
-      });
-      const executableRequests =
-        population === "natural"
-          ? deduplicateNaturalCoverageRequests(plannedRequests)
-          : plannedRequests;
-      if (executableRequests.length === 0) continue;
-      runCoverageRequestBatches({
-        plannedRequests: executableRequests,
-        options,
-        accumulation,
-        targetFights,
-        minimumEligibleStates,
-        population,
-        onBatch: ({ countsByMove, completedFightsByMove, coverageSatisfiedRunsByMove }) => {
-          for (const move of orderedMoves) {
-            executionCellsForMove({
-              move,
-              cells: executionCells,
-              countsByPath: countsByMove,
-              completedFights: completedFightsByMove,
-              coverageSatisfiedRuns: coverageSatisfiedRunsByMove,
-              failuresByContext: accumulation.failuresByMoveAndContext,
+          });
+        }
+        options.onCheckpoint?.(artifactForCurrentState());
+      },
+    });
+  };
+  if (population === "natural") {
+    if (naturalTemplates === undefined)
+      throw new RangeError("Natural coverage requires templates.");
+    const naturalPlanningAttempts = new Map(
+      orderedMoves.map((move) => {
+        const contextKey = `${move.id}:target-present`;
+        const retryingFailure =
+          options.retryFailed === true &&
+          hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, "target-present");
+        return [
+          contextKey,
+          retryingFailure ? 0 : (accumulation.attemptedFightsByMoveAndContext.get(contextKey) ?? 0),
+        ] as const;
+      }),
+    );
+    for (const batch of naturalCoverageRequestBatches({
+      moves: orderedMoves,
+      view,
+      rootSeed,
+      fixedTime,
+      targetPairs: targetFights,
+      naturalTemplates,
+      naturalProfile,
+      limits,
+      attemptedFightsByMoveAndContext: naturalPlanningAttempts,
+      executionCells,
+    })) {
+      processBatch(batch);
+      advanceNaturalPlanningAttempts(batch, naturalPlanningAttempts);
+    }
+  } else {
+    const maximumRounds = population === "forced" ? 10 : 1;
+    for (let round = 0; round < maximumRounds; round += 1) {
+      const plannedRequests = [orderedMoves].flatMap((moveGroup) =>
+        moveGroup.flatMap((move) => {
+          const retryingFailure =
+            options.retryFailed === true &&
+            hasRetryableFailureForMove(resumeFrom, population, move.id);
+          const priorAttemptsByContext = new Map(
+            exposureContexts.map((context) => [
+              `${move.id}:${context}`,
+              retryingFailure &&
+              hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context)
+                ? 0
+                : previousAttemptsForMoveAndContext(resumeFrom, population, move.id, context),
+            ]),
+          );
+          const retryExposureContexts = new Set(
+            exposureContexts
+              .filter(
+                (context) =>
+                  retryingFailure &&
+                  hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context),
+              )
+              .map((context) => `${move.id}:${context}`),
+          );
+          return coverageRequestsForMove({
+            move,
+            view,
+            rootSeed,
+            fixedTime,
+            targetFights,
+            population,
+            naturalTemplates,
+            naturalProfile,
+            limits,
+            priorAttemptsByContext,
+            retryExposureContexts,
+            accumulation,
+            scheduledExposureContexts: incompleteExposureContextsForMove(
+              executionCells,
+              move.id,
               population,
               exposureContexts,
+              targetFights,
+              priorAttemptsByContext,
               view,
-            });
-          }
-          options.onCheckpoint?.(artifactForCurrentState());
-        },
-      });
-      if (population !== "natural" && population !== "forced") break;
+              retention === "coverage" && population === "forced",
+            ),
+            retention,
+          });
+        }),
+      );
+      processBatch(plannedRequests);
+      if (population !== "forced") break;
+      const needsForcedRetry = orderedMoves.some((move) =>
+        incompleteExposureContextsForMove(
+          executionCells,
+          move.id,
+          population,
+          exposureContexts,
+          targetFights,
+          new Map(
+            exposureContexts.map((context) => [
+              `${move.id}:${context}`,
+              accumulation.attemptedFightsByMoveAndContext.get(`${move.id}:${context}`) ?? 0,
+            ]),
+          ),
+          view,
+          retention === "coverage" && population === "forced",
+        ).includes("target-present"),
+      );
+      if (!needsForcedRetry) break;
     }
-    if (population !== "forced") break;
-    const needsForcedRetry = orderedMoves.some((move) =>
-      incompleteExposureContextsForMove(
-        executionCells,
-        move.id,
-        population,
-        exposureContexts,
-        targetFights,
-        new Map(
-          exposureContexts.map((context) => [
-            `${move.id}:${context}`,
-            accumulation.attemptedFightsByMoveAndContext.get(`${move.id}:${context}`) ?? 0,
-          ]),
-        ),
-        view,
-        retention === "coverage" && population === "forced",
-      ).includes("target-present"),
-    );
-    if (!needsForcedRetry) break;
   }
   const artifact = artifactForCurrentState();
   return {

@@ -350,6 +350,15 @@ export const simulationMatrixPlaceholderSchema = z
 
 export interface SimulationControl {
   readonly isCancelled?: () => boolean;
+  /** Runtime-only measurement hook; never enters simulation artifact hashes. */
+  readonly onMetrics?: (metrics: SimulationFightMetrics) => void;
+}
+
+export interface SimulationFightMetrics {
+  readonly runId: string;
+  readonly decisions: number;
+  readonly probes: number;
+  readonly transitions: number;
 }
 
 export interface SimulationProgress {
@@ -585,6 +594,8 @@ export interface SimulationCoordinatorRequest {
   /** Bounded deterministic scheduling for local or worker-backed execution. */
   readonly concurrency?: number;
   readonly control?: SimulationControl;
+  /** Runtime-only measurement hook; never enters simulation artifact hashes. */
+  readonly onMetrics?: (metrics: SimulationFightMetrics) => void;
   readonly onProgress?: (progress: SimulationProgress) => void;
 }
 

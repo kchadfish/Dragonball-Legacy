@@ -10,6 +10,7 @@ import {
   createAnalysisWorkBudget,
   createBranchCombatDependencies,
   describeLegalDecision,
+  describeLegalDecisions,
   enumerateAnalysisDecisions,
   enumerateLegalDecisions,
   probeCombatDecision,
@@ -19,6 +20,7 @@ import {
   fightIdSchema,
   combatDecisionIdSchema,
   combatEventIdSchema,
+  pendingDecisionIdSchema,
 } from "./ids.js";
 import { createTestCombatDependencies } from "./testing/index.js";
 
@@ -64,6 +66,40 @@ const state = (moveIds: readonly string[] = []): FightState =>
   }) as ActiveFightState;
 
 describe("combat analysis boundary", () => {
+  it("keeps batch descriptors identical to individual descriptors and state-pure", () => {
+    const fight = state(["move-akaikaru-firestorm"]);
+    const before = JSON.stringify(fight);
+    const legal = enumerateLegalDecisions(fight, actorId);
+    const batch = describeLegalDecisions(fight, actorId);
+    expect(batch).toEqual(legal.map((decision) => describeLegalDecision(fight, decision)));
+    expect(JSON.stringify(fight)).toBe(before);
+  });
+
+  it("keeps pending-response descriptor batches isolated from ordinary states", () => {
+    const pendingFight = {
+      ...state(["move-akaikaru-firestorm"]),
+      pendingDecision: {
+        id: pendingDecisionIdSchema.parse("pending-decision:analysis"),
+        stateVersion: 0,
+        combatantId: actorId,
+        type: "select-move" as const,
+        options: [
+          { id: "decline", type: "decline" as const },
+          { id: "firestorm", type: "select-move" as const, moveId: "move-akaikaru-firestorm" },
+        ],
+        optional: true,
+      },
+    } as ActiveFightState;
+    const ordinary = describeLegalDecisions(state(["move-akaikaru-firestorm"]), actorId);
+    const pending = describeLegalDecisions(pendingFight, actorId);
+    expect(pending).toEqual(
+      enumerateLegalDecisions(pendingFight, actorId).map((decision) =>
+        describeLegalDecision(pendingFight, decision),
+      ),
+    );
+    expect(pending).not.toEqual(ordinary);
+  });
+
   it("describes supplied legal decisions from compiled combat facts", () => {
     const legal = enumerateAnalysisDecisions(state(["move-akaikaru-firestorm"]), actorId);
     const move = legal.find((decision) => decision.type === "use-move");

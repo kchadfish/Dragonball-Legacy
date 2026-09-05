@@ -1,5 +1,9 @@
 import { canonicalHash } from "./canonical.js";
-import type { SimulationFightExecutionResult, SimulationFightRequest } from "./contracts.js";
+import type {
+  SimulationFailure,
+  SimulationFightExecutionResult,
+  SimulationFightRequest,
+} from "./contracts.js";
 import type { SimulationCoveragePopulation } from "./coverage.js";
 import { runSimulationFight } from "./runner.js";
 import { createScenario } from "./scenarios.js";
@@ -7,6 +11,11 @@ import { createSyntheticArchetypes } from "./templates.js";
 import { NORMAL_PROFILE, SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
 import { CANONICAL_COMBAT_MECHANICS_VIEW } from "@dragonball-resurgence/combat-engine";
 import { runSimulationRequestsWithWorkers } from "./coordinator.js";
+import {
+  createSimulationNaturalCoverageRequests,
+  estimateSimulationNaturalCoverageSchedule,
+  type SimulationNaturalCoverageScheduleEstimate,
+} from "./move-coverage-runner.js";
 
 export const SIMULATION_V3_COVERAGE_BENCHMARK_MOVE_IDS = Object.freeze([
   "move-akaikaru-delta-storm",
@@ -195,6 +204,143 @@ const coverageBenchmarkRequests = (): readonly SimulationFightRequest[] => {
       }),
     ),
   );
+};
+
+export interface SimulationNaturalThroughputBenchmarkMeasurement {
+  readonly elapsedMilliseconds: number;
+  readonly cpuUserMicroseconds: number;
+  readonly cpuSystemMicroseconds: number;
+  readonly peakMemoryBytes: number;
+}
+
+export interface SimulationNaturalThroughputBenchmarkResult {
+  readonly schemaVersion: "simulation-natural-throughput-benchmark:v1";
+  readonly benchmarkId: "natural-v3-throughput";
+  readonly workerCount: 4;
+  readonly fightCount: 50;
+  readonly schedule: SimulationNaturalCoverageScheduleEstimate;
+  readonly elapsedMilliseconds: number;
+  readonly cpuUserMicroseconds: number;
+  readonly cpuSystemMicroseconds: number;
+  readonly peakMemoryBytes: number;
+  readonly decisions: number;
+  readonly probes: number;
+  readonly transitions: number;
+  readonly resultHashes: readonly {
+    readonly runId: string;
+    readonly stateHash: string;
+    readonly eventHash: string;
+    readonly decisionHash: string;
+    readonly randomIdentity: string;
+  }[];
+  readonly authoritativeResultHash: string;
+  readonly projectedFullRunMilliseconds: number;
+  readonly projectedFullRunHours: number;
+  readonly result: "passed" | "failed";
+  readonly resultDetails: readonly string[];
+  readonly benchmarkHash: string;
+}
+
+/** Production-shaped Normal-AI throughput measurement for one compact batch. */
+export const runSimulationNaturalThroughputBenchmark = (
+  measurement: Partial<SimulationNaturalThroughputBenchmarkMeasurement> = {},
+): SimulationNaturalThroughputBenchmarkResult => {
+  for (const [name, value] of Object.entries(measurement))
+    if (!Number.isFinite(value) || value < 0)
+      throw new RangeError(`Natural benchmark ${name} must be a finite non-negative number.`);
+  const started = performance.now();
+  const runtimeProcess = (
+    globalThis as unknown as {
+      readonly process: {
+        cpuUsage: (previous?: { user: number; system: number }) => {
+          readonly user: number;
+          readonly system: number;
+        };
+        resourceUsage: () => { readonly maxRSS: number };
+      };
+    }
+  ).process;
+  const cpuStarted = runtimeProcess.cpuUsage();
+  const requests = createSimulationNaturalCoverageRequests({ fightLimit: 50 });
+  if (requests.length !== 50) throw new RangeError("Natural benchmark did not produce 50 fights.");
+  const schedule = estimateSimulationNaturalCoverageSchedule();
+  const totals = { decisions: 0, probes: 0, transitions: 0 };
+  const completedByRunId = new Map<
+    string,
+    | { readonly ok: true; readonly value: SimulationFightExecutionResult }
+    | { readonly ok: false; readonly error: SimulationFailure }
+  >();
+  const coordinated = runSimulationRequestsWithWorkers({
+    requests,
+    workers: 4,
+    stoppingPolicy: "continue",
+    retainResults: false,
+    onProgress: (progress) => completedByRunId.set(progress.runId, progress.result),
+    onMetrics: (metrics) => {
+      totals.decisions += metrics.decisions;
+      totals.probes += metrics.probes;
+      totals.transitions += metrics.transitions;
+    },
+  });
+  const cpuElapsed = runtimeProcess.cpuUsage(cpuStarted);
+  const measuredElapsedMilliseconds = performance.now() - started;
+  const measuredPeakMemoryBytes = runtimeProcess.resourceUsage().maxRSS * 1024;
+  const elapsedMilliseconds = measurement.elapsedMilliseconds ?? measuredElapsedMilliseconds;
+  const cpuUserMicroseconds = measurement.cpuUserMicroseconds ?? cpuElapsed.user;
+  const cpuSystemMicroseconds = measurement.cpuSystemMicroseconds ?? cpuElapsed.system;
+  const peakMemoryBytes = measurement.peakMemoryBytes ?? measuredPeakMemoryBytes;
+  const orderedResults = requests.map((request) => completedByRunId.get(request.runId));
+  const failures = orderedResults.flatMap((result, index) => {
+    if (result === undefined) return [`missing-result:${requests[index]?.runId ?? index}`];
+    if (result.ok) return [];
+    return [`${result.error.type}:${JSON.stringify(result.error)}`];
+  });
+  const resultHashes = orderedResults.flatMap((result) =>
+    result?.ok === true
+      ? [
+          {
+            runId: result.value.runId,
+            stateHash: result.value.stateHash,
+            eventHash: result.value.eventHash,
+            decisionHash: result.value.decisionHash,
+            randomIdentity: result.value.randomIdentity,
+          },
+        ]
+      : [],
+  );
+  const authoritativeResultHash = canonicalHash(resultHashes);
+  const projectedFullRunMilliseconds =
+    (schedule.totalRequiredFights / requests.length) * elapsedMilliseconds;
+  const details = [
+    ...failures,
+    ...(completedByRunId.size !== requests.length ? ["result-count-mismatch"] : []),
+    ...(coordinated.stoppedEarly ? ["stopped-early"] : []),
+    ...(peakMemoryBytes > 1.5 * 1024 ** 3 ? ["peak-memory-over-budget"] : []),
+    ...(projectedFullRunMilliseconds >= 12 * 60 * 60 * 1000
+      ? ["projected-duration-over-budget"]
+      : []),
+  ];
+  const result = {
+    schemaVersion: "simulation-natural-throughput-benchmark:v1" as const,
+    benchmarkId: "natural-v3-throughput" as const,
+    workerCount: 4 as const,
+    fightCount: 50 as const,
+    schedule,
+    elapsedMilliseconds,
+    cpuUserMicroseconds,
+    cpuSystemMicroseconds,
+    peakMemoryBytes,
+    decisions: totals.decisions,
+    probes: totals.probes,
+    transitions: totals.transitions,
+    resultHashes,
+    authoritativeResultHash,
+    projectedFullRunMilliseconds,
+    projectedFullRunHours: projectedFullRunMilliseconds / (60 * 60 * 1000),
+    result: details.length === 0 ? ("passed" as const) : ("failed" as const),
+    resultDetails: details,
+  };
+  return { ...result, benchmarkHash: canonicalHash(result) };
 };
 
 /** Stable four-worker acceptance benchmark for compact all-population coverage. */

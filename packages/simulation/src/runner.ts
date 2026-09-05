@@ -1,5 +1,6 @@
 import {
   BranchCombatIdSource,
+  canonicalDecisionKey,
   FixedClock,
   SeededRandomSource,
   createCombatRuntime,
@@ -26,6 +27,7 @@ import {
   type SimulationFailure,
   type SimulationFightExecutionResult,
   type SimulationFightRequest,
+  type SimulationFightMetrics,
   type SimulationReplayRecord,
   type SimulationSummary,
   type SimulationTerminationReason,
@@ -741,6 +743,7 @@ export const runSimulationFight = (
     updateSummary(summaries, created.value.events, created.value.state);
     const evaluations: CandidateEvaluation[] = [];
     const aiRecords: { a?: SimulationDecisionRecord; b?: SimulationDecisionRecord } = {};
+    let probeCount = 0;
     const driver = runSimulationTransitionDriver({
       runtime,
       initial: created.value,
@@ -759,6 +762,11 @@ export const runSimulationFight = (
             },
           };
         const actorId = state.pendingDecision?.combatantId ?? state.activeCombatantId;
+        const descriptorByDecisionKey = new Map(
+          runtime
+            .describeDecisions(state, actorId)
+            .map((descriptor) => [descriptor.key, descriptor] as const),
+        );
         const actorIsA = actorId === Object.keys(state.combatants)[0];
         const aiProfile = actorIsA ? request.profileA : request.profileB;
         summaries.pendingResponses += state.pendingDecision === undefined ? 0 : 1;
@@ -792,13 +800,24 @@ export const runSimulationFight = (
               opponentModeling: true,
               pendingExpansion: true,
             },
-            describeDecision: runtime.describeDecision,
+            describeDecision: (descriptorState: FightState, decision: LegalDecision) => {
+              if (descriptorState !== state)
+                return runtime.describeDecision(descriptorState, decision);
+              const descriptor = descriptorByDecisionKey.get(canonicalDecisionKey(decision));
+              return descriptor ?? runtime.describeDecision(descriptorState, decision);
+            },
             probeDecision: (
               probeState: FightState,
               probeDecision: LegalDecision,
               probeDependencies?: CombatDependencies,
-            ) =>
-              runtime.probeDecision(probeState, probeDecision, probeDependencies ?? dependencies),
+            ) => {
+              probeCount += 1;
+              return runtime.probeDecision(
+                probeState,
+                probeDecision,
+                probeDependencies ?? dependencies,
+              );
+            },
           },
           ...(aiProfile.identity.id === "profile:normal"
             ? {
@@ -929,6 +948,13 @@ export const runSimulationFight = (
         summary,
       },
     });
+    const metrics: SimulationFightMetrics = {
+      runId: request.runId,
+      decisions: decisionHashes.length,
+      probes: probeCount,
+      transitions: driver.eventHashes.length,
+    };
+    control.onMetrics?.(metrics);
     return {
       schemaVersion: "simulation-contracts:v1",
       runId: request.runId,

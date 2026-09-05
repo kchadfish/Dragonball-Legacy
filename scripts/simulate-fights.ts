@@ -26,6 +26,7 @@ import {
   resumeSimulationMoveCoverage,
   runSimulationBenchmark,
   runSimulationCoverageBenchmark,
+  runSimulationNaturalThroughputBenchmark,
   canonicalHash,
   canonicalJson,
 } from "../packages/simulation/src/index.js";
@@ -308,6 +309,11 @@ const main = async (): Promise<void> => {
   }
   if (command === "benchmark") {
     const preset = optionFor(args, "--preset") ?? "fast";
+    if (preset === "natural-v3-throughput") {
+      const benchmark = runSimulationNaturalThroughputBenchmark();
+      await writeBundle("natural-v3-throughput.json", `${canonicalJson(benchmark)}\n`);
+      return;
+    }
     if (preset === "catalog-v3") {
       const benchmarkStarted = Date.now();
       const benchmarkResult = runSimulationCoverageBenchmark();
@@ -330,7 +336,7 @@ const main = async (): Promise<void> => {
       preset !== "control-heavy"
     )
       throw new RangeError(
-        "Benchmark preset must be fast, long, transformation, control-heavy, or catalog-v3.",
+        "Benchmark preset must be fast, long, transformation, control-heavy, catalog-v3, or natural-v3-throughput.",
       );
     const benchmarkStarted = Date.now();
     const benchmarkResult = runSimulationBenchmark({

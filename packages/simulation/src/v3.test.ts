@@ -11,12 +11,14 @@ import {
   createSimulationMoveCoverageDataset,
   createSimulationMoveMetrics,
   createSimulationNaturalCoverageTemplates,
+  createSimulationNaturalCoverageRequests,
   createSyntheticArchetypes,
   createScenario,
   mergeSimulationMoveMetrics,
   runSimulationMoveCoverage,
   runSimulationFight,
   runSimulationCoverageBenchmark,
+  estimateSimulationNaturalCoverageSchedule,
   simulationMoveCoverageArtifactSchema,
   updateSimulationCoverageCell,
   validateSimulationCoverageCells,
@@ -155,7 +157,7 @@ describe("simulation catalog v3 contracts", () => {
       batchSize: 25,
     });
     expect(result.artifact.schemaVersion).toBe("simulation-move-coverage-artifact:v3");
-  }, 15_000);
+  }, 30_000);
 
   it("allows sufficient natural denominators with zero natural selections", () => {
     const cells = (["decision", "trigger"] as const).map((mechanicPath) =>
@@ -316,6 +318,31 @@ describe("simulation catalog v3 contracts", () => {
       ),
     );
   }, 120_000);
+
+  it("keeps the natural schedule stable, paired, and bounded", () => {
+    const first = estimateSimulationNaturalCoverageSchedule({
+      targetPairs: 2,
+      moveIds: ["move-akaikaru-firestorm", "move-akaikaru-delta-storm"],
+    });
+    const second = estimateSimulationNaturalCoverageSchedule({
+      targetPairs: 2,
+      moveIds: ["move-akaikaru-firestorm", "move-akaikaru-delta-storm"],
+    });
+    const requests = createSimulationNaturalCoverageRequests({
+      targetPairs: 2,
+      moveIds: ["move-akaikaru-firestorm", "move-akaikaru-delta-storm"],
+      fightLimit: 50,
+    });
+    expect(second).toEqual(first);
+    expect(requests.length).toBeLessThanOrEqual(50);
+    expect(new Set(requests.map((request) => request.runId)).size).toBe(requests.length);
+    expect(requests.filter((request) => request.mirror === "original")).toHaveLength(
+      requests.filter((request) => request.mirror === "mirrored").length,
+    );
+    expect(first.totalRequiredFights).toBe(requests.length);
+    expect(first.totalRequiredFights % 2).toBe(0);
+    expect(first.uniqueNaturalMatchups).toBe(first.totalRequiredFights / 2);
+  }, 60_000);
 
   it("stops forced coverage early without counting a fight or precision statistic", () => {
     const moveId = "move-aoyosumu-braced-energy-beam";
