@@ -13,8 +13,10 @@ import {
   describeLegalDecision,
   type CombatDecisionDescriptor,
 } from "./decision-descriptors.js";
-import { enumerateLegalDecisions, submitCombatDecision } from "./progress-fight.js";
+import { submitCombatDecision } from "./progress-fight.js";
+import { cachedLegalDecisionsFor } from "./decision-point.js";
 import type { CombatMechanicsView } from "./mechanics-view.js";
+import type { CombatantId } from "./ids.js";
 
 export interface CombatAnalysisProbe {
   readonly decision: CombatDecision;
@@ -104,9 +106,9 @@ export const consumeAnalysisWork = (
 /** The complete public legal surface for an analysis snapshot. */
 export const enumerateAnalysisDecisions = (
   state: FightState,
-  actorId: Parameters<typeof enumerateLegalDecisions>[1],
+  actorId: CombatantId,
   mechanicsView?: CombatMechanicsView,
-): readonly LegalDecision[] => enumerateLegalDecisions(state, actorId, mechanicsView);
+): readonly LegalDecision[] => cachedLegalDecisionsFor(state, actorId, mechanicsView);
 
 /** Analysis consumes the same descriptor contract used by future AI callers. */
 export const describeAnalysisDecision = (
@@ -135,7 +137,7 @@ export const probeCombatDecision = (
   dependencies: CombatDependencies,
   mechanicsView?: CombatMechanicsView,
 ): CombatResult<CombatAnalysisProbe> => {
-  const legal = enumerateLegalDecisions(state, decision.actorId, mechanicsView).some(
+  const legal = cachedLegalDecisionsFor(state, decision.actorId, mechanicsView).some(
     (candidate) => canonicalDecisionKey(candidate) === canonicalDecisionKey(decision),
   );
   if (!legal)

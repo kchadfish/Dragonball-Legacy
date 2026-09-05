@@ -17,7 +17,7 @@ import type {
   DecisionEffectFact,
   DecisionSelectionFact,
 } from "./decision-descriptors.js";
-import { enumerateLegalDecisions } from "./progress-fight.js";
+import { cachedLegalDecisionsFor } from "./decision-point.js";
 import { mechanicsViewForState, type CombatMechanicsView } from "./mechanics-view.js";
 
 export type StrategicContextCompleteness = "complete" | "partial";
@@ -452,7 +452,7 @@ const controlImpactsFor = (state: ActiveFightState, actorId: CombatantId) => {
     const type = effect.type;
     const duplicateCount = effectTypes.get(`${targetId}:${type}`) ?? 0;
     effectTypes.set(`${targetId}:${type}`, duplicateCount + 1);
-    const affectedOptionCount = enumerateLegalDecisions(state, targetId).length;
+    const affectedOptionCount = cachedLegalDecisionsFor(state, targetId).length;
     impacts.push({
       relation: relationFor(targetId, actorId),
       executorType: type,

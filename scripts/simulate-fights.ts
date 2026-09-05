@@ -25,6 +25,7 @@ import {
   nextSimulationCoveragePrecisionLook,
   resumeSimulationMoveCoverage,
   runSimulationBenchmark,
+  runSimulationCoverageBenchmark,
   canonicalHash,
   canonicalJson,
 } from "../packages/simulation/src/index.js";
@@ -307,6 +308,21 @@ const main = async (): Promise<void> => {
   }
   if (command === "benchmark") {
     const preset = optionFor(args, "--preset") ?? "fast";
+    if (preset === "catalog-v3") {
+      const benchmarkStarted = Date.now();
+      const benchmarkResult = runSimulationCoverageBenchmark();
+      const benchmark = {
+        ...benchmarkResult,
+        elapsedMilliseconds: Date.now() - benchmarkStarted,
+        resultHash: canonicalHash({
+          ...benchmarkResult,
+          elapsedMilliseconds: undefined,
+          resultHash: undefined,
+        }),
+      };
+      await writeBundle("coverage-benchmark.json", `${canonicalJson(benchmark)}\n`);
+      return;
+    }
     if (
       preset !== "fast" &&
       preset !== "long" &&
@@ -314,7 +330,7 @@ const main = async (): Promise<void> => {
       preset !== "control-heavy"
     )
       throw new RangeError(
-        "Benchmark preset must be fast, long, transformation, or control-heavy.",
+        "Benchmark preset must be fast, long, transformation, control-heavy, or catalog-v3.",
       );
     const benchmarkStarted = Date.now();
     const benchmarkResult = runSimulationBenchmark({

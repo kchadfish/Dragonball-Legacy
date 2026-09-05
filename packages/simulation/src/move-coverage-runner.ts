@@ -266,15 +266,28 @@ const naturalTemplatePoolFor = (
   const representedMoves = new Set(
     [...tf1, ...generated, ...synthetic].flatMap((template) => template.moveIds),
   );
-  const fallbackTemplates = view.moves
-    .filter((move) => !representedMoves.has(move.id))
-    .map((move) =>
-      templateFor(
-        `simulation-template:natural-coverage-${slugFor(move.id)}`,
-        [move.id],
-        move.styleId ?? "style-freestyle",
-        view,
-        220,
+  const fallbackMoveIdsByStyle = new Map<string, string[]>();
+  for (const move of view.moves) {
+    if (representedMoves.has(move.id)) continue;
+    const styleId = move.styleId ?? "style-freestyle";
+    const moveIds = fallbackMoveIdsByStyle.get(styleId) ?? [];
+    moveIds.push(move.id);
+    fallbackMoveIdsByStyle.set(styleId, moveIds);
+  }
+  const fallbackTemplates = [...fallbackMoveIdsByStyle.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .flatMap(([styleId, moveIds]) =>
+      Array.from({ length: Math.ceil(moveIds.length / 5) }, (_, index) =>
+        templateFor(
+          `simulation-template:natural-coverage-${slugFor(styleId)}-${index + 1}`,
+          moveIds.slice(index * 5, index * 5 + 5),
+          styleId,
+          view,
+          // Style-group fallbacks are synthetic evidence fixtures, not source
+          // balance sheets. Keep their survivability bounded so a Normal
+          // observation cannot spend an entire precision look stalled.
+          40,
+        ),
       ),
     );
   const pool = Object.freeze([...tf1, ...generated, ...synthetic, ...fallbackTemplates]);
@@ -922,9 +935,11 @@ const coverageRequestsForMove = ({
     return contextRequests;
   });
   return requests.map(({ request, exposureContext }) => {
+    const naturalFocalTemplate =
+      request.mirror === "mirrored" ? request.templateB : request.templateA;
     const creditedMoves =
       population === "natural"
-        ? [...new Set([...request.templateA.moveIds, ...request.templateB.moveIds])]
+        ? [...new Set(naturalFocalTemplate.moveIds)]
             .map((moveId) => view.indexes.moves.get(moveId))
             .filter((candidate): candidate is MoveDefinition => candidate !== undefined)
         : [move];
@@ -1096,6 +1111,7 @@ const runCoverageRequestBatches = ({
   targetFights,
   minimumEligibleStates,
   population,
+  onBatch,
 }: {
   readonly plannedRequests: readonly PlannedCoverageRequest[];
   readonly options: SimulationMoveCoverageRunOptions;
@@ -1103,8 +1119,8 @@ const runCoverageRequestBatches = ({
   readonly targetFights: number;
   readonly minimumEligibleStates: number;
   readonly population: SimulationCoveragePopulation;
-}): readonly CoverageRequestBatchResult[] => {
-  const batches: CoverageRequestBatchResult[] = [];
+  readonly onBatch?: (batch: CoverageRequestBatchResult) => void;
+}): void => {
   for (
     let offset = 0;
     offset < plannedRequests.length;
@@ -1167,9 +1183,8 @@ const runCoverageRequestBatches = ({
     if (coordinated.stoppedEarly) throw new Error("Coverage coordinator stopped unexpectedly.");
     if (pendingResults.size !== 0 || nextResultIndex !== batchPlans.length)
       throw new Error("Coverage coordinator did not stream every planned result.");
-    batches.push({ countsByMove, completedFightsByMove, coverageSatisfiedRunsByMove });
+    onBatch?.({ countsByMove, completedFightsByMove, coverageSatisfiedRunsByMove });
   }
-  return batches;
 };
 
 const finalizedDataset = (
@@ -1529,7 +1544,7 @@ const selectedMovesFor = (
               (cell) =>
                 cell.samplingStatus !== "sufficient" &&
                 cell.samplingStatus !== "excluded" &&
-                cell.samplingStatus !== "not-applicable",
+                (cell.samplingStatus !== "not-applicable" || population === "natural"),
             )
           );
         });
@@ -1563,7 +1578,7 @@ const incompleteExposureContextsForMove = (
             (cell.population === population &&
               cell.samplingStatus !== "sufficient" &&
               cell.samplingStatus !== "excluded" &&
-              cell.samplingStatus !== "not-applicable") ||
+              (cell.samplingStatus !== "not-applicable" || population === "natural")) ||
             (requireForcedObservation &&
               exposureContext === "target-present" &&
               cell.observationStatus !== "observed")
@@ -1633,7 +1648,7 @@ export const runSimulationMoveCoverage = (
       maximumTransitions: 2_500,
       semanticNoProgressLimit: 100,
     } satisfies SimulationLimits);
-  let dataset = resumeFrom?.dataset ?? createSimulationMoveCoverageDataset(view);
+  const dataset = resumeFrom?.dataset ?? createSimulationMoveCoverageDataset(view);
   const matrixCells = exposureContexts.flatMap((exposureContext) => {
     const populations = Array.from(
       new Set<SimulationCoveragePopulation>([
@@ -1676,8 +1691,20 @@ export const runSimulationMoveCoverage = (
     failures: [],
     failuresByMove: new Map(),
     failuresByMoveAndContext: new Map(),
-    attemptedFightsByMove: new Map(),
-    attemptedFightsByMoveAndContext: new Map(),
+    attemptedFightsByMove: new Map(
+      view.moves.map((move) => [move.id, previousAttemptsForMove(resumeFrom, population, move.id)]),
+    ),
+    attemptedFightsByMoveAndContext: new Map(
+      view.moves.flatMap((move) =>
+        exposureContexts.map(
+          (exposureContext) =>
+            [
+              `${move.id}:${exposureContext}`,
+              previousAttemptsForMoveAndContext(resumeFrom, population, move.id, exposureContext),
+            ] as const,
+        ),
+      ),
+    ),
     representativeReplaySeedsByMove: new Map(),
     metricsByMove: new Map(
       view.moves.map((move) => [
@@ -1711,6 +1738,9 @@ export const runSimulationMoveCoverage = (
       accumulation.failuresByMove,
     );
     const finalCells = finalCoverageCells(naturalCells, executionCells, population);
+    const naturalPopulationApproved =
+      population === "natural" &&
+      (accumulation.runCount > 0 || resumeFrom?.generatedFrom.naturalPopulation === "approved");
     const populationRunCounts = {
       natural: previousPopulationRunCountFor(resumeFrom, "natural"),
       isolation: previousPopulationRunCountFor(resumeFrom, "isolation"),
@@ -1819,8 +1849,8 @@ export const runSimulationMoveCoverage = (
         representativeReplaySeedsByMove,
         rootSeed,
         fixedTime: fixedTime.toISOString(),
-        naturalPopulation: population === "natural" ? "approved" : "draft",
-        ...(population === "natural"
+        naturalPopulation: naturalPopulationApproved ? "approved" : "draft",
+        ...(naturalPopulationApproved
           ? {}
           : { naturalPopulationBlocker: SIMULATION_NATURAL_POPULATION_BLOCKER }),
         mechanicPaths: ["decision", "trigger"],
@@ -1855,85 +1885,87 @@ export const runSimulationMoveCoverage = (
   };
   const maximumRounds = population === "forced" ? 10 : 1;
   for (let round = 0; round < maximumRounds; round += 1) {
-    const plannedRequests = orderedMoves.flatMap((move) => {
-      const retryingFailure =
-        options.retryFailed === true && hasRetryableFailureForMove(resumeFrom, population, move.id);
-      const priorAttemptsByContext = new Map(
-        exposureContexts.map((context) => [
-          `${move.id}:${context}`,
-          retryingFailure &&
-          hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context)
-            ? 0
-            : previousAttemptsForMoveAndContext(resumeFrom, population, move.id, context),
-        ]),
-      );
-      const retryExposureContexts = new Set(
-        exposureContexts
-          .filter(
-            (context) =>
-              retryingFailure &&
-              hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context),
-          )
-          .map((context) => `${move.id}:${context}`),
-      );
-      return coverageRequestsForMove({
-        move,
-        view,
-        rootSeed,
-        fixedTime,
-        targetFights,
-        population,
-        naturalTemplates,
-        naturalProfile,
-        limits,
-        priorAttemptsByContext,
-        retryExposureContexts,
-        accumulation,
-        scheduledExposureContexts: incompleteExposureContextsForMove(
-          executionCells,
-          move.id,
-          population,
-          exposureContexts,
-          targetFights,
-          priorAttemptsByContext,
-          view,
-          retention === "coverage" && population === "forced",
-        ),
-        retention,
-      });
-    });
-    const executableRequests =
-      population === "natural"
-        ? deduplicateNaturalCoverageRequests(plannedRequests)
-        : plannedRequests;
-    if (executableRequests.length === 0) break;
-    const batchResults = runCoverageRequestBatches({
-      plannedRequests: executableRequests,
-      options,
-      accumulation,
-      targetFights,
-      minimumEligibleStates,
-      population,
-    });
-    for (const {
-      countsByMove,
-      completedFightsByMove,
-      coverageSatisfiedRunsByMove,
-    } of batchResults) {
-      for (const move of orderedMoves) {
-        executionCellsForMove({
+    const moveGroups: readonly (readonly MoveDefinition[])[] =
+      population === "natural" ? orderedMoves.map((move) => [move]) : [orderedMoves];
+    for (const moveGroup of moveGroups) {
+      const plannedRequests = moveGroup.flatMap((move) => {
+        const retryingFailure =
+          options.retryFailed === true &&
+          hasRetryableFailureForMove(resumeFrom, population, move.id);
+        const priorAttemptsByContext = new Map(
+          exposureContexts.map((context) => [
+            `${move.id}:${context}`,
+            retryingFailure &&
+            hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context)
+              ? 0
+              : previousAttemptsForMoveAndContext(resumeFrom, population, move.id, context),
+          ]),
+        );
+        const retryExposureContexts = new Set(
+          exposureContexts
+            .filter(
+              (context) =>
+                retryingFailure &&
+                hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, context),
+            )
+            .map((context) => `${move.id}:${context}`),
+        );
+        return coverageRequestsForMove({
           move,
-          cells: executionCells,
-          countsByPath: countsByMove,
-          completedFights: completedFightsByMove,
-          coverageSatisfiedRuns: coverageSatisfiedRunsByMove,
-          failuresByContext: accumulation.failuresByMoveAndContext,
-          population,
-          exposureContexts,
           view,
+          rootSeed,
+          fixedTime,
+          targetFights,
+          population,
+          naturalTemplates,
+          naturalProfile,
+          limits,
+          priorAttemptsByContext,
+          retryExposureContexts,
+          accumulation,
+          scheduledExposureContexts: incompleteExposureContextsForMove(
+            executionCells,
+            move.id,
+            population,
+            exposureContexts,
+            targetFights,
+            priorAttemptsByContext,
+            view,
+            retention === "coverage" && population === "forced",
+          ),
+          retention,
         });
-      }
-      options.onCheckpoint?.(artifactForCurrentState());
+      });
+      const executableRequests =
+        population === "natural"
+          ? deduplicateNaturalCoverageRequests(plannedRequests)
+          : plannedRequests;
+      if (executableRequests.length === 0) continue;
+      runCoverageRequestBatches({
+        plannedRequests: executableRequests,
+        options,
+        accumulation,
+        targetFights,
+        minimumEligibleStates,
+        population,
+        onBatch: ({ countsByMove, completedFightsByMove, coverageSatisfiedRunsByMove }) => {
+          for (const move of orderedMoves) {
+            executionCellsForMove({
+              move,
+              cells: executionCells,
+              countsByPath: countsByMove,
+              completedFights: completedFightsByMove,
+              coverageSatisfiedRuns: coverageSatisfiedRunsByMove,
+              failuresByContext: accumulation.failuresByMoveAndContext,
+              population,
+              exposureContexts,
+              view,
+            });
+          }
+          options.onCheckpoint?.(artifactForCurrentState());
+        },
+      });
+      if (population !== "natural" && population !== "forced") break;
     }
     if (population !== "forced") break;
     const needsForcedRetry = orderedMoves.some((move) =>
@@ -2638,7 +2670,9 @@ export const mergeSimulationMoveCoverageArtifacts = (
   const populationRunCounts = populationRunCountsFor(artifacts);
   const errors = errorsForArtifacts(artifacts);
   const naturalArtifact = artifacts.find(
-    (artifact) => artifact.generatedFrom.population === "natural",
+    (artifact) =>
+      artifact.generatedFrom.population === "natural" &&
+      artifact.generatedFrom.naturalPopulation === "approved",
   );
   return createSimulationMoveCoverageArtifact({
     generatedFrom: {
@@ -2799,7 +2833,12 @@ export const runSimulationMoveCoverageCatalog = (
       population,
       ...targetOption,
       minimumEligibleStates,
-      onCheckpoint: (artifact) => emitCheckpoint(population, artifact),
+      ...(options.onCheckpoint === undefined
+        ? {}
+        : {
+            onCheckpoint: (artifact: SimulationMoveCoverageArtifact) =>
+              emitCheckpoint(population, artifact),
+          }),
       ...(population === "isolation" ? {} : { exposureContexts: ["target-present"] as const }),
       ...(sourceArtifact === undefined || !sourceContainsPopulation(sourceArtifact, population)
         ? {}

@@ -16,12 +16,12 @@ import { compileEffectPlan } from "./effect-executors.js";
 import { compileItemEffectPlan } from "./item-effect-adapters.js";
 import { itemUsePolicyFor } from "./item-effects-runtime.js";
 import {
-  enumerateLegalDecisions,
   probeLegalDecisionCosts,
   probeLegalDecisionScarcity,
   type AuthoritativeDecisionCost,
   type AuthoritativeDecisionScarcity,
 } from "./progress-fight.js";
+import { cachedLegalDecisionsFor } from "./decision-point.js";
 import type { CombatantId } from "./ids.js";
 import { evaluateDurableNumericExpression } from "./declarative-runtime.js";
 import { calculateAttackDamage } from "./combat-mechanics.js";
@@ -301,8 +301,12 @@ export const canonicalDecisionKey = (decision: LegalDecision): string => {
   return JSON.stringify(stableValue(normalized));
 };
 
-const compiledMoveEffects = (move: MoveDefinition): readonly DecisionEffectFact[] =>
-  (move.effects ?? []).flatMap((effect, sourceEffectIndex) => {
+const compiledMoveEffectsCache = new WeakMap<MoveDefinition, readonly DecisionEffectFact[]>();
+
+const compiledMoveEffects = (move: MoveDefinition): readonly DecisionEffectFact[] => {
+  const cached = compiledMoveEffectsCache.get(move);
+  if (cached !== undefined) return cached;
+  const compiled = (move.effects ?? []).flatMap((effect, sourceEffectIndex) => {
     const compiled = compileEffectPlan({
       sourceDefinitionId: move.id,
       effectIndex: sourceEffectIndex,
@@ -322,9 +326,30 @@ const compiledMoveEffects = (move: MoveDefinition): readonly DecisionEffectFact[
         ]
       : [];
   });
+  compiledMoveEffectsCache.set(move, compiled);
+  return compiled;
+};
 
-const compiledItemEffects = (item: ItemDefinition): readonly DecisionEffectFact[] =>
-  (item.effects ?? []).flatMap((effect, sourceEffectIndex) => {
+const compiledItemEffectsCache = new WeakMap<ItemDefinition, readonly DecisionEffectFact[]>();
+
+const moveActivationCountsCache = new WeakMap<ActiveFightState, ReadonlyMap<string, number>>();
+
+const moveActivationCountsFor = (state: ActiveFightState): ReadonlyMap<string, number> => {
+  const cached = moveActivationCountsCache.get(state);
+  if (cached !== undefined) return cached;
+  const counts = new Map(
+    state.actionHistory
+      .filter((action) => action.type === "use-move")
+      .map((action) => [action.moveId, 1] as const),
+  );
+  moveActivationCountsCache.set(state, counts);
+  return counts;
+};
+
+const compiledItemEffects = (item: ItemDefinition): readonly DecisionEffectFact[] => {
+  const cached = compiledItemEffectsCache.get(item);
+  if (cached !== undefined) return cached;
+  const compiled = (item.effects ?? []).flatMap((effect, sourceEffectIndex) => {
     const compiled = compileItemEffectPlan({ item, effectIndex: sourceEffectIndex });
     if (!compiled.ok) return [];
     const type = compiled.value.normalized?.type ?? compiled.value.adapter.effectType;
@@ -338,6 +363,9 @@ const compiledItemEffects = (item: ItemDefinition): readonly DecisionEffectFact[
       },
     ];
   });
+  compiledItemEffectsCache.set(item, compiled);
+  return compiled;
+};
 
 const targetFactsFor = (
   state: ActiveFightState,
@@ -478,7 +506,7 @@ const tacticalSetupFor = (
       : setupEffect.category === "transformation"
         ? ["move", "basic-attack", "transformation"]
         : ["move", "basic-attack", "pending-response"];
-  const available = enumerateLegalDecisions(state, decision.actorId).some(
+  const available = cachedLegalDecisionsFor(state, decision.actorId).some(
     (candidate) =>
       candidate !== decision &&
       (candidate.type === "use-move" ||
@@ -501,6 +529,7 @@ const tacticalSetupFor = (
 };
 
 const summaryNumericContextFor = (state: ActiveFightState, decision: LegalDecision) => {
+  const mechanics = mechanicsViewForState(state);
   const actor = state.combatants[decision.actorId];
   const targetId =
     decision.type === "basic-attack" || decision.type === "use-move"
@@ -515,14 +544,8 @@ const summaryNumericContextFor = (state: ActiveFightState, decision: LegalDecisi
     completedTurnCount: state.turnNumber - 1,
     actionHistory: state.actionHistory,
     activeEffects: state.activeEffects,
-    moves: new Map(
-      mechanicsViewForState(state).moves.map((candidate) => [candidate.id, candidate]),
-    ),
-    moveActivationCounts: new Map(
-      state.actionHistory
-        .filter((action) => action.type === "use-move")
-        .map((action) => [action.moveId, 1]),
-    ),
+    moves: mechanics.indexes.moves,
+    moveActivationCounts: moveActivationCountsFor(state),
   };
 };
 
@@ -955,6 +978,6 @@ export const describeLegalDecisions = (
   actorId: CombatantId,
   mechanicsView?: CombatMechanicsView,
 ): readonly CombatDecisionDescriptor[] =>
-  enumerateLegalDecisions(state, actorId, mechanicsView).map((decision) =>
+  cachedLegalDecisionsFor(state, actorId, mechanicsView).map((decision) =>
     describeLegalDecision(state, decision, mechanicsView),
   );

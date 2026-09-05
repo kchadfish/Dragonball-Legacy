@@ -36,6 +36,14 @@ population blocker. A full approved Normal natural production run remains the
 next data-generation operation; the report, matrix, CSV, and dossiers are
 regenerated from the v3 artifact and freshness-validated.
 
+The compact runtime now reuses immutable legal sets and static descriptor facts,
+and skips discarded search-path/state-history hashing in coverage retention.
+The fixed v3 acceptance benchmark covers two moves across natural, isolation,
+and forced populations with Normal-profile mirrored requests: four workers,
+12 requests, zero failures, 22,864 output bytes, and approximately 4.2 seconds
+on the local workspace. This benchmark fixture is performance evidence only;
+it does not replace the pending full Normal natural production run.
+
 ## 2026-08-31 - SIM-V2 Monte Carlo closure work
 
 Combat transitions now optionally retain immutable mechanic observations with

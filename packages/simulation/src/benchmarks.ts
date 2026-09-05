@@ -1,10 +1,19 @@
 import { canonicalHash } from "./canonical.js";
 import type { SimulationFightExecutionResult, SimulationFightRequest } from "./contracts.js";
+import type { SimulationCoveragePopulation } from "./coverage.js";
 import { runSimulationFight } from "./runner.js";
 import { createScenario } from "./scenarios.js";
 import { createSyntheticArchetypes } from "./templates.js";
-import { SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
+import { NORMAL_PROFILE, SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
 import { CANONICAL_COMBAT_MECHANICS_VIEW } from "@dragonball-resurgence/combat-engine";
+import { runSimulationRequestsWithWorkers } from "./coordinator.js";
+
+export const SIMULATION_V3_COVERAGE_BENCHMARK_MOVE_IDS = Object.freeze([
+  "move-akaikaru-delta-storm",
+  "move-akaikaru-stampede-rush",
+] as const);
+
+const SIMULATION_V3_COVERAGE_BENCHMARK_BUDGET_BYTES = 64 * 1024;
 
 export interface SimulationBenchmarkManifest {
   readonly schemaVersion: "simulation-benchmark:v1";
@@ -89,6 +98,159 @@ const familyFor = (
   if (benchmarkId === "transformation") return "transformation-timing";
   if (benchmarkId === "control-heavy") return "control-versus-resource";
   return "symmetric-control";
+};
+
+export interface SimulationCoverageBenchmarkResult {
+  readonly schemaVersion: "simulation-coverage-benchmark-result:v1";
+  readonly benchmarkId: "catalog-v3";
+  readonly workerCount: 4;
+  readonly moveIds: typeof SIMULATION_V3_COVERAGE_BENCHMARK_MOVE_IDS;
+  readonly populations: readonly SimulationCoveragePopulation[];
+  readonly requestCount: number;
+  readonly failureCount: number;
+  readonly outputBytes: number;
+  readonly elapsedMilliseconds: number;
+  readonly resultHash: string;
+  readonly result: "passed" | "failed";
+  readonly resultDetails: readonly string[];
+}
+
+const coverageBenchmarkTemplateFor = (
+  template: ReturnType<typeof createSyntheticArchetypes>[number],
+  id: string,
+  maximumHitPoints: number,
+) => ({
+  ...template,
+  id,
+  label: `${template.label} v3 coverage benchmark`,
+  maximumHitPoints,
+  moveIds: [...SIMULATION_V3_COVERAGE_BENCHMARK_MOVE_IDS],
+});
+
+const coverageBenchmarkPolicyFor = (population: SimulationCoveragePopulation, moveId: string) => {
+  if (population === "natural") return undefined;
+  if (population === "forced")
+    return {
+      type: "forced-target-first" as const,
+      targetDefinitionId: moveId,
+      fallback: "first-legal" as const,
+    };
+  return {
+    type: "controlled-legal-preference" as const,
+    preferredDefinitionIds: [moveId],
+    baselineDefinitionId: "move-akaikaru-delta-storm",
+    fallback: "first-legal" as const,
+  };
+};
+
+const coverageBenchmarkRequests = (): readonly SimulationFightRequest[] => {
+  const base = createSyntheticArchetypes()[0];
+  const attacker = coverageBenchmarkTemplateFor(
+    base,
+    "simulation-template:coverage-benchmark-a",
+    10,
+  );
+  const opponent = coverageBenchmarkTemplateFor(
+    base,
+    "simulation-template:coverage-benchmark-b",
+    10,
+  );
+  const limits = { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 };
+  const populations = ["natural", "isolation", "forced"] as const;
+  return populations.flatMap((population) =>
+    SIMULATION_V3_COVERAGE_BENCHMARK_MOVE_IDS.flatMap((moveId) =>
+      (["original", "mirrored"] as const).map((mirror) => {
+        const mirrored = mirror === "mirrored";
+        const templateA = mirrored ? opponent : attacker;
+        const templateB = mirrored ? attacker : opponent;
+        const scenario = createScenario({
+          id: `simulation-scenario:coverage-benchmark-v3-${population}-${moveId}-${mirror}`,
+          family: "move-isolation",
+          checkpointId: "early",
+          templateAId: templateA.id,
+          templateBId: templateB.id,
+          variantId: "simulation-variant:baseline",
+          retention: "coverage",
+          limits,
+          stoppingPolicy: "continue",
+          deferred: false,
+        });
+        const policy = coverageBenchmarkPolicyFor(population, moveId);
+        return {
+          schemaVersion: "simulation-contracts:v1" as const,
+          runId: `simulation-run:coverage-benchmark-v3-${population}-${moveId}-${mirror}`,
+          scenario,
+          templateA,
+          templateB,
+          profileA: NORMAL_PROFILE,
+          profileB: NORMAL_PROFILE,
+          rootSeed: 2_026_090_4,
+          iteration: 0,
+          mirror,
+          seedFamilyId: `simulation-seed-family:coverage-benchmark-v3-${population}-${moveId}`,
+          fixedTime: new Date("2026-01-01T00:00:00.000Z"),
+          mechanicsView: CANONICAL_COMBAT_MECHANICS_VIEW,
+          ...(policy === undefined ? {} : { decisionPolicy: policy }),
+        } satisfies SimulationFightRequest;
+      }),
+    ),
+  );
+};
+
+/** Stable four-worker acceptance benchmark for compact all-population coverage. */
+export const runSimulationCoverageBenchmark = (
+  options: {
+    /** Wall-clock measurement is supplied by the CLI or test boundary. */
+    readonly elapsedMilliseconds?: number;
+  } = {},
+): SimulationCoverageBenchmarkResult => {
+  const requests = coverageBenchmarkRequests();
+  const coordinated = runSimulationRequestsWithWorkers({
+    requests,
+    workers: 4,
+    stoppingPolicy: "continue",
+    retainResults: true,
+  });
+  const failures = coordinated.results.flatMap((result) =>
+    result.ok ? [] : [`${result.error.type}:${JSON.stringify(result.error)}`],
+  );
+  const compactResults = coordinated.results.map((result) =>
+    result.ok
+      ? {
+          runId: result.value.runId,
+          terminationReason: result.value.terminationReason,
+          stateHash: result.value.stateHash,
+          eventHash: result.value.eventHash,
+          decisionHash: result.value.decisionHash,
+          coverage: result.value.coverage,
+        }
+      : { error: result.error },
+  );
+  const outputBytes = new TextEncoder().encode(JSON.stringify(compactResults)).byteLength;
+  const details = [
+    ...failures,
+    ...(outputBytes > SIMULATION_V3_COVERAGE_BENCHMARK_BUDGET_BYTES
+      ? [`output-budget-exceeded:${outputBytes}`]
+      : []),
+    ...(coordinated.stoppedEarly ? ["stopped-early"] : []),
+  ];
+  const elapsedMilliseconds = options.elapsedMilliseconds ?? 0;
+  if (!Number.isFinite(elapsedMilliseconds) || elapsedMilliseconds < 0)
+    throw new RangeError("Elapsed milliseconds must be a finite non-negative number.");
+  return {
+    schemaVersion: "simulation-coverage-benchmark-result:v1",
+    benchmarkId: "catalog-v3",
+    workerCount: 4,
+    moveIds: SIMULATION_V3_COVERAGE_BENCHMARK_MOVE_IDS,
+    populations: ["natural", "isolation", "forced"],
+    requestCount: requests.length,
+    failureCount: failures.length,
+    outputBytes,
+    elapsedMilliseconds,
+    resultHash: canonicalHash(compactResults),
+    result: details.length === 0 ? "passed" : "failed",
+    resultDetails: details,
+  };
 };
 
 export const createSimulationBenchmarkRequest = (

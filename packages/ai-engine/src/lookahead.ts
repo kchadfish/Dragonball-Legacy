@@ -84,13 +84,14 @@ export const selectLookaheadDecision = (
     nodes: request.workLimits?.nodeLimit ?? difficulty.maxNodes,
     probes: request.workLimits?.probeLimit ?? difficulty.maxProbes,
   };
+  const retainSearchDiagnostics = request.diagnosticRetention !== "none";
   let nodes = 0;
   let probes = 0;
   const paths: AiSearchPath[] = [];
   const searchValues = new Map<string, number>();
-  const stateHashes = new Set<string>([
-    createCombatSemanticProgressIdentity(request.state).canonicalState,
-  ]);
+  const stateHashes = retainSearchDiagnostics
+    ? new Set<string>([createCombatSemanticProgressIdentity(request.state).canonicalState])
+    : undefined;
   const candidates = [...evaluations]
     .filter((evaluation) => evaluation.pruning === "retained" || evaluation.pruning === "protected")
     .slice(0, Math.max(1, request.workLimits?.candidateLimit ?? difficulty.candidateLimit))
@@ -150,12 +151,6 @@ export const selectLookaheadDecision = (
       successor = pendingProbe.value.successorState;
       path.push(canonicalDecisionKey(pendingDecision));
     }
-    const semanticIdentity = createCombatSemanticProgressIdentity(successor);
-    const stateHash = canonicalHash(successor);
-    if (stateHashes.has(semanticIdentity.canonicalState)) {
-      completed = false;
-    }
-    stateHashes.add(semanticIdentity.canonicalState);
     const response = responseValue(
       successor,
       request,
@@ -164,7 +159,13 @@ export const selectLookaheadDecision = (
     );
     const value = response.value;
     searchValues.set(evaluation.canonicalKey, value);
-    paths.push({ path, stateHash, depth: 1, completed, value });
+    if (retainSearchDiagnostics) {
+      const semanticIdentity = createCombatSemanticProgressIdentity(successor);
+      const stateHash = canonicalHash(successor);
+      if (stateHashes?.has(semanticIdentity.canonicalState)) completed = false;
+      stateHashes?.add(semanticIdentity.canonicalState);
+      paths.push({ path, stateHash, depth: 1, completed, value });
+    }
   }
   const ranked = [...evaluations].map((evaluation) => ({
     ...evaluation,

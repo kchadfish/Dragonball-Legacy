@@ -219,6 +219,21 @@ describe("AI phases 4-8", () => {
     expect(result.value.diagnostics?.schemaVersion).toBe("ai-decision-diagnostics:v2");
   });
 
+  it("reuses each immutable descriptor during one strategic selection pass", () => {
+    let descriptorCalls = 0;
+    const result = selectStrategicDecision({
+      ...request([pass, attack]),
+      analysis: {
+        describeDecision: (_state, decision) => {
+          descriptorCalls += 1;
+          return descriptor(decision);
+        },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(descriptorCalls).toBe(2);
+  });
+
   it("protects guaranteed terminal choices from mistakes and noise", () => {
     const finishing = descriptor(attack, {
       immediateOutcome: {

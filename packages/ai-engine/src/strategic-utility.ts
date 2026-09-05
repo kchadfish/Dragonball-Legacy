@@ -4,6 +4,7 @@ import { canonicalDecisionKey } from "@dragonball-resurgence/combat-engine";
 import {
   personalityDimensionNames,
   type AiDecisionFeature,
+  type AiAnalysisFacade,
   type AiDecisionRequest,
   type AiDecisionResult,
   type AiFailure,
@@ -51,6 +52,26 @@ const failure = (message: string): AiFailure => ({
 
 const mechanicsReferenceFor = (feature: AiDecisionFeature): AiMechanicsReference | undefined =>
   feature.mechanics;
+
+const requestWithMemoizedDescriptors = (request: AiDecisionRequest): AiDecisionRequest => {
+  const analysis = request.analysis;
+  if (analysis === undefined) return request;
+  const descriptors = new Map<string, ReturnType<AiAnalysisFacade["describeDecision"]>>();
+  return {
+    ...request,
+    analysis: {
+      ...analysis,
+      describeDecision: (state, decision) => {
+        const key = canonicalDecisionKey(decision);
+        const cached = descriptors.get(key);
+        if (cached !== undefined) return cached;
+        const descriptor = analysis.describeDecision(state, decision);
+        descriptors.set(key, descriptor);
+        return descriptor;
+      },
+    },
+  };
+};
 
 const hintAdjustmentFor = (feature: AiDecisionFeature): number => {
   const hints = mechanicsReferenceFor(feature)?.aiHints;
@@ -209,14 +230,18 @@ const extractFeatures = (
 export const selectStrategicDecision = (request: AiDecisionRequest): AiResult<AiDecisionResult> => {
   const mechanicsMismatch = mechanicsViewMismatchFor(request);
   if (mechanicsMismatch !== undefined) return { ok: false, error: mechanicsMismatch };
+  const analyzedRequest = requestWithMemoizedDescriptors(request);
   const profile = request.profile;
   const profileValidation = resolvePersonalityDimensions(profile.personality);
   const difficulty = resolveDifficultySettings(profile.difficulty);
   if (difficulty.scoreNoiseMinimum > difficulty.scoreNoiseMaximum)
     return { ok: false, error: failure("Noise bounds are ordered incorrectly.") };
-  const contextResult = selectContextualDecision({ ...request, diagnosticRetention: "full" });
+  const contextResult = selectContextualDecision({
+    ...analyzedRequest,
+    diagnosticRetention: "full",
+  });
   if (!contextResult.ok) return contextResult;
-  const extracted = extractFeatures(request);
+  const extracted = extractFeatures(analyzedRequest);
   if (!extracted.ok) return extracted;
   const featureByKey = new Map(
     extracted.features.map((feature) => [feature.canonicalKey, feature]),
@@ -224,7 +249,7 @@ export const selectStrategicDecision = (request: AiDecisionRequest): AiResult<Ai
   const descriptorByKey = new Map(
     extracted.features.map((feature) => [
       feature.canonicalKey,
-      request.analysis?.describeDecision(request.state, feature.decision),
+      analyzedRequest.analysis?.describeDecision(analyzedRequest.state, feature.decision),
     ]),
   );
   const edges = setupEdgesFor(extracted.features);

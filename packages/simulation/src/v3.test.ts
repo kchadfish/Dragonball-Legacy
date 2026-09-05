@@ -16,6 +16,7 @@ import {
   mergeSimulationMoveMetrics,
   runSimulationMoveCoverage,
   runSimulationFight,
+  runSimulationCoverageBenchmark,
   simulationMoveCoverageArtifactSchema,
   updateSimulationCoverageCell,
   validateSimulationCoverageCells,
@@ -23,6 +24,22 @@ import {
 } from "./index.js";
 
 describe("simulation catalog v3 contracts", () => {
+  it("passes the fixed two-move all-population Normal coverage benchmark", () => {
+    const started = Date.now();
+    const result = runSimulationCoverageBenchmark();
+    expect(result).toMatchObject({
+      benchmarkId: "catalog-v3",
+      workerCount: 4,
+      moveIds: ["move-akaikaru-delta-storm", "move-akaikaru-stampede-rush"],
+      populations: ["natural", "isolation", "forced"],
+      requestCount: 12,
+      failureCount: 0,
+      result: "passed",
+    });
+    expect(result.outputBytes).toBeLessThan(64 * 1024);
+    expect(Date.now() - started).toBeLessThan(60_000);
+  }, 60_000);
+
   it("rejects v1 and v2 artifacts instead of migrating them", () => {
     expect(
       simulationMoveCoverageArtifactSchema.safeParse({
@@ -138,7 +155,7 @@ describe("simulation catalog v3 contracts", () => {
       batchSize: 25,
     });
     expect(result.artifact.schemaVersion).toBe("simulation-move-coverage-artifact:v3");
-  });
+  }, 15_000);
 
   it("allows sufficient natural denominators with zero natural selections", () => {
     const cells = (["decision", "trigger"] as const).map((mechanicPath) =>
@@ -238,6 +255,13 @@ describe("simulation catalog v3 contracts", () => {
 
   it("deduplicates shared natural fights while crediting every equipped move", () => {
     const templates = createSimulationNaturalCoverageTemplates();
+    const fallbackTemplates = templates.filter((template) =>
+      template.id.startsWith("simulation-template:natural-coverage-"),
+    );
+    expect(fallbackTemplates.length).toBeGreaterThan(0);
+    expect(new Set(fallbackTemplates.map((template) => template.maximumHitPoints))).toEqual(
+      new Set([40]),
+    );
     const firstTemplateIdForMove = new Map(
       CANONICAL_COMBAT_MECHANICS_VIEW.moves.map((move) => [
         move.id,

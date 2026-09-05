@@ -146,8 +146,10 @@ const appendTransition = (
 ): { readonly state: FightState; readonly noProgress: number } => {
   const state = transition.state;
   if (retainDiagnosticPayload) allTransitions.push(transition);
-  transitionHashes.push(transitionHash(transition));
-  stateHashes.push(canonicalHash(state));
+  if (retainDiagnosticPayload) {
+    transitionHashes.push(transitionHash(transition));
+    stateHashes.push(canonicalHash(state));
+  }
   eventHashes.push(canonicalHash(transition.events));
   if (retainDiagnosticPayload && legalSetHash !== undefined) legalSetHashes.push(legalSetHash);
   if (retainDiagnosticPayload && decision !== undefined) decisions.push(decision);
@@ -187,18 +189,19 @@ const guardedStepFor = (
  * injected so summary, diagnostic, and future anomaly runs cannot drift into
  * separate combat-driving implementations.
  */
+/* eslint-disable sonarjs/cognitive-complexity -- the driver keeps all termination and observation guards at one boundary. */
 export const runSimulationTransitionDriver = (
   options: SimulationTransitionDriverOptions,
 ): SimulationTransitionDriverResult => {
   let state = options.initial.state;
   const allTransitions: CombatTransition[] = [options.initial];
-  const transitionHashes = [transitionHash(options.initial)];
-  const stateHashes = [canonicalHash(state)];
+  const retainDiagnosticPayload = options.retainDiagnosticPayload ?? true;
+  const transitionHashes = retainDiagnosticPayload ? [transitionHash(options.initial)] : [];
+  const stateHashes = retainDiagnosticPayload ? [canonicalHash(state)] : [];
   const eventHashes = [canonicalHash(options.initial.events)];
   const legalSetHashes: string[] = [];
   const decisions: LegalDecision[] = [];
   const decisionHashes: string[] = [];
-  const retainDiagnosticPayload = options.retainDiagnosticPayload ?? true;
   let noProgress = 0;
   let terminationReason: SimulationTransitionDriverSuccess["terminationReason"] =
     "engine-completed";
@@ -266,3 +269,4 @@ export const runSimulationTransitionDriver = (
     terminationReason,
   };
 };
+/* eslint-enable sonarjs/cognitive-complexity */

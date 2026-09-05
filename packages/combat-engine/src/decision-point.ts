@@ -5,12 +5,38 @@ import type { CombatMechanicsView } from "./mechanics-view.js";
 
 export type NonEmptyLegalDecisions = readonly [LegalDecision, ...LegalDecision[]];
 
+const legalDecisionCache = new WeakMap<FightState, Map<string, readonly LegalDecision[]>>();
+
+const legalDecisionCacheKeyFor = (
+  state: FightState,
+  actorId: CombatantId,
+  mechanicsView: CombatMechanicsView | undefined,
+): string =>
+  `${mechanicsView?.identity.contentHash ?? state.mechanicsView?.contentHash ?? "state-view"}:${actorId}`;
+
+/** Reuses the immutable legal set for one state without changing its source. */
+export const cachedLegalDecisionsFor = (
+  state: FightState,
+  actorId: CombatantId,
+  mechanicsView?: CombatMechanicsView,
+): readonly LegalDecision[] => {
+  const key = legalDecisionCacheKeyFor(state, actorId, mechanicsView);
+  const cachedByActor = legalDecisionCache.get(state);
+  const cached = cachedByActor?.get(key);
+  if (cached !== undefined) return cached;
+  const legalDecisions = enumerateLegalDecisions(state, actorId, mechanicsView);
+  const nextCache = cachedByActor ?? new Map<string, readonly LegalDecision[]>();
+  nextCache.set(key, legalDecisions);
+  if (cachedByActor === undefined) legalDecisionCache.set(state, nextCache);
+  return legalDecisions;
+};
+
 const requiredLegalDecisions = (
   state: FightState,
   actorId: CombatantId,
   mechanicsView: CombatMechanicsView | undefined,
 ): NonEmptyLegalDecisions => {
-  const legalDecisions = enumerateLegalDecisions(state, actorId, mechanicsView);
+  const legalDecisions = cachedLegalDecisionsFor(state, actorId, mechanicsView);
   if (legalDecisions.length === 0)
     throw new RangeError(
       `Combat decision point has no legal decisions for ${actorId} at state version ${state.version}.`,

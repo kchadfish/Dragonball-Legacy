@@ -1,3 +1,8 @@
 coverage/
 dist/
 node_modules/
+
+# Generated simulation reports are individually formatted with an enlarged heap.
+docs/architecture/simulation-move-balance-matrix.json
+docs/architecture/simulation-move-coverage.json
+docs/architecture/simulation-move-dossiers.json
