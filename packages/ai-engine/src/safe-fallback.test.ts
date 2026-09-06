@@ -170,7 +170,7 @@ describe("safe legal fallback", () => {
       error: { type: "actor-mismatch" },
     });
     expect(
-      selectSafeLegalDecision(requestFor([{ type: "pass", actorId: defenderId } as LegalDecision])),
+      selectSafeLegalDecision(requestFor([{ type: "pass", actorId: defenderId }])),
     ).toMatchObject({ ok: false, error: { type: "candidate-actor-mismatch" } });
     expect(selectSafeLegalDecision(requestFor([pass, pass]))).toMatchObject({
       ok: false,

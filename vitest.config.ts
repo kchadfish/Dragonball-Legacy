@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     include: ["**/*.{test,spec}.ts"],
     passWithNoTests: true,
+    // Simulation contract suites build large immutable mechanics views; running
+    // those files concurrently makes their configured timeouts depend on host
+    // contention rather than test behavior.
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

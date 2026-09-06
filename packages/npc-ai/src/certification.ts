@@ -123,10 +123,10 @@ export const certifyAutomatedNpcCatalog = (
 ): readonly NpcCatalogCertificationRow[] => {
   const npcIds = Object.keys(AUTOMATED_NPC_POLICY_ASSIGNMENTS).sort((left, right) =>
     left.localeCompare(right),
-  ) as NpcId[];
+  );
   const pairs =
     input.pairs ??
-    npcIds.map((npcId, index) => [npcId, npcIds[(index + 1) % npcIds.length]!] as const);
+    npcIds.map((npcId, index) => [npcId, npcIds[(index + 1) % npcIds.length]] as const);
   return pairs.map((pair, index) => {
     const first = materializeNpcCombatant(pair[0]);
     const second = materializeNpcCombatant(pair[1]);
@@ -283,8 +283,8 @@ export const runAutonomousNpcFight = (input: NpcCertificationInput): NpcCertific
       telemetry: [{ type: "typed-failure", owner: "combat", detail: setup.error.type }],
       inspections: [],
     };
-  const firstId = Object.keys(setup.value.state.combatants)[0]!;
-  const secondId = Object.keys(setup.value.state.combatants)[1]!;
+  const firstId = Object.keys(setup.value.state.combatants)[0];
+  const secondId = Object.keys(setup.value.state.combatants)[1];
   npcByCombatant.set(firstId, input.combatants[0].npcId);
   npcByCombatant.set(secondId, input.combatants[1].npcId);
   let transition = setup.value;

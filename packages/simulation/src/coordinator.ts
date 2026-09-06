@@ -212,7 +212,7 @@ const launchWorker = (
   const index = state.nextIndex++;
   const pooled = acquireWorker();
   state.active.push({ pooled, index });
-  const request = requests[index]!;
+  const request = requests[index];
   if (pooled.mechanicsIdentity !== request.mechanicsView.identity.contentHash) {
     pooled.worker.postMessage({
       type: "initialize",
@@ -237,13 +237,13 @@ const consumeWorkerReply = (
   onProgress: SimulationCoordinatorRequest["onProgress"],
   onMetrics: SimulationCoordinatorRequest["onMetrics"],
 ): boolean => {
-  const activeWorker = state.active[activeIndex]!;
+  const activeWorker = state.active[activeIndex];
   const reply = receiveMessageOnPort(activeWorker.pooled.port)?.message as WorkerReply | undefined;
   if (reply === undefined) return false;
   state.active.splice(activeIndex, 1);
   if (reply.fatal === true) discardWorker(activeWorker.pooled);
   else releaseWorker(activeWorker.pooled);
-  const request = requests[activeWorker.index]!;
+  const request = requests[activeWorker.index];
   const normalized = normalizedWorkerReply(request, reply);
   if (reply.metrics !== undefined) onMetrics?.(reply.metrics);
   if (state.retainResults) state.resultSlots[activeWorker.index] = normalized;

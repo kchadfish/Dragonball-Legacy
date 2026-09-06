@@ -149,13 +149,13 @@ const validateCandidates = (request: AiDecisionRequest): AiFailure | undefined =
       return {
         type: "candidate-actor-mismatch",
         actorId: request.actorId,
-        candidateActorId: candidate.actorId as typeof request.actorId,
+        candidateActorId: candidate.actorId,
         candidateIndex,
       };
     }
     let key: string;
     try {
-      key = canonicalDecisionKey(candidate as LegalDecision);
+      key = canonicalDecisionKey(candidate);
     } catch {
       return invalidRequest([
         { path: `legalDecisions[${candidateIndex}]`, message: "Candidate is malformed." },

@@ -225,7 +225,7 @@ export const dispatchCombatTrigger = (
   trigger: CombatTrigger,
   runtime: MoveEffectRuntimeContext,
 ) => {
-  const context: CombatTriggerContext = { trigger, source, runtime } as CombatTriggerContext;
+  const context: CombatTriggerContext = { trigger, source, runtime };
   return moveEffectsForTrigger(context.source, context.trigger, {
     ...context.runtime,
     requireConditionContext: true,

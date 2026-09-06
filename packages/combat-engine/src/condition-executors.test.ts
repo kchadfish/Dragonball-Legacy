@@ -118,7 +118,7 @@ describe("condition executor registry", () => {
       ],
     } as EffectDefinition;
 
-    expect(conditionIsAvailableAtTrigger(effect.conditions![0]!, effect.trigger)).toBe(false);
+    expect(conditionIsAvailableAtTrigger(effect.conditions![0], effect.trigger)).toBe(false);
     expect(
       compileEffectPlan({ sourceDefinitionId: source.id, effectIndex: 0, effect }),
     ).toMatchObject({

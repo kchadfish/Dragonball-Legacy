@@ -360,7 +360,7 @@ const validateStoredRolls = (
     const validSourceEffect =
       sourceEffect?.type === "roll-and-store" && sourceEffect.target === "self";
     const sourceIsOwned =
-      combatant.moveIds.includes(storedRoll.sourceDefinitionId as never) ||
+      combatant.moveIds.includes(storedRoll.sourceDefinitionId) ||
       combatant.raceTraitIds?.includes(storedRoll.sourceDefinitionId) === true ||
       combatant.classId === storedRoll.sourceDefinitionId;
     const validResults =
@@ -2025,7 +2025,6 @@ const validCopiedMoveAttackReference = (
 
 /* eslint-enable sonarjs/cognitive-complexity */
 
-// eslint-disable-next-line complexity -- Invariant validation intentionally centralizes serialized-state checks.
 const validCounterActionReference = (
   reference: CounterActionReference,
   mechanics: CombatMechanicsView,

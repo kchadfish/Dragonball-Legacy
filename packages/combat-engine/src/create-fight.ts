@@ -59,7 +59,7 @@ const createCombatantState = (
   mechanics: CombatMechanicsView,
 ): CombatantState => ({
   id: combatantId,
-  ...(combatant.raceId === undefined ? {} : { raceId: combatant.raceId as never }),
+  ...(combatant.raceId === undefined ? {} : { raceId: combatant.raceId }),
   ...(combatant.raceTraitIds === undefined ? {} : { raceTraitIds: [...combatant.raceTraitIds] }),
   ...(combatant.classId === undefined ? {} : { classId: combatant.classId }),
   ...(combatant.declaredStyleId === undefined

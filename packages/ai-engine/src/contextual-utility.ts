@@ -310,7 +310,7 @@ const validateRequest = (request: AiDecisionRequest): AiFailure | undefined => {
         actorId: request.actorId,
         candidateActorId: candidate.actorId as CombatantId | undefined,
         candidateIndex,
-      } as AiFailure;
+      };
     const key = canonicalDecisionKey(decision);
     const firstIndex = seen.get(key);
     if (firstIndex !== undefined)

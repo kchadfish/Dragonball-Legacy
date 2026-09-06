@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/no-nested-conditional, sonarjs/cognitive-complexity, complexity, max-lines-per-function, max-statements */
+/* eslint-disable sonarjs/no-nested-conditional, complexity, max-lines-per-function */
 import { canonicalDecisionKey } from "@dragonball-resurgence/combat-engine";
 
 import {

@@ -639,12 +639,7 @@ const resultForArm = (
     retainResults: true,
   });
   const observations = coordinated.results.map((execution, index) =>
-    observationFor(
-      execution,
-      pairIds[index]!.mirror,
-      pairIds[index]!.pairId,
-      requests[index]!.runId,
-    ),
+    observationFor(execution, pairIds[index].mirror, pairIds[index].pairId, requests[index].runId),
   );
   return { evidence: buildEvidence(arm, population, observations), observations };
 };

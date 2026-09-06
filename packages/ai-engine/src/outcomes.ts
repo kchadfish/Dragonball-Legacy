@@ -24,6 +24,18 @@ const uncertain = (
   provenance: AiOutcomeEstimate["provenance"],
 ): AiOutcomeEstimate => ({ category, probability, uncertainty: range, provenance });
 
+const isNoOp = (descriptor: CombatDecisionDescriptor): boolean =>
+  descriptor.identity.category === "pass" ||
+  (descriptor.identity.category === "power-up" &&
+    descriptor.immediateOutcome.resources.some(
+      (resource) =>
+        resource.resource === "ki" &&
+        resource.operation === "gain" &&
+        resource.effective === 0 &&
+        resource.amount?.minimum === 0 &&
+        resource.amount.maximum === 0,
+    ));
+
 /**
  * Returns combat-owned outcome categories. Without a probe, ranges remain
  * explicitly uncertain; this function never recreates combat dice or damage.
@@ -33,6 +45,15 @@ export const estimateOutcomeDistribution = (
   probe?: CombatAnalysisProbe,
 ): readonly AiOutcomeEstimate[] => {
   if (probe !== undefined) return [exact(classifyCombatAnalysisProbe(probe))];
+  if (isNoOp(descriptor))
+    return [
+      uncertain(
+        "no-op",
+        1,
+        { minimum: 0, maximum: 0, provenance: "descriptor-range" },
+        "descriptor-range",
+      ),
+    ];
   const attack =
     descriptor.identity.category === "basic-attack" || descriptor.identity.category === "move";
   const damage = descriptor.immediateOutcome.damage.find((entry) => entry.target === "opponent");
@@ -90,12 +111,14 @@ export const expectedOutcomeValue = (outcomes: readonly AiOutcomeEstimate[]): nu
     const value =
       outcome.category === "lethal"
         ? 1_000_000
-        : outcome.category === "critical-success"
-          ? 100_000
-          : outcome.category === "normal-success" || outcome.category === "status-success"
-            ? 20_000
-            : outcome.category === "block-counter"
-              ? 10_000
-              : -5_000;
+        : outcome.category === "no-op"
+          ? 0
+          : outcome.category === "critical-success"
+            ? 100_000
+            : outcome.category === "normal-success" || outcome.category === "status-success"
+              ? 20_000
+              : outcome.category === "block-counter"
+                ? 10_000
+                : -5_000;
     return total + value * outcome.probability;
   }, 0);

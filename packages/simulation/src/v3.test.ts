@@ -159,6 +159,34 @@ describe("simulation catalog v3 contracts", () => {
     expect(result.artifact.schemaVersion).toBe("simulation-move-coverage-artifact:v3");
   }, 30_000);
 
+  it("honors explicit Forced pair looks while keeping early coverage termination diagnostic-only", () => {
+    const moveId = "move-aoyosumu-braced-energy-beam";
+    const result = runSimulationMoveCoverage({
+      population: "forced",
+      targetPairs: 3,
+      minimumEligibleStates: 1,
+      moveIds: [moveId],
+      concurrency: 1,
+      limits: { maximumTurns: 30, maximumTransitions: 500, semanticNoProgressLimit: 20 },
+    });
+    const cells = result.artifact.coverageCells.filter(
+      (cell) => cell.moveId === moveId && cell.population === "forced",
+    );
+    const attempted =
+      result.artifact.generatedFrom.populationAttemptedFightsByMoveAndContext?.forced[moveId]?.[
+        "target-present"
+      ];
+
+    expect(attempted).toBe(6);
+    expect(cells).toHaveLength(2);
+    expect(cells.every((cell) => cell.targetPairs === 3)).toBe(true);
+    expect(cells.every((cell) => cell.precision?.status === "not-applicable")).toBe(true);
+    expect(cells.every((cell) => cell.coverageSatisfiedRuns === 6)).toBe(true);
+    expect(cells.every((cell) => cell.completedFights === 0)).toBe(true);
+    expect(result.artifact.metricsByStratum?.forced).toMatchObject({});
+    expect(result.artifact.metricsByMove?.forced[moveId]?.completedFights).toBe(0);
+  }, 30_000);
+
   it("allows sufficient natural denominators with zero natural selections", () => {
     const cells = (["decision", "trigger"] as const).map((mechanicPath) =>
       updateSimulationCoverageCell(
@@ -204,8 +232,8 @@ describe("simulation catalog v3 contracts", () => {
   });
 
   it("preserves authoritative hashes while coverage omits diagnostic arrays", () => {
-    const template = createSyntheticArchetypes()[0]!;
-    const targetMove = template.moveIds[0]!;
+    const template = createSyntheticArchetypes()[0];
+    const targetMove = template.moveIds[0];
     const scenario = (retention: "coverage" | "diagnostic") =>
       createScenario({
         id: "simulation-scenario:v3-retention",
@@ -264,11 +292,26 @@ describe("simulation catalog v3 contracts", () => {
     expect(new Set(fallbackTemplates.map((template) => template.maximumHitPoints))).toEqual(
       new Set([40]),
     );
+    const naturalMoveExecutableFor = (moveId: string): boolean => {
+      const move = CANONICAL_COMBAT_MECHANICS_VIEW.indexes.moves.get(moveId);
+      if (move === undefined) return false;
+      const attack = move.mechanics.attack;
+      return (
+        attack === undefined ||
+        (attack.baseDamagePercent?.type !== "source-expression" &&
+          move.mechanics.kiCost?.type !== "source-expression")
+      );
+    };
     const firstTemplateIdForMove = new Map(
       CANONICAL_COMBAT_MECHANICS_VIEW.moves.map((move) => [
         move.id,
         templates
-          .filter((template) => template.moveIds.includes(move.id))
+          .filter(
+            (template) =>
+              !template.id.startsWith("simulation-template:generated-") &&
+              template.moveIds.includes(move.id) &&
+              template.moveIds.every(naturalMoveExecutableFor),
+          )
           .sort((left, right) => left.id.localeCompare(right.id))[0]?.id,
       ]),
     );
@@ -342,6 +385,23 @@ describe("simulation catalog v3 contracts", () => {
     expect(first.totalRequiredFights).toBe(requests.length);
     expect(first.totalRequiredFights % 2).toBe(0);
     expect(first.uniqueNaturalMatchups).toBe(first.totalRequiredFights / 2);
+  }, 60_000);
+
+  it("completes the natural scheduler path with concurrent mirrored work additions", () => {
+    const request = createSimulationNaturalCoverageRequests({
+      targetPairs: 50,
+      fightLimit: 10_000,
+    }).find(
+      (candidate) =>
+        candidate.runId ===
+        "simulation-run:move-coverage-simulation-seed-family:move-coverage-fnv1a-32:8f22753a-original",
+    );
+    if (request === undefined) throw new Error("Expected the scheduler regression request.");
+
+    const result = runSimulationFight(request);
+
+    expect(result.terminationReason).toBe("engine-completed");
+    expect(result.failure).toBeUndefined();
   }, 60_000);
 
   it("stops forced coverage early without counting a fight or precision statistic", () => {
@@ -423,7 +483,7 @@ describe("simulation catalog v3 contracts", () => {
     const dataset = createSimulationMoveCoverageDataset();
     const missingReason = createSimulationCoverageCell({
       cellId: "simulation-cell:v3-excluded",
-      moveId: dataset.records[0]!.moveId,
+      moveId: dataset.records[0].moveId,
       scenarioFamily: "move-isolation",
       checkpointId: "early",
       population: "isolation",

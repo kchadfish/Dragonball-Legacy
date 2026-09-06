@@ -133,7 +133,7 @@ const templateForNeedles = (
     needles.some((needle) => template.label.toLowerCase().includes(needle)),
   ) ??
   templates[fallbackIndex % Math.max(templates.length, 1)] ??
-  templates[0]!;
+  templates[0];
 
 const scenarioPairsFor = (
   family: SimulationScenario["family"],
@@ -214,8 +214,8 @@ const scenarioPairsFor = (
       },
     ];
   if (pairs.length < 2) return [];
-  const left = pairs[0]!;
-  const right = pairs[1]!;
+  const left = pairs[0];
+  const right = pairs[1];
   const noteByFamily: Readonly<Partial<Record<SimulationScenario["family"], string>>> = {
     "move-isolation":
       "Move isolation: target-present and target-removed execution contexts explain exposure separately from balance.",

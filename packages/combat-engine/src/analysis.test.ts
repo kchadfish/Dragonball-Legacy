@@ -27,43 +27,42 @@ import { createTestCombatDependencies } from "./testing/index.js";
 const actorId = combatantIdSchema.parse("combatant:analysis-actor");
 const opponentId = combatantIdSchema.parse("combatant:analysis-opponent");
 
-const state = (moveIds: readonly string[] = []): FightState =>
-  ({
-    id: fightIdSchema.parse("fight:analysis-boundary"),
-    version: 0,
-    rulesVersion: RULES_VERSION,
-    mode: "spar",
-    turnNumber: 1,
-    combatants: {
-      [actorId]: {
-        id: actorId,
-        hitPoints: { current: 100, maximum: 100 },
-        ki: { current: 10, maximum: 10 },
-        stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
-        moveIds,
-        moveUses: {},
-        activeStatuses: [],
-        status: "active",
-      },
-      [opponentId]: {
-        id: opponentId,
-        hitPoints: { current: 100, maximum: 100 },
-        ki: { current: 10, maximum: 10 },
-        stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
-        moveIds: [],
-        moveUses: {},
-        activeStatuses: [],
-        status: "active",
-      },
+const state = (moveIds: readonly string[] = []): FightState => ({
+  id: fightIdSchema.parse("fight:analysis-boundary"),
+  version: 0,
+  rulesVersion: RULES_VERSION,
+  mode: "spar",
+  turnNumber: 1,
+  combatants: {
+    [actorId]: {
+      id: actorId,
+      hitPoints: { current: 100, maximum: 100 },
+      ki: { current: 10, maximum: 10 },
+      stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+      moveIds,
+      moveUses: {},
+      activeStatuses: [],
+      status: "active",
     },
-    activeEffects: [],
-    actionHistory: [],
-    resolutionFrames: [],
-    eventSequence: 0,
-    status: "active",
-    phase: "action",
-    activeCombatantId: actorId,
-  }) as ActiveFightState;
+    [opponentId]: {
+      id: opponentId,
+      hitPoints: { current: 100, maximum: 100 },
+      ki: { current: 10, maximum: 10 },
+      stats: { power: 20, dexterity: 10, dexterityBonus: 0 },
+      moveIds: [],
+      moveUses: {},
+      activeStatuses: [],
+      status: "active",
+    },
+  },
+  activeEffects: [],
+  actionHistory: [],
+  resolutionFrames: [],
+  eventSequence: 0,
+  status: "active",
+  phase: "action",
+  activeCombatantId: actorId,
+});
 
 describe("combat analysis boundary", () => {
   it("keeps batch descriptors identical to individual descriptors and state-pure", () => {
@@ -110,7 +109,7 @@ describe("combat analysis boundary", () => {
     expect(descriptor.actionConsumption).toBe("action");
     expect(descriptor.costs[0]?.resource).toBe("ki");
     expect(descriptor.effects.length).toBeGreaterThan(0);
-    const firstEffect = descriptor.effects[0]!;
+    const firstEffect = descriptor.effects[0];
     expect(descriptor.definitionProvenance).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "move", definitionId: "move-akaikaru-firestorm" }),

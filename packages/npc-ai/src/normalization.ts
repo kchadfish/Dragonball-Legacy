@@ -189,7 +189,7 @@ export const NPC_NORMALIZATION_OVERLAYS: readonly NpcNormalizationOverlay[] = [
   "npc-namek-steelpan-1",
   "npc-namek-tenor-1",
 ].map((npcId) => ({
-  npcId: npcId as NpcId,
+  npcId: npcId,
   dexterityAllocationPercent: npcId === "npc-earth-south-aberax-1" ? 39 : 30,
   ...(npcId === "npc-namek-snare-1" ? { raceId: "race-namek" } : {}),
 }));

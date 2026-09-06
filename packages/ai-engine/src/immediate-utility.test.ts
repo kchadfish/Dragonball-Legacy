@@ -391,10 +391,10 @@ describe("immediate utility chooser", () => {
       });
 
     const lowerCost = scorePair(cost(1), cost(2));
-    expect(lowerCost.first).toBeGreaterThanOrEqual(lowerCost.second!);
+    expect(lowerCost.first).toBeGreaterThanOrEqual(lowerCost.second);
     const greaterBenefit = scorePair(damage(20), damage(10));
-    expect(greaterBenefit.first).toBeGreaterThanOrEqual(greaterBenefit.second!);
+    expect(greaterBenefit.first).toBeGreaterThanOrEqual(greaterBenefit.second);
     const lethal = scorePair(damage(100, true), damage(100, false));
-    expect(lethal.first).toBeGreaterThanOrEqual(lethal.second!);
+    expect(lethal.first).toBeGreaterThanOrEqual(lethal.second);
   });
 });

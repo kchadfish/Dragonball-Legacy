@@ -203,6 +203,7 @@ export interface AiMechanicsView {
 
 export type AiOutcomeCategory =
   | "stopped"
+  | "no-op"
   | "normal-success"
   | "critical-success"
   | "block-counter"

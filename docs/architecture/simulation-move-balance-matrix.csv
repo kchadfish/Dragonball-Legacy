@@ -503,9 +503,10 @@ move-midorikatai-x-attack,X-Attack,advanced-attack,not-scheduled,observed-suffic
 key,value
 schemaVersion,simulation-report:v2
 reportId,simulation-report:move-balance
-freshnessHash,fnv1a-32:6c645bfd
+evidenceLevel,pilot
+freshnessHash,fnv1a-32:26d78fd6
 generatedFrom,"{""coverageSchemaVersion"":""simulation-move-coverage-artifact:v3"",""exposureContexts"":[""target-present"",""target-removed"",""comparable-replacement""],""inputHash"":""fnv1a-32:e469a88e"",""mechanicsIdentity"":""048927c2d8a4fb01fd80b4971f24a97a1e7e76af0c6ae4fd0d95ac78ce1c5942"",""naturalPopulation"":""draft"",""precisionLook"":1,""scopeVersion"":""simulation-scope:v2""}"
-manifest,"{""confidence"":0.95,""denominators"":[""completed-fights"",""eligible-states"",""selected-states"",""triggered-states"",""completed-pairs""],""intervalVersion"":""intervals:v1"",""metricDictionaryVersion"":""simulation-metrics:v1"",""populations"":[""natural"",""isolation"",""forced""],""precisionLooks"":[250,500,1000,2000,5000,10000],""strata"":[""population"",""category"",""profile"",""exposure-context""]}"
+manifest,"{""confidence"":0.95,""denominators"":[""completed-fights"",""eligible-states"",""selected-states"",""triggered-states"",""completed-pairs""],""intervalVersion"":""intervals:v1"",""metricDictionaryVersion"":""simulation-metrics:v1"",""populations"":[""natural"",""isolation"",""forced""],""precisionLooks"":[50,100,250,500,1000,2000,5000,10000],""strata"":[""population"",""category"",""profile"",""exposure-context""]}"
 
 # metrics
 id,metric

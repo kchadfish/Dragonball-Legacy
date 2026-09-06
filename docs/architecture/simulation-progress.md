@@ -4,6 +4,86 @@ This is the verified handoff record for `@dragonball-resurgence/simulation`.
 Roadmap prose remains the implementation authority; this file records what is
 implemented, the evidence for it, and the next executable item.
 
+## 2026-09-05 - Progressive Natural Normal precision looks
+
+The initial 250-pair Natural Normal catalog run was deferred because its
+measured schedule and runtime were impractical: the production-shaped
+throughput measurement projected roughly 245 hours at 250 pairs. Progressive
+looks reduce the initial screening cost without changing combat transitions,
+Normal AI, natural fixtures, mirroring, seed derivation, mechanics identity,
+worker count, checkpoints, or metric accumulation.
+
+The new catalog policy starts at 50 pairs, continues at 100, and requires at
+least 250 pairs for production closure. Screening findings are triage evidence,
+not final balance certification. Additional pairs are cumulative under the
+same manifest and deterministic seed schedule; resume executes only missing
+iterations and never relabels or resumes the historical target-250 artifacts
+downward. The screening artifact remains under `artifacts/simulation` and the
+canonical production artifact is unchanged until the 250-pair closure gate
+passes.
+
+### Current statistical precision
+
+The Wilson half-width values below are worst-case planning approximations for a
+binary rate. Authoritative reports continue to use observed denominators,
+Wilson intervals, paired effects, missingness, and error counts.
+
+| Target / completed pairs | Total completed fights | Evidence level       | Approx. worst-case 95% Wilson half-width | Relative sampling noise vs 250 pairs | Schedule size                                    | Elapsed time | Projected remaining time |                                       Failures | Artifact hash     | Current status                                           |
+| ------------------------ | ---------------------: | -------------------- | ---------------------------------------: | -----------------------------------: | ------------------------------------------------ | ------------ | ------------------------ | ---------------------------------------------: | ----------------- | -------------------------------------------------------- |
+| 50 / 50                  |                    100 | screening            |                   ±9.6 percentage points |                                2.24× | planning value                                   | —            | —                        |                                              — | —                 | planning approximation                                   |
+| 100 / 100                |                    200 | confirmation         |                              ±6.9 points |                                1.58× | planning value                                   | —            | —                        |                                              — | —                 | planning approximation                                   |
+| 250 / 250                |                    500 | production-candidate |                              ±4.4 points |                             baseline | planning value                                   | —            | —                        |                                              — | —                 | baseline production candidate                            |
+| 50 / 50–161*             |               100–322* | screening            |                   ±9.6 percentage points |                                2.24× | 3,972 natural oriented requests across 499 moves | ~35 min*     | —                        | 0 unresolved; 472 recovered typed observations | fnv1a-32:ae68dafb | screening closure complete; not production certification |
+
+| 100 / 100-366* | 200-732* | confirmation | ±6.9 points | 1.58× | 8,066 natural oriented requests across 499 moves | ~2 h 10 min* | — | 0 unresolved; 472 recovered typed observations | fnv1a-32:04bf5446 | confirmation closure complete; not production certification |
+The planning values are intentionally approximate and should not be read as
+observed precision. The current-state row is updated after each completed
+precision look with achieved pairs, runtime, failures, and the artifact hash.
+
+The completed Natural Normal screening artifact is
+`artifacts/simulation/catalog-v3-natural-50.json`. It contains 499 moves and
+998 target-present cells covering both decision and trigger paths. All 998
+cells are sampling-sufficient after same-look continuation; each has at least
+50 mirrored pairs / 100 oriented move-credit fights, with targeted sparse-cell
+recovery producing a final per-cell range of 50–161 pairs / 100–322 oriented
+fights. The run submitted 3,972 natural oriented fight requests, with 3,500
+successful fight requests represented in move-credit metrics and 472 typed
+failure observations recovered by continuation. The final artifact has zero
+unresolved errors, screening closure passes, and its artifact hash is
+`fnv1a-32:ae68dafb`; the approximately 35-minute runtime includes the
+same-look corrective continuations through 2026-09-06 08:31 CDT.
+
+The completed Natural Normal confirmation artifact is
+`artifacts/simulation/catalog-v3-natural-100.json`. It contains the same 499
+moves and 998 target-present cells as the screening look. All 998 cells are
+sampling-sufficient after same-look continuation; each has at least 100
+mirrored pairs / 200 oriented move-credit fights, with targeted sparse-cell
+recovery producing a final per-cell range of 100-366 pairs / 200-732 oriented
+fights. The run submitted 8,066 natural oriented fight requests, with 7,594
+successful fight requests and 472 typed failure observations recovered by
+continuation. The final artifact has zero unresolved errors, confirmation
+closure passes under the screening validator, and its artifact hash is
+`fnv1a-32:04bf5446`; the end-to-end runtime was approximately 2 hours 10
+minutes through 2026-09-06 13:02 CDT. This is confirmation evidence for balance
+triage and move-specific retesting, not the canonical production catalog.
+
+The target-100 natural observation breakdown is 133 cells observed, 157
+eligible but never selected, and 708 never eligible under the natural Normal
+population. These limitations remain visible in the artifact and report; they
+do not promote the confirmation look to production certification. The nominal
+250-pair / 500-oriented-fight look remains the production-candidate target.
+
+The natural observation breakdown remains visible: 131 cells are observed,
+158 are eligible but never selected, and 709 are never eligible under the
+natural Normal population. Those states are screening evidence and identify
+where move-specific retesting or controlled exposure is needed. This 50-pair
+artifact is not the canonical production catalog and does not satisfy the
+100-pair confirmation or 250-pair production-candidate look; production
+documentation must continue to distinguish screening closure from 250-pair
+production closure. The asterisks in the current row denote the per-cell
+range created by targeted eligibility recovery beyond the nominal 50-pair
+screening look.
+
 ## 2026-09-02 - SIM-V3 coverage, retention, and deterministic orchestration
 
 The simulation coverage artifact and coverage cells now use v3 contracts.
@@ -321,8 +401,8 @@ contexts; forced target-first evidence remains diagnostic and separate from
 natural evidence.
 
 Coverage cells retain profile/context strata, Wilson precision state, per-context
-attempt offsets, and deterministic look continuation at 250, 500, 1,000, 2,000,
-5,000, and 10,000 mirrored pairs. CLI catalog and resume workflows support
+attempt offsets, and deterministic look continuation at 50, 100, 250, 500,
+1,000, 2,000, 5,000, and 10,000 mirrored pairs. CLI catalog and resume workflows support
 population, profile, context, retry, output, and reproducible resume selection.
 The canonical production run still requires execution at the declared looks;
 the checked-in artifact is not marked closure-complete until that run finishes.

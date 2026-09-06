@@ -483,12 +483,14 @@ const schedulingWorkAdditions = (
   const existingSources = new Set(
     existing.flatMap((work) => (work.sourceEffectId === undefined ? [] : [work.sourceEffectId])),
   );
-  return effects.flatMap((effect, index) => {
+  let additionCount = 0;
+  return effects.flatMap((effect) => {
     if (!schedulingEffect(effect) || existingSources.has(effect.id)) return [];
+    additionCount += 1;
     const work = scheduledWorkFromLegacyEffect(
       effect,
       state.turnNumber,
-      nextOrder + index + 1,
+      nextOrder + additionCount,
       "mirror",
     );
     return work === undefined ? [] : [work];
@@ -1912,15 +1914,28 @@ const reactionMoveBaseCost = (
   });
 };
 
+type ReactionEffectUseLimit = RerollEffectDefinition["useLimit"] | RerollApplication["useLimit"];
+
+type ReactionSkillAvailabilityArguments = [
+  state: ActiveFightState,
+  combatantId: CombatantId,
+  move: MoveDefinition,
+  effectUseLimit: ReactionEffectUseLimit,
+  effectIndex?: number,
+  freeReaction?: boolean,
+  reservedKiCost?: number,
+];
+
 const reactionSkillAvailability = (
-  ...[state, combatantId, move, effectUseLimit, effectIndex, freeReaction = false]: [
-    state: ActiveFightState,
-    combatantId: CombatantId,
-    move: MoveDefinition,
-    effectUseLimit: RerollEffectDefinition["useLimit"] | RerollApplication["useLimit"],
-    effectIndex?: number,
-    freeReaction?: boolean,
-  ]
+  ...[
+    state,
+    combatantId,
+    move,
+    effectUseLimit,
+    effectIndex,
+    freeReaction = false,
+    reservedKiCost = 0,
+  ]: ReactionSkillAvailabilityArguments
   // eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 ) => {
   if (move.category !== "skill" || freeReaction) {
@@ -1959,7 +1974,7 @@ const reactionSkillAvailability = (
           });
   const limit = moveLimit;
   if (
-    combatant.ki.current < kiCost ||
+    combatant.ki.current < kiCost + reservedKiCost ||
     (limit !== undefined && (combatant.moveUses[move.id] ?? 0) >= limit)
   )
     return undefined;
@@ -2761,6 +2776,7 @@ const legalBlockMoves = (
   state: ActiveFightState,
   defenderId: CombatantId,
   attack: BlockableAttack,
+  attackBaseKiCost = 0,
 ) => {
   const defender = state.combatants[defenderId];
   if (hasDeclaredBlockThisTurn(state, defenderId)) return [];
@@ -2777,9 +2793,13 @@ const legalBlockMoves = (
     const useLimit =
       move === undefined ? undefined : effectiveRestrictedMoveUseLimit(state, defender, move);
     const exhausted = useLimit !== undefined && (defender.moveUses[moveId] ?? 0) >= useLimit;
+    const cost =
+      move === undefined ? undefined : calculateConvertedBlockCost(move, attackBaseKiCost);
     return move !== undefined &&
       !locked &&
       !exhausted &&
+      cost !== undefined &&
+      defender.ki.current >= cost &&
       evaluateBlockEligibility(move, attack).canDeclare
       ? [move]
       : [];
@@ -4760,7 +4780,7 @@ const scheduledResourceEffectFromWork = (
     type: "scheduled-resource",
     sourceCombatantId: work.ownerCombatantId,
     targetCombatantId: work.targetCombatantId,
-    sourceDefinitionId: work.sourceDefinitionId as MoveId,
+    sourceDefinitionId: work.sourceDefinitionId,
     sourceEffectIndex: work.operation.sourceEffectIndex,
     timing: work.operation.boundary,
     remainingBoundaries: work.operation.remainingBoundaries,
@@ -5790,6 +5810,7 @@ interface DefenseRequestContext {
     { readonly stage: "awaiting-defense" }
   >["attack"];
   readonly blockableAttack: BlockableAttack;
+  readonly attackBaseKiCost?: number;
   readonly preventBlock?: boolean;
   readonly enabledOptionalEffectIndices?: readonly number[];
   readonly resolvedOptionalEffectIndices?: readonly number[];
@@ -5905,6 +5926,7 @@ const requestAttackDefense = ({
   target,
   attack,
   blockableAttack,
+  attackBaseKiCost,
   preventBlock = false,
   enabledOptionalEffectIndices,
   resolvedOptionalEffectIndices,
@@ -5916,7 +5938,9 @@ const requestAttackDefense = ({
   dependencies,
 }: DefenseRequestContext): CombatResult<CombatTransition> => {
   const pendingDecisionId = dependencies.ids.nextPendingDecisionId();
-  const blocks = preventBlock ? [] : legalBlockMoves(state, target.id, blockableAttack);
+  const blocks = preventBlock
+    ? []
+    : legalBlockMoves(state, target.id, blockableAttack, attackBaseKiCost);
   const defenseItems = availablePreRollDefenseItems(state, target);
   const beforeDefenseEffectChoices = beforeDefenseRerollChoices(
     state,
@@ -6866,7 +6890,7 @@ const appendDeathBeamActionEvents = (
       causedByDecisionId: decision.id,
       type: "move-used",
       combatantId: attacker.id,
-      moveId: deathBeamFor(state)!.id,
+      moveId: deathBeamFor(state).id,
       targetCombatantId: target.id,
     },
     {
@@ -6900,7 +6924,7 @@ const appendDeathBeamActionEvents = (
       type: "attack-rolled",
       combatantId: attacker.id,
       targetCombatantId: target.id,
-      moveId: deathBeamFor(state)!.id,
+      moveId: deathBeamFor(state).id,
       naturalResult: resolution.attackNaturalResult,
       result: resolution.attackResult,
     },
@@ -6923,7 +6947,7 @@ const appendDeathBeamActionEvents = (
       type: "attack-resolved",
       combatantId: attacker.id,
       targetCombatantId: target.id,
-      moveId: deathBeamFor(state)!.id,
+      moveId: deathBeamFor(state).id,
       outcome: resolution.outcome,
       critical: resolution.critical,
       counter: resolution.counter,
@@ -6962,7 +6986,7 @@ const appendDeathBeamOutcomeEvents = (
       activeEffectId: activatedEffect.id,
       sourceCombatantId: attacker.id,
       targetCombatantId: target.id,
-      sourceDefinitionId: deathBeamFor(state)!.id,
+      sourceDefinitionId: deathBeamFor(state).id,
     });
   }
   if (resolution.defeated) {
@@ -7011,7 +7035,7 @@ const createDeathBeamState = (
       ki: { ...attacker.ki, current: attacker.ki.current - context.cost },
       moveUses: {
         ...attacker.moveUses,
-        [deathBeamFor(state)!.id]: (attacker.moveUses[deathBeamFor(state)!.id] ?? 0) + 1,
+        [deathBeamFor(state).id]: (attacker.moveUses[deathBeamFor(state).id] ?? 0) + 1,
       },
     },
     ...(resolution.outcome === "successful"
@@ -8549,7 +8573,6 @@ const createConvertedAttackMoveState = (
     eventSequence: state.eventSequence + eventCount,
   };
 };
-/* eslint-enable complexity, max-lines-per-function */
 
 const selectedDamageTargetFor = (
   state: ActiveFightState,
@@ -9622,9 +9645,10 @@ const shouldRequestMoveDefense = (
   move: MoveDefinition,
   blockableAttack: BlockableAttack,
   requestDefense: boolean,
+  attackBaseKiCost?: number,
 ) =>
   requestDefense &&
-  (legalBlockMoves(state, target.id, blockableAttack).length > 0 ||
+  (legalBlockMoves(state, target.id, blockableAttack, attackBaseKiCost).length > 0 ||
     availablePreRollDefenseItems(state, target).length > 0 ||
     hasPostDefenseReaction(state, target.id, move) ||
     hasAfterDefenseEffectChoicePotential(move) ||
@@ -14767,6 +14791,11 @@ type PostDefenseReactionFrame = Extract<
   { readonly stage: "awaiting-post-defense-reaction" }
 >;
 
+type PendingAttackFrame = Pick<
+  PostDefenseReactionFrame,
+  "attackerId" | "targetCombatantId" | "attack"
+>;
+
 interface PostDefenseReactionSelection {
   readonly itemUse: ReturnType<typeof availablePostRollDefenseItems>[number] | undefined;
   readonly closeShaveKiLoss: number | undefined;
@@ -16752,7 +16781,18 @@ const resolveConvertedAttackMove = (
     ignoreRestrictedUse || deferredExecution !== undefined,
   );
   if (failure !== undefined) return { ok: false, error: failure };
-  if (shouldRequestMoveDefense(state, target, classifiedMove, blockableAttack, requestDefense)) {
+  const attackBaseKiCost =
+    move.mechanics.kiCost?.type === "literal" ? move.mechanics.kiCost.value : undefined;
+  if (
+    shouldRequestMoveDefense(
+      state,
+      target,
+      classifiedMove,
+      blockableAttack,
+      requestDefense,
+      attackBaseKiCost,
+    )
+  ) {
     return requestAttackDefense({
       state,
       decision,
@@ -16767,6 +16807,7 @@ const resolveConvertedAttackMove = (
         copiedSourceResolution,
       ),
       blockableAttack,
+      attackBaseKiCost,
       preventBlock: preventsBlock,
       enabledOptionalEffectIndices,
       resolvedOptionalEffectIndices,
@@ -17389,7 +17430,7 @@ const scheduledExtraActionsFor = (state: ActiveFightState, combatantId: Combatan
         type: "extra-action" as const,
         sourceCombatantId: work.ownerCombatantId ?? combatantId,
         targetCombatantId: combatantId,
-        sourceDefinitionId: work.sourceDefinitionId as MoveId,
+        sourceDefinitionId: work.sourceDefinitionId,
         sourceEffectIndex: 0,
         phase: operation.phase,
         ...(operation.moveCategory === undefined ? {} : { moveCategory: operation.moveCategory }),
@@ -17927,7 +17968,6 @@ const deferredMoveAtUpkeep = (
   upkeepExtraActionState: ActiveFightState,
   events: readonly CombatEvent[],
   dependencies: CombatDependencies,
-  // eslint-disable-next-line max-lines-per-function -- Combat transition logic intentionally keeps the persisted phase branches together.
 ): CombatResult<CombatTransition> | undefined => {
   const deferredMove = deferredMoveForUpkeep(
     upkeepExtraActionState,
@@ -21415,7 +21455,6 @@ interface PostDefenseRerollChoice {
   readonly kiCost: number;
 }
 
-// eslint-disable-next-line complexity -- Combat transition logic intentionally keeps the persisted phase branches together.
 const moveForAttackReference = (
   state: ActiveFightState,
   attack: CopiedMoveAttackReference,
@@ -21459,6 +21498,23 @@ const pendingAttackMove = (
   attack: PostDefenseReactionFrame["attack"],
 ): MoveDefinition | undefined =>
   attack.type === "move" ? moveForAttackReference(state, attack) : undefined;
+
+const pendingAttackKiCostForReaction = (
+  state: ActiveFightState,
+  frame: PendingAttackFrame,
+  combatantId: CombatantId,
+): number => {
+  if (combatantId !== frame.attackerId || frame.attack.type === "basic-attack") return 0;
+  const move = pendingAttackMove(state, frame.attack);
+  if (move === undefined) return 0;
+  const cost = probeLegalDecisionCosts(state, {
+    type: "use-move",
+    actorId: frame.attackerId,
+    moveId: move.id,
+    targetCombatantId: frame.targetCombatantId,
+  });
+  return cost.find((entry) => entry.resource === "ki")?.effective ?? 0;
+};
 
 const copiedAttackResolutionOptions = (attack: CopiedMoveAttackReference) => ({
   ...(attack.copiedFromMoveId === undefined ? {} : { copiedFromMoveId: attack.copiedFromMoveId }),
@@ -21594,6 +21650,7 @@ const availablePostDefenseRerolls = (
           application.useLimit,
           application.effectIndex,
           application.trigger === "on-roll-result",
+          pendingAttackKiCostForReaction(state, frame, combatantId),
         );
         if (withEffectLimit === undefined) return [];
         return [
@@ -21937,10 +21994,11 @@ const rerollOptionsForEffect = (
   state: ActiveFightState,
   effect: ActiveRerollEffect,
   rolls: readonly PostDefenseReactionRoll[],
+  reservedKiCost = 0,
 ) => {
   if (
     effect.activationCost !== undefined &&
-    state.combatants[effect.sourceCombatantId].ki.current < effect.activationCost
+    state.combatants[effect.sourceCombatantId].ki.current < effect.activationCost + reservedKiCost
   )
     return [];
   if (effect.rerollScope === "entire-attack")
@@ -21962,7 +22020,12 @@ const rerollOptionsForPostDefense = (
   rolls: readonly PostDefenseReactionRoll[],
 ) =>
   eligibleRerollsForPostDefense(state, frame, rolls).flatMap((effect) =>
-    rerollOptionsForEffect(state, effect, rolls),
+    rerollOptionsForEffect(
+      state,
+      effect,
+      rolls,
+      pendingAttackKiCostForReaction(state, frame, effect.sourceCombatantId),
+    ),
   );
 
 const rerollEffectForOption = (state: ActiveFightState, optionId: string) => {
@@ -25847,7 +25910,7 @@ const deactivateAllEligibleConstants = ({
   priorEventCount,
 }: DeactivateAllEligibleConstantsInput) => ({
   activeEffects: activeEffects.map((effect) =>
-    effect.type === "active-constant" && eligible.includes(effect as (typeof eligible)[number])
+    effect.type === "active-constant" && eligible.includes(effect)
       ? {
           ...effect,
           lifecycle: constantLifecycleWithState(effect, "deactivated", state.eventSequence),
@@ -26656,7 +26719,7 @@ const activatedItemEffects = (
           type: "modify-next-action",
           sourceCombatantId: combatant.id,
           targetCombatantId: combatant.id,
-          sourceDefinitionId: item.id as never,
+          sourceDefinitionId: item.id,
           sourceEffectIndex: effectIndex,
           scope: "next-roll",
           remaining: 1,
@@ -30419,10 +30482,10 @@ const submitCombatDecisionInternal = (
 ): CombatResult<CombatTransition> => {
   const decision: CombatDecision =
     inputDecision.type === "respond-to-pending-decision" && inputDecision.optionId === undefined
-      ? ({
+      ? {
           ...inputDecision,
           optionId: inputDecision.selectedOptionIds?.[0] ?? "",
-        } as CombatDecision)
+        }
       : (inputDecision as CombatDecision);
   if (state.schemaVersion !== 5 || state.scheduledWork === undefined)
     return submitCombatDecisionInternal(normalizeLegacyFightState(state), decision, dependencies);

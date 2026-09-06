@@ -538,17 +538,46 @@ export const recordSimulationMoveObservation = (
   });
 };
 
+const coverageStatusForPopulation = (
+  record: SimulationMoveCoverageRecord,
+  population: SimulationMoveCoveragePopulation,
+  reviewedExclusions: Readonly<Partial<Record<string, string>>>,
+): {
+  readonly status: SimulationMoveCoverageStatus;
+  readonly decisionId: string | undefined;
+} => {
+  switch (population) {
+    case "natural":
+      return {
+        status: record.naturalStatus,
+        decisionId: record.naturalScopeDecisionId ?? reviewedExclusions[`${record.moveId}:natural`],
+      };
+    case "isolation":
+      return {
+        status: record.isolationStatus,
+        decisionId:
+          record.isolationScopeDecisionId ?? reviewedExclusions[`${record.moveId}:isolation`],
+      };
+    case "forced":
+      return { status: record.forcedStatus, decisionId: undefined };
+  }
+};
+
 export const validateSimulationMoveClosure = (
   dataset: SimulationMoveCoverageDataset,
   reviewedExclusions: Readonly<Partial<Record<string, string>>> = {},
   mechanicsView: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
-  options: Readonly<{ allowNaturalNotScheduled?: boolean }> = {},
+  options: Readonly<{
+    allowNaturalNotScheduled?: boolean;
+    populations?: readonly ("natural" | "isolation" | "forced")[];
+  }> = {},
 ): readonly string[] => {
   const issues: string[] = [];
   if (dataset.mechanicsIdentity !== mechanicsView.identity.contentHash)
     issues.push("Move coverage mechanics identity does not match the canonical mechanics view.");
   const ids = new Set<string>();
   const expectedIds = new Set(mechanicsView.moves.map((move) => move.id));
+  const populations = options.populations ?? (["natural", "isolation", "forced"] as const);
   const sufficient = (status: SimulationMoveCoverageStatus): boolean =>
     status === "observed-sufficient" || status === "sufficient" || status === "never-eligible";
   const validateStatus = (
@@ -583,19 +612,10 @@ export const validateSimulationMoveClosure = (
     ids.add(record.moveId);
     if (!expectedIds.has(record.moveId))
       issues.push(`Unknown move coverage record: ${record.moveId}`);
-    validateStatus(
-      record,
-      "natural",
-      record.naturalStatus,
-      record.naturalScopeDecisionId ?? reviewedExclusions[`${record.moveId}:natural`],
-    );
-    validateStatus(
-      record,
-      "isolation",
-      record.isolationStatus,
-      record.isolationScopeDecisionId ?? reviewedExclusions[`${record.moveId}:isolation`],
-    );
-    validateStatus(record, "forced", record.forcedStatus, undefined);
+    for (const population of populations) {
+      const coverage = coverageStatusForPopulation(record, population, reviewedExclusions);
+      validateStatus(record, population, coverage.status, coverage.decisionId);
+    }
     if (record.requiredMechanicPaths.length === 0)
       issues.push(`Move has no required mechanic paths: ${record.moveId}`);
   }

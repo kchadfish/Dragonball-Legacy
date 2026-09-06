@@ -194,16 +194,9 @@ export const normalizeEffectLifecycle = <T extends object>(
   readonly lifecycle?: EffectLifecycleRecord;
 } => {
   const value = effect as Record<string, unknown>;
-  if (typeof value.lifecycle === "object" && value.lifecycle !== null)
-    return effect as T & {
-      readonly lifecycle: EffectLifecycleRecord;
-    };
+  if (typeof value.lifecycle === "object" && value.lifecycle !== null) return effect;
   const lifecycle = normalizeLegacyEffectLifecycle(effect);
-  return lifecycle === undefined
-    ? effect
-    : ({ ...effect, lifecycle } as T & {
-        readonly lifecycle: EffectLifecycleRecord;
-      });
+  return lifecycle === undefined ? effect : { ...effect, lifecycle };
 };
 
 /** Normalizes a persisted effect collection without changing its ordering. */
@@ -274,7 +267,6 @@ const isValidBoundaryCounter = (
   );
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- lifecycle schema validation intentionally checks every persisted dimension.
 export const isValidEffectLifecycle = (lifecycle: unknown): lifecycle is EffectLifecycleRecord => {
   if (typeof lifecycle !== "object" || lifecycle === null) return false;
   const value = lifecycle as Partial<EffectLifecycleRecord>;

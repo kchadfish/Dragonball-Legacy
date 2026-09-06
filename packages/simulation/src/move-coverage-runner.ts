@@ -67,13 +67,15 @@ import {
   createSimulationStratifiedAccumulator,
   markSimulationStratifiedError,
   mergeSimulationStratifiedAccumulators,
+  SIMULATION_PRECISION_LOOKS,
   type SimulationStratifiedAccumulator,
 } from "./statistics.js";
 
 const slugFor = (moveId: string): string => moveId.replaceAll(":", "-");
 
 /** Versioned catalog-closure precision looks, expressed as mirrored pairs per cell. */
-export const SIMULATION_COVERAGE_PRECISION_LOOKS = [250, 500, 1_000, 2_000, 5_000, 10_000] as const;
+export const SIMULATION_COVERAGE_PRECISION_LOOKS = SIMULATION_PRECISION_LOOKS;
+export const SIMULATION_NATURAL_COVERAGE_DEFAULT_TARGET_PAIRS = 50;
 /** Coverage is checkpointed in deterministic mirrored-pair batches. */
 export const SIMULATION_COVERAGE_BATCH_SIZE = 25;
 
@@ -95,6 +97,19 @@ export const nextSimulationCoveragePrecisionLook = (current: number): number => 
   if (next === undefined)
     throw new RangeError(`No declared coverage precision look follows ${current} pairs.`);
   return next;
+};
+
+/** Natural coverage eligibility follows the progressive look until production, then caps. */
+export const simulationNaturalCoverageMinimumEligibleStatesFor = (targetPairs: number): number => {
+  if (!Number.isInteger(targetPairs) || targetPairs < 1)
+    throw new RangeError("Coverage target pairs must be a positive integer.");
+  return Math.min(targetPairs, 250);
+};
+
+const defaultTargetPairsForPopulation = (population: SimulationCoveragePopulation): number => {
+  if (population === "natural") return SIMULATION_NATURAL_COVERAGE_DEFAULT_TARGET_PAIRS;
+  if (population === "forced") return 1;
+  return 250;
 };
 
 const policyForPopulation = (population: SimulationCoveragePopulation): string => {
@@ -233,18 +248,61 @@ const naturalProfileFor = (profileId: SimulationNaturalAiProfile): AiProfile => 
   }
 };
 
+const NATURAL_COVERAGE_OPPONENT_TEMPLATE_IDS = [
+  "simulation-template:natural-coverage-baseline",
+] as const;
+
+const NATURAL_COVERAGE_MAXIMUM_HIT_POINTS = 40;
+
+const naturalMoveExecutableFor = (move: MoveDefinition): boolean => {
+  const attack = move.mechanics.attack;
+  return (
+    attack === undefined ||
+    (attack.baseDamagePercent?.type !== "source-expression" &&
+      move.mechanics.kiCost?.type !== "source-expression")
+  );
+};
+
+const naturalCoverageTemplateFor = (template: SimulationTemplate): SimulationTemplate =>
+  template.maximumHitPoints <= NATURAL_COVERAGE_MAXIMUM_HIT_POINTS
+    ? template
+    : {
+        ...template,
+        // Natural coverage keeps the approved source loadout and Normal AI, but
+        // bounds the fixture's survivability so a setup-heavy source sheet cannot
+        // consume a full look without producing a terminal observation.
+        maximumHitPoints: NATURAL_COVERAGE_MAXIMUM_HIT_POINTS,
+      };
+
 const naturalTemplatePairFor = (
   move: MoveDefinition,
   iteration: number,
   templates: readonly SimulationTemplate[],
+  view: CombatMechanicsView,
 ): readonly [SimulationTemplate, SimulationTemplate] => {
   const candidates = templates
-    .filter((template) => template.moveIds.includes(move.id))
+    .filter(
+      (template) =>
+        !template.id.startsWith("simulation-template:generated-") &&
+        template.moveIds.includes(move.id) &&
+        template.moveIds.every((moveId) => {
+          const candidate = view.indexes.moves.get(moveId);
+          return candidate === undefined || naturalMoveExecutableFor(candidate);
+        }),
+    )
     .sort((left, right) => left.id.localeCompare(right.id));
-  if (candidates.length === 0)
-    throw new RangeError(`No approved TF1 overlay equips ${move.id} for natural exposure.`);
-  const attacker = candidates[iteration % candidates.length]!;
-  const opponent = templates.find((template) => template.id !== attacker.id) ?? candidates[0]!;
+  const fallbackAttacker = templates.find(
+    (template) => template.id === "simulation-template:natural-coverage-baseline",
+  );
+  const attacker = naturalCoverageTemplateFor(
+    candidates[iteration % candidates.length] ?? fallbackAttacker ?? templates[0],
+  );
+  const opponent =
+    NATURAL_COVERAGE_OPPONENT_TEMPLATE_IDS.map((templateId) =>
+      templates.find((template) => template.id === templateId && template.id !== attacker.id),
+    ).find((template): template is SimulationTemplate => template !== undefined) ??
+    templates.find((template) => template.id !== attacker.id) ??
+    candidates[0];
   return [attacker, opponent];
 };
 
@@ -261,15 +319,29 @@ const naturalTemplatePoolFor = (
   const cached = cachedByAuthority?.get(approvalReference);
   if (cached !== undefined) return cached;
   const tf1 = approveAllSimulationTf1Overlays(approvalReference);
-  const generated = generateSimulationBuilds({}, view).builds;
-  const synthetic = createSyntheticArchetypes(view);
+  const generated = generateSimulationBuilds({}, view).builds.map((template) => ({
+    ...template,
+    // Generated builds are simulation fixtures, not source balance sheets.
+    // Bound their survivability so Normal observations cannot spend a full
+    // precision look in a setup-only loop.
+    maximumHitPoints: Math.min(template.maximumHitPoints, 40),
+  }));
+  const synthetic = createSyntheticArchetypes(view).map((template) => ({
+    ...template,
+    maximumHitPoints: Math.min(template.maximumHitPoints, 40),
+  }));
   const representedMoves = new Set(
-    [...tf1, ...generated, ...synthetic].flatMap((template) => template.moveIds),
+    [...tf1, ...synthetic].flatMap((template) =>
+      template.moveIds.filter((moveId) => {
+        const candidate = view.indexes.moves.get(moveId);
+        return candidate === undefined || naturalMoveExecutableFor(candidate);
+      }),
+    ),
   );
   const fallbackMoveIdsByStyle = new Map<string, string[]>();
   for (const move of view.moves) {
     const moveId = move.id;
-    if (representedMoves.has(moveId)) continue;
+    if (representedMoves.has(moveId) || !naturalMoveExecutableFor(move)) continue;
     const styleId = move.styleId ?? "style-freestyle";
     const moveIds = fallbackMoveIdsByStyle.get(styleId) ?? [];
     moveIds.push(moveId);
@@ -278,10 +350,10 @@ const naturalTemplatePoolFor = (
   const fallbackTemplates = [...fallbackMoveIdsByStyle.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .flatMap(([styleId, moveIds]) =>
-      Array.from({ length: Math.ceil(moveIds.length / 5) }, (_, index) =>
+      Array.from({ length: Math.ceil(moveIds.length / 15) }, (_, index) =>
         templateFor(
           `simulation-template:natural-coverage-${slugFor(styleId)}-${index + 1}`,
-          moveIds.slice(index * 5, index * 5 + 5),
+          moveIds.slice(index * 15, index * 15 + 15),
           styleId,
           view,
           // Style-group fallbacks are synthetic evidence fixtures, not source
@@ -291,7 +363,20 @@ const naturalTemplatePoolFor = (
         ),
       ),
     );
-  const pool = Object.freeze([...tf1, ...generated, ...synthetic, ...fallbackTemplates]);
+  const baselineOpponent = templateFor(
+    "simulation-template:natural-coverage-baseline",
+    [],
+    "style-freestyle",
+    view,
+    40,
+  );
+  const pool = Object.freeze([
+    ...tf1,
+    ...generated,
+    ...synthetic,
+    ...fallbackTemplates,
+    baselineOpponent,
+  ]);
   (cachedByAuthority ?? new Map<string, readonly SimulationTemplate[]>()).set(
     approvalReference,
     pool,
@@ -418,6 +503,7 @@ const requestFor = (
       move,
       iteration,
       naturalTemplates ?? [],
+      view,
     );
   else {
     attackerTemplate = templateFor(
@@ -596,7 +682,7 @@ const plannedCoverageRequestFor = ({
     request.mirror === "mirrored" ? request.templateB : request.templateA;
   const creditedMoves =
     population === "natural"
-      ? [...new Set(naturalFocalTemplate.moveIds)]
+      ? [...new Set([move.id, ...naturalFocalTemplate.moveIds])]
           .map((moveId) => view.indexes.moves.get(moveId))
           .filter((candidate): candidate is MoveDefinition => candidate !== undefined)
       : [move];
@@ -790,7 +876,7 @@ const executionCellsForMove = ({
               samplingStatus: "failed",
               observationStatus:
                 updated.evidenceRole === "balance-control" ? "not-applicable" : "observed",
-              failureType: failureTypeForCell(failures[0]!.failure),
+              failureType: failureTypeForCell(failures[0].failure),
             }),
       );
     }
@@ -931,7 +1017,13 @@ const coverageRequestsForMove = ({
 }): readonly PlannedCoverageRequest[] => {
   const pairBudgetFor = (persistedAttempts: number): number => {
     if (population !== "forced") return targetFights;
-    if (retention === "coverage") return Math.floor(persistedAttempts / 2) + 1;
+    if (retention === "coverage") {
+      // An explicit coverage look is already the requested mirrored-pair
+      // budget.  Previously Forced advanced by one pair per retry round,
+      // which made a targetPairs: 100 run stop near the ten-round safeguard
+      // instead of scheduling the requested 100 pairs.
+      return Math.max(targetFights, Math.floor(persistedAttempts / 2) + 1);
+    }
     return targetFights * 10;
   };
   const requests = scheduledExposureContexts.flatMap((exposureContext) => {
@@ -1010,6 +1102,7 @@ function* naturalCoverageRequestBatches({
   rootSeed,
   fixedTime,
   targetPairs,
+  retryPairBudget = 0,
   naturalTemplates,
   naturalProfile,
   limits,
@@ -1021,13 +1114,14 @@ function* naturalCoverageRequestBatches({
   readonly rootSeed: number;
   readonly fixedTime: Date;
   readonly targetPairs: number;
+  readonly retryPairBudget?: number;
   readonly naturalTemplates: readonly SimulationTemplate[];
   readonly naturalProfile: AiProfile;
   readonly limits: SimulationLimits;
   readonly attemptedFightsByMoveAndContext: ReadonlyMap<string, number>;
   readonly executionCells: ReadonlyMap<string, Pick<SimulationCoverageCell, "samplingStatus">>;
 }): Generator<readonly PlannedCoverageRequest[], void, void> {
-  for (let iteration = 0; iteration < targetPairs; iteration += 1) {
+  for (let iteration = 0; iteration < targetPairs + retryPairBudget; iteration += 1) {
     const pairGroups = new Map<
       string,
       { readonly original?: PlannedCoverageRequest; readonly mirrored?: PlannedCoverageRequest }
@@ -1123,7 +1217,7 @@ type NaturalScheduleCell = Pick<SimulationCoverageCell, "samplingStatus">;
 
 const naturalScheduleInputsFor = (options: SimulationNaturalCoverageScheduleOptions) => {
   const view = options.mechanicsView ?? CANONICAL_COMBAT_MECHANICS_VIEW;
-  const targetPairs = options.targetPairs ?? 250;
+  const targetPairs = options.targetPairs ?? SIMULATION_NATURAL_COVERAGE_DEFAULT_TARGET_PAIRS;
   if (!Number.isInteger(targetPairs) || targetPairs < 1)
     throw new RangeError("Natural schedule targetPairs must be a positive integer.");
   const selectedMoveIds = options.moveIds === undefined ? undefined : new Set(options.moveIds);
@@ -1186,6 +1280,30 @@ const advanceNaturalPlanningAttempts = (
       attemptedFightsByMoveAndContext.set(contextKey, attempts);
     }
   }
+};
+
+const naturalRetryPairBudgetFor = (
+  executionCells: ReadonlyMap<string, SimulationCoverageCell>,
+  targetPairs: number,
+  retryFailed: boolean,
+): number => {
+  if (!retryFailed) return 0;
+  const targetFights = targetPairs * 2;
+  return Math.max(
+    0,
+    ...[...executionCells.values()].map((cell) => {
+      const fightsNeeded = Math.ceil(Math.max(0, targetFights - cell.completedFights) / 2);
+      const eligibilityNeeded =
+        cell.observationStatus === "never-eligible"
+          ? 0
+          : Math.max(0, cell.minimumEligibleStates - cell.eligibleStates);
+      const eligibilityRate = cell.eligibleStates / Math.max(cell.completedFights, 1);
+      const eligibilityPairsNeeded = Math.ceil(
+        (eligibilityNeeded / Math.max(eligibilityRate, 0.01) / 2) * 1.5,
+      );
+      return Math.max(fightsNeeded, eligibilityPairsNeeded);
+    }),
+  );
 };
 
 const forEachNaturalScheduleBatch = (
@@ -1415,7 +1533,7 @@ const runCoverageRequestBatches = ({
         const result = pendingResults.get(nextResultIndex)!;
         pendingResults.delete(nextResultIndex);
         processCoverageResult({
-          plan: batchPlans[nextResultIndex]!,
+          plan: batchPlans[nextResultIndex],
           result,
           accumulation,
           countsByMove,
@@ -1480,7 +1598,7 @@ const finalizedDataset = (
     // mechanic-exposure closure and therefore comes only from target-present;
     // the removed and replacement arms remain balance-control cells.
     const selected = targetPresent.length > 0 ? targetPresent : matching;
-    const first = selected[0]!;
+    const first = selected[0];
     return selected.length === 1
       ? first
       : updateSimulationCoverageCell(first, {
@@ -1874,10 +1992,14 @@ export const runSimulationMoveCoverage = (
       : new Date(resumeFrom.generatedFrom.fixedTime);
   const rootSeed = options.rootSeed ?? resumeFrom?.generatedFrom.rootSeed ?? 1_427_251_991;
   const fixedTime = options.fixedTime ?? persistedFixedTime ?? new Date("2026-01-01T00:00:00.000Z");
-  const minimumEligibleStates = options.minimumEligibleStates ?? 250;
   const population = options.population ?? "isolation";
   const targetFights =
-    options.targetPairs ?? options.targetFights ?? (population === "forced" ? 1 : 250);
+    options.targetPairs ?? options.targetFights ?? defaultTargetPairsForPopulation(population);
+  const minimumEligibleStates =
+    options.minimumEligibleStates ??
+    (population === "natural"
+      ? simulationNaturalCoverageMinimumEligibleStatesFor(targetFights)
+      : 250);
   const retention = options.targetPairs === undefined ? "diagnostic" : "coverage";
   const exposureContexts = exposureContextsFor(
     population,
@@ -2182,14 +2304,16 @@ export const runSimulationMoveCoverage = (
     const naturalPlanningAttempts = new Map(
       orderedMoves.map((move) => {
         const contextKey = `${move.id}:target-present`;
-        const retryingFailure =
-          options.retryFailed === true &&
-          hasRetryableFailureForMoveAndContext(resumeFrom, population, move.id, "target-present");
         return [
           contextKey,
-          retryingFailure ? 0 : (accumulation.attemptedFightsByMoveAndContext.get(contextKey) ?? 0),
+          accumulation.attemptedFightsByMoveAndContext.get(contextKey) ?? 0,
         ] as const;
       }),
+    );
+    const retryPairBudget = naturalRetryPairBudgetFor(
+      executionCells,
+      targetFights,
+      options.retryFailed === true && resumeFrom !== undefined,
     );
     for (const batch of naturalCoverageRequestBatches({
       moves: orderedMoves,
@@ -2197,6 +2321,7 @@ export const runSimulationMoveCoverage = (
       rootSeed,
       fixedTime,
       targetPairs: targetFights,
+      retryPairBudget,
       naturalTemplates,
       naturalProfile,
       limits,
@@ -2315,17 +2440,22 @@ export const resumeSimulationMoveCoverage = (
     throw new RangeError("Coverage resume requires a single-population source artifact.");
   if (artifact.schemaVersion !== "simulation-move-coverage-artifact:v3")
     throw new RangeError("Coverage resume accepts only simulation-move-coverage-artifact:v3.");
-  const targetPairs = options.targetPairs ?? options.targetFights;
-  if (targetPairs === undefined) throw new RangeError("Coverage resume requires targetPairs.");
+  const targetPairs =
+    options.targetPairs ??
+    options.targetFights ??
+    nextSimulationCoveragePrecisionLook(artifact.generatedFrom.targetPairs);
   const resumeOptions = { ...options };
   Reflect.deleteProperty(resumeOptions, "targetPairs");
   Reflect.deleteProperty(resumeOptions, "targetFights");
   return runSimulationMoveCoverage({
     ...resumeOptions,
     population,
-    ...(options.targetPairs === undefined ? { targetFights: targetPairs } : { targetPairs }),
+    targetPairs,
     minimumEligibleStates:
-      options.minimumEligibleStates ?? artifact.generatedFrom.minimumEligibleStates,
+      options.minimumEligibleStates ??
+      (population === "natural"
+        ? simulationNaturalCoverageMinimumEligibleStatesFor(targetPairs)
+        : artifact.generatedFrom.minimumEligibleStates),
     resumeFrom: artifact,
   });
 };
@@ -2385,7 +2515,7 @@ const populationFunnelsForArtifactRecord = (
 ): SimulationPopulationFunnels => {
   if (record.populationFunnels !== undefined) return record.populationFunnels;
   const populationFunnels = zeroPopulationFunnels();
-  return { ...populationFunnels, [population]: record.funnel } as SimulationPopulationFunnels;
+  return { ...populationFunnels, [population]: record.funnel };
 };
 
 const rebaseCoverageCell = (
@@ -2616,7 +2746,7 @@ const statusesForMergedCells = (
       requiredCells.map((cell) => cell.strata.exposureContext ?? "target-present"),
     ).size;
     if (requiredCells.length !== record.requiredMechanicPaths.length * contextCount) continue;
-    const statusKey = `${population}Status` as "naturalStatus" | "isolationStatus" | "forcedStatus";
+    const statusKey = `${population}Status` as keyof typeof statuses;
     const targetPresentCells = requiredCells.filter(
       (cell) => cell.strata.exposureContext === "target-present",
     );
@@ -2631,7 +2761,7 @@ const mergeArtifactRecords = (
   artifacts: readonly SimulationMoveCoverageArtifact[],
   mechanicsView: CombatMechanicsView,
 ): SimulationMoveCoverageDataset => {
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   const recordsByMove = new Map<string, SimulationMoveCoverageRecord>();
   for (const record of first.dataset.records) recordsByMove.set(record.moveId, record);
   for (const artifact of artifacts.slice(1))
@@ -2727,7 +2857,7 @@ const populationRunCountsFor = (
 const populationAttemptedFightsByMoveFor = (
   artifacts: readonly SimulationMoveCoverageArtifact[],
 ): Readonly<Record<SimulationCoveragePopulation, Readonly<Record<string, number>>>> => {
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   const mapFor = (population: SimulationCoveragePopulation) =>
     Object.fromEntries(
       first.dataset.records.map((record) => [
@@ -2751,7 +2881,7 @@ const populationAttemptedFightsByMoveAndContextFor = (
 ): NonNullable<
   SimulationMoveCoverageArtifact["generatedFrom"]["populationAttemptedFightsByMoveAndContext"]
 > => {
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   const contextsFor = (population: SimulationCoveragePopulation) => [
     ...new Set<SimulationMoveCoverageExposureContext>(
       artifacts
@@ -2800,7 +2930,7 @@ const populationAttemptedFightsByMoveAndContextFor = (
 const representativeReplaySeedsByMoveFor = (
   artifacts: readonly SimulationMoveCoverageArtifact[],
 ): Readonly<Record<SimulationCoveragePopulation, Readonly<Record<string, readonly number[]>>>> => {
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   const mapFor = (population: SimulationCoveragePopulation) =>
     Object.fromEntries(
       first.dataset.records.map((record) => [
@@ -2829,7 +2959,7 @@ const representativeReplaySeedsByMoveFor = (
 const metricsByMoveFor = (
   artifacts: readonly SimulationMoveCoverageArtifact[],
 ): SimulationMoveCoverageArtifact["metricsByMove"] => {
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   const mapFor = (population: SimulationCoveragePopulation) =>
     Object.fromEntries(
       first.dataset.records.map((record) => {
@@ -2879,7 +3009,7 @@ const metricsByStratumFor = (
 const stratifiedAccumulatorsFor = (
   artifacts: readonly SimulationMoveCoverageArtifact[],
 ): SimulationMoveCoverageArtifact["stratifiedAccumulators"] => {
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   const mapFor = (population: SimulationCoveragePopulation) =>
     Object.fromEntries(
       first.dataset.records.map((record) => {
@@ -2957,7 +3087,7 @@ export const mergeSimulationMoveCoverageArtifacts = (
   mechanicsView: CombatMechanicsView = CANONICAL_COMBAT_MECHANICS_VIEW,
 ): SimulationMoveCoverageArtifact => {
   if (artifacts.length === 0) throw new RangeError("Catalog merge requires at least one artifact.");
-  const first = artifacts[0]!;
+  const first = artifacts[0];
   validateCatalogCompatibility(artifacts, first);
   const dataset = mergeArtifactRecords(artifacts, mechanicsView);
   const cellsById = mergeCoverageCellsFromArtifacts(artifacts);
@@ -3053,6 +3183,29 @@ export interface SimulationMoveCoverageCatalogRunResult {
   readonly failureTypes: Readonly<Partial<Record<SimulationFailure["type"], number>>>;
 }
 
+const defaultCatalogPopulationsFor = (
+  sourceArtifact: SimulationMoveCoverageArtifact | undefined,
+): readonly SimulationCoveragePopulation[] => {
+  const population = sourceArtifact?.generatedFrom.population;
+  if (population !== undefined) return [population];
+  const populationRunCounts = sourceArtifact?.generatedFrom.populationRunCounts;
+  if (populationRunCounts !== undefined)
+    return SIMULATION_MOVE_COVERAGE_POPULATIONS.filter(
+      (candidate) => populationRunCounts[candidate] !== 0,
+    );
+  return SIMULATION_MOVE_COVERAGE_POPULATIONS;
+};
+
+const defaultCatalogTargetPairsFor = (
+  sourceArtifact: SimulationMoveCoverageArtifact | undefined,
+  naturalOnly: boolean,
+): number => {
+  if (sourceArtifact !== undefined)
+    return nextSimulationCoveragePrecisionLook(sourceArtifact.generatedFrom.targetPairs);
+  if (naturalOnly) return SIMULATION_NATURAL_COVERAGE_DEFAULT_TARGET_PAIRS;
+  return 250;
+};
+
 /** Executes and merges population runs without pooling their denominators. */
 export const runSimulationMoveCoverageCatalog = (
   options: SimulationMoveCoverageCatalogRunOptions = {},
@@ -3062,13 +3215,7 @@ export const runSimulationMoveCoverageCatalog = (
       "Coverage catalog accepts either targetPairs or deprecated targetFights, not both.",
     );
   const sourceArtifact = options.resumeFrom;
-  const defaultPopulations =
-    sourceArtifact?.generatedFrom.population === undefined &&
-    sourceArtifact?.generatedFrom.populationRunCounts !== undefined
-      ? SIMULATION_MOVE_COVERAGE_POPULATIONS.filter(
-          (population) => sourceArtifact.generatedFrom.populationRunCounts?.[population] !== 0,
-        )
-      : SIMULATION_MOVE_COVERAGE_POPULATIONS;
+  const defaultPopulations = defaultCatalogPopulationsFor(sourceArtifact);
   const requested = options.populations ?? defaultPopulations;
   const populations = SIMULATION_MOVE_COVERAGE_POPULATIONS.filter((population) =>
     requested.includes(population),
@@ -3086,10 +3233,15 @@ export const runSimulationMoveCoverageCatalog = (
   Reflect.deleteProperty(runOptions, "targetPairs");
   Reflect.deleteProperty(runOptions, "targetFights");
   const mechanicsView = options.mechanicsView ?? CANONICAL_COMBAT_MECHANICS_VIEW;
-  const targetFights = options.targetPairs ?? options.targetFights ?? 250;
-  const targetOption =
-    options.targetPairs === undefined ? { targetFights } : { targetPairs: targetFights };
-  const minimumEligibleStates = options.minimumEligibleStates ?? 250;
+  const naturalOnly = populations.length === 1 && populations[0] === "natural";
+  const targetFights =
+    options.targetPairs ??
+    options.targetFights ??
+    defaultCatalogTargetPairsFor(sourceArtifact, naturalOnly);
+  const targetOption = { targetPairs: targetFights };
+  const minimumEligibleStates =
+    options.minimumEligibleStates ??
+    (naturalOnly ? simulationNaturalCoverageMinimumEligibleStatesFor(targetFights) : 250);
   const checkpointArtifacts = new Map<
     SimulationCoveragePopulation,
     SimulationMoveCoverageArtifact

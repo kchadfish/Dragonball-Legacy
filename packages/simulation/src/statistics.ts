@@ -667,7 +667,28 @@ export const adjustSimulationPValues = (
     .sort((left, right) => left.identity.localeCompare(right.identity));
 };
 
-export const SIMULATION_PRECISION_LOOKS = Object.freeze([250, 500, 1_000, 2_000, 5_000, 10_000]);
+/** Declared catalog-wide precision looks, expressed as mirrored pairs. */
+export const SIMULATION_PRECISION_LOOKS = Object.freeze([
+  50, 100, 250, 500, 1_000, 2_000, 5_000, 10_000,
+]);
+
+export type SimulationReportEvidenceLevel =
+  "pilot" | "screening" | "confirmation" | "production-candidate";
+
+/**
+ * Classifies observed catalog evidence without treating a screening or
+ * confirmation look as production certification.
+ */
+export const simulationReportEvidenceLevelFor = (
+  completedPairs: number,
+): SimulationReportEvidenceLevel => {
+  if (!Number.isInteger(completedPairs) || completedPairs < 0)
+    throw new RangeError("Completed pair count must be a non-negative integer.");
+  if (completedPairs < 50) return "pilot";
+  if (completedPairs < 100) return "screening";
+  if (completedPairs < 250) return "confirmation";
+  return "production-candidate";
+};
 
 export type SimulationPrecisionStatus = "not-started" | "pilot" | "precise" | "low-precision";
 

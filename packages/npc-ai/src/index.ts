@@ -334,9 +334,7 @@ export const validateNpcAiPolicy = (policy: unknown): NpcAiPolicyValidationResul
     if (phasePriorities.has(candidatePhase.priority))
       issues.push(policyIssue(`phases.${index}.priority`, "Phase priorities must be unique."));
     phasePriorities.add(candidatePhase.priority);
-    const conditions = isRecord(candidatePhase.when)
-      ? (candidatePhase.when as Record<string, unknown>)
-      : {};
+    const conditions = isRecord(candidatePhase.when) ? candidatePhase.when : {};
     validateThreshold(
       conditions.turn,
       `phases.${index}.when.turn`,

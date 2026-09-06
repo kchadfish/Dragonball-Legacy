@@ -266,18 +266,18 @@ export const resolveActiveEffectConflicts = (
     }
     if (policy.type === "replace") {
       const replacement =
-        policy.provenance === "existing" ? { ...incoming, id: matching[0]!.id } : incoming;
+        policy.provenance === "existing" ? { ...incoming, id: matching[0].id } : incoming;
       effects = replaceAtMatching(effects, matching, withConflictKey(replacement));
       decisions.push({ ...baseDecision, action: "replace" });
       continue;
     }
     if (policy.type === "refresh") {
-      effects = replaceAtMatching(effects, matching, refreshEffect(matching[0]!, incoming, policy));
+      effects = replaceAtMatching(effects, matching, refreshEffect(matching[0], incoming, policy));
       decisions.push({ ...baseDecision, action: "refresh" });
       continue;
     }
     const incomingValue = conflictValue(incoming)!;
-    const existingValue = conflictValue(matching[0]!);
+    const existingValue = conflictValue(matching[0]);
     if (existingValue === undefined) {
       decisions.push({ ...baseDecision, action: "unsupported" });
       continue;

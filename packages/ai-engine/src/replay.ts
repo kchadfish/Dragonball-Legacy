@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/no-nested-conditional, sonarjs/cognitive-complexity, complexity, max-lines-per-function, sonarjs/no-redundant-optional, sonarjs/no-alphabetical-sort, sonarjs/no-nested-template-literals */
+/* eslint-disable sonarjs/cognitive-complexity, complexity, sonarjs/no-redundant-optional, sonarjs/no-alphabetical-sort, sonarjs/no-nested-template-literals */
 import type {
   AiDecisionRequest,
   AiDecisionResult,
@@ -225,8 +225,8 @@ export const verifyAiReplayRecord = (
       mismatches: [mismatch("schema-version", "ai-replay:v3", record.schemaVersion)],
     };
   const expected = createAiReplayRecord(request, {
-    decision: request.legalDecisions[0]!,
-    selectedDecision: request.legalDecisions[0]!,
+    decision: request.legalDecisions[0],
+    selectedDecision: request.legalDecisions[0],
     evaluations: [],
   });
   const mismatches: ReplayMismatch[] = [];

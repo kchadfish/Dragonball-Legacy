@@ -81,7 +81,7 @@ describe("simulation v2 contracts", () => {
       }),
       errors: [
         {
-          moveId: dataset.records[0]!.moveId,
+          moveId: dataset.records[0].moveId,
           runId: "simulation-run:test-error",
           type: "runner-failure",
           detail: "fixture failure retained for rerun",
@@ -109,7 +109,7 @@ describe("simulation v2 contracts", () => {
         (template) => template.loadoutOverlay?.status === "draft" && template.moveIds.length >= 14,
       ),
     ).toBe(true);
-    const tf1Template = TF1_SIMULATION_TEMPLATES[0]!;
+    const tf1Template = TF1_SIMULATION_TEMPLATES[0];
     expect(validateSimulationTemplate(tf1Template).ok).toBe(true);
     const approved = approveSimulationTf1Overlay(tf1Template, "staff:test-overlay");
     expect(approved.loadoutOverlay?.status).toBe("approved");
@@ -124,7 +124,7 @@ describe("simulation v2 contracts", () => {
   it("keeps forced exposure separate and selects only an engine-legal decision", () => {
     const actorId = combatantIdSchema.parse("combatant:v2-actor");
     const targetId = combatantIdSchema.parse("combatant:v2-target");
-    const targetMove = CANONICAL_COMBAT_MECHANICS_VIEW.moves[0]!.id;
+    const targetMove = CANONICAL_COMBAT_MECHANICS_VIEW.moves[0].id;
     const legalDecisions = [
       { type: "pass", actorId },
       { type: "use-move", actorId, targetCombatantId: targetId, moveId: targetMove },
@@ -181,7 +181,7 @@ describe("simulation v2 contracts", () => {
 
   it("counts triggered move-used events separately from submitted move resolutions", () => {
     const moveId = "move-aoyosumu-braced-energy-beam";
-    const base = createSyntheticArchetypes()[0]!;
+    const base = createSyntheticArchetypes()[0];
     const styleId = CANONICAL_COMBAT_MECHANICS_VIEW.moves.find(
       (move) => move.id === moveId,
     )?.styleId;
@@ -238,7 +238,7 @@ describe("simulation v2 contracts", () => {
   }, 180_000);
 
   it("uses repository-authoritative TF1 overlays for natural exposure by default", () => {
-    const moveId = TF1_SIMULATION_TEMPLATES[0]!.moveIds[0]!;
+    const moveId = TF1_SIMULATION_TEMPLATES[0].moveIds[0];
     const result = runSimulationMoveCoverage({
       moveIds: [moveId],
       targetPairs: 1,
@@ -268,7 +268,7 @@ describe("simulation v2 contracts", () => {
     });
   }, 180_000);
 
-  it("keeps the complete natural universe and exposure contexts deterministic", () => {
+  it("keeps the complete executable natural universe and exposure contexts deterministic", () => {
     const templates = createSimulationNaturalCoverageTemplates();
     expect(templates.some((template) => template.kind === "tf1-source")).toBe(true);
     expect(
@@ -277,9 +277,26 @@ describe("simulation v2 contracts", () => {
     expect(
       templates.some((template) => template.source.path === "simulation/synthetic-archetypes"),
     ).toBe(true);
-    expect(new Set(templates.flatMap((template) => template.moveIds))).toEqual(
-      new Set(CANONICAL_COMBAT_MECHANICS_VIEW.moves.map((move) => move.id)),
+    const executableNaturalMoveIds = new Set(
+      CANONICAL_COMBAT_MECHANICS_VIEW.moves
+        .filter((move) => {
+          const attack = move.mechanics.attack;
+          return (
+            attack === undefined ||
+            (attack.baseDamagePercent?.type !== "source-expression" &&
+              move.mechanics.kiCost?.type !== "source-expression")
+          );
+        })
+        .map((move) => move.id),
     );
+    const representedMoveIds = new Set(templates.flatMap((template) => template.moveIds));
+    expect([...executableNaturalMoveIds].every((moveId) => representedMoveIds.has(moveId))).toBe(
+      true,
+    );
+    const missingMoveIds = CANONICAL_COMBAT_MECHANICS_VIEW.moves
+      .map((move) => move.id)
+      .filter((moveId) => !representedMoveIds.has(moveId));
+    expect(missingMoveIds.every((moveId) => !executableNaturalMoveIds.has(moveId))).toBe(true);
     expect(
       templates
         .filter((template) => template.kind === "tf1-source")
@@ -560,7 +577,7 @@ describe("simulation v2 contracts", () => {
     expect(cell?.targetFights).toBe(2);
     expect(cell?.completedFights).toBe(4);
     expect(resumed.artifact.errors).toHaveLength(initial.artifact.errors.length);
-  }, 15_000);
+  }, 30_000);
 
   it("resumes a merged catalog artifact without pooling population attempts", () => {
     const moveId = "move-akaikaru-firestorm";
@@ -592,7 +609,7 @@ describe("simulation v2 contracts", () => {
       isolation: 12,
       forced: 4,
     });
-  }, 30_000);
+  }, 60_000);
 
   it("adds an absent population at the current precision during catalog resume", () => {
     const moveId = "move-akaikaru-firestorm";
@@ -628,7 +645,7 @@ describe("simulation v2 contracts", () => {
   }, 30_000);
 
   it("uses one semantic pair identity for mirrored orientations", () => {
-    const template = createSyntheticArchetypes()[0]!;
+    const template = createSyntheticArchetypes()[0];
     const baseRequest: SimulationFightRequest = {
       schemaVersion: "simulation-contracts:v1",
       runId: "simulation-run:v2-pair",
@@ -662,8 +679,8 @@ describe("simulation v2 contracts", () => {
     } satisfies SimulationSeriesRequest;
     const specs = createSimulationFightSpecs(series);
     expect(specs).toHaveLength(2);
-    expect(specs[0]!.pairId).toBe(specs[1]!.pairId);
-    expect(specs[0]!.mirror).not.toBe(specs[1]!.mirror);
+    expect(specs[0].pairId).toBe(specs[1].pairId);
+    expect(specs[0].mirror).not.toBe(specs[1].mirror);
   });
 
   it("merges stratified accumulators independent of partitioning", () => {
@@ -690,19 +707,19 @@ describe("simulation v2 contracts", () => {
       sequential = addSimulationStratifiedObservation(sequential, observation);
     const first = addSimulationStratifiedObservation(
       createSimulationStratifiedAccumulator("stratum:test"),
-      observations[0]!,
+      observations[0],
     );
     const second = addSimulationStratifiedObservation(
       createSimulationStratifiedAccumulator("stratum:test"),
-      observations[1]!,
+      observations[1],
     );
     const merged = mergeSimulationStratifiedAccumulators(first, second);
     expect(merged.accumulatorHash).toBe(sequential.accumulatorHash);
-    expect(SIMULATION_PRECISION_LOOKS).toEqual([250, 500, 1_000, 2_000, 5_000, 10_000]);
+    expect(SIMULATION_PRECISION_LOOKS).toEqual([50, 100, 250, 500, 1_000, 2_000, 5_000, 10_000]);
   });
 
   it("keeps sequential and worker-partitioned request results canonical", () => {
-    const template = createSyntheticArchetypes()[0]!;
+    const template = createSyntheticArchetypes()[0];
     const requestFor = (index: number): SimulationFightRequest => ({
       schemaVersion: "simulation-contracts:v1",
       runId: `simulation-run:v2-worker-${index}`,

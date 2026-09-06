@@ -287,7 +287,7 @@ const combinationsOf = (
       return;
     }
     for (let index = start; index <= values.length - (size - current.length); index += 1) {
-      current.push(values[index]!);
+      current.push(values[index]);
       visit(index + 1, current);
       current.pop();
     }
@@ -326,7 +326,7 @@ export const enumeratePendingLegalDecisions = (
       type: "respond-to-pending-decision" as const,
       actorId: pending.combatantId,
       pendingDecisionId: pending.id,
-      optionId: canonicalOptionIds[0]!,
+      optionId: canonicalOptionIds[0],
       ...(canonicalOptionIds.length > 1 ? { optionIds: canonicalOptionIds.slice(1) } : {}),
       selectedOptionIds: canonicalOptionIds,
     };

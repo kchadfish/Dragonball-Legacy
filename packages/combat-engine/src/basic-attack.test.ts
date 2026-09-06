@@ -2753,6 +2753,42 @@ describe("basic attacks", () => {
     );
   });
 
+  it("does not advertise a converted Block the defender cannot afford", () => {
+    const { state, dependencies } = createActionState([12, 1]);
+    const blockState: ActiveFightState = {
+      ...state,
+      combatants: {
+        ...state.combatants,
+        [defenderId]: {
+          ...state.combatants[defenderId],
+          ki: { ...state.combatants[defenderId].ki, current: 0 },
+          moveIds: ["move-aoyosumu-defiant-stance"],
+        },
+      },
+    };
+
+    const resolved = requireTransition(
+      submitCombatDecision(
+        blockState,
+        {
+          type: "basic-attack",
+          id: combatDecisionIdSchema.parse("decision:unaffordable-block"),
+          actorId: attackerId,
+          expectedStateVersion: blockState.version,
+          basicAttack: "basic-punch",
+          targetCombatantId: defenderId,
+        },
+        dependencies,
+      ),
+    );
+
+    expect(resolved.state).toMatchObject({ phase: "end", resolutionFrames: [] });
+    expect(resolved.state.status === "active" ? resolved.state.pendingDecision : undefined).toBe(
+      undefined,
+    );
+    expect(resolved.events).toContainEqual(expect.objectContaining({ type: "attack-resolved" }));
+  });
+
   it("offers Limb Twist's paid extra attack through the public Block transition", () => {
     const { state, dependencies } = createActionState(
       [12],
@@ -4176,6 +4212,9 @@ describe("basic attacks", () => {
     expect(resolved.events).toContainEqual(
       expect.objectContaining({ type: "attack-rolled", naturalResult: 20 }),
     );
+
+    const unaffordable = resolve(2, "unaffordable");
+    expect(requireActiveState(unaffordable.state).pendingDecision).toBeUndefined();
   });
 
   it("applies an owned passive mastery after the triggering attack's defense roll", () => {

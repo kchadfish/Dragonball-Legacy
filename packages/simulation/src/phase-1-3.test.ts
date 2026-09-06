@@ -176,7 +176,7 @@ describe("simulation Phase 1 through 3 contracts", () => {
         : result,
     );
     expect(setupResults.every((result) => result.ok)).toBe(true);
-    const template = TF1_SIMULATION_TEMPLATES[0]!;
+    const template = TF1_SIMULATION_TEMPLATES[0];
     const scenario = createScenario({
       id: "simulation-scenario:tf1-boundary",
       family: "symmetric-control",
@@ -231,7 +231,7 @@ describe("simulation Phase 1 through 3 contracts", () => {
 
   it("creates isolated immutable mechanics variants and custom review dossiers", () => {
     const base = CANONICAL_COMBAT_MECHANICS_VIEW;
-    const move = base.moves[0]!;
+    const move = base.moves[0];
     const variant = createSimulationVariant(base, {
       variantId: "simulation-variant:cost-adjustment",
       label: "Cost adjustment",

@@ -73,39 +73,38 @@ const state = (overrides: Partial<FightState> = {}): FightState =>
     ...overrides,
   }) as FightState;
 
-const context = (overrides: Partial<StrategicContextSummary> = {}): StrategicContextSummary =>
-  ({
-    version: "strategic-context:v1",
-    completeness: "complete",
-    unknownFacts: [],
-    actor: {
-      id: actorId,
-      hp: { current: 100, maximum: 100, ratio: 1, pressure: 0 },
-      ki: { current: 10, maximum: 10, ratio: 1, pressure: 0 },
-      status: "active",
-      activeStatusCount: 0,
-      activeEffectCount: 0,
-      activeTransformation: false,
-      transformationTurns: 0,
-    },
-    opponent: {
-      id: opponentId,
-      hp: { current: 100, maximum: 100, ratio: 1, pressure: 0 },
-      ki: { current: 10, maximum: 10, ratio: 1, pressure: 0 },
-      status: "active",
-      activeStatusCount: 0,
-      activeEffectCount: 0,
-      activeTransformation: false,
-      transformationTurns: 0,
-    },
-    turn: { number: 2, phase: "action", activeCombatantId: actorId, actorHasInitiative: true },
-    pendingWork: { active: false, optionCount: 0, candidateCount: 0, optional: false },
-    horizon: { short: 1, medium: 3, long: 6, basis: "bounded-local-1v1-estimate" },
-    controlImpacts: [],
-    scarcity: [],
-    pendingOptions: [],
-    ...overrides,
-  }) as StrategicContextSummary;
+const context = (overrides: Partial<StrategicContextSummary> = {}): StrategicContextSummary => ({
+  version: "strategic-context:v1",
+  completeness: "complete",
+  unknownFacts: [],
+  actor: {
+    id: actorId,
+    hp: { current: 100, maximum: 100, ratio: 1, pressure: 0 },
+    ki: { current: 10, maximum: 10, ratio: 1, pressure: 0 },
+    status: "active",
+    activeStatusCount: 0,
+    activeEffectCount: 0,
+    activeTransformation: false,
+    transformationTurns: 0,
+  },
+  opponent: {
+    id: opponentId,
+    hp: { current: 100, maximum: 100, ratio: 1, pressure: 0 },
+    ki: { current: 10, maximum: 10, ratio: 1, pressure: 0 },
+    status: "active",
+    activeStatusCount: 0,
+    activeEffectCount: 0,
+    activeTransformation: false,
+    transformationTurns: 0,
+  },
+  turn: { number: 2, phase: "action", activeCombatantId: actorId, actorHasInitiative: true },
+  pendingWork: { active: false, optionCount: 0, candidateCount: 0, optional: false },
+  horizon: { short: 1, medium: 3, long: 6, basis: "bounded-local-1v1-estimate" },
+  controlImpacts: [],
+  scarcity: [],
+  pendingOptions: [],
+  ...overrides,
+});
 
 const outcome = (damage = false) => ({
   version: "immediate-outcome:v1" as const,

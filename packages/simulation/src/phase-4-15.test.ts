@@ -112,7 +112,7 @@ describe("simulation Phase 4 through 15 foundations", () => {
   }, 30_000);
 
   it("tracks coverage strata, comparable cohorts, and bounded budget estimates", () => {
-    const move = CANONICAL_COMBAT_MECHANICS_VIEW.moves[0]!;
+    const move = CANONICAL_COMBAT_MECHANICS_VIEW.moves[0];
     const cell = createSimulationCoverageCell({
       cellId: "simulation-cell:test",
       moveId: move.id,
@@ -215,7 +215,7 @@ describe("simulation Phase 4 through 15 foundations", () => {
 
   it("requires sufficient move and cell evidence for completion", () => {
     const dataset = createSimulationMoveCoverageDataset();
-    const first = dataset.records[0]!;
+    const first = dataset.records[0];
     const observed = {
       ...first,
       isolationStatus: "observed" as const,

@@ -586,6 +586,24 @@ completion semantics are versioned manifest identity. Cancelled work and an
 incomplete mirror/variant pair remain incomplete evidence rather than being
 silently converted into an unpaired completed observation.
 
+For catalog-wide precision, the progressive evidence-level policy is:
+
+- 50 mirrored pairs is the screening look. It is triage evidence, not
+  production certification.
+- 100 mirrored pairs is the confirmation look. It remains non-production
+  evidence and may be used to prioritize follow-up work.
+- 250 mirrored pairs is the minimum production-candidate look. Production
+  closure still requires precise applicable cells, no unresolved failures, and
+  every existing coverage requirement.
+- Later catalog looks continue at 500, 1,000, 2,000, 5,000, and 10,000
+  mirrored pairs under the same manifest and deterministic seed schedule.
+
+`samplingStatus: sufficient` means sufficient for the configured look only. A
+report's derived evidence level is based on completed pairs: below 50 is
+`pilot`, 50–99 is `screening`, 100–249 is `confirmation`, and 250 or more is
+`production-candidate`. A production-candidate report is not itself a passing
+production closure.
+
 ### Intervals and effect sizes
 
 - Use Wilson intervals for ordinary binomial rates such as wins, selection,
@@ -699,10 +717,10 @@ Inventory every direct or indirect canonical registry read that can influence fi
 
 Classify each read as:
 
-* authoritative fight mechanics that must use the fight's mechanics view;
-* immutable metadata that may safely remain canonical and explain why;
-* build/startup compilation that must produce view-local compiled data; or
-* unrelated application/catalog access outside the combat/AI execution boundary.
+- authoritative fight mechanics that must use the fight's mechanics view;
+- immutable metadata that may safely remain canonical and explain why;
+- build/startup compilation that must produce view-local compiled data; or
+- unrelated application/catalog access outside the combat/AI execution boundary.
 
 Introduce the smallest coherent immutable mechanics/catalog-view abstraction necessary to represent the complete rule-definition environment used by one fight. Do not create unrelated package-specific substitute registries where a shared mechanics-view identity or input is sufficient.
 
@@ -714,9 +732,9 @@ Ensure AI decision descriptors, strategic-context extraction, expected-outcome a
 
 Compiled definitions, indexes, lookup tables, caches, and other derived structures that depend on catalog contents must either:
 
-* be immutable members of the mechanics view;
-* be keyed by stable mechanics-view identity/content hash; or
-* be proven independent of catalog contents.
+- be immutable members of the mechanics view;
+- be keyed by stable mechanics-view identity/content hash; or
+- be proven independent of catalog contents.
 
 Do not implement correctness by mutating, replacing, temporarily swapping, monkey-patching, or restoring module-level canonical registries.
 
@@ -726,23 +744,22 @@ Preserve baseline behavior. Creating and running a fight through the canonical m
 
 Add isolation certification proving:
 
-* canonical A -> alternate B -> canonical A produces identical A behavior and hashes;
-* canonical and alternate fights may execute interleaved without contamination;
-* canonical and alternate fights may execute in parallel without contamination;
-* two distinct alternate views may coexist without contamination;
-* AI analysis of each fight observes that fight's mechanics view;
-* combat probes and lookahead preserve the originating mechanics view;
-* cached or compiled catalog-dependent state cannot cross view boundaries;
-* execution order does not change outcomes;
-* diagnostics and replay inspection do not change mechanics-view selection; and
-* no test requires cleanup or restoration of mutable global game-data state.
+- canonical A -> alternate B -> canonical A produces identical A behavior and hashes;
+- canonical and alternate fights may execute interleaved without contamination;
+- canonical and alternate fights may execute in parallel without contamination;
+- two distinct alternate views may coexist without contamination;
+- AI analysis of each fight observes that fight's mechanics view;
+- combat probes and lookahead preserve the originating mechanics view;
+- cached or compiled catalog-dependent state cannot cross view boundaries;
+- execution order does not change outcomes;
+- diagnostics and replay inspection do not change mechanics-view selection; and
+- no test requires cleanup or restoration of mutable global game-data state.
 
 Add architecture or boundary validation that prevents newly introduced authoritative combat/AI code from bypassing the mechanics-view boundary with direct canonical registry imports where practical.
 
 The task is complete only when the repository can construct and execute baseline and alternate immutable mechanics environments concurrently through the same combat and AI architecture without mutating canonical game data.
 
 Do not implement simulation variant patch authoring, custom-move draft handling, comparison workflows, or the custom laboratory in this task. SIM-080 establishes only the architectural seam and isolation guarantees those later phases require.
-
 
 #### SIM-090 — Freeze deterministic seed namespaces
 

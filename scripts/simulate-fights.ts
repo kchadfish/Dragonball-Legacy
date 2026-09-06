@@ -24,6 +24,9 @@ import {
   runSimulationMoveCoverageCatalog,
   nextSimulationCoveragePrecisionLook,
   resumeSimulationMoveCoverage,
+  SIMULATION_NATURAL_COVERAGE_DEFAULT_TARGET_PAIRS,
+  SIMULATION_MOVE_COVERAGE_POPULATIONS,
+  simulationNaturalCoverageMinimumEligibleStatesFor,
   runSimulationBenchmark,
   runSimulationCoverageBenchmark,
   runSimulationNaturalThroughputBenchmark,
@@ -33,7 +36,6 @@ import {
 import type {
   SimulationFightRequest,
   SimulationMatrixRequest,
-  SimulationReplayRecord,
   SimulationSeriesRequest,
   SimulationCoveragePopulation,
   SimulationNaturalAiProfile,
@@ -44,6 +46,7 @@ const usage = `Usage: npm run simulate -- <command> [--format json|csv|markdown]
 
 Commands: fight, series, matrix, catalog-run, resume, replay, report, move-report, dossiers, closure, custom-review, custom-run, benchmark
 Coverage selectors: --population, --populations, --natural-profile, --exposure-contexts, --moves, --target-pairs, --output, --retry-failed
+Closure purpose: --purpose=screening|production (production is the default)
 Deprecated compatibility alias: --target-fights (do not provide both)`;
 
 const optionFor = (args: readonly string[], name: string): string | undefined => {
@@ -268,23 +271,46 @@ const main = async (): Promise<void> => {
   }
   if (command === "closure") {
     const artifact = await coverageArtifactFor(optionFor(args, "--artifact"));
+    const purpose = optionFor(args, "--purpose") ?? "production";
+    if (purpose !== "screening" && purpose !== "production")
+      throw new RangeError("Closure purpose must be screening or production.");
     const allowsNaturalNotScheduled =
       artifact.generatedFrom.naturalPopulation === "draft" &&
       artifact.generatedFrom.naturalPopulationBlocker !== undefined;
+    const artifactPopulations =
+      artifact.generatedFrom.population !== undefined
+        ? [artifact.generatedFrom.population]
+        : artifact.generatedFrom.populationRunCounts === undefined
+          ? undefined
+          : SIMULATION_MOVE_COVERAGE_POPULATIONS.filter(
+              (population) => artifact.generatedFrom.populationRunCounts?.[population] !== 0,
+            );
+    const populations =
+      purpose === "screening" && artifactPopulations?.length === 1
+        ? artifactPopulations
+        : undefined;
+    const validationOptions = {
+      allowNaturalNotScheduled: allowsNaturalNotScheduled,
+      ...(populations === undefined ? {} : { populations }),
+    } as const;
     const issues = [
       ...validateSimulationMoveClosure(artifact.dataset, {}, undefined, {
-        allowNaturalNotScheduled: allowsNaturalNotScheduled,
+        ...validationOptions,
       }),
-      ...validateSimulationCoverageCells(artifact.coverageCells, {
-        allowNaturalNotScheduled: allowsNaturalNotScheduled,
-      }),
+      ...validateSimulationCoverageCells(artifact.coverageCells, validationOptions),
     ];
     const audit = createSimulationCompletionAudit(artifact.dataset, artifact.coverageCells, {
-      allowNaturalNotScheduled: allowsNaturalNotScheduled,
+      ...validationOptions,
+      purpose,
+      errors: artifact.errors,
     });
     if (!audit.complete) issues.push(...audit.issues.filter((issue) => !issues.includes(issue)));
     if (issues.length > 0) throw new Error(`Move closure is incomplete:\n${issues.join("\n")}`);
-    console.log("Simulation move closure is complete.");
+    console.log(
+      purpose === "screening"
+        ? "Simulation screening closure is complete; this is not production certification."
+        : "Simulation production closure is complete.",
+    );
     return;
   }
   if (command === "dossiers") {
@@ -374,9 +400,22 @@ const main = async (): Promise<void> => {
     const outputPath = optionFor(args, "--output");
     if (population !== undefined && populationsOption !== undefined)
       throw new RangeError("Use either --population or --populations, not both.");
+    const naturalOnly =
+      population === "natural" ||
+      (populationsOption !== undefined &&
+        populationsOption.split(",").filter(Boolean).length === 1 &&
+        populationsOption.split(",").filter(Boolean)[0] === "natural");
+    const targetPairs = targetPairsOption(
+      args,
+      naturalOnly ? SIMULATION_NATURAL_COVERAGE_DEFAULT_TARGET_PAIRS : 250,
+    );
     const coverageOptions = {
-      targetPairs: targetPairsOption(args, 250),
-      minimumEligibleStates: positiveOption(args, "--minimum-eligible", 250),
+      targetPairs,
+      minimumEligibleStates: positiveOption(
+        args,
+        "--minimum-eligible",
+        naturalOnly ? simulationNaturalCoverageMinimumEligibleStatesFor(targetPairs) : 250,
+      ),
       concurrency: hasOption(args, "--workers") ? positiveOption(args, "--workers", 1) : 1,
       ...(hasOption(args, "--workers") ? { workers: positiveOption(args, "--workers", 1) } : {}),
       population,
@@ -396,6 +435,13 @@ const main = async (): Promise<void> => {
       retryFailed: hasOption(args, "--retry-failed"),
       moveIds: moveOption === undefined ? undefined : moveOption.split(",").filter(Boolean),
     };
+    const selectedPopulations: readonly SimulationCoveragePopulation[] =
+      populationsOption === undefined
+        ? [
+            population ?? "natural",
+            ...(population === undefined ? (["isolation", "forced"] as const) : []),
+          ]
+        : (populationsOption.split(",").filter(Boolean) as SimulationCoveragePopulation[]);
     const result = runSimulationMoveCoverageCatalog({
       ...coverageOptions,
       ...(sourceArtifact === undefined ? {} : { resumeFrom: sourceArtifact }),
@@ -404,15 +450,7 @@ const main = async (): Promise<void> => {
         : {
             onCheckpoint: (artifact) => atomicWriteSync(outputPath, `${canonicalJson(artifact)}\n`),
           }),
-      populations:
-        populationsOption === undefined
-          ? ([
-              population ?? "natural",
-              ...(population === undefined ? ["isolation", "forced"] : []),
-            ] as const)
-          : (populationsOption.split(",").filter(Boolean) as readonly (
-              "natural" | "isolation" | "forced"
-            )[]),
+      populations: selectedPopulations,
     });
     if (outputPath === undefined) {
       await writeBundle("catalog-coverage.json", `${canonicalJson(result.artifact)}\n`);
@@ -450,16 +488,20 @@ const main = async (): Promise<void> => {
     const artifactPath = optionFor(args, "--artifact");
     if (artifactPath !== undefined) {
       const artifact = await coverageArtifactFor(artifactPath);
+      const population = catalogPopulationFor(args);
       const targetPairs = targetPairsOption(
         args,
         nextSimulationCoveragePrecisionLook(artifact.generatedFrom.targetPairs),
       );
+      const naturalResume =
+        population === "natural" || artifact.generatedFrom.population === "natural";
       const minimumEligibleStates = positiveOption(
         args,
         "--minimum-eligible",
-        artifact.generatedFrom.minimumEligibleStates,
+        naturalResume
+          ? simulationNaturalCoverageMinimumEligibleStatesFor(targetPairs)
+          : artifact.generatedFrom.minimumEligibleStates,
       );
-      const population = catalogPopulationFor(args);
       const resumeOptions = {
         targetPairs,
         minimumEligibleStates,
@@ -541,12 +583,7 @@ const main = async (): Promise<void> => {
     const request = dateForRequest(input.request as Record<string, unknown>);
     await writeBundle(
       "replay-verification.json",
-      JSON.stringify(
-        verifySimulationReplay(
-          input.replay as SimulationReplayRecord,
-          request as unknown as SimulationFightRequest,
-        ),
-      ),
+      JSON.stringify(verifySimulationReplay(input.replay, request)),
     );
     return;
   }

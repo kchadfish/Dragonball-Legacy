@@ -1430,7 +1430,7 @@ const sourceGapsFor = (
 ): readonly SimulationGap[] => [
   {
     kind: "capability",
-    reason: `${specializationType[0]!.toUpperCase()}${specializationType.slice(1)} specialization damage is retained as source metadata; the combat input has no specialization-type field.`,
+    reason: `${specializationType[0].toUpperCase()}${specializationType.slice(1)} specialization damage is retained as source metadata; the combat input has no specialization-type field.`,
     provenance: {
       path,
       text: "Specialization effects are listed on the source sheet but are not part of the current combat input contract.",

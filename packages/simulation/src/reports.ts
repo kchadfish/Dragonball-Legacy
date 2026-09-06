@@ -16,11 +16,14 @@ import type {
 import {
   adjustSimulationPValues,
   seededBootstrapPairedDifference,
+  SIMULATION_PRECISION_LOOKS,
+  simulationReportEvidenceLevelFor,
   summarizeSimulationRate,
   twoSidedSimulationRatePValue,
   type AdjustedSimulationPValue,
   type SimulationInterval,
   type SimulationRateSummary,
+  type SimulationReportEvidenceLevel,
   type SimulationStratifiedAccumulator,
 } from "./statistics.js";
 
@@ -33,6 +36,7 @@ export interface SimulationReport {
   readonly schemaVersion: "simulation-report:v2";
   readonly reportId: string;
   readonly title: string;
+  readonly evidenceLevel: SimulationReportEvidenceLevel;
   readonly generatedFrom: Readonly<{
     readonly scopeVersion: string;
     readonly mechanicsIdentity: string;
@@ -163,6 +167,24 @@ export interface SimulationMoveBalanceReportOptions {
   >;
   readonly generatedFrom?: SimulationMoveCoverageArtifact["generatedFrom"];
 }
+
+const completedPairsForEvidence = (
+  coverageCells: readonly SimulationCoverageCell[],
+  configuredTarget: number | undefined,
+): number => {
+  const applicableCells = coverageCells.filter(
+    (cell) =>
+      cell.population !== "forced" &&
+      cell.samplingStatus !== "not-applicable" &&
+      cell.precision?.status !== "not-applicable",
+  );
+  if (applicableCells.length === 0) return configuredTarget ?? 0;
+  return Math.min(
+    ...applicableCells.map(
+      (cell) => cell.precision?.completedPairs ?? Math.floor(cell.completedFights / 2),
+    ),
+  );
+};
 
 const rowForMove = (
   record: SimulationMoveCoverageRecord,
@@ -619,6 +641,12 @@ export const createSimulationMoveBalanceReport = (
           sourceLimitations: options.generatedFrom.sourceLimitations,
         }),
   } as const;
+  const evidenceLevel = simulationReportEvidenceLevelFor(
+    completedPairsForEvidence(
+      coverageCells,
+      options.generatedFrom?.targetPairs ?? options.generatedFrom?.targetFights,
+    ),
+  );
   const manifest = {
     populations: ["natural", "isolation", "forced"] as const,
     strata: ["population", "category", "profile", "exposure-context"] as const,
@@ -629,7 +657,7 @@ export const createSimulationMoveBalanceReport = (
       "triggered-states",
       "completed-pairs",
     ],
-    precisionLooks: [250, 500, 1_000, 2_000, 5_000, 10_000],
+    precisionLooks: SIMULATION_PRECISION_LOOKS,
     metricDictionaryVersion: "simulation-metrics:v1" as const,
     intervalVersion: "intervals:v1" as const,
     confidence: 0.95 as const,
@@ -758,6 +786,7 @@ export const createSimulationMoveBalanceReport = (
   const freshnessHash = canonicalHash({
     generatedFrom,
     manifest,
+    evidenceLevel,
     columns,
     rows,
     intervals,
@@ -778,6 +807,7 @@ export const createSimulationMoveBalanceReport = (
     schemaVersion: "simulation-report:v2",
     reportId,
     title: "Simulation move balance matrix",
+    evidenceLevel,
     generatedFrom,
     manifest,
     columns,
@@ -799,6 +829,7 @@ export const createSimulationMoveBalanceReport = (
     reportHash: canonicalHash({
       reportId,
       title: "Simulation move balance matrix",
+      evidenceLevel,
       generatedFrom,
       manifest,
       columns,
@@ -925,6 +956,7 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
     [
       ["schemaVersion", report.schemaVersion],
       ["reportId", report.reportId],
+      ["evidenceLevel", report.evidenceLevel],
       ["freshnessHash", report.freshnessHash],
       ["generatedFrom", canonicalJson(report.generatedFrom)],
       ["manifest", canonicalJson(report.manifest)],
@@ -1048,7 +1080,11 @@ export const renderSimulationReportCsv = (report: SimulationReport): string => {
 };
 
 export const renderSimulationReportMarkdown = (report: SimulationReport): string => {
-  const header = `# ${report.title}\n\nFreshness hash: \`${report.freshnessHash}\`\n\nErrors: ${report.errors.length}\n\n`;
+  const certificationNote =
+    report.evidenceLevel === "production-candidate"
+      ? "Production-candidate evidence still requires the production closure gate."
+      : "This evidence level is not production certification.";
+  const header = `# ${report.title}\n\nEvidence level: ${report.evidenceLevel}\n\n${certificationNote}\n\nFreshness hash: \`${report.freshnessHash}\`\n\nErrors: ${report.errors.length}\n\n`;
   const rows = report.rows.map((row) =>
     report.columns.map((column) => String(row.values[column] ?? "")),
   );
@@ -1056,7 +1092,7 @@ export const renderSimulationReportMarkdown = (report: SimulationReport): string
     Math.max(3, column.length, ...rows.map((row) => row[index]?.length ?? 0)),
   );
   const lineFor = (values: readonly string[]): string =>
-    `| ${values.map((value, index) => value.padEnd(widths[index]!)).join(" | ")} |`;
+    `| ${values.map((value, index) => value.padEnd(widths[index])).join(" | ")} |`;
   const table = [
     lineFor(report.columns),
     lineFor(widths.map((width) => "-".repeat(width))),

@@ -72,7 +72,7 @@ describe("combat semantic progress identity", () => {
       eventSequence: 500,
       activeEffects: [
         {
-          ...first.activeEffects[0]!,
+          ...first.activeEffects[0],
           id: activeEffectIdSchema.parse("active-effect:semantic-b"),
         },
       ],

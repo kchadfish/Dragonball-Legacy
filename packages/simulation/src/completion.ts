@@ -1,6 +1,7 @@
 import { canonicalHash } from "./canonical.js";
 import {
   validateSimulationCoverageCells,
+  type SimulationCoveragePopulation,
   type SimulationCoverageCell,
   type SimulationCoverageValidationOptions,
 } from "./coverage.js";
@@ -18,7 +19,13 @@ export interface SimulationCompletionAudit {
   readonly auditHash: string;
 }
 
-export type SimulationCompletionAuditOptions = SimulationCoverageValidationOptions;
+export type SimulationClosurePurpose = "screening" | "production";
+
+export interface SimulationCompletionAuditOptions extends SimulationCoverageValidationOptions {
+  readonly purpose?: SimulationClosurePurpose;
+  readonly populations?: readonly SimulationCoveragePopulation[];
+  readonly errors?: readonly { readonly type: string }[];
+}
 
 export const aggregateSimulationCoverageCellStatus = (
   cells: readonly SimulationCoverageCell[],
@@ -56,6 +63,7 @@ const statusForPopulation = (
 const validateCoverageConsistency = (
   dataset: SimulationMoveCoverageDataset,
   coverageCells: readonly SimulationCoverageCell[],
+  populations: readonly SimulationCoveragePopulation[],
 ): readonly string[] => {
   const issues: string[] = [];
   const cells = new Map<string, SimulationCoverageCell[]>();
@@ -66,7 +74,7 @@ const validateCoverageConsistency = (
     cells.set(key, matching);
   }
   for (const record of dataset.records)
-    for (const population of ["natural", "isolation", "forced"] as const) {
+    for (const population of populations) {
       const populationCells: SimulationCoverageCell[] = [];
       for (const mechanicPath of record.requiredMechanicPaths) {
         const matching = cells.get(`${record.moveId}:${population}:${mechanicPath}`) ?? [];
@@ -94,15 +102,63 @@ const validateCoverageConsistency = (
 };
 /* eslint-enable sonarjs/cognitive-complexity */
 
+export const validateSimulationProductionClosure = (
+  coverageCells: readonly SimulationCoverageCell[],
+  errors: readonly { readonly type: string }[] = [],
+): readonly string[] => {
+  const issues: string[] = [];
+  if (errors.length > 0)
+    issues.push(
+      `Production closure requires zero unresolved failures; found ${errors.length} error(s).`,
+    );
+  const failedCells = coverageCells.filter((cell) => cell.samplingStatus === "failed");
+  if (failedCells.length > 0)
+    issues.push(
+      `Production closure requires zero failed coverage cells; found ${failedCells.length}.`,
+    );
+  const applicableCells = coverageCells.filter(
+    (cell) =>
+      cell.population !== "forced" &&
+      cell.samplingStatus !== "not-applicable" &&
+      cell.precision?.status !== "not-applicable",
+  );
+  if (applicableCells.length === 0) {
+    issues.push("Production closure requires applicable precision cells.");
+    return issues;
+  }
+  if (applicableCells.some((cell) => cell.targetPairs < 250))
+    issues.push("Production closure requires a configured precision look of at least 250 pairs.");
+  const underSampled = applicableCells.filter(
+    (cell) => (cell.precision?.completedPairs ?? 0) < 250,
+  );
+  if (underSampled.length > 0)
+    issues.push(
+      `Production closure requires at least 250 completed pairs in every applicable cell; ${underSampled.length} cell(s) are below 250.`,
+    );
+  const imprecise = applicableCells.filter((cell) => cell.precision?.status !== "precise");
+  if (imprecise.length > 0)
+    issues.push(
+      `Production closure requires precise applicable cells; ${imprecise.length} cell(s) are not marked precise.`,
+    );
+  return issues;
+};
+
 export const createSimulationCompletionAudit = (
   dataset: SimulationMoveCoverageDataset,
   coverageCells: readonly SimulationCoverageCell[],
   options: SimulationCompletionAuditOptions = {},
 ): SimulationCompletionAudit => {
+  const populations = options.populations ?? (["natural", "isolation", "forced"] as const);
   const issues = [
-    ...validateSimulationMoveClosure(dataset, {}, undefined, options),
+    ...validateSimulationMoveClosure(dataset, {}, undefined, {
+      ...options,
+      populations,
+    }),
     ...validateSimulationCoverageCells(coverageCells, options),
-    ...validateCoverageConsistency(dataset, coverageCells),
+    ...validateCoverageConsistency(dataset, coverageCells, populations),
+    ...(options.purpose === "production"
+      ? validateSimulationProductionClosure(coverageCells, options.errors)
+      : []),
   ];
   const audit = {
     schemaVersion: "simulation-completion-audit:v2" as const,
@@ -110,7 +166,14 @@ export const createSimulationCompletionAudit = (
     coverageCellCount: coverageCells.length,
     issues,
     complete: issues.length === 0,
-    auditHash: canonicalHash({ catalogHash: dataset.datasetHash, coverageCells, issues }),
+    auditHash: canonicalHash({
+      catalogHash: dataset.datasetHash,
+      coverageCells,
+      issues,
+      purpose: options.purpose ?? "screening",
+      populations,
+      errors: options.errors ?? [],
+    }),
   } satisfies SimulationCompletionAudit;
   return Object.freeze(audit);
 };

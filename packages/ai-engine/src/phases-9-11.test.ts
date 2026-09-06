@@ -195,11 +195,11 @@ describe("AI decision-quality closure", () => {
       ],
     };
     expect(validateAiAdvisoryPriorities(priorities).ok).toBe(true);
-    const descriptor = describeAnalysisDecision(state, legal[1]!);
+    const descriptor = describeAnalysisDecision(state, legal[1]);
     const feature = {
-      decision: legal[1]!,
+      decision: legal[1],
       canonicalKey: descriptor.key,
-      decisionType: legal[1]!.type,
+      decisionType: legal[1].type,
       category: descriptor.identity.category,
       actionConsumption: descriptor.actionConsumption,
       costs: descriptor.costs,
@@ -331,7 +331,7 @@ describe("AI decision-quality closure", () => {
           ...selected.value.decision,
           id: ids.next("decision"),
           expectedStateVersion: current.version,
-        } as never,
+        },
         dependencies,
       );
       expect(submitted.ok).toBe(true);

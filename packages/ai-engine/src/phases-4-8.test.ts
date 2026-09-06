@@ -42,7 +42,7 @@ const attack: LegalDecision = {
 const hintedMove: LegalDecision = {
   type: "use-move",
   actorId,
-  moveId: "move-test-hinted" as never,
+  moveId: "move-test-hinted",
   targetCombatantId: opponentId,
 };
 
@@ -323,10 +323,7 @@ describe("AI phases 4-8", () => {
       targetCombatantId: opponentId,
     } as LegalDecision;
     const setupFeature = {
-      ...(request([setupDecision]).analysis!.describeDecision(
-        state,
-        setupDecision,
-      ) as CombatDecisionDescriptor),
+      ...request([setupDecision]).analysis!.describeDecision(state, setupDecision),
       tacticalSetup: {
         role: "setup" as const,
         eligibleFollowUpCategories: ["move"],
@@ -376,6 +373,35 @@ describe("AI phases 4-8", () => {
     const result = selectStrategicDecision(request([pass, attack]));
     expect(result.ok).toBe(true);
     if (result.ok) expect(renderAiExplanation(result.value)).toContain("Selected");
+  });
+
+  it("does not score a capped power-up as a successful outcome", () => {
+    const cappedPowerUp = descriptor(
+      { type: "power-up", actorId },
+      {
+        identity: { type: "power-up", category: "power-up" },
+        immediateOutcome: {
+          ...descriptor({ type: "power-up", actorId }).immediateOutcome,
+          resources: [
+            {
+              target: "self",
+              resource: "ki",
+              operation: "gain",
+              declared: 10,
+              effective: 0,
+              amount: { minimum: 0, maximum: 0 },
+              overflow: { minimum: 10, maximum: 10 },
+              timing: "immediate",
+              certainty: "guaranteed",
+            },
+          ],
+        },
+      },
+    );
+    const outcomes = estimateOutcomeDistribution(cappedPowerUp);
+
+    expect(outcomes).toEqual([expect.objectContaining({ category: "no-op", probability: 1 })]);
+    expect(outcomes.some((entry) => entry.category === "normal-success")).toBe(false);
   });
 
   it("keeps lookahead and replay deterministic when no probe is available", () => {

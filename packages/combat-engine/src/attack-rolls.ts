@@ -376,7 +376,7 @@ const resolveContestedAttackDie = (
           attackCandidates: attackCandidates.map((naturalValue, candidateIndex) => ({
             candidateIndex,
             naturalValue,
-            finalResult: attackResults[candidateIndex]!,
+            finalResult: attackResults[candidateIndex],
           })),
           selectedAttackCandidateIndex: selectedAttackIndex,
         }
@@ -429,7 +429,7 @@ const resolveContestedAttackDie = (
       defenseCandidates: defenseCandidates.map((naturalValue, candidateIndex) => ({
         candidateIndex,
         naturalValue,
-        finalResult: defenseResults[candidateIndex]!,
+        finalResult: defenseResults[candidateIndex],
       })),
       selectedDefenseCandidateIndex: selectedDefenseIndex,
     };
