@@ -22,6 +22,7 @@ import { simulationMoveFunnelSchema, type SimulationMoveFunnel } from "./move-co
 import type { SimulationPrecisionStatus } from "./statistics.js";
 
 export const SIMULATION_CONTRACT_VERSION = "simulation-contracts:v1" as const;
+export const SIMULATION_STATISTICS_REQUEST_VERSION = "simulation-statistics-request:v2" as const;
 
 const finiteNumber = z.number().refine(Number.isFinite, "Number must be finite.");
 const nonNegativeInteger = z.number().int().nonnegative();
@@ -34,6 +35,38 @@ const uniqueStrings = z.array(z.string().min(1)).superRefine((values, context) =
     seen.add(value);
   });
 });
+
+export const simulationStatisticsArmIdentitySchema = z
+  .object({
+    schedule: z.enum(["natural", "controlled", "diagnostic"]),
+    armId: z.string().min(1),
+    branch: z.enum(["baseline", "variant"]).optional(),
+    sourceDefinitionId: z.string().min(1).optional(),
+    baselineTemplateId: simulationTemplateIdSchema,
+    opponentTemplateId: simulationTemplateIdSchema,
+    iteration: nonNegativeInteger,
+    orientation: z.enum(["original", "mirrored"]),
+  })
+  .strict();
+export type SimulationStatisticsArmIdentity = z.output<
+  typeof simulationStatisticsArmIdentitySchema
+>;
+
+const simulationStatisticsRequestV1Schema = z
+  .object({
+    schemaVersion: z.literal("simulation-statistics-request:v1"),
+    evidenceRole: z.enum(["natural-balance", "controlled", "diagnostic"]),
+    exposurePopulation: z.enum(["natural", "isolation", "forced"]),
+  })
+  .strict();
+export type SimulationStatisticsRequest =
+  | z.output<typeof simulationStatisticsRequestV1Schema>
+  | {
+      readonly schemaVersion: typeof SIMULATION_STATISTICS_REQUEST_VERSION;
+      readonly evidenceRole: "natural-balance" | "controlled" | "diagnostic";
+      readonly exposurePopulation: "natural" | "isolation" | "forced";
+      readonly arm: SimulationStatisticsArmIdentity;
+    };
 
 export const sourceProvenanceSchema = z
   .object({
@@ -289,6 +322,8 @@ export interface SimulationFightRequest {
   readonly fixedTime: Date;
   readonly mechanicsView: import("@dragonball-resurgence/combat-engine").CombatMechanicsView;
   readonly decisionPolicy?: SimulationDecisionPolicy;
+  /** Opt-in bounded v4 folding; raw transitions and AI evaluations are never retained for this result. */
+  readonly statistics?: Readonly<SimulationStatisticsRequest>;
 }
 
 export const simulationFightRequestSchema = z
@@ -313,6 +348,19 @@ export const simulationFightRequestSchema = z
       (value) => typeof value === "object" && value !== null,
     ),
     decisionPolicy: simulationDecisionPolicySchema.optional(),
+    statistics: z
+      .union([
+        simulationStatisticsRequestV1Schema,
+        z
+          .object({
+            schemaVersion: z.literal(SIMULATION_STATISTICS_REQUEST_VERSION),
+            evidenceRole: z.enum(["natural-balance", "controlled", "diagnostic"]),
+            exposurePopulation: z.enum(["natural", "isolation", "forced"]),
+            arm: simulationStatisticsArmIdentitySchema,
+          })
+          .strict(),
+      ])
+      .optional(),
   })
   .strict();
 
@@ -547,6 +595,9 @@ export interface SimulationFightExecutionResult {
   readonly runId: string;
   readonly scenarioId: string;
   readonly pairId: string;
+  /** Explicit subject/control identities; never inferred from presentation order. */
+  readonly fighterAId?: string;
+  readonly fighterBId?: string;
   readonly finalState: FightState;
   readonly completion?: import("@dragonball-resurgence/combat-engine").CompletedFightState["completion"];
   readonly terminationReason: SimulationTerminationReason;
@@ -555,6 +606,7 @@ export interface SimulationFightExecutionResult {
   readonly summary: SimulationSummary;
   readonly coverage?: SimulationCoverageObservation;
   readonly diagnostics?: SimulationDiagnostics;
+  readonly statistics?: import("./statistics-v4.js").SimulationFightStatisticsV2;
   readonly stateHash: string;
   readonly eventHash: string;
   readonly decisionHash: string;

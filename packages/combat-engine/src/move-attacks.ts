@@ -13,6 +13,13 @@ import {
 } from "./calculation-pipeline.js";
 import { classifyCombatResult } from "./result-classification.js";
 import {
+  emitPrimitiveCalculationObservations,
+  primitiveActionObservationFor,
+  primitiveDamageObservationFor,
+  primitiveDieObservationsFor,
+  type PrimitiveCalculationObservationContext,
+} from "./calculation-observations.js";
+import {
   executeScheduledCombatResult,
   scheduledCombatResultOperation,
 } from "./fight-flow-scheduler.js";
@@ -57,6 +64,11 @@ export interface MoveAttackDefinition {
   /** A converted `damagePerHit` move deals its listed damage for every successful die. */
   readonly damagePerHit?: boolean;
   readonly rules?: CombatRules;
+  /** Exact calculation telemetry emitted while this attack is resolved. */
+  readonly calculationObservationSink?: (
+    observations: readonly import("./contracts.js").CombatCalculationObservation[],
+  ) => void;
+  readonly calculationObservationContext?: PrimitiveCalculationObservationContext;
 }
 
 export interface MoveAttackResolution {
@@ -202,22 +214,52 @@ export const resolveMoveAttack = (
     );
   const critical = (classification?.critical ?? false) || criticalThresholdMatch;
   const counter = rolls.length === 1 ? (classification?.counter ?? false) : counterThresholdMatch;
-
+  const damage = damageForSuccessfulDice(
+    definition.baseDamage,
+    definition.attack.dice,
+    successful.length,
+    critical,
+    definition.damagePerHit === true,
+    definition.diagnosticTraceSink,
+    definition.rules ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules,
+  );
+  const context = definition.calculationObservationContext;
+  if (context !== undefined) {
+    const observations = [
+      ...primitiveDieObservationsFor({
+        context,
+        rolls,
+        attackSides: definition.attack.sides,
+        defenseSides:
+          definition.defenseSides ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules.combat.standardDieSides,
+      }),
+      primitiveActionObservationFor(context, {
+        outcome: finalOutcome,
+        successful: successful.length > 0,
+      }),
+      ...(damage <= 0
+        ? []
+        : [
+            primitiveDamageObservationFor(context, {
+              stage: "attempted",
+              preMitigation: damage,
+              postMitigation: damage,
+              attempted: damage,
+              applied: 0,
+              prevented: 0,
+              overkill: 0,
+            }),
+          ]),
+    ];
+    emitPrimitiveCalculationObservations(definition.calculationObservationSink, observations);
+  }
   return {
     rolls,
     totalDice: definition.attack.dice,
     successfulHitCount: successful.length,
     critical,
     counter,
-    damage: damageForSuccessfulDice(
-      definition.baseDamage,
-      definition.attack.dice,
-      successful.length,
-      critical,
-      definition.damagePerHit === true,
-      definition.diagnosticTraceSink,
-      definition.rules ?? CANONICAL_COMBAT_MECHANICS_VIEW.rules,
-    ),
+    damage,
   };
 };
 

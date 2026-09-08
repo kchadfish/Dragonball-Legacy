@@ -1,5 +1,67 @@
 # Simulation-engine implementation progress
 
+## 2026-09-07 - SIM-V4 finalized contracts, experimental arms, and resumable mirrors
+
+The v4 statistics boundary now uses finalized `simulation-statistics-request:v2`
+and `simulation-statistics-checkpoint:v2` contracts. Checkpoints retain
+completed mirror identities, accepted half-mirror results, arm identities, seed
+offset identities, paired aggregate identities, and canonical merge position;
+preliminary v4 checkpoint versions are rejected. Artifact readers verify the
+artifact and every nested metric hash, and draw-aware paired success mass is
+allowed to remain fractional.
+
+Natural, controlled, and diagnostic catalog requests now have distinct arm
+identities and inputs. Controlled arms rotate deterministic fixed-total stat
+transfers with HP/Power/Dexterity tie order and item/transformation preference
+arms; diagnostics use forced legal mechanic exposure with identical AI profiles.
+The CLI catalog command selects the schedule explicitly. A successful mirror is
+checkpointed before its pair is folded, so resumption submits only the missing
+mirror and preserves one-shot/resume identity.
+
+Dashboard projections expose deterministic metric-family sections and explicit
+evidence state/reason, including never-eligible and eligible-never-selected
+outcomes. Full 100-pair checked-in catalog artifacts still require the final
+coverage and quality gates before execution.
+
+## 2026-09-06 - SIM-V4 authoritative catalog runner and resumable folding
+
+The v4 catalog runner now drives the public simulation/combat transition path,
+retains calculation telemetry until the v4 accumulator folds it, and writes
+deterministic mirrored-pair statistics. Its checkpoint contract records
+mechanics, template/scenario/metric/seed identities, root seed, fixed time, AI
+profile, evidence roles, target, per-cell continuation state, failures, batch
+and canonical-order hashes, and an overall checkpoint hash. Resume validates
+those identities, executes only missing iterations, rejects lower targets, and
+caps continuation at 400 pairs. Canonical Welford folding is normalized so a
+one-shot run and a checkpoint/resume run produce the same artifact hash.
+
+`simulate catalog` is the v4 path; `catalog-run` remains the legacy v3 move
+coverage command. V4 dashboard, source-dossier, freshness, and closure paths
+are schema-routed, while v3 report/resume behavior remains preserved. The
+focused runner smoke uses real mirrored combat transitions and currently
+verifies a two-template one-shot/resume artifact with zero failures; the full
+Natural Normal production artifact remains an execution deliverable rather
+than being represented by synthetic data.
+
+## 2026-09-06 - SIM-V4 bounded statistics and dashboard contract
+
+The simulation package now exposes the versioned v4 statistics surface:
+`simulation-statistics-artifact:v4`, `simulation-fight-statistics:v1`, and
+`simulation-metrics:v2`. v4 folds observations into bounded Welford,
+histogram, quantile, denominator, and paired-observation aggregates. It
+normalizes fighter dimensions to stable A/B identities, keeps incomplete,
+error, forced-exposure, and natural-balance evidence separate, caps
+continuation at 400 pairs, and renders deterministic JSON, CSV, and Markdown
+dashboard projections. Existing v3 coverage artifacts remain owned by the
+move-coverage tooling and are rejected by the v4 dashboard parser.
+
+The v4 metric definition catalog names the core, move, style/build,
+dexterity, Ki/defense, item, transformation, AI, sequence, and separate
+utility families without introducing a composite utility score. The CLI now
+accepts `dashboard`, `freshness`, and `catalog` aliases for v4-aware report
+paths. A v4 continuation runner and fresh full Natural Normal artifact remain
+follow-up work; the existing v3 runner is intentionally not silently migrated.
+
 This is the verified handoff record for `@dragonball-resurgence/simulation`.
 Roadmap prose remains the implementation authority; this file records what is
 implemented, the evidence for it, and the next executable item.

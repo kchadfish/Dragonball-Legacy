@@ -2,6 +2,9 @@ coverage/
 dist/
 node_modules/
 
+# Canonical simulation artifacts are generated and validated by the simulation closure/freshness gates.
+artifacts/simulation/
+
 # Generated simulation reports are individually formatted with an enlarged heap.
 docs/architecture/simulation-move-balance-matrix.json
 docs/architecture/simulation-move-coverage.json

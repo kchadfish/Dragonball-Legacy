@@ -14,7 +14,7 @@ export const SIMULATION_COMPARABLE_ALGORITHM_VERSION = "comparables:multi-stage-
 
 /** Provisional safeguards are simulation controls, never combat rules. */
 export const SIMULATION_DEFAULT_LIMITS = Object.freeze({
-  maximumTurns: 100,
+  maximumTurns: 250,
   maximumTransitions: 1_000,
   semanticNoProgressLimit: 3,
   maximumRetainedDiagnostics: 100,

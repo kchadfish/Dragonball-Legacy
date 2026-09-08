@@ -9,6 +9,9 @@ import {
   createFight,
   fightIdSchema,
   getCombatDecisionPoint,
+  getCombatActionAvailabilityReport,
+  collectCombatMechanicObservations,
+  collectCombatCalculationObservations,
   resolutionFrameIdSchema,
   scheduledWorkIdSchema,
   submitCombatDecision,
@@ -56,6 +59,81 @@ const basicInput = {
 };
 
 describe("combat mechanic observations", () => {
+  it("emits typed calculation observations with stable action and provenance identities", () => {
+    const created = createFight(basicInput, dependencies());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const eventBase = {
+      id: combatEventIdSchema.parse("event:calculation-observation"),
+      sequence: 1,
+      fightId: created.value.state.id,
+      causedByDecisionId: combatDecisionIdSchema.parse("decision:calculation-observation"),
+    };
+    const observations = collectCombatCalculationObservations({
+      previousState: created.value.state,
+      transition: {
+        state: created.value.state,
+        events: [
+          {
+            ...eventBase,
+            type: "attack-resolved",
+            combatantId: actorId,
+            targetCombatantId: opponentId,
+            outcome: "successful",
+            critical: false,
+            counter: false,
+          },
+          {
+            ...eventBase,
+            sequence: 2,
+            type: "damage-applied",
+            sourceCombatantId: actorId,
+            targetCombatantId: opponentId,
+            amount: 20,
+            remainingHitPoints: 80,
+          },
+        ] as never,
+      },
+    });
+    expect(observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "action",
+          actionInstanceId: "decision:calculation-observation",
+          actorId,
+        }),
+        expect.objectContaining({ kind: "damage", applied: 20, attempted: 20 }),
+      ]),
+    );
+  });
+
+  it("separates applied damage from overkill using the authoritative pre-transition HP", () => {
+    const created = createFight(basicInput, dependencies());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const observations = collectCombatCalculationObservations({
+      previousState: created.value.state,
+      transition: {
+        state: created.value.state,
+        events: [
+          {
+            id: combatEventIdSchema.parse("event:calculation-overkill"),
+            sequence: 1,
+            fightId: created.value.state.id,
+            type: "damage-applied",
+            sourceCombatantId: actorId,
+            targetCombatantId: opponentId,
+            amount: 120,
+            remainingHitPoints: 0,
+          },
+        ] as never,
+      },
+    });
+    expect(observations).toEqual([
+      expect.objectContaining({ kind: "damage", attempted: 120, applied: 100, overkill: 20 }),
+    ]);
+  });
+
   it("retains authoritative opportunity and activation observations without changing state", () => {
     const retainedDependencies = dependencies(true);
     const baselineDependencies = dependencies(false);
@@ -141,5 +219,80 @@ describe("combat mechanic observations", () => {
     if (point.type !== "decision-required") return;
     expect(point.legalDecisions.length).toBeGreaterThan(0);
     expect(point.legalDecisions).toEqual(expect.arrayContaining([{ type: "pass", actorId }]));
+  });
+
+  it("reports legal decisions from the combat-owned availability boundary", () => {
+    const created = createFight(basicInput, dependencies());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const action = advanceFight(created.value.state, dependencies());
+    expect(action.ok).toBe(true);
+    if (!action.ok || action.value.state.status !== "active") return;
+
+    const report = getCombatActionAvailabilityReport(action.value.state, actorId);
+    expect(report).toMatchObject({
+      schemaVersion: "combat-action-availability:v1",
+      actorId,
+      stateVersion: action.value.state.version,
+    });
+    expect(report.legal.length).toBeGreaterThan(0);
+    expect(report.legal.every((entry) => entry.classification === "legal")).toBe(true);
+    expect(report.entries.length).toBe(
+      report.legal.length +
+        report.timingEligibleButUnaffordable.length +
+        report.restricted.length +
+        report.otherwiseUnavailable.length,
+    );
+  });
+
+  it("attributes value events without requiring presentation-only move fields", () => {
+    const created = createFight(basicInput, dependencies());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const eventBase = {
+      id: combatEventIdSchema.parse("event:observation-value"),
+      sequence: 1,
+      fightId: created.value.state.id,
+    };
+    const observations = collectCombatMechanicObservations({
+      previousState: created.value.state,
+      transition: {
+        state: created.value.state,
+        events: [
+          {
+            ...eventBase,
+            type: "damage-applied",
+            sourceCombatantId: actorId,
+            targetCombatantId: opponentId,
+            amount: 20,
+            remainingHitPoints: 80,
+          },
+          {
+            ...eventBase,
+            type: "ki-changed",
+            combatantId: actorId,
+            amount: 5,
+            remainingKi: 10,
+          },
+        ] as never,
+      },
+    });
+    expect(observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "value",
+          definitionId: "combat:damage-applied",
+          combatantId: actorId,
+          targetCombatantId: opponentId,
+          value: 20,
+        }),
+        expect.objectContaining({
+          category: "value",
+          definitionId: "combat:ki-changed",
+          combatantId: actorId,
+          value: 5,
+        }),
+      ]),
+    );
   });
 });

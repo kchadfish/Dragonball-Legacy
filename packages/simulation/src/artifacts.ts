@@ -17,6 +17,9 @@ export const ARTIFACT_SCHEMA_VERSIONS = Object.freeze({
   replayRecord: "simulation-replay:v1",
   anomalyRecord: "simulation-anomaly:v1",
   customMoveReport: "simulation-custom-move-report:v1",
+  statistics: "simulation-statistics-artifact:v4",
+  fightStatistics: "simulation-fight-statistics:v1",
+  metrics: "simulation-metrics:v2",
 });
 
 export type ArtifactKind = keyof typeof ARTIFACT_SCHEMA_VERSIONS;

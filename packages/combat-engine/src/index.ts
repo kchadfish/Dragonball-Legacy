@@ -1,6 +1,7 @@
 export * from "./contracts.js";
 export * from "./attack-rolls.js";
 export * from "./availability.js";
+export * from "./availability-report.js";
 export * from "./candidate-resolution.js";
 export * from "./analysis.js";
 export * from "./block-mechanics.js";

@@ -31,6 +31,40 @@ describe("resolveMoveAttack", () => {
     expect(result).toMatchObject({ successfulHitCount: 2, damage: 60, critical: false });
   });
 
+  it("emits primitive-local dice, action, and attempted damage observations", () => {
+    const observations: import("./contracts.js").CombatCalculationObservation[] = [];
+    resolveMoveAttack(
+      attacker,
+      defender,
+      {
+        attack: { dice: 1, sides: 30 },
+        baseDamage: 40,
+        calculationObservationContext: {
+          decisionId: "decision:primitive-test" as never,
+          sourceDefinitionId: "move:primitive-test",
+          actorId: attacker.id,
+          targetCombatantId: defender.id,
+          turnNumber: 1,
+          actionInstanceId: "decision:primitive-test",
+        },
+        calculationObservationSink: (entries) => observations.push(...entries),
+      },
+      new SequenceRandomSource([20, 10]),
+    );
+
+    expect(observations.map((observation) => observation.kind)).toEqual([
+      "die",
+      "die",
+      "action",
+      "damage",
+    ]);
+    expect(observations.at(-1)).toMatchObject({
+      kind: "damage",
+      stage: "attempted",
+      preMitigation: 40,
+    });
+  });
+
   it("only allows critical damage on a single-die move", () => {
     const result = resolveMoveAttack(
       attacker,

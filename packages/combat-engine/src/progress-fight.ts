@@ -172,6 +172,7 @@ import type {
   CombatDecision,
   CombatDecisionInput,
   CombatEvent,
+  CombatCalculationObservation,
   CombatFailure,
   CombatResult,
   CombatTransition,
@@ -207,7 +208,18 @@ import {
   scheduledWorkFromResolutionFrame,
   type ScheduledCombatWork,
 } from "./fight-flow-scheduler.js";
-import { collectCombatMechanicObservations } from "./mechanic-observations.js";
+import {
+  collectCombatCalculationObservations,
+  collectCombatMechanicObservations,
+} from "./mechanic-observations.js";
+import {
+  emitPrimitiveCalculationObservations,
+  primitiveActionObservationFor,
+  primitiveDamageObservationFor,
+  primitiveDieObservationsFor,
+  primitiveResourceObservationFor,
+  type PrimitiveCalculationObservationContext,
+} from "./calculation-observations.js";
 
 type CandidateFactRoll = Pick<
   AttackDieRoll,
@@ -289,10 +301,33 @@ const diagnosticTransitionContext = (dependencies: CombatDependencies) => {
   return { dependencies: { ...dependencies, diagnosticTraceSink }, entries };
 };
 
+const calculationTransitionContext = (dependencies: CombatDependencies) => {
+  if (
+    dependencies.retainCalculationObservations !== true &&
+    dependencies.calculationObservationSink === undefined
+  )
+    return {
+      dependencies,
+      observations: undefined as CombatCalculationObservation[] | undefined,
+    };
+  const observations: CombatCalculationObservation[] = [];
+  return {
+    dependencies: {
+      ...dependencies,
+      calculationObservationSink: (entries: readonly CombatCalculationObservation[]) => {
+        observations.push(...entries);
+      },
+    },
+    observations,
+  };
+};
+
 const withDiagnosticTransitionTrace = (
   result: CombatResult<CombatTransition>,
   entries: readonly CalculationTraceEntry[] | undefined,
   observations: readonly import("./contracts.js").CombatMechanicObservation[] | undefined,
+  calculationObservations:
+    readonly import("./contracts.js").CombatCalculationObservation[] | undefined,
 ): CombatResult<CombatTransition> =>
   result.ok
     ? {
@@ -301,6 +336,7 @@ const withDiagnosticTransitionTrace = (
           ...result.value,
           ...(entries === undefined ? {} : { diagnosticTrace: entries }),
           ...(observations === undefined ? {} : { mechanicObservations: observations }),
+          ...(calculationObservations === undefined ? {} : { calculationObservations }),
         },
       }
     : result;
@@ -310,8 +346,15 @@ const withMechanicTransitionObservations = (
   previousState: FightState,
   submittedDecision: LegalDecision | undefined,
   dependencies: CombatDependencies,
+  directCalculationObservations?: readonly CombatCalculationObservation[],
 ): CombatResult<CombatTransition> => {
-  if (!result.ok || dependencies.retainMechanicObservations !== true) return result;
+  if (
+    !result.ok ||
+    (dependencies.retainMechanicObservations !== true &&
+      dependencies.retainCalculationObservations !== true &&
+      directCalculationObservations === undefined)
+  )
+    return result;
   const legalDecisions =
     previousState.status === "active"
       ? enumerateLegalDecisions(
@@ -320,17 +363,48 @@ const withMechanicTransitionObservations = (
           dependencies.mechanicsView,
         )
       : [];
+  const legacyCalculationObservations =
+    dependencies.retainCalculationObservations === true
+      ? collectCombatCalculationObservations({
+          previousState,
+          transition: result.value,
+          submittedDecision,
+          mechanicsView: mechanicsViewFor(dependencies.mechanicsView),
+        })
+      : undefined;
+  const directKinds = new Set(
+    (directCalculationObservations ?? []).map(
+      (observation) => `${observation.actionInstanceId}:${observation.kind}`,
+    ),
+  );
+  const calculationObservations =
+    directCalculationObservations === undefined && legacyCalculationObservations === undefined
+      ? undefined
+      : [
+          ...(directCalculationObservations ?? []),
+          ...(legacyCalculationObservations ?? []).filter(
+            (observation) =>
+              !directKinds.has(`${observation.actionInstanceId}:${observation.kind}`),
+          ),
+        ];
+  if (calculationObservations !== undefined)
+    dependencies.calculationObservationSink?.(calculationObservations);
   return {
     ok: true,
     value: {
       ...result.value,
-      mechanicObservations: collectCombatMechanicObservations({
-        previousState,
-        transition: result.value,
-        legalDecisions,
-        submittedDecision,
-        mechanicsView: mechanicsViewFor(dependencies.mechanicsView),
-      }),
+      ...(dependencies.retainMechanicObservations === true
+        ? {
+            mechanicObservations: collectCombatMechanicObservations({
+              previousState,
+              transition: result.value,
+              legalDecisions,
+              submittedDecision,
+              mechanicsView: mechanicsViewFor(dependencies.mechanicsView),
+            }),
+          }
+        : {}),
+      ...(dependencies.retainCalculationObservations === true ? { calculationObservations } : {}),
     },
   };
 };
@@ -6523,6 +6597,8 @@ interface ResolveAttackInput {
   readonly resultOverrides?: readonly ResultOverride[];
   readonly numericResultOverrides?: readonly NumericResultOverride[];
   readonly resolutionThresholds?: readonly ResolutionThresholdRule[];
+  readonly calculationObservationContext?: import("./calculation-observations.js").PrimitiveCalculationObservationContext;
+  readonly emitDamageObservation?: boolean;
 }
 
 const resolveAttack = ({
@@ -6541,6 +6617,8 @@ const resolveAttack = ({
   resultOverrides,
   numericResultOverrides,
   resolutionThresholds,
+  calculationObservationContext,
+  emitDamageObservation = false,
 }: ResolveAttackInput): AttackResolution => {
   const [die] = resolveContestedAttackRolls(
     {
@@ -6587,14 +6665,48 @@ const resolveAttack = ({
   });
   const critical = classification.critical;
   const counter = classification.counter;
-  const damage =
+  const preMitigationDamage =
     outcome === "successful"
-      ? Math.min(
-          calculateAttackDamage(baseDamage, critical, dependencies.diagnosticTraceSink, rules),
-          target.hitPoints.current,
-        )
+      ? calculateAttackDamage(baseDamage, critical, dependencies.diagnosticTraceSink, rules)
       : 0;
+  const damage = Math.min(preMitigationDamage, target.hitPoints.current);
   const remainingHitPoints = target.hitPoints.current - damage;
+  if (calculationObservationContext !== undefined) {
+    const observations = [
+      ...primitiveDieObservationsFor({
+        context: calculationObservationContext,
+        rolls: [
+          {
+            attackNaturalResult,
+            attackResult,
+            defenseNaturalResult,
+            defenseResult,
+            outcome,
+          },
+        ],
+        attackSides,
+        defenseSides: defenseSides ?? rules.combat.standardDieSides,
+      }),
+      primitiveActionObservationFor(calculationObservationContext, {
+        outcome,
+        successful: outcome === "successful",
+      }),
+      ...(emitDamageObservation === true && preMitigationDamage > 0
+        ? [
+            primitiveDamageObservationFor(calculationObservationContext, {
+              stage: "applied",
+              preMitigation: preMitigationDamage,
+              postMitigation: damage,
+              attempted: preMitigationDamage,
+              applied: damage,
+              prevented: 0,
+              overkill: Math.max(0, preMitigationDamage - damage),
+            }),
+          ]
+        : []),
+    ];
+    emitPrimitiveCalculationObservations(dependencies.calculationObservationSink, observations);
+  }
 
   return {
     attackNaturalResult,
@@ -7144,6 +7256,15 @@ export const resolveDeathBeam = (
     target,
     dependencies,
     rules: mechanicsViewForState(state).rules,
+    calculationObservationContext: {
+      decisionId: decision.id,
+      sourceDefinitionId: deathBeamFor(state).id,
+      actorId: attacker.id,
+      targetCombatantId: target.id,
+      turnNumber: state.turnNumber,
+      actionInstanceId: decision.id,
+    },
+    emitDamageObservation: true,
     attackSides:
       attack.attackRoll.sides +
       activeRollModifier(state, attacker.id, "attack", "sides", deathBeamFor(state)),
@@ -11528,6 +11649,7 @@ const convertedAttackRoll = (
     blockedDice = 0,
     defenseResultModifier,
     dependencies,
+    decision,
     move,
     state,
     target,
@@ -11871,6 +11993,15 @@ const convertedAttackRoll = (
       resolutionThresholds:
         input.copiedSourceResolution?.resolutionThresholds ?? resolutionThresholds,
       diagnosticTraceSink: dependencies.diagnosticTraceSink,
+      calculationObservationSink: dependencies.calculationObservationSink,
+      calculationObservationContext: {
+        decisionId: decision.id,
+        sourceDefinitionId: move.id,
+        actorId: attacker.id,
+        targetCombatantId: target.id,
+        turnNumber: state.turnNumber,
+        actionInstanceId: decision.id,
+      },
       preventCritical: input.copiedSourceResolution?.preventCritical ?? preventCritical,
       preventCounter: input.copiedSourceResolution?.preventCounter ?? preventCounter,
       rules: mechanicsViewForState(state).rules,
@@ -15746,6 +15877,27 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
     ),
   );
   const remainingHitPoints = Math.max(0, target.hitPoints.current - roll.damage);
+  emitPrimitiveCalculationObservations(dependencies.calculationObservationSink, [
+    primitiveDamageObservationFor(
+      {
+        decisionId: decision.id,
+        sourceDefinitionId: move.id,
+        actorId: attacker.id,
+        targetCombatantId: target.id,
+        turnNumber: state.turnNumber,
+        actionInstanceId: decision.id,
+      },
+      {
+        stage: "applied",
+        preMitigation: damageBeforeTargetCap,
+        postMitigation: roll.damage,
+        attempted: damageBeforeTargetCap,
+        applied: target.hitPoints.current - remainingHitPoints,
+        prevented: Math.max(0, damageBeforeTargetCap - roll.damage),
+        overkill: Math.max(0, damageBeforeTargetCap - roll.damage),
+      },
+    ),
+  ]);
   const afterDefenseEffects = passiveAfterDefenseEffects(
     state,
     attacker,
@@ -15829,6 +15981,28 @@ const completeConvertedAttackMove = (input: CompleteConvertedAttackInput) => {
     state.activeEffects,
     currentAction,
   );
+  if (cost > 0)
+    emitPrimitiveCalculationObservations(dependencies.calculationObservationSink, [
+      primitiveResourceObservationFor(
+        {
+          decisionId: decision.id,
+          sourceDefinitionId: move.id,
+          actorId: attacker.id,
+          targetCombatantId: target.id,
+          turnNumber: state.turnNumber,
+          actionInstanceId: decision.id,
+        },
+        {
+          resource: "ki",
+          operation: "loss",
+          requested: cost,
+          applied: cost,
+          capDiscarded: 0,
+          before: attacker.ki.current,
+          after: attacker.ki.current - cost,
+        },
+      ),
+    ]);
   const targetHitPointsAfterEffects = resourceAfterChanges(
     { ...target, hitPoints: { ...target.hitPoints, current: remainingHitPoints } },
     resourceChanges,
@@ -16944,6 +17118,13 @@ const completedBasicAttackResolution = (
     target,
     dependencies,
     rules: mechanicsViewForState(state).rules,
+    calculationObservationContext: {
+      decisionId: decision.id,
+      actorId: attacker.id,
+      targetCombatantId: target.id,
+      turnNumber: state.turnNumber,
+      actionInstanceId: decision.id,
+    },
     attackSides:
       mechanicsViewForState(state).rules.combat.standardDieSides +
       activeRollModifier(state, attacker.id, "attack", "sides"),
@@ -17028,6 +17209,26 @@ const completedBasicAttackResolution = (
     remainingHitPoints: target.hitPoints.current - adjustedDamage,
     defeated: resolution.outcome === "successful" && adjustedDamage >= target.hitPoints.current,
   };
+  emitPrimitiveCalculationObservations(dependencies.calculationObservationSink, [
+    primitiveDamageObservationFor(
+      {
+        decisionId: decision.id,
+        actorId: attacker.id,
+        targetCombatantId: target.id,
+        turnNumber: state.turnNumber,
+        actionInstanceId: decision.id,
+      },
+      {
+        stage: "applied",
+        preMitigation: resolution.damage,
+        postMitigation: adjustedDamage,
+        attempted: resolution.damage,
+        applied: adjustedDamage,
+        prevented: Math.max(0, resolution.damage - adjustedDamage),
+        overkill: 0,
+      },
+    ),
+  ]);
   const rollResultTriggered = rollResultTriggeredEffects(state, attacker, target, undefined, {
     self: attacker,
     opponent: target,
@@ -19160,14 +19361,21 @@ export const advanceFight = (
       },
     };
   const context = diagnosticTransitionContext(dependencies);
+  const calculationContext = calculationTransitionContext(context.dependencies);
+  const observationDependencies = {
+    ...calculationContext.dependencies,
+    calculationObservationSink: dependencies.calculationObservationSink,
+  };
   return withDiagnosticTransitionTrace(
     withMechanicTransitionObservations(
-      canonicalizePublicTransition(advanceFightInternal(state, context.dependencies)),
+      canonicalizePublicTransition(advanceFightInternal(state, calculationContext.dependencies)),
       state,
       undefined,
-      context.dependencies,
+      observationDependencies,
+      calculationContext.observations,
     ),
     context.entries,
+    undefined,
     undefined,
   );
 };
@@ -24116,6 +24324,30 @@ const resolveEndPhaseDecision = (
     state.activeEffects,
     actionRecordFor(state, decision),
   );
+  if (decision.type === "power-up" && powerUpAmount > 0)
+    emitPrimitiveCalculationObservations(dependencies.calculationObservationSink, [
+      primitiveResourceObservationFor(
+        {
+          decisionId: decision.id,
+          actorId: activeCombatant.id,
+          targetCombatantId: target.id,
+          turnNumber: state.turnNumber,
+          actionInstanceId: decision.id,
+        },
+        {
+          resource: "ki",
+          operation: "gain",
+          requested: powerUpAmount,
+          applied: Math.max(0, activeAfterBasePowerUp.ki.current - activeCombatant.ki.current),
+          capDiscarded: Math.max(
+            0,
+            powerUpAmount - (activeAfterBasePowerUp.ki.current - activeCombatant.ki.current),
+          ),
+          before: activeCombatant.ki.current,
+          after: activeAfterBasePowerUp.ki.current,
+        },
+      ),
+    ]);
   const targetAfterPowerUp = resourceAfterChanges(
     target,
     allTriggeredChanges.resources,
@@ -26831,6 +27063,59 @@ const itemUseEvents = ({
   ];
 };
 
+const emitItemResourceObservations = (input: {
+  readonly sink: ((observations: readonly CombatCalculationObservation[]) => void) | undefined;
+  readonly context: PrimitiveCalculationObservationContext;
+  readonly combatantHitPoints: number;
+  readonly combatantKi: number;
+  readonly resourcesBeforeCost: { readonly hitPoints: number; readonly ki: number };
+  readonly resources: { readonly hitPoints: number; readonly ki: number };
+  readonly activationKiCost: number;
+}): void => {
+  const observations: CombatCalculationObservation[] = [];
+  if (input.resourcesBeforeCost.hitPoints !== input.combatantHitPoints) {
+    observations.push(
+      primitiveResourceObservationFor(input.context, {
+        resource: "hp",
+        operation:
+          input.resourcesBeforeCost.hitPoints > input.combatantHitPoints ? "healing" : "damage",
+        requested: Math.abs(input.resourcesBeforeCost.hitPoints - input.combatantHitPoints),
+        applied: Math.abs(input.resourcesBeforeCost.hitPoints - input.combatantHitPoints),
+        capDiscarded: 0,
+        before: input.combatantHitPoints,
+        after: input.resourcesBeforeCost.hitPoints,
+      }),
+    );
+  }
+  if (input.resourcesBeforeCost.ki !== input.combatantKi) {
+    observations.push(
+      primitiveResourceObservationFor(input.context, {
+        resource: "ki",
+        operation: input.resourcesBeforeCost.ki > input.combatantKi ? "gain" : "loss",
+        requested: Math.abs(input.resourcesBeforeCost.ki - input.combatantKi),
+        applied: Math.abs(input.resourcesBeforeCost.ki - input.combatantKi),
+        capDiscarded: 0,
+        before: input.combatantKi,
+        after: input.resourcesBeforeCost.ki,
+      }),
+    );
+  }
+  if (input.activationKiCost > 0) {
+    observations.push(
+      primitiveResourceObservationFor(input.context, {
+        resource: "ki",
+        operation: "loss",
+        requested: input.activationKiCost,
+        applied: input.activationKiCost,
+        capDiscarded: 0,
+        before: input.resourcesBeforeCost.ki,
+        after: input.resources.ki,
+      }),
+    );
+  }
+  emitPrimitiveCalculationObservations(input.sink, observations);
+};
+
 const resolveItemUse = (
   state: ActiveFightState,
   decision: Extract<CombatDecision, { readonly type: "use-item" }>,
@@ -26876,6 +27161,22 @@ const resolveItemUse = (
       },
     };
   const resources = { ...resourcesBeforeCost, ki: resourcesBeforeCost.ki - activationKiCost };
+  const itemObservationContext = {
+    decisionId: decision.id,
+    sourceDefinitionId: item.id,
+    actorId: combatant.id,
+    turnNumber: state.turnNumber,
+    actionInstanceId: decision.id,
+  };
+  emitItemResourceObservations({
+    sink: dependencies.calculationObservationSink,
+    context: itemObservationContext,
+    combatantHitPoints: combatant.hitPoints.current,
+    combatantKi: combatant.ki.current,
+    resourcesBeforeCost,
+    resources,
+    activationKiCost,
+  });
   const opponent = Object.values(state.combatants).find(
     (candidate) => candidate.id !== combatant.id,
   );
@@ -30547,18 +30848,25 @@ export const submitCombatDecision = (
       },
     };
   const context = diagnosticTransitionContext(dependencies);
+  const calculationContext = calculationTransitionContext(context.dependencies);
+  const observationDependencies = {
+    ...calculationContext.dependencies,
+    calculationObservationSink: dependencies.calculationObservationSink,
+  };
   return withDiagnosticTransitionTrace(
     withMechanicTransitionObservations(
       canonicalizePublicTransition(
-        submitCombatDecisionInternal(state, inputDecision, context.dependencies),
+        submitCombatDecisionInternal(state, inputDecision, calculationContext.dependencies),
       ),
       state,
       inputDecision.type === "cancel-fight"
         ? undefined
         : (inputDecision as unknown as LegalDecision),
-      context.dependencies,
+      observationDependencies,
+      calculationContext.observations,
     ),
     context.entries,
+    undefined,
     undefined,
   );
 };

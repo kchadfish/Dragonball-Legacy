@@ -2,6 +2,7 @@ import {
   BranchCombatIdSource,
   canonicalDecisionKey,
   FixedClock,
+  getCombatActionAvailabilityReport,
   SeededRandomSource,
   createCombatRuntime,
   type CombatDependencies,
@@ -45,6 +46,13 @@ import { SIMULATION_AI_SEED_DERIVATION_VERSION, SIMULATION_SCOPE_VERSION } from 
 import { runSimulationTransitionDriver } from "./transition-driver.js";
 import type { SimulationMoveFunnel } from "./move-coverage.js";
 import { selectControlledSimulationDecision, selectForcedSimulationDecision } from "./exposure.js";
+import {
+  createSimulationV4FightAccumulator,
+  finalizeSimulationV4FightAccumulator,
+  foldSimulationV4Transition,
+  simulationV4DimensionsForRequest,
+} from "./v4-folding.js";
+import { createSimulationFightStatisticsV2 } from "./statistics-v4.js";
 
 type MoveFunnelStage = Exclude<keyof SimulationMoveFunnel, "decisionFunnel" | "triggerFunnel">;
 type DeepMutable<T> = {
@@ -697,12 +705,14 @@ export const runSimulationFight = (
     const aiSeedB = allocateSimulationSeed({ ...common, namespace: "ai-b" }).seed;
     const diagnosticsEnabled = request.scenario.retention === "diagnostic";
     const coverageEnabled = request.scenario.retention === "coverage";
+    const statisticsEnabled = request.statistics !== undefined;
     const dependencies: CombatDependencies = {
       random: new SeededRandomSource(combatSeed),
       clock: new FixedClock(request.fixedTime),
       ids: new BranchCombatIdSource([request.runId, pairId]),
       retainDiagnosticTrace: diagnosticsEnabled,
-      retainMechanicObservations: diagnosticsEnabled || coverageEnabled,
+      retainMechanicObservations: diagnosticsEnabled || coverageEnabled || statisticsEnabled,
+      retainCalculationObservations: diagnosticsEnabled || coverageEnabled || statisticsEnabled,
       mechanicsView: request.mechanicsView,
     };
     const runtime = runtimeFor(request.mechanicsView);
@@ -715,6 +725,66 @@ export const runSimulationFight = (
     const summaries = initialSummary();
     const coverageCounters = initialCoverageCounters();
     const combatantIds = Object.keys(created.value.state.combatants);
+    const firstActor =
+      created.value.state.status === "active" &&
+      created.value.state.activeCombatantId === combatantIds[1]
+        ? "b"
+        : "a";
+    let statisticsAccumulator = statisticsEnabled
+      ? createSimulationV4FightAccumulator({
+          pairId,
+          orientation: request.mirror ?? "original",
+          fighterAId: combatantIds[0] ?? "fighter-a",
+          fighterBId: combatantIds[1] ?? "fighter-b",
+          dimensionsBySide: simulationV4DimensionsForRequest(request, firstActor),
+          equippedMoveIdsBySide: { a: request.templateA.moveIds, b: request.templateB.moveIds },
+          equippedItemIdsBySide: { a: request.templateA.itemIds, b: request.templateB.itemIds },
+          availableTransformationIdsBySide: {
+            a: request.templateA.transformationProfiles.map((entry) => entry.transformationId),
+            b: request.templateB.transformationProfiles.map((entry) => entry.transformationId),
+          },
+          startingKiBySide: {
+            a:
+              Object.values(created.value.state.combatants).find(
+                (combatant) => combatant.id === combatantIds[0],
+              )?.ki.current ?? 0,
+            b:
+              Object.values(created.value.state.combatants).find(
+                (combatant) => combatant.id === combatantIds[1],
+              )?.ki.current ?? 0,
+          },
+          blockMoveIdsBySide: {
+            a: request.templateA.moveIds.filter(
+              (moveId) => request.mechanicsView.indexes.moves.get(moveId)?.category === "block",
+            ),
+            b: request.templateB.moveIds.filter(
+              (moveId) => request.mechanicsView.indexes.moves.get(moveId)?.category === "block",
+            ),
+          },
+          itemPricesBySide: {
+            a: Object.fromEntries(
+              request.templateA.itemIds.map((itemId) => [
+                itemId,
+                request.mechanicsView.indexes.items.get(itemId)?.price,
+              ]),
+            ),
+            b: Object.fromEntries(
+              request.templateB.itemIds.map((itemId) => [
+                itemId,
+                request.mechanicsView.indexes.items.get(itemId)?.price,
+              ]),
+            ),
+          },
+        })
+      : undefined;
+    let previousStatisticsState: FightState | undefined = created.value.state;
+    let pendingStatistics:
+      | Readonly<{
+          selectedDecision: LegalDecision;
+          availability: ReturnType<typeof getCombatActionAvailabilityReport>;
+          evaluations: readonly CandidateEvaluation[];
+        }>
+      | undefined;
     const hitPoints: Record<string, number> = Object.fromEntries(
       Object.values(created.value.state.combatants).map((combatant) => [
         String(combatant.id),
@@ -762,6 +832,9 @@ export const runSimulationFight = (
             },
           };
         const actorId = state.pendingDecision?.combatantId ?? state.activeCombatantId;
+        const availability = statisticsEnabled
+          ? getCombatActionAvailabilityReport(state, actorId, request.mechanicsView)
+          : undefined;
         const descriptorByDecisionKey = new Map(
           runtime
             .describeDecisions(state, actorId)
@@ -839,6 +912,12 @@ export const runSimulationFight = (
         const selected = simulationDecisionFor(aiRequest, legalDecisions, controlledPolicy);
         if (!selected.ok) return { error: { type: "ai-failure", failure: selected.error } };
         const chosen = selected.value.decision;
+        if (availability !== undefined)
+          pendingStatistics = {
+            selectedDecision: chosen,
+            availability,
+            evaluations: selected.value.evaluations,
+          };
         if (
           request.decisionPolicy?.type === "controlled-legal-preference" &&
           chosen.type === "use-move" &&
@@ -864,6 +943,15 @@ export const runSimulationFight = (
         };
       },
       observe: ({ transition, decision, legalDecisions }) => {
+        if (statisticsAccumulator !== undefined) {
+          statisticsAccumulator = foldSimulationV4Transition(statisticsAccumulator, {
+            previousState: previousStatisticsState,
+            transition,
+            ...(pendingStatistics === undefined ? {} : pendingStatistics),
+          });
+          previousStatisticsState = transition.state;
+          pendingStatistics = undefined;
+        }
         summaries.completedActions += transition.events.some(
           (event) => event.type === "attack-resolved" || event.type === "action-skipped",
         )
@@ -955,11 +1043,13 @@ export const runSimulationFight = (
       transitions: driver.eventHashes.length,
     };
     control.onMetrics?.(metrics);
-    return {
+    const result: SimulationFightExecutionResult = {
       schemaVersion: "simulation-contracts:v1",
       runId: request.runId,
       scenarioId: request.scenario.id,
       pairId,
+      fighterAId: combatantIds[0],
+      fighterBId: combatantIds[1],
       finalState: state,
       completion: state.status === "completed" ? state.completion : undefined,
       terminationReason: driver.terminationReason,
@@ -994,6 +1084,28 @@ export const runSimulationFight = (
       }),
       mechanicsView: request.mechanicsView.identity,
       replay,
+    };
+    if (statisticsAccumulator === undefined) return result;
+    statisticsAccumulator = finalizeSimulationV4FightAccumulator(statisticsAccumulator, result);
+    const winnerId = state.status === "completed" ? state.completion.winnerCombatantId : undefined;
+    let winner: "a" | "b" | "draw" = "draw";
+    if (winnerId !== undefined && String(winnerId) === String(combatantIds[0])) winner = "a";
+    else if (winnerId !== undefined && String(winnerId) === String(combatantIds[1])) winner = "b";
+    return {
+      ...result,
+      statistics: createSimulationFightStatisticsV2({
+        pairId,
+        orientation: request.mirror ?? "original",
+        fighterAId: combatantIds[0] ?? "fighter-a",
+        fighterBId: combatantIds[1] ?? "fighter-b",
+        completed: driver.terminationReason === "engine-completed",
+        terminationReason: driver.terminationReason,
+        winner,
+        metrics: statisticsAccumulator.metrics,
+        stateHash: result.stateHash,
+        eventHash: result.eventHash,
+        decisionHash: result.decisionHash,
+      }),
     };
   } catch (error) {
     return failureResult(request, {

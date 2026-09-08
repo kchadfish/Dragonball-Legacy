@@ -109,5 +109,11 @@ export const analyzeSimulationSequences = (
       conversionRate: entry.occurrences === 0 ? 0 : entry.sequences.size / entry.occurrences,
       outcomeAssociation: entry.sequences.size === 0 ? 0 : entry.outcomes / entry.sequences.size,
     }))
-    .sort((left, right) => canonicalHash(left.pattern).localeCompare(canonicalHash(right.pattern)));
+    .sort(
+      (left, right) =>
+        right.support - left.support ||
+        right.sequenceCount - left.sequenceCount ||
+        canonicalHash(left.pattern).localeCompare(canonicalHash(right.pattern)),
+    )
+    .slice(0, 10);
 };

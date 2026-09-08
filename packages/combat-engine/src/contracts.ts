@@ -2384,7 +2384,83 @@ export interface CombatTransition {
   readonly diagnosticTrace?: CombatDiagnosticTrace;
   /** Optional mechanic telemetry; omitted unless explicitly retained. */
   readonly mechanicObservations?: readonly CombatMechanicObservation[];
+  /** Optional typed calculation telemetry; omitted unless explicitly retained. */
+  readonly calculationObservations?: readonly CombatCalculationObservation[];
 }
+
+export type CombatCalculationObservationKind = "damage" | "resource" | "block" | "die" | "action";
+
+export interface CombatCalculationObservationBase {
+  readonly schemaVersion: "combat-calculation-observation:v1";
+  readonly observationId: string;
+  readonly kind: CombatCalculationObservationKind;
+  readonly decisionId?: CombatDecisionId;
+  readonly effectId?: ActiveEffectId;
+  readonly sourceDefinitionId?: string;
+  readonly actorId?: CombatantId;
+  readonly targetCombatantId?: CombatantId;
+  readonly turnNumber: number;
+  /** Stable for one submitted action, including all of its dice and effects. */
+  readonly actionInstanceId: string;
+  readonly provenance: readonly CombatDefinitionProvenance[];
+}
+
+export interface CombatDamageCalculationObservation extends CombatCalculationObservationBase {
+  readonly kind: "damage";
+  readonly stage: "attempted" | "applied" | "prevented" | "overkill";
+  readonly preMitigation: number;
+  readonly postMitigation: number;
+  readonly attempted: number;
+  readonly applied: number;
+  readonly prevented: number;
+  readonly overkill: number;
+}
+
+export interface CombatResourceCalculationObservation extends CombatCalculationObservationBase {
+  readonly kind: "resource";
+  readonly resource: "hp" | "ki";
+  readonly operation: "damage" | "healing" | "gain" | "loss" | "set";
+  readonly requested: number;
+  readonly applied: number;
+  readonly capDiscarded: number;
+  readonly before: number;
+  readonly after: number;
+}
+
+export interface CombatBlockCalculationObservation extends CombatCalculationObservationBase {
+  readonly kind: "block";
+  readonly declared: boolean;
+  readonly eligibleToStop: boolean;
+  readonly success: boolean;
+  readonly kiCost: number;
+  readonly prevention: number;
+  readonly counterQualified: boolean;
+}
+
+export interface CombatDieCalculationObservation extends CombatCalculationObservationBase {
+  readonly kind: "die";
+  readonly scope: "attack" | "defense" | "action";
+  readonly dieIndex: number;
+  readonly sides: number;
+  readonly naturalResult: number;
+  readonly result: number;
+  readonly outcome?: string;
+}
+
+export interface CombatActionCalculationObservation extends CombatCalculationObservationBase {
+  readonly kind: "action";
+  readonly outcome: string;
+  readonly attempted: boolean;
+  readonly resolved: boolean;
+  readonly successful: boolean;
+}
+
+export type CombatCalculationObservation =
+  | CombatDamageCalculationObservation
+  | CombatResourceCalculationObservation
+  | CombatBlockCalculationObservation
+  | CombatDieCalculationObservation
+  | CombatActionCalculationObservation;
 
 export type CombatMechanicObservationCategory =
   "opportunity" | "availability" | "trigger" | "activation" | "resolution" | "outcome" | "value";

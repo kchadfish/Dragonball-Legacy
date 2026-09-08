@@ -33,7 +33,10 @@ import {
   scheduledWorkFromLegacyEffect,
   scheduledWorkFromResolutionFrame,
 } from "./fight-flow-scheduler.js";
-import { collectCombatMechanicObservations } from "./mechanic-observations.js";
+import {
+  collectCombatCalculationObservations,
+  collectCombatMechanicObservations,
+} from "./mechanic-observations.js";
 
 export const COMBAT_ACTIVE_TRANSFORMATION_RACE_IDS = [
   "race-humans",
@@ -719,16 +722,30 @@ export const createFight = (
       },
     ],
   };
+  const calculationObservations =
+    dependencies.retainCalculationObservations === true
+      ? collectCombatCalculationObservations({ transition, mechanicsView: mechanics })
+      : undefined;
+  if (calculationObservations !== undefined)
+    dependencies.calculationObservationSink?.(calculationObservations);
   return {
     ok: true,
     value: {
       ...transition,
-      ...(dependencies.retainMechanicObservations === true
+      ...(dependencies.retainMechanicObservations === true ||
+      dependencies.retainCalculationObservations === true
         ? {
-            mechanicObservations: collectCombatMechanicObservations({
-              transition,
-              mechanicsView: mechanics,
-            }),
+            ...(dependencies.retainMechanicObservations === true
+              ? {
+                  mechanicObservations: collectCombatMechanicObservations({
+                    transition,
+                    mechanicsView: mechanics,
+                  }),
+                }
+              : {}),
+            ...(dependencies.retainCalculationObservations === true
+              ? { calculationObservations }
+              : {}),
           }
         : {}),
     },

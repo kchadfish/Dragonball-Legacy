@@ -1,5 +1,16 @@
 # Combat-engine implementation progress
 
+## 2026-09-06 - Typed calculation telemetry for simulation v4
+
+Combat transitions now expose an independently opt-in
+`combat-calculation-observation:v1` union for damage, resource, block, die, and
+action calculations. Each record carries stable action, decision/effect/source,
+actor/target, turn, and provenance identities. The telemetry is derived after
+the authoritative transition and is never included in `FightState`, events,
+randomness, transition hashes, or replay identity. The existing mechanic
+observation contract remains available for compatibility; callers can retain
+typed calculations with `retainCalculationObservations`.
+
 ## 2026-08-30 - SIM-080 mechanics-view boundary
 
 The combat package now exposes `MechanicsViewIdentity`, immutable
@@ -62,6 +73,15 @@ The generic counter continuation path now requires a resolved counter action
 before scheduling counter phase. This preserves the invariant that every
 counter phase has an awaiting-counter frame and prevents valid simulation
 fixtures from being converted into runner exclusions.
+
+## 2026-09-06 - Combat-owned action availability report
+
+The public combat package now exposes `getCombatActionAvailabilityReport` and
+its `combat-action-availability:v1` contract. It classifies engine-constructed
+candidate actions as legal, timing-eligible-but-unaffordable, restricted, or
+otherwise unavailable using the same legal-decision and authoritative cost/
+scarcity probes used by transition validation. Simulation consumers can retain
+the report optionally; they must not reconstruct legality from events.
 
 ## Active delivery scope
 

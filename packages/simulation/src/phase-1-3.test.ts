@@ -29,6 +29,7 @@ import {
   runSimulationMatrix,
   runSimulationSeriesBatches,
   runSimulationSeries,
+  readSimulationFightStatisticsV2,
   reviewCustomMove,
   expandSimulationScenarios,
   SIMULATION_SCENARIO_FAMILIES,
@@ -377,6 +378,23 @@ describe("simulation Phase 1 through 3 contracts", () => {
     expect(summaryRun.eventHash).toBe(first.eventHash);
     expect(summaryRun.decisionHash).toBe(first.decisionHash);
     expect(summaryRun.transitions).toHaveLength(0);
+    const statisticsRun = runSimulationFight({
+      ...request,
+      scenario: { ...scenario, retention: "summary" },
+      statistics: {
+        schemaVersion: "simulation-statistics-request:v1",
+        evidenceRole: "natural-balance",
+        exposurePopulation: "natural",
+      },
+    });
+    expect(statisticsRun.stateHash).toBe(first.stateHash);
+    expect(statisticsRun.eventHash).toBe(first.eventHash);
+    expect(statisticsRun.decisionHash).toBe(first.decisionHash);
+    expect(statisticsRun.transitions).toHaveLength(0);
+    expect(statisticsRun.diagnostics).toBeUndefined();
+    expect(readSimulationFightStatisticsV2(statisticsRun.statistics)).toEqual(
+      statisticsRun.statistics,
+    );
     expect(first.replay.replayVersion).toBe("simulation-replay:v1");
     expect(simulationReplayRecordSchema.safeParse(first.replay).success).toBe(true);
     expect(verifySimulationReplay(first.replay, request)).toMatchObject({ ok: true });

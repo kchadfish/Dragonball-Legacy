@@ -9,6 +9,7 @@ import type {
   ScheduledWorkId,
 } from "./ids.js";
 import type { CalculationTraceEntry, CalculationTraceSink } from "./calculation-pipeline.js";
+import type { CombatCalculationObservation } from "./contracts.js";
 import { mechanicsViewFor, type CombatMechanicsView } from "./mechanics-view.js";
 
 const maximumUint32 = 2 ** 32;
@@ -264,6 +265,12 @@ export interface CombatDependencies {
   readonly diagnosticTraceSink?: CalculationTraceSink;
   /** Opt-in mechanic telemetry; never enters FightState, events, or replay identity. */
   readonly retainMechanicObservations?: boolean;
+  /** Opt-in typed calculation telemetry; never enters FightState, events, or replay identity. */
+  readonly retainCalculationObservations?: boolean;
+  /** Transition-local calculation observation sink; never part of fight state. */
+  readonly calculationObservationSink?: (
+    observations: readonly CombatCalculationObservation[],
+  ) => void;
   /** The immutable catalog/configuration environment for this transition. */
   readonly mechanicsView?: CombatMechanicsView;
 }
