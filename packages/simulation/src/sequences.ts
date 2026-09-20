@@ -1,6 +1,7 @@
 import type { CombatEvent, LegalDecision } from "@dragonball-resurgence/combat-engine";
 
 import { canonicalHash } from "./canonical.js";
+import type { SimulationFightExecutionResult } from "./contracts.js";
 
 export interface SimulationSequenceToken {
   readonly index: number;
@@ -8,6 +9,14 @@ export interface SimulationSequenceToken {
   readonly token: string;
   readonly actorId?: string;
   readonly sourceId?: string;
+  readonly turnNumber?: number;
+  readonly preconditions?: readonly string[];
+}
+
+export interface SimulationSequenceFrame {
+  readonly decision?: LegalDecision;
+  readonly events: readonly CombatEvent[];
+  readonly turnNumber?: number;
 }
 
 export interface SimulationSequence {
@@ -23,9 +32,14 @@ export interface SimulationSequenceEdge {
   readonly sequenceCount: number;
   readonly conversionRate: number;
   readonly outcomeAssociation: number;
+  readonly minTurnDistance: number;
+  readonly maxTurnDistance: number;
 }
 
-const actionTokenFor = (decision: LegalDecision): Omit<SimulationSequenceToken, "index"> => {
+const actionTokenFor = (
+  decision: LegalDecision,
+  turnNumber?: number,
+): Omit<SimulationSequenceToken, "index"> => {
   let token: string = decision.type;
   let sourceId: string | undefined;
   if (decision.type === "use-move") {
@@ -36,19 +50,95 @@ const actionTokenFor = (decision: LegalDecision): Omit<SimulationSequenceToken, 
     sourceId = decision.itemId;
   } else if (decision.type === "basic-attack") token = `basic-attack:${decision.basicAttack}`;
   else if (decision.type === "activate-transformation") sourceId = decision.transformationId;
-  return { kind: "action", token, actorId: decision.actorId, sourceId };
+  return { kind: "action", token, actorId: decision.actorId, sourceId, turnNumber };
 };
 
-const eventTokenFor = (event: CombatEvent): Omit<SimulationSequenceToken, "index"> => {
+const eventTokenFor = (
+  event: CombatEvent,
+  turnNumber?: number,
+): Omit<SimulationSequenceToken, "index"> => {
   let actorId: string | undefined;
   if ("combatantId" in event) actorId = event.combatantId;
   else if ("sourceCombatantId" in event) actorId = event.sourceCombatantId;
+  let preconditions: readonly string[] | undefined;
+  if (event.type === "status-applied") preconditions = [`status:${event.statusId}`];
+  else if (event.type === "move-removed-from-combat")
+    preconditions = [`restricted-use-exhausted:${event.moveId}`];
+  else if (event.type === "action-skipped") preconditions = [`action-skipped:${event.reason}`];
+  else if (event.type === "attack-resolved") preconditions = [`attack-outcome:${event.outcome}`];
   return {
     kind: "event",
     token: `event:${event.type}`,
     actorId,
     sourceId: event.sourceDefinitionId,
+    turnNumber,
+    ...(preconditions === undefined ? {} : { preconditions }),
   };
+};
+
+const meaningfulEventTypes = new Set<CombatEvent["type"]>([
+  "move-used",
+  "item-used",
+  "attack-resolved",
+  "effect-activated",
+  "effect-expired",
+  "effect-deactivated",
+  "effect-negated",
+  "effect-replaced",
+  "move-selection-updated",
+  "move-removed-from-combat",
+  "status-applied",
+  "status-removed",
+  "transformation-activated",
+  "transformation-deactivated",
+  "transformation-cooldown-started",
+  "ki-changed",
+  "damage-applied",
+  "action-skipped",
+  "deferred-move-scheduled",
+  "deferred-move-cancelled",
+  "deferred-move-performed",
+  "counter-chain-limit-reached",
+  "combatant-defeated",
+  "fight-ended",
+]);
+
+const tokensForFrames = (
+  frames: readonly SimulationSequenceFrame[],
+): readonly SimulationSequenceToken[] =>
+  frames
+    .flatMap((frame) => [
+      ...(frame.decision === undefined ? [] : [actionTokenFor(frame.decision, frame.turnNumber)]),
+      ...[...frame.events]
+        .filter((event) => meaningfulEventTypes.has(event.type))
+        .sort((left, right) => left.sequence - right.sequence)
+        .map((event) => eventTokenFor(event, frame.turnNumber)),
+    ])
+    .map((token, index) => ({ ...token, index }));
+
+export const normalizeSimulationSequenceFrames = (
+  frames: readonly SimulationSequenceFrame[],
+  sequenceId = canonicalHash(frames),
+  outcome?: SimulationSequence["outcome"],
+): SimulationSequence => ({
+  sequenceId,
+  outcome,
+  tokens: tokensForFrames(frames),
+});
+
+export const simulationSequenceForResult = (
+  result: SimulationFightExecutionResult,
+): SimulationSequence | undefined => {
+  if (result.diagnostics?.sequenceFrames === undefined) return undefined;
+  const winnerId = result.completion?.winnerCombatantId;
+  let outcome: SimulationSequence["outcome"] = "other";
+  if (winnerId === result.fighterAId) outcome = "win";
+  else if (winnerId === result.fighterBId) outcome = "loss";
+  return normalizeSimulationSequenceFrames(
+    result.diagnostics.sequenceFrames,
+    result.runId,
+    outcome,
+  );
 };
 
 export const normalizeSimulationSequence = (
@@ -59,10 +149,7 @@ export const normalizeSimulationSequence = (
 ): SimulationSequence => ({
   sequenceId,
   outcome,
-  tokens: [...decisions.map(actionTokenFor), ...events.map(eventTokenFor)].map((token, index) => ({
-    ...token,
-    index,
-  })),
+  tokens: tokensForFrames([...decisions.map((decision) => ({ decision, events: [] })), { events }]),
 });
 
 const patternsFor = (
@@ -79,7 +166,13 @@ export const analyzeSimulationSequences = (
 ): readonly SimulationSequenceEdge[] => {
   const counts = new Map<
     string,
-    { pattern: readonly string[]; sequences: Set<string>; outcomes: number; occurrences: number }
+    {
+      pattern: readonly string[];
+      sequences: Set<string>;
+      outcomes: number;
+      occurrences: number;
+      turnDistances: number[];
+    }
   >();
   for (const sequence of sequences) {
     const seen = new Set<string>();
@@ -92,9 +185,14 @@ export const analyzeSimulationSequences = (
         sequences: new Set<string>(),
         outcomes: 0,
         occurrences: 0,
+        turnDistances: [],
       };
       entry.sequences.add(sequence.sequenceId);
       entry.occurrences += 1;
+      const firstTurn = sequence.tokens.find((token) => token.token === pattern[0])?.turnNumber;
+      const lastTurn = sequence.tokens.find((token) => token.token === pattern.at(-1))?.turnNumber;
+      if (firstTurn !== undefined && lastTurn !== undefined)
+        entry.turnDistances.push(Math.max(0, lastTurn - firstTurn));
       if (sequence.outcome === "win") entry.outcomes += 1;
       counts.set(key, entry);
     }
@@ -108,6 +206,8 @@ export const analyzeSimulationSequences = (
       sequenceCount: entry.sequences.size,
       conversionRate: entry.occurrences === 0 ? 0 : entry.sequences.size / entry.occurrences,
       outcomeAssociation: entry.sequences.size === 0 ? 0 : entry.outcomes / entry.sequences.size,
+      minTurnDistance: entry.turnDistances.length === 0 ? 0 : Math.min(...entry.turnDistances),
+      maxTurnDistance: entry.turnDistances.length === 0 ? 0 : Math.max(...entry.turnDistances),
     }))
     .sort(
       (left, right) =>

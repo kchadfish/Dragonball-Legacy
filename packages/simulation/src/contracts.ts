@@ -20,9 +20,14 @@ import {
 import { simulationDecisionPolicySchema, type SimulationDecisionPolicy } from "./exposure.js";
 import { simulationMoveFunnelSchema, type SimulationMoveFunnel } from "./move-coverage.js";
 import type { SimulationPrecisionStatus } from "./statistics.js";
+import type { SimulationSequenceFrame } from "./sequences.js";
 
 export const SIMULATION_CONTRACT_VERSION = "simulation-contracts:v1" as const;
 export const SIMULATION_STATISTICS_REQUEST_VERSION = "simulation-statistics-request:v2" as const;
+export const SIMULATION_STATISTICS_REQUEST_V3_VERSION = "simulation-statistics-request:v3" as const;
+
+export const simulationStatisticsCollectorSchema = z.enum(["metrics", "sequences", "anomalies"]);
+export type SimulationStatisticsCollector = z.output<typeof simulationStatisticsCollectorSchema>;
 
 const finiteNumber = z.number().refine(Number.isFinite, "Number must be finite.");
 const nonNegativeInteger = z.number().int().nonnegative();
@@ -66,7 +71,32 @@ export type SimulationStatisticsRequest =
       readonly evidenceRole: "natural-balance" | "controlled" | "diagnostic";
       readonly exposurePopulation: "natural" | "isolation" | "forced";
       readonly arm: SimulationStatisticsArmIdentity;
+    }
+  | {
+      readonly schemaVersion: typeof SIMULATION_STATISTICS_REQUEST_V3_VERSION;
+      readonly evidenceRole: "natural-balance" | "controlled" | "diagnostic";
+      readonly exposurePopulation: "natural" | "isolation" | "forced";
+      readonly arm: SimulationStatisticsArmIdentity;
+      readonly metricDefinitionIds: readonly string[];
+      readonly collectors: readonly SimulationStatisticsCollector[];
     };
+
+export const simulationStatisticsRequestV3Schema = z
+  .object({
+    schemaVersion: z.literal(SIMULATION_STATISTICS_REQUEST_V3_VERSION),
+    evidenceRole: z.enum(["natural-balance", "controlled", "diagnostic"]),
+    exposurePopulation: z.enum(["natural", "isolation", "forced"]),
+    arm: simulationStatisticsArmIdentitySchema,
+    metricDefinitionIds: uniqueStrings,
+    collectors: z
+      .array(simulationStatisticsCollectorSchema)
+      .min(1)
+      .superRefine((values, context) => {
+        if (new Set(values).size !== values.length)
+          context.addIssue({ code: "custom", message: "Duplicate collector." });
+      }),
+  })
+  .strict();
 
 export const sourceProvenanceSchema = z
   .object({
@@ -359,6 +389,7 @@ export const simulationFightRequestSchema = z
             arm: simulationStatisticsArmIdentitySchema,
           })
           .strict(),
+        simulationStatisticsRequestV3Schema,
       ])
       .optional(),
   })
@@ -375,6 +406,7 @@ export const simulationDiagnosticsSchema = z
     semanticFingerprints: z.array(z.string()),
     calculationTraceCount: nonNegativeInteger,
     moveFunnels: z.record(z.string().min(1), simulationMoveFunnelSchema),
+    sequenceFrames: z.array(z.unknown()),
   })
   .strict();
 
@@ -523,6 +555,7 @@ export interface SimulationDiagnostics {
   readonly semanticFingerprints: readonly string[];
   readonly calculationTraceCount: number;
   readonly moveFunnels: Readonly<Record<string, SimulationMoveFunnel>>;
+  readonly sequenceFrames: readonly SimulationSequenceFrame[];
 }
 
 export interface SimulationReplayRecord {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CANONICAL_COMBAT_MECHANICS_VIEW } from "@dragonball-resurgence/combat-engine";
-import type { CombatantId } from "@dragonball-resurgence/combat-engine";
+import type { CombatantId, CombatEvent } from "@dragonball-resurgence/combat-engine";
 import { SIMULATION_QUALITY_PROFILE } from "@dragonball-resurgence/ai-engine";
 
 import {
@@ -20,6 +20,7 @@ import {
   createSimulationMoveCoverageArtifact,
   createSimulationCompletionAudit,
   normalizeSimulationSequence,
+  normalizeSimulationSequenceFrames,
   createSimulationPerformanceProfile,
   compareSimulationPerformanceProfiles,
   renderSimulationReportCsv,
@@ -55,6 +56,63 @@ describe("simulation Phase 4 through 15 foundations", () => {
     const edges = analyzeSimulationSequences(sequences);
     expect(edges).toEqual([
       expect.objectContaining({ pattern: ["pass", "pass"], sequenceCount: 1, support: 0.5 }),
+    ]);
+  });
+
+  it("keeps meaningful events interleaved with actions and preserves turn distance", () => {
+    const sequence = normalizeSimulationSequenceFrames([
+      {
+        decision: {
+          type: "use-move",
+          actorId: "a" as CombatantId,
+          moveId: "move:setup",
+          targetCombatantId: "b" as CombatantId,
+        },
+        events: [],
+        turnNumber: 1,
+      },
+      {
+        events: [
+          {
+            type: "status-applied",
+            id: "event:status" as never,
+            sequence: 1,
+            fightId: "fight:test" as never,
+            sourceCombatantId: "a" as CombatantId,
+            targetCombatantId: "b" as CombatantId,
+            statusId: "status:stun" as never,
+            stacks: 1,
+          } as CombatEvent,
+        ],
+        turnNumber: 1,
+      },
+      {
+        decision: {
+          type: "use-move",
+          actorId: "a" as CombatantId,
+          moveId: "move:follow-up",
+          targetCombatantId: "b" as CombatantId,
+        },
+        events: [],
+        turnNumber: 2,
+      },
+    ]);
+    expect(sequence.tokens.map((token) => token.token)).toEqual([
+      "use-move:move:setup",
+      "event:status-applied",
+      "use-move:move:follow-up",
+    ]);
+    expect(analyzeSimulationSequences([sequence])).toEqual([
+      expect.objectContaining({
+        pattern: ["use-move:move:setup", "event:status-applied"],
+        minTurnDistance: 0,
+        maxTurnDistance: 0,
+      }),
+      expect.objectContaining({
+        pattern: ["event:status-applied", "use-move:move:follow-up"],
+        minTurnDistance: 1,
+        maxTurnDistance: 1,
+      }),
     ]);
   });
 

@@ -20,6 +20,8 @@ import {
   type SimulationProgress,
   type SimulationTemplate,
   SIMULATION_STATISTICS_REQUEST_VERSION,
+  SIMULATION_STATISTICS_REQUEST_V3_VERSION,
+  type SimulationStatisticsCollector,
   type SimulationStatisticsArmIdentity,
 } from "./contracts.js";
 import { SIMULATION_DEFAULT_LIMITS } from "./policy.js";
@@ -36,6 +38,7 @@ import {
   setSimulationMetricEvidenceV2,
   type SimulationMetricAggregateV2,
   type SimulationStatisticsArtifactV4,
+  type SimulationStatisticsProvenance,
   simulationStatisticsDimensionKey,
 } from "./statistics-v4.js";
 import {
@@ -205,6 +208,15 @@ export type SimulationV4CatalogRunnerOptions = {
   readonly onCheckpoint?: (checkpoint: SimulationV4CatalogCheckpoint) => void;
   readonly onProgress?: (progress: SimulationProgress) => void;
   readonly schedule?: "natural" | "controlled" | "diagnostic";
+  readonly sourceCommit?: string;
+  readonly rulesVersion?: string;
+  readonly selectedCellIds?: readonly string[];
+  readonly metricDefinitionIds?: readonly string[];
+  readonly collectors?: readonly SimulationStatisticsCollector[];
+  readonly onFightResult?: (
+    request: SimulationFightRequest,
+    result: SimulationFightExecutionResult,
+  ) => void;
 };
 
 export interface SimulationV4CatalogRunnerResult {
@@ -432,6 +444,8 @@ const requestFor = (input: {
   readonly view: CombatMechanicsView;
   readonly schedule: "natural" | "controlled" | "diagnostic";
   readonly branch?: "baseline" | "variant";
+  readonly metricDefinitionIds?: readonly string[];
+  readonly collectors?: readonly SimulationStatisticsCollector[];
 }): SimulationFightRequest => {
   const mirrored = input.mirror === "mirrored";
   const baselineA = mirrored ? input.b : input.a;
@@ -540,12 +554,22 @@ const requestFor = (input: {
     seedFamilyId: `simulation-pair:v4-${input.pairId.slice(-8)}`,
     fixedTime: input.fixedTime,
     mechanicsView: input.view,
-    statistics: {
-      schemaVersion: SIMULATION_STATISTICS_REQUEST_VERSION,
-      evidenceRole,
-      exposurePopulation,
-      arm,
-    },
+    statistics:
+      input.metricDefinitionIds === undefined && input.collectors === undefined
+        ? {
+            schemaVersion: SIMULATION_STATISTICS_REQUEST_VERSION,
+            evidenceRole,
+            exposurePopulation,
+            arm,
+          }
+        : {
+            schemaVersion: SIMULATION_STATISTICS_REQUEST_V3_VERSION,
+            evidenceRole,
+            exposurePopulation,
+            arm,
+            metricDefinitionIds: input.metricDefinitionIds ?? [],
+            collectors: input.collectors ?? ["metrics"],
+          },
     ...(input.schedule === "controlled" && controlledDefinitionIds.length > 0
       ? {
           decisionPolicy: {
@@ -596,6 +620,31 @@ const manifestFor = (input: {
   evidenceRoles: [input.schedule === "natural" ? "natural-balance" : input.schedule],
   requestedTargetPairs: input.targetPairs,
   maximumPairs: SIMULATION_V4_CONTINUATION_CEILING,
+});
+
+const provenanceFor = (
+  manifest: SimulationV4CatalogManifest,
+  sourceCommit: string,
+  rulesVersion: string,
+): SimulationStatisticsProvenance => ({
+  manifestHash: canonicalHash(manifest),
+  sourceCommit,
+  rulesVersion,
+  gameDataIdentity: manifest.mechanics.identity,
+  combatEngineVersion: manifest.mechanics.version,
+  aiProfile: manifest.aiProfile,
+  templateCatalogIdentity: manifest.templateCatalogIdentity,
+  scenarioCatalogIdentity: manifest.scenarioCatalogIdentity,
+  metricDictionaryIdentity: manifest.metricDictionaryIdentity,
+  seedScheduleIdentity: manifest.seedScheduleIdentity,
+  configurationHash: canonicalHash({
+    scopeVersion: manifest.scopeVersion,
+    evidenceRoles: manifest.evidenceRoles,
+    requestedTargetPairs: manifest.requestedTargetPairs,
+    maximumPairs: manifest.maximumPairs,
+  }),
+  fixedTime: manifest.fixedTime,
+  generatedAt: manifest.fixedTime,
 });
 
 const validateResume = (
@@ -755,6 +804,7 @@ const foldResult = (
       targetPairs: artifact.generatedFrom.targetPairs,
       evidenceRole: artifact.generatedFrom.evidenceRole,
       exposurePopulation: artifact.generatedFrom.exposurePopulation,
+      provenance: artifact.generatedFrom.provenance,
       sourceLimitations: artifact.generatedFrom.sourceLimitations,
       metrics,
       incompleteFights: artifact.incompleteFights + (result.failure === undefined ? 0 : 1),
@@ -781,6 +831,10 @@ const foldResult = (
     availableTransformationIdsBySide: {
       a: request.templateA.transformationProfiles.map((profile) => profile.transformationId),
       b: request.templateB.transformationProfiles.map((profile) => profile.transformationId),
+    },
+    startingHitPointsBySide: {
+      a: request.templateA.maximumHitPoints,
+      b: request.templateB.maximumHitPoints,
     },
   });
   let folded = accumulator;
@@ -819,6 +873,7 @@ const foldResult = (
     targetPairs: artifact.generatedFrom.targetPairs,
     evidenceRole: artifact.generatedFrom.evidenceRole,
     exposurePopulation: artifact.generatedFrom.exposurePopulation,
+    provenance: artifact.generatedFrom.provenance,
     sourceLimitations: artifact.generatedFrom.sourceLimitations,
     metrics,
     incompleteFights: artifact.incompleteFights + (result.failure === undefined ? 0 : 1),
@@ -889,6 +944,7 @@ const foldMirroredPair = (
     targetPairs: artifact.generatedFrom.targetPairs,
     evidenceRole: artifact.generatedFrom.evidenceRole,
     exposurePopulation: artifact.generatedFrom.exposurePopulation,
+    provenance: artifact.generatedFrom.provenance,
     sourceLimitations: artifact.generatedFrom.sourceLimitations,
     metrics,
     incompleteFights: artifact.incompleteFights,
@@ -964,6 +1020,7 @@ const foldControlledArmPair = (
     targetPairs: artifact.generatedFrom.targetPairs,
     evidenceRole: artifact.generatedFrom.evidenceRole,
     exposurePopulation: artifact.generatedFrom.exposurePopulation,
+    provenance: artifact.generatedFrom.provenance,
     sourceLimitations: artifact.generatedFrom.sourceLimitations,
     metrics,
     incompleteFights: artifact.incompleteFights,
@@ -1036,6 +1093,11 @@ export const runSimulationStatisticsCatalogV4 = (
     targetPairs,
     schedule,
   });
+  const provenance = provenanceFor(
+    manifest,
+    options.sourceCommit ?? "workspace-uncommitted",
+    options.rulesVersion ?? manifest.mechanics.version,
+  );
   if (options.resumeFrom !== undefined) {
     validateResume(options.resumeFrom, manifest, targetPairs);
     const issues = validateSimulationV4CatalogCheckpoint(options.resumeFrom);
@@ -1051,6 +1113,15 @@ export const runSimulationStatisticsCatalogV4 = (
       ),
     ),
   );
+  if (options.selectedCellIds !== undefined) {
+    const selected = new Set(options.selectedCellIds);
+    cells = cells.filter((cell) => selected.has(cell.cellId));
+    const missing = [...selected].filter((cellId) => !cells.some((cell) => cell.cellId === cellId));
+    if (missing.length > 0) {
+      missing.sort((left, right) => left.localeCompare(right));
+      throw new RangeError(`Unknown selected catalog cells: ${missing.join(", ")}.`);
+    }
+  }
   const initialArtifact =
     options.resumeFrom?.artifact ??
     createSimulationStatisticsArtifactV4({
@@ -1060,6 +1131,7 @@ export const runSimulationStatisticsCatalogV4 = (
       targetPairs,
       evidenceRole,
       exposurePopulation,
+      provenance,
       sourceLimitations: [
         `${evidenceRole} evidence is retained separately and is never pooled across evidence roles.`,
         "Sparse continuation through 400 pairs does not promote the overall evidence level.",
@@ -1094,6 +1166,7 @@ export const runSimulationStatisticsCatalogV4 = (
     targetPairs,
     evidenceRole,
     exposurePopulation,
+    provenance,
     sourceLimitations: initialArtifact.generatedFrom.sourceLimitations,
     metrics: initialArtifact.metrics,
     incompleteFights: initialArtifact.incompleteFights,
@@ -1136,6 +1209,8 @@ export const runSimulationStatisticsCatalogV4 = (
                   view,
                   schedule,
                   branch,
+                  metricDefinitionIds: options.metricDefinitionIds,
+                  collectors: options.collectors,
                 }),
               );
             }
@@ -1242,6 +1317,7 @@ export const runSimulationStatisticsCatalogV4 = (
         cells = cells.map((candidate) => (candidate.cellId === cellId ? next : candidate));
         continue;
       }
+      options.onFightResult?.(request, entry.value);
       const iteration = request.iteration ?? 0;
       const mirror = request.mirror ?? "original";
       const branch =
@@ -1387,7 +1463,13 @@ export const runSimulationStatisticsCatalogV4 = (
         pendingPairs.delete(`${cell.cellId}:${iteration}:variant`);
       }
     }
-    if (targetPairs >= SIMULATION_V4_NOMINAL_TARGET_PAIRS) {
+    // Explicit metric backfills replay their declared pair target only. The
+    // legacy continuation heuristic depends on move-selection metrics that
+    // v3 requests intentionally omit, so it must not append unseen work.
+    if (
+      targetPairs >= SIMULATION_V4_NOMINAL_TARGET_PAIRS &&
+      options.metricDefinitionIds === undefined
+    ) {
       const continuationRequests: SimulationFightRequest[] = [];
       for (const cell of cells) {
         const through = scheduledThrough.get(cell.cellId) ?? targetPairs;
@@ -1420,6 +1502,8 @@ export const runSimulationStatisticsCatalogV4 = (
                     view,
                     schedule,
                     branch,
+                    metricDefinitionIds: options.metricDefinitionIds,
+                    collectors: options.collectors,
                   }),
                 );
         scheduledThrough.set(cell.cellId, nextThrough);
@@ -1445,6 +1529,7 @@ export const runSimulationStatisticsCatalogV4 = (
       targetPairs,
       evidenceRole: artifact.generatedFrom.evidenceRole,
       exposurePopulation: artifact.generatedFrom.exposurePopulation,
+      provenance: artifact.generatedFrom.provenance,
       sourceLimitations: artifact.generatedFrom.sourceLimitations,
       metrics: artifact.metrics,
       incompleteFights: unresolvedFailures,
@@ -1507,6 +1592,10 @@ export const validateSimulationStatisticsCatalogV4Closure = (
     for (const cell of checkpoint.cells)
       if (cell.completedBasePairs < SIMULATION_V4_NOMINAL_TARGET_PAIRS)
         issues.push(`${cell.cellId} has fewer than 100 completed mirrored base pairs`);
+    if (artifact.generatedFrom.provenance === undefined)
+      issues.push("artifact is missing reproducibility provenance");
+    else if (artifact.generatedFrom.provenance.manifestHash !== checkpoint.manifestHash)
+      issues.push("artifact provenance manifest hash mismatch");
   } else {
     issues.push("v4 closure requires a checkpoint with per-cell completion state");
   }

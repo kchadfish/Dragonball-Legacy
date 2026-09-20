@@ -1,5 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { renameSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { availableParallelism } from "node:os";
 import { dirname, join } from "node:path";
 
 import {
@@ -49,7 +52,15 @@ import {
   validateSimulationStatisticsCatalogV4Closure,
   validateSimulationStatisticsBundleV1Closure,
   ALL_SIMULATION_TEMPLATES,
+  planSimulationStatisticsBackfill,
+  runSimulationStatisticsBackfill,
+  readSimulationStatisticsBackfillCheckpointV1,
+  renderSimulationStatisticsArtifactV5Csv,
+  renderSimulationStatisticsArtifactV5Markdown,
+  createSimulationStatisticsV5SourceDossiers,
+  validateSimulationStatisticsArtifactV5Closure,
 } from "../packages/simulation/src/index.js";
+import type { SimulationStatisticsBackfillCheckpointV1 } from "../packages/simulation/src/index.js";
 import type {
   SimulationFightRequest,
   SimulationMatrixRequest,
@@ -61,7 +72,7 @@ import type {
 
 const usage = `Usage: npm run simulate -- <command> [--format json|csv|markdown]
 
-Commands: fight, series, matrix, catalog, catalog-run, resume, replay, report, dashboard, bundle, dry-run, move-report, dossiers, closure, freshness, custom-review, custom-run, benchmark
+Commands: fight, series, matrix, catalog, catalog-run, analytics-backfill, resume, replay, report, dashboard, bundle, dry-run, move-report, dossiers, closure, freshness, custom-review, custom-run, benchmark
 v4 catalog: --schedule natural|controlled|diagnostic (catalog defaults to natural)
 Coverage selectors: --population, --populations, --natural-profile, --exposure-contexts, --moves, --target-pairs, --output, --retry-failed
 Closure purpose: --purpose=screening|production (production is the default)
@@ -76,6 +87,18 @@ const optionFor = (args: readonly string[], name: string): string | undefined =>
 
 const hasOption = (args: readonly string[], name: string): boolean =>
   args.some((argument) => argument === name || argument.startsWith(`${name}=`));
+
+const sourceCommitFor = (): string => {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+};
+
+const defaultSimulationWorkers = Math.min(8, Math.max(2, availableParallelism()));
+
+const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 const formatFor = (args: readonly string[]): "json" | "csv" | "markdown" => {
   const value = optionFor(args, "--format");
@@ -299,6 +322,7 @@ const main = async (): Promise<void> => {
       "matrix",
       "catalog",
       "catalog-run",
+      "analytics-backfill",
       "resume",
       "replay",
       "report",
@@ -622,10 +646,119 @@ const main = async (): Promise<void> => {
     await writeBundle("custom-move-dossier.json", `${canonicalJson(dossier)}\n`);
     return;
   }
+  if (command === "analytics-backfill") {
+    const baselinePath =
+      optionFor(args, "--baseline") ??
+      join("artifacts", "simulation", "catalog-v4-natural-100.json.checkpoint.json");
+    const outputPath =
+      optionFor(args, "--output") ?? join("artifacts", "simulation", "catalog-v5-natural-100.json");
+    const targetPairs = targetPairsOption(args, 100);
+    const workers = hasOption(args, "--workers") ? positiveOption(args, "--workers", 4) : 4;
+    const baselineText = await readFile(baselinePath, "utf8");
+    const baseline = simulationV4CatalogCheckpointSchema.parse(JSON.parse(baselineText) as unknown);
+    const checkpointPath = `${outputPath}.checkpoint.json`;
+    const priorCheckpoint = await readFile(checkpointPath, "utf8")
+      .then((text) => readSimulationStatisticsBackfillCheckpointV1(JSON.parse(text) as unknown))
+      .catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      });
+    const quarantinePath = join(
+      dirname(baselinePath),
+      "catalog-v4-natural-50.json.checkpoint.json",
+    );
+    const quarantineText = await readFile(quarantinePath, "utf8").catch(
+      (error: unknown): undefined => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      },
+    );
+    const quarantine =
+      quarantineText === undefined
+        ? undefined
+        : simulationV4CatalogCheckpointSchema.parse(JSON.parse(quarantineText) as unknown);
+    if (
+      quarantine !== undefined &&
+      (quarantine.manifest.rootSeed !== baseline.manifest.rootSeed ||
+        quarantine.manifest.mechanics.identity !== baseline.manifest.mechanics.identity ||
+        quarantine.manifest.fixedTime !== baseline.manifest.fixedTime ||
+        quarantine.manifest.seedScheduleIdentity !== baseline.manifest.seedScheduleIdentity)
+    )
+      throw new RangeError("Quarantined checkpoint is not seed-compatible with the baseline.");
+    const planned =
+      priorCheckpoint ??
+      planSimulationStatisticsBackfill(baseline, {
+        targetPairs,
+        workers,
+        baselineSha256: sha256(baselineText),
+        ...(quarantineText === undefined
+          ? {}
+          : {
+              quarantinedCheckpoint: {
+                checkpointHash: quarantine!.checkpointHash,
+                sha256: sha256(quarantineText),
+              },
+            }),
+      });
+    let latestCheckpoint: SimulationStatisticsBackfillCheckpointV1 = planned;
+    let interrupted = false;
+    const requestStop = (): void => {
+      interrupted = true;
+      atomicWriteSync(checkpointPath, `${canonicalJson(latestCheckpoint)}\n`);
+    };
+    process.once("SIGINT", requestStop);
+    process.once("SIGTERM", requestStop);
+    const startedAt = Date.now();
+    let completed = 0;
+    const result = runSimulationStatisticsBackfill({
+      baseline,
+      checkpoint: planned,
+      workers,
+      onCheckpoint: (checkpoint) => {
+        latestCheckpoint = checkpoint;
+        atomicWriteSync(checkpointPath, `${canonicalJson(checkpoint)}\n`);
+      },
+      onProgress: (progress) => {
+        completed += 1;
+        const elapsedSeconds = Math.max(0.001, (Date.now() - startedAt) / 1_000);
+        const throughput = completed / elapsedSeconds;
+        const remaining = Math.max(0, progress.total - completed);
+        const memoryMb = Math.round(process.memoryUsage().rss / 1_048_576);
+        console.error(
+          `collectors=metrics,sequences,anomalies fights=${completed}/${progress.total} throughput=${throughput.toFixed(2)}/s eta=${Math.ceil(remaining / Math.max(throughput, 0.001))}s memory=${memoryMb}MB failures=${progress.result.ok ? 0 : 1} cells=${planned.cells.length}`,
+        );
+      },
+    });
+    process.removeListener("SIGINT", requestStop);
+    process.removeListener("SIGTERM", requestStop);
+    const closureIssues = validateSimulationStatisticsArtifactV5Closure(
+      result.artifact,
+      result.checkpoint,
+    );
+    if (interrupted)
+      throw new Error(`Backfill interrupted after atomic checkpoint write: ${checkpointPath}`);
+    if (closureIssues.length > 0)
+      throw new Error(`Backfill closure failed: ${closureIssues.join(", ")}`);
+    const base = outputPath.endsWith(".json") ? outputPath.slice(0, -5) : outputPath;
+    await mkdir(dirname(outputPath), { recursive: true });
+    await Promise.all([
+      atomicWrite(outputPath, `${canonicalJson(result.artifact)}\n`),
+      atomicWrite(`${base}.csv`, renderSimulationStatisticsArtifactV5Csv(result.artifact)),
+      atomicWrite(`${base}.md`, renderSimulationStatisticsArtifactV5Markdown(result.artifact)),
+      atomicWrite(
+        `${base}-dossiers.json`,
+        `${canonicalJson(createSimulationStatisticsV5SourceDossiers(result.artifact))}\n`,
+      ),
+    ]);
+    console.log(outputPath);
+    return;
+  }
   if (command === "catalog" || command === "catalog-run") {
     if (command === "catalog") {
       const targetPairs = targetPairsOption(args, 100);
-      const workers = hasOption(args, "--workers") ? positiveOption(args, "--workers", 1) : 1;
+      const workers = hasOption(args, "--workers")
+        ? positiveOption(args, "--workers", defaultSimulationWorkers)
+        : defaultSimulationWorkers;
       const schedule = optionFor(args, "--schedule") ?? "natural";
       if (schedule !== "natural" && schedule !== "controlled" && schedule !== "diagnostic")
         throw new RangeError("--schedule must be natural, controlled, or diagnostic.");
@@ -637,6 +770,7 @@ const main = async (): Promise<void> => {
         targetPairs,
         workers,
         schedule,
+        sourceCommit: sourceCommitFor(),
         onCheckpoint: (checkpoint) =>
           atomicWriteSync(checkpointPath, `${canonicalJson(checkpoint)}\n`),
       });
@@ -764,7 +898,10 @@ const main = async (): Promise<void> => {
           join("artifacts", "simulation", `catalog-v4-${schedule}-${targetPairs}.json`);
         const result = resumeSimulationStatisticsCatalogV4(checkpoint, {
           targetPairs,
-          workers: hasOption(args, "--workers") ? positiveOption(args, "--workers", 1) : 1,
+          workers: hasOption(args, "--workers")
+            ? positiveOption(args, "--workers", defaultSimulationWorkers)
+            : defaultSimulationWorkers,
+          sourceCommit: sourceCommitFor(),
           onCheckpoint: (nextCheckpoint) =>
             atomicWriteSync(`${outputPath}.checkpoint.json`, `${canonicalJson(nextCheckpoint)}\n`),
         });

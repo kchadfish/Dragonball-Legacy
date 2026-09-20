@@ -558,6 +558,32 @@ const inverseNormal = (probability: number): number => {
   return (polynomial(a, r) * q) / (polynomial(b, r) * r + 1);
 };
 
+export const simulationMeanInterval = (
+  aggregate: SimulationMeanVariance,
+  confidence = 0.95,
+): SimulationInterval => {
+  if (confidence <= 0 || confidence >= 1)
+    throw new RangeError("Mean interval confidence must be between zero and one.");
+  if (aggregate.count < 1) return { lower: 0, upper: 0, confidence };
+  if (aggregate.count === 1) return { lower: aggregate.mean, upper: aggregate.mean, confidence };
+  const zScore = inverseNormal((1 + confidence) / 2);
+  const degreesOfFreedom = aggregate.count - 1;
+  // Cornish-Fisher expansion for Student's t. It converges to the normal
+  // quantile for large samples while preserving the wider small-sample bound.
+  const z2 = zScore * zScore;
+  const critical =
+    zScore +
+    (zScore * (z2 + 1)) / (4 * degreesOfFreedom) +
+    (zScore * (5 * z2 * z2 + 16 * z2 + 3)) / (96 * degreesOfFreedom ** 2) +
+    (zScore * (3 * z2 ** 3 + 19 * z2 * z2 + 17 * z2 - 15)) / (384 * degreesOfFreedom ** 3);
+  const standardError = simulationStandardDeviation(aggregate) / Math.sqrt(aggregate.count);
+  return {
+    lower: rounded(aggregate.mean - critical * standardError),
+    upper: rounded(aggregate.mean + critical * standardError),
+    confidence,
+  };
+};
+
 export interface SimulationBootstrapOptions {
   readonly resamples?: number;
   readonly confidence?: number;

@@ -89,6 +89,8 @@ export interface DecisionEffectFact {
   readonly timing: DecisionEffectTiming;
   readonly sourceDefinitionId: string;
   readonly sourceEffectIndex: number;
+  /** Status identity authored by the effect definition, when one exists. */
+  readonly statusId?: string;
 }
 
 export interface DecisionTargetFact {
@@ -346,6 +348,9 @@ const compiledMoveEffects = (move: MoveDefinition): readonly DecisionEffectFact[
             timing: effectTimingFor(effect.trigger),
             sourceDefinitionId: move.id,
             sourceEffectIndex,
+            ...("statusId" in effect && typeof effect.statusId === "string"
+              ? { statusId: effect.statusId }
+              : {}),
           },
         ]
       : [];
@@ -384,6 +389,9 @@ const compiledItemEffects = (item: ItemDefinition): readonly DecisionEffectFact[
         timing: effectTimingFor(effect.trigger),
         sourceDefinitionId: item.id,
         sourceEffectIndex,
+        ...("statusId" in effect && typeof effect.statusId === "string"
+          ? { statusId: effect.statusId }
+          : {}),
       },
     ];
   });

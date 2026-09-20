@@ -1,5 +1,14 @@
 # Combat-engine implementation progress
 
+## 2026-09-12 - Status identity in decision effect facts
+
+`DecisionEffectFact` now carries an optional combat-authored `statusId` when the
+underlying move or item effect declares one. This is descriptive telemetry for
+simulation status-attempt denominators; it does not participate in legal-action
+enumeration, AI scoring, transition execution, persisted fight state, or replay
+identity. Existing consumers remain source compatible because the field is
+optional.
+
 ## 2026-09-06 - Typed calculation telemetry for simulation v4
 
 Combat transitions now expose an independently opt-in

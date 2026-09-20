@@ -45,20 +45,32 @@ describe("v4 statistics catalog runner", () => {
   });
 
   it("resumes only missing iterations and matches a one-shot artifact", () => {
-    const oneShot = runSimulationStatisticsCatalogV4({ templates, targetPairs: 2, batchSize: 1 });
+    const oneShot = runSimulationStatisticsCatalogV4({
+      templates,
+      targetPairs: 2,
+      batchSize: 1,
+      sourceCommit: "commit:test",
+    });
     const firstLook = runSimulationStatisticsCatalogV4({ templates, targetPairs: 1, batchSize: 1 });
     const resumed = resumeSimulationStatisticsCatalogV4(firstLook.checkpoint, {
       templates,
       targetPairs: 2,
       batchSize: 1,
+      sourceCommit: "commit:test",
     });
     expect(resumed.artifact.artifactHash).toBe(oneShot.artifact.artifactHash);
+    expect(resumed.artifact.generatedFrom.provenance).toMatchObject({
+      sourceCommit: "commit:test",
+      rulesVersion: CANONICAL_COMBAT_MECHANICS_VIEW.version,
+      manifestHash: resumed.checkpoint.manifestHash,
+    });
     expect(resumed.completedBasePairs).toBe(2);
     const workerRun = runSimulationStatisticsCatalogV4({
       templates,
       targetPairs: 2,
       batchSize: 2,
       workers: 2,
+      sourceCommit: "commit:test",
     });
     expect(workerRun.artifact.artifactHash).toBe(oneShot.artifact.artifactHash);
   }, 180_000);

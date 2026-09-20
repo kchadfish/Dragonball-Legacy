@@ -50,6 +50,8 @@ export interface SimulationTransitionDriverSuccess {
   readonly stateHashes: readonly string[];
   readonly eventHashes: readonly string[];
   readonly decisionHashes: readonly string[];
+  /** Decisions aligned with retained transitions; initial advance has no decision. */
+  readonly transitionDecisions: readonly (LegalDecision | undefined)[];
   readonly legalSetHashes: readonly string[];
   readonly decisions: readonly LegalDecision[];
   readonly terminationReason:
@@ -139,6 +141,7 @@ const appendTransition = (
   transitionHashes: string[],
   stateHashes: string[],
   eventHashes: string[],
+  transitionDecisions: (LegalDecision | undefined)[],
   legalSetHashes: string[],
   decisions: LegalDecision[],
   decisionHashes: string[],
@@ -151,6 +154,7 @@ const appendTransition = (
     stateHashes.push(canonicalHash(state));
   }
   eventHashes.push(canonicalHash(transition.events));
+  if (retainDiagnosticPayload) transitionDecisions.push(decision);
   if (retainDiagnosticPayload && legalSetHash !== undefined) legalSetHashes.push(legalSetHash);
   if (retainDiagnosticPayload && decision !== undefined) decisions.push(decision);
   if (decision !== undefined) decisionHashes.push(canonicalHash(decision));
@@ -199,6 +203,7 @@ export const runSimulationTransitionDriver = (
   const transitionHashes = retainDiagnosticPayload ? [transitionHash(options.initial)] : [];
   const stateHashes = retainDiagnosticPayload ? [canonicalHash(state)] : [];
   const eventHashes = [canonicalHash(options.initial.events)];
+  const transitionDecisions: (LegalDecision | undefined)[] = [undefined];
   const legalSetHashes: string[] = [];
   const decisions: LegalDecision[] = [];
   const decisionHashes: string[] = [];
@@ -231,6 +236,7 @@ export const runSimulationTransitionDriver = (
       transitionHashes,
       stateHashes,
       eventHashes,
+      transitionDecisions,
       legalSetHashes,
       decisions,
       decisionHashes,
@@ -263,6 +269,7 @@ export const runSimulationTransitionDriver = (
     transitionHashes,
     stateHashes,
     eventHashes,
+    transitionDecisions,
     decisionHashes,
     legalSetHashes,
     decisions,

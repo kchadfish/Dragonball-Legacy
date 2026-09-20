@@ -12,6 +12,7 @@ import {
   createSimulationQuantileSketch,
   mergeSimulationHistograms,
   mergeSimulationQuantileSketches,
+  simulationMeanInterval,
   seededBootstrapPairedDifference,
   summarizeSimulationRate,
   type SimulationHistogram,
@@ -61,6 +62,8 @@ export interface SimulationStatisticsDimensions {
   readonly moveId?: string;
   readonly itemId?: string;
   readonly transformationId?: string;
+  readonly statusId?: string;
+  readonly restrictedUseId?: string;
   readonly evidenceRole: SimulationStatisticsEvidenceRole;
   readonly exposurePopulation: SimulationStatisticsExposure;
 }
@@ -83,6 +86,8 @@ export const simulationStatisticsDimensionsSchema = z
     moveId: z.string().min(1).optional(),
     itemId: z.string().min(1).optional(),
     transformationId: z.string().min(1).optional(),
+    statusId: z.string().min(1).optional(),
+    restrictedUseId: z.string().min(1).optional(),
     evidenceRole: evidenceRoleSchema,
     exposurePopulation: exposureSchema,
   })
@@ -154,7 +159,8 @@ export interface SimulationMetricAggregateV2 {
   readonly histogram?: SimulationHistogram;
   readonly quantiles?: SimulationQuantileSketch;
   readonly pairedObservations: readonly SimulationPairedMetricObservation[];
-  readonly intervalMethod: "none" | "wilson-95" | "paired-bootstrap-95";
+  readonly intervalMethod:
+    "none" | "wilson-95" | "normal-95" | "student-t-95" | "paired-bootstrap-95";
   readonly evidenceLabel: "insufficient" | "observed" | "forced" | "error";
   readonly evidence: Readonly<{
     readonly state:
@@ -296,13 +302,81 @@ export const SIMULATION_V4_METRIC_DEFINITIONS: readonly SimulationMetricDefiniti
         "natural-balance",
       ],
       [
-        "setup-conversion",
+        "status-application-rate",
+        "status applications",
+        "status opportunities",
+        "wilson-95",
+        "natural-balance",
+      ],
+      [
+        "status-removal-rate",
+        "status removals",
+        "active status instances",
+        "wilson-95",
+        "natural-balance",
+      ],
+      [
+        "status-uptime",
+        "active status turns",
+        "status exposures",
+        "student-t-95",
+        "natural-balance",
+      ],
+      [
+        "status-lockout-rate",
+        "action skips while status-controlled",
+        "status-controlled action opportunities",
+        "wilson-95",
+        "natural-balance",
+      ],
+      [
+        "restricted-use-availability",
+        "restricted-use opportunities",
+        "decision points",
+        "none",
+        "diagnostic",
+      ],
+      [
+        "restricted-use-consumption-rate",
+        "restricted uses consumed",
+        "restricted-use opportunities",
+        "wilson-95",
+        "diagnostic",
+      ],
+      [
+        "restricted-use-denial-rate",
+        "restricted uses denied",
+        "restricted-use opportunities",
+        "wilson-95",
+        "diagnostic",
+      ],
+      ["self-damage", "self damage", "completed fights", "student-t-95", "natural-balance"],
+      ["healing", "healing", "completed fights", "student-t-95", "natural-balance"],
+      ["net-hp-swing", "net HP swing", "completed fights", "student-t-95", "natural-balance"],
+      [
+        "action-skip-rate",
+        "skipped actions",
+        "action opportunities",
+        "wilson-95",
+        "natural-balance",
+      ],
+      ["stalemate-rate", "stalemates", "all fights", "wilson-95", "natural-balance"],
+      ["error-rate", "errored fights", "all fights", "wilson-95", "natural-balance"],
+      ["incomplete-fight-rate", "incomplete fights", "all fights", "wilson-95", "natural-balance"],
+      [
+        "windowed-setup-conversion",
         "converted setups",
         "setup opportunities",
         "wilson-95",
         "natural-balance",
       ],
-      ["follow-up-rate", "follow-ups", "follow-up opportunities", "wilson-95", "natural-balance"],
+      [
+        "compatible-follow-up-rate",
+        "compatible follow-ups",
+        "descriptor-compatible follow-up opportunities",
+        "wilson-95",
+        "natural-balance",
+      ],
       [
         "repeated-sequence-count",
         "exact adjacent sequences",
@@ -649,7 +723,9 @@ export const SIMULATION_V4_METRIC_DEFINITIONS: readonly SimulationMetricDefiniti
                       ? "ai"
                       : metricId.startsWith("utility-")
                         ? "utility"
-                        : metricId.endsWith("sequence-count") || metricId === "follow-up-rate"
+                        : metricId.endsWith("sequence-count") ||
+                            metricId === "compatible-follow-up-rate" ||
+                            metricId === "windowed-setup-conversion"
                           ? "sequences"
                           : metricId.startsWith("move-") ||
                               metricId === "hit-rate" ||
@@ -658,7 +734,8 @@ export const SIMULATION_V4_METRIC_DEFINITIONS: readonly SimulationMetricDefiniti
                               metricId === "finisher-rate" ||
                               metricId === "overkill" ||
                               metricId === "status-rate" ||
-                              metricId === "setup-conversion"
+                              metricId.startsWith("status-") ||
+                              metricId.startsWith("restricted-use-")
                             ? "moves"
                             : "core",
       numerator,
@@ -680,7 +757,13 @@ export const simulationMetricAggregateV2Schema = z
     histogram: histogramSchema.optional(),
     quantiles: quantileSchema.optional(),
     pairedObservations: z.array(pairedObservationSchema).max(SIMULATION_V4_CONTINUATION_CEILING),
-    intervalMethod: z.enum(["none", "wilson-95", "paired-bootstrap-95"]),
+    intervalMethod: z.enum([
+      "none",
+      "wilson-95",
+      "normal-95",
+      "student-t-95",
+      "paired-bootstrap-95",
+    ]),
     evidenceLabel: z.enum(["insufficient", "observed", "forced", "error"]),
     evidence: z
       .object({
@@ -1114,6 +1197,7 @@ export interface SimulationStatisticsArtifactV4 {
     readonly exposurePopulation: SimulationStatisticsExposure;
     readonly evidenceLevel: "confirmation" | "production-candidate";
     readonly sourceLimitations: readonly string[];
+    readonly provenance?: SimulationStatisticsProvenance;
   }>;
   readonly metrics: Readonly<Record<string, SimulationMetricAggregateV2>>;
   readonly incompleteFights: number;
@@ -1122,6 +1206,40 @@ export interface SimulationStatisticsArtifactV4 {
   readonly representativeReplaySeeds: readonly number[];
   readonly artifactHash: string;
 }
+
+export interface SimulationStatisticsProvenance {
+  readonly manifestHash: string;
+  readonly sourceCommit: string;
+  readonly rulesVersion: string;
+  readonly gameDataIdentity: string;
+  readonly combatEngineVersion: string;
+  readonly aiProfile: Readonly<{ readonly id: string; readonly version: string }>;
+  readonly templateCatalogIdentity: string;
+  readonly scenarioCatalogIdentity: string;
+  readonly metricDictionaryIdentity: string;
+  readonly seedScheduleIdentity: string;
+  readonly configurationHash: string;
+  readonly fixedTime: string;
+  readonly generatedAt: string;
+}
+
+const simulationStatisticsProvenanceSchema = z
+  .object({
+    manifestHash: z.string().min(1),
+    sourceCommit: z.string().min(1),
+    rulesVersion: z.string().min(1),
+    gameDataIdentity: z.string().min(1),
+    combatEngineVersion: z.string().min(1),
+    aiProfile: z.object({ id: z.string().min(1), version: z.string().min(1) }).strict(),
+    templateCatalogIdentity: z.string().min(1),
+    scenarioCatalogIdentity: z.string().min(1),
+    metricDictionaryIdentity: z.string().min(1),
+    seedScheduleIdentity: z.string().min(1),
+    configurationHash: z.string().min(1),
+    fixedTime: z.iso.datetime({ offset: true }),
+    generatedAt: z.iso.datetime({ offset: true }),
+  })
+  .strict();
 
 const artifactGeneratedFromSchema = z
   .object({
@@ -1134,6 +1252,7 @@ const artifactGeneratedFromSchema = z
     exposurePopulation: exposureSchema,
     evidenceLevel: z.enum(["confirmation", "production-candidate"]),
     sourceLimitations: z.array(z.string().min(1)),
+    provenance: simulationStatisticsProvenanceSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -1171,6 +1290,7 @@ export const createSimulationStatisticsArtifactV4 = (input: {
   readonly evidenceRole?: SimulationStatisticsEvidenceRole;
   readonly exposurePopulation?: SimulationStatisticsExposure;
   readonly sourceLimitations?: readonly string[];
+  readonly provenance?: SimulationStatisticsProvenance;
   readonly metrics?: Readonly<Record<string, SimulationMetricAggregateV2>>;
   readonly incompleteFights?: number;
   readonly errorFights?: number;
@@ -1191,6 +1311,7 @@ export const createSimulationStatisticsArtifactV4 = (input: {
     exposurePopulation: input.exposurePopulation ?? "natural",
     evidenceLevel: evidenceLevelFor(input.targetPairs),
     sourceLimitations: [...(input.sourceLimitations ?? [])].sort((a, b) => a.localeCompare(b)),
+    ...(input.provenance === undefined ? {} : { provenance: input.provenance }),
   } as const;
   const metrics = Object.fromEntries(
     Object.entries(input.metrics ?? {}).sort(([a], [b]) => a.localeCompare(b)),
@@ -1266,6 +1387,7 @@ export const mergeSimulationStatisticsArtifactsV4 = (
         ...right.generatedFrom.sourceLimitations,
       ]),
     ],
+    provenance: left.generatedFrom.provenance,
     metrics,
     incompleteFights: left.incompleteFights + right.incompleteFights,
     errorFights: left.errorFights + right.errorFights,
@@ -1480,6 +1602,12 @@ const dashboardRowFor = (metric: SimulationMetricAggregateV2): SimulationDashboa
   if (metric.unit === "proportion" && denominator > 0) {
     const result = summarizeSimulationRate(numerator, denominator);
     interval = { lower: result.lower, upper: result.upper, estimate: result.rate };
+  } else if (
+    (metric.intervalMethod === "student-t-95" || metric.intervalMethod === "normal-95") &&
+    metric.values.count > 1
+  ) {
+    const result = simulationMeanInterval(metric.values);
+    interval = { lower: result.lower, upper: result.upper, estimate: metric.values.mean };
   } else if (metric.unit !== "proportion" && metric.values.count > 0) {
     interval = {
       lower: metric.values.mean,
@@ -1649,6 +1777,14 @@ export const renderSimulationDashboardMarkdown = (dashboard: SimulationDashboard
     `Artifact: ${dashboard.sourceArtifactSchema}`,
     `Evidence: ${dashboard.generatedFrom.evidenceLevel}`,
     `Target pairs: ${dashboard.generatedFrom.targetPairs}`,
+    ...(dashboard.generatedFrom.provenance === undefined
+      ? ["Provenance: unavailable"]
+      : [
+          `Source commit: ${dashboard.generatedFrom.provenance.sourceCommit}`,
+          `Rules version: ${dashboard.generatedFrom.provenance.rulesVersion}`,
+          `AI profile: ${dashboard.generatedFrom.provenance.aiProfile.id}@${dashboard.generatedFrom.provenance.aiProfile.version}`,
+          `Generated at: ${dashboard.generatedFrom.provenance.generatedAt}`,
+        ]),
     "",
     "## Sections",
     "",
@@ -1686,7 +1822,12 @@ export const createSimulationSourceDossiers = (
   const grouped = new Map<string, SimulationDashboardRow[]>();
   for (const row of rows) {
     const source =
-      row.dimensions.moveId ?? row.dimensions.itemId ?? row.dimensions.transformationId ?? "global";
+      row.dimensions.moveId ??
+      row.dimensions.itemId ??
+      row.dimensions.transformationId ??
+      row.dimensions.statusId ??
+      row.dimensions.restrictedUseId ??
+      "global";
     const group = grouped.get(source) ?? [];
     group.push(row);
     grouped.set(source, group);

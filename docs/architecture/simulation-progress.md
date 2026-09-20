@@ -1,5 +1,56 @@
 # Simulation-engine implementation progress
 
+## 2026-09-12 - Selective v5 analytics backfill
+
+The simulation package now accepts `simulation-statistics-request:v3` with an
+explicit metric-definition allowlist and independent metrics, sequences, and
+anomalies collectors. The v5 planner validates the compact v4 checkpoint and
+selects only evidence-bearing cells; the canonical Natural checkpoint resolves
+to 12 cells while all other catalog cells remain unscheduled. Backfill
+checkpoints bind both source hashes, the original mechanics/seed/time/profile
+identities, collector ledgers, partial metrics, bounded sequence/anomaly output,
+and the resumable v4 execution checkpoint.
+
+`simulation-statistics-artifact:v5` preserves legacy metric objects, marks
+unavailable historical provenance as unknown, records per-metric definition
+version, evidence source, role, actual sample size, and stable observation
+identities, and rejects incompatible or overlapping non-identical evidence.
+The `analytics-backfill` CLI writes the companion checkpoint plus JSON, normalized
+CSV, Markdown, and source-dossier outputs. Closure is selected-cell and
+metric-lineage aware; it does not require observations in excluded cells or in
+audited not-applicable populations.
+
+Expanded folding now distinguishes failed status attempts, applied healing and
+self-damage, signed per-side HP swing, automatic action skips, incomplete/error/
+stalemate outcomes, and descriptor-qualified setup/follow-up windows. Continuous
+means use Student-t intervals; legacy setup metrics are not pooled with the new
+windowed definitions. Publication of the full Natural 100 artifact remains an
+execution step and is not claimed by this implementation record.
+
+## 2026-09-11 - Analytics semantics, provenance, and bounded execution
+
+The v4 analytics boundary now records status identities and per-turn uptime,
+restricted-use opportunities and outcomes, self-damage, healing, net HP swing,
+and action skips with explicit metric dimensions. Setup conversion and follow-up
+metrics are opened by a prior setup transition and resolved or expired within a
+bounded two-turn window instead of treating every later action as a success.
+
+Diagnostic runs retain decisions aligned with their transitions, and the
+sequence API can interleave meaningful combat events with actions while
+preserving turn distance. Aggregate anomaly findings now carry population,
+sample size, Wilson confidence intervals, contributing actions, representative
+run IDs, and investigation targets.
+
+Catalog artifacts propagate manifest-derived provenance, including source
+commit, rules and mechanics identity, AI profile, template/scenario/metric/seed
+identities, configuration hash, fixed time, and generation time. The CLI uses a
+bounded worker default derived from host parallelism and caps the pool at eight
+workers; `--workers` remains available for explicit tuning.
+
+Focused simulation typechecks and regression tests pass. The pending catalog
+checkpoint still requires production cell execution and closure validation; no
+full production artifact is claimed by this entry.
+
 ## 2026-09-07 - SIM-V4 finalized contracts, experimental arms, and resumable mirrors
 
 The v4 statistics boundary now uses finalized `simulation-statistics-request:v2`

@@ -38,6 +38,7 @@ export * from "./series.js";
 export * from "./sequences.js";
 export * from "./statistics.js";
 export * from "./statistics-v4.js";
+export * from "./statistics-v5.js";
 export * from "./v4-folding.js";
 export * from "./catalog-v4-runner.js";
 export * from "./scenarios.js";

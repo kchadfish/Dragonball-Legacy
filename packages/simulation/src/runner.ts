@@ -704,6 +704,9 @@ export const runSimulationFight = (
     const aiSeedA = allocateSimulationSeed({ ...common, namespace: "ai-a" }).seed;
     const aiSeedB = allocateSimulationSeed({ ...common, namespace: "ai-b" }).seed;
     const diagnosticsEnabled = request.scenario.retention === "diagnostic";
+    const sequenceCollectionEnabled =
+      request.statistics?.schemaVersion === "simulation-statistics-request:v3" &&
+      request.statistics.collectors.includes("sequences");
     const coverageEnabled = request.scenario.retention === "coverage";
     const statisticsEnabled = request.statistics !== undefined;
     const dependencies: CombatDependencies = {
@@ -742,6 +745,16 @@ export const runSimulationFight = (
           availableTransformationIdsBySide: {
             a: request.templateA.transformationProfiles.map((entry) => entry.transformationId),
             b: request.templateB.transformationProfiles.map((entry) => entry.transformationId),
+          },
+          startingHitPointsBySide: {
+            a:
+              Object.values(created.value.state.combatants).find(
+                (combatant) => combatant.id === combatantIds[0],
+              )?.hitPoints.current ?? 0,
+            b:
+              Object.values(created.value.state.combatants).find(
+                (combatant) => combatant.id === combatantIds[1],
+              )?.hitPoints.current ?? 0,
           },
           startingKiBySide: {
             a:
@@ -783,6 +796,8 @@ export const runSimulationFight = (
           selectedDecision: LegalDecision;
           availability: ReturnType<typeof getCombatActionAvailabilityReport>;
           evaluations: readonly CandidateEvaluation[];
+          tacticalSetup?: import("@dragonball-resurgence/combat-engine").DecisionTacticalSetupFact;
+          selectedEffects?: readonly import("@dragonball-resurgence/combat-engine").DecisionEffectFact[];
         }>
       | undefined;
     const hitPoints: Record<string, number> = Object.fromEntries(
@@ -819,7 +834,7 @@ export const runSimulationFight = (
       initial: created.value,
       dependencies,
       limits: request.scenario.limits,
-      retainDiagnosticPayload: diagnosticsEnabled,
+      retainDiagnosticPayload: diagnosticsEnabled || sequenceCollectionEnabled,
       control,
       // This callback intentionally combines controlled exposure, AI selection, and coverage observation.
       // eslint-disable-next-line sonarjs/cognitive-complexity -- decision policy composition is centralized at the runner boundary
@@ -917,6 +932,8 @@ export const runSimulationFight = (
             selectedDecision: chosen,
             availability,
             evaluations: selected.value.evaluations,
+            tacticalSetup: descriptorByDecisionKey.get(canonicalDecisionKey(chosen))?.tacticalSetup,
+            selectedEffects: descriptorByDecisionKey.get(canonicalDecisionKey(chosen))?.effects,
           };
         if (
           request.decisionPolicy?.type === "controlled-legal-preference" &&
@@ -983,22 +1000,28 @@ export const runSimulationFight = (
     if (!driver.ok) return failureResult(request, driver.failure, driver.state);
     const state = driver.state;
     const decisionHashes = driver.decisionHashes;
-    const diagnostics = diagnosticsEnabled
-      ? {
-          legalSetHashes: driver.legalSetHashes,
-          decisionHashes,
-          selectedDecisions: driver.decisions,
-          evaluations,
-          eventHashes: driver.eventHashes,
-          stateHashes: driver.stateHashes,
-          semanticFingerprints: driver.stateHashes.slice(1),
-          calculationTraceCount: driver.transitions.reduce(
-            (count, transition) => count + (transition.diagnosticTrace?.length ?? 0),
-            0,
-          ),
-          moveFunnels: summaries.moveFunnels,
-        }
-      : undefined;
+    const diagnostics =
+      diagnosticsEnabled || sequenceCollectionEnabled
+        ? {
+            legalSetHashes: driver.legalSetHashes,
+            decisionHashes,
+            selectedDecisions: diagnosticsEnabled ? driver.decisions : [],
+            evaluations: diagnosticsEnabled ? evaluations : [],
+            eventHashes: driver.eventHashes,
+            stateHashes: driver.stateHashes,
+            semanticFingerprints: driver.stateHashes.slice(1),
+            calculationTraceCount: driver.transitions.reduce(
+              (count, transition) => count + (transition.diagnosticTrace?.length ?? 0),
+              0,
+            ),
+            moveFunnels: summaries.moveFunnels,
+            sequenceFrames: driver.transitions.map((transition, index) => ({
+              decision: driver.transitionDecisions[index],
+              events: transition.events,
+              turnNumber: transition.state.turnNumber,
+            })),
+          }
+        : undefined;
     let failure: SimulationFailure | undefined;
     if (driver.terminationReason === "cancelled") failure = { type: "cancelled" };
     else if (
@@ -1087,6 +1110,17 @@ export const runSimulationFight = (
     };
     if (statisticsAccumulator === undefined) return result;
     statisticsAccumulator = finalizeSimulationV4FightAccumulator(statisticsAccumulator, result);
+    if (request.statistics?.schemaVersion === "simulation-statistics-request:v3") {
+      const selectedMetricIds = new Set(request.statistics.metricDefinitionIds);
+      statisticsAccumulator = {
+        ...statisticsAccumulator,
+        metrics: Object.fromEntries(
+          Object.entries(statisticsAccumulator.metrics).filter(([, metric]) =>
+            selectedMetricIds.has(metric.metricId),
+          ),
+        ),
+      };
+    }
     const winnerId = state.status === "completed" ? state.completion.winnerCombatantId : undefined;
     let winner: "a" | "b" | "draw" = "draw";
     if (winnerId !== undefined && String(winnerId) === String(combatantIds[0])) winner = "a";

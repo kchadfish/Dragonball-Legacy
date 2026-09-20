@@ -2,6 +2,7 @@ import type { SimulationFightExecutionResult } from "./contracts.js";
 import type { SimulationFightRequest, SimulationReplayRecord } from "./contracts.js";
 import { z } from "zod";
 import { canonicalHash } from "./canonical.js";
+import { summarizeSimulationRate } from "./statistics.js";
 import { verifySimulationReplay, type ReplayVerificationResult } from "./replay.js";
 
 const finiteNumber = z.number().refine(Number.isFinite, "Number must be finite.");
@@ -9,11 +10,29 @@ const finiteNumber = z.number().refine(Number.isFinite, "Number must be finite."
 export interface SimulationAnomalyRule {
   readonly id: string;
   readonly version: "simulation-anomaly-rules:v1";
-  readonly code: "semantic-loop" | "control-lockout" | "resource-cycle" | "no-progress";
+  readonly code: SimulationAnomalyCode;
   readonly threshold: number;
   readonly population: string;
   readonly recommendation: string;
+  readonly minimumSampleCount?: number;
+  readonly minimumConfidence?: number;
 }
+
+export type SimulationAnomalyCode =
+  | "semantic-loop"
+  | "control-lockout"
+  | "resource-cycle"
+  | "no-progress"
+  | "matchup-rate"
+  | "selection-rate"
+  | "utility-per-ki"
+  | "conditional-combo"
+  | "status-loop"
+  | "transformation-value"
+  | "excessive-length"
+  | "impossible-transition"
+  | "dominated-alternative"
+  | "custom-crowd-out";
 
 export interface SimulationAnomalyFinding {
   readonly schemaVersion: "simulation-anomaly-finding:v1";
@@ -23,9 +42,17 @@ export interface SimulationAnomalyFinding {
   readonly threshold: number;
   readonly observedValue: number;
   readonly sampleCount: number;
+  readonly population: string;
   readonly uncertainty: "not-estimated" | "wilson-95" | "paired-bootstrap-95";
+  readonly confidenceInterval: Readonly<{
+    readonly lower: number;
+    readonly upper: number;
+    readonly confidence: number;
+  }>;
   readonly confounders: readonly string[];
   readonly representativeRunIds: readonly string[];
+  readonly contributingActions: readonly string[];
+  readonly investigationTarget: string;
   readonly recommendation: string;
   readonly findingHash: string;
 }
@@ -34,10 +61,27 @@ export const simulationAnomalyRuleSchema = z
   .object({
     id: z.string().min(1),
     version: z.literal("simulation-anomaly-rules:v1"),
-    code: z.enum(["semantic-loop", "control-lockout", "resource-cycle", "no-progress"]),
+    code: z.enum([
+      "semantic-loop",
+      "control-lockout",
+      "resource-cycle",
+      "no-progress",
+      "matchup-rate",
+      "selection-rate",
+      "utility-per-ki",
+      "conditional-combo",
+      "status-loop",
+      "transformation-value",
+      "excessive-length",
+      "impossible-transition",
+      "dominated-alternative",
+      "custom-crowd-out",
+    ]),
     threshold: finiteNumber,
     population: z.string().min(1),
     recommendation: z.string().min(1),
+    minimumSampleCount: z.number().int().positive().optional(),
+    minimumConfidence: finiteNumber.min(0).max(1).optional(),
   })
   .strict();
 
@@ -45,14 +89,20 @@ export const simulationAnomalyFindingSchema = z
   .object({
     schemaVersion: z.literal("simulation-anomaly-finding:v1"),
     ruleId: z.string().min(1),
-    code: z.enum(["semantic-loop", "control-lockout", "resource-cycle", "no-progress"]),
+    code: simulationAnomalyRuleSchema.shape.code,
     metric: z.string().min(1),
     threshold: finiteNumber,
     observedValue: finiteNumber,
     sampleCount: z.number().int().nonnegative(),
+    population: z.string().min(1),
     uncertainty: z.enum(["not-estimated", "wilson-95", "paired-bootstrap-95"]),
+    confidenceInterval: z
+      .object({ lower: finiteNumber, upper: finiteNumber, confidence: finiteNumber })
+      .strict(),
     confounders: z.array(z.string()),
     representativeRunIds: z.array(z.string().min(1)),
+    contributingActions: z.array(z.string().min(1)),
+    investigationTarget: z.string().min(1),
     recommendation: z.string().min(1),
     findingHash: z.string().min(1),
   })
@@ -91,6 +141,14 @@ export const DEFAULT_SIMULATION_ANOMALY_RULES: readonly SimulationAnomalyRule[] 
     population: "safeguard-terminated-fights",
     recommendation: "Rerun with diagnostic retention and inspect semantic progress identity.",
   },
+  {
+    id: "simulation-anomaly-rule:excessive-length",
+    version: "simulation-anomaly-rules:v1",
+    code: "excessive-length",
+    threshold: 101,
+    population: "all-completed-fights",
+    recommendation: "Inspect the longest fight sequence and resource/status cycles.",
+  },
 ]);
 
 const repeatedCount = (values: readonly string[]): number => values.length - new Set(values).size;
@@ -105,8 +163,66 @@ const observedValueFor = (
     return result.summary.actorActions === 0
       ? result.summary.pendingResponses
       : result.summary.pendingResponses / result.summary.actorActions;
+  if (rule.code === "excessive-length") return result.finalState.turnNumber;
   return repeatedCount(result.replay.stateHashes);
 };
+
+export interface SimulationAnomalyAggregateObservation {
+  readonly runId: string;
+  readonly value: number;
+  readonly triggered: boolean;
+  readonly contributingActions?: readonly string[];
+}
+
+export interface SimulationAnomalyAggregateInput {
+  readonly rule: SimulationAnomalyRule;
+  readonly observations: readonly SimulationAnomalyAggregateObservation[];
+  readonly investigationTarget: string;
+}
+
+export const detectSimulationAnomalyAggregates = (
+  inputs: readonly SimulationAnomalyAggregateInput[],
+): readonly SimulationAnomalyFinding[] =>
+  inputs.flatMap(({ rule, observations, investigationTarget }) => {
+    if (observations.length < (rule.minimumSampleCount ?? 1)) return [];
+    const successes = observations.filter((observation) => observation.triggered).length;
+    const interval = summarizeSimulationRate(successes, observations.length);
+    if (
+      interval.rate < rule.threshold ||
+      (rule.minimumConfidence !== undefined && interval.lower < rule.minimumConfidence)
+    )
+      return [];
+    const contributingActions = [
+      ...new Set(
+        observations
+          .filter((observation) => observation.triggered)
+          .flatMap((observation) => observation.contributingActions ?? []),
+      ),
+    ].sort((left, right) => left.localeCompare(right));
+    const representativeRunIds = observations
+      .filter((observation) => observation.triggered)
+      .map((observation) => observation.runId)
+      .sort((left, right) => left.localeCompare(right))
+      .slice(0, 8);
+    const finding = {
+      schemaVersion: "simulation-anomaly-finding:v1" as const,
+      ruleId: rule.id,
+      code: rule.code,
+      metric: rule.code,
+      threshold: rule.threshold,
+      observedValue: interval.rate,
+      sampleCount: observations.length,
+      population: rule.population,
+      uncertainty: "wilson-95" as const,
+      confidenceInterval: interval,
+      confounders: [],
+      representativeRunIds,
+      contributingActions,
+      investigationTarget,
+      recommendation: rule.recommendation,
+    } satisfies Omit<SimulationAnomalyFinding, "findingHash">;
+    return [{ ...finding, findingHash: canonicalHash(finding) }];
+  });
 
 export const detectSimulationAnomalies = (
   results: readonly SimulationFightExecutionResult[],
@@ -125,17 +241,25 @@ export const detectSimulationAnomalies = (
         threshold: rule.threshold,
         observedValue,
         sampleCount: 1,
+        population: rule.population,
         uncertainty: "not-estimated" as const,
+        confidenceInterval: {
+          lower: observedValue,
+          upper: observedValue,
+          confidence: 0,
+        },
         confounders: [
           result.terminationReason === "semantic-no-progress"
             ? "safeguard-termination"
             : "none-recorded",
         ],
         representativeRunIds: [result.runId],
+        contributingActions:
+          result.diagnostics?.selectedDecisions.map((decision) => decision.type) ?? [],
+        investigationTarget: `replay:${result.runId}`,
         recommendation: rule.recommendation,
-        findingHash: canonicalHash({ rule, result: result.runId, observedValue }),
-      } satisfies SimulationAnomalyFinding;
-      findings.push(finding);
+      } satisfies Omit<SimulationAnomalyFinding, "findingHash">;
+      findings.push({ ...finding, findingHash: canonicalHash(finding) });
     }
   }
   return findings.sort((left, right) => left.findingHash.localeCompare(right.findingHash));
@@ -145,6 +269,15 @@ export const selectSimulationAnomalyCandidates = (
   results: readonly SimulationFightExecutionResult[],
   rules: readonly SimulationAnomalyRule[] = DEFAULT_SIMULATION_ANOMALY_RULES,
 ): readonly SimulationAnomalyFinding[] => detectSimulationAnomalies(results, rules).slice(0, 20);
+
+export const readSimulationAnomalyFinding = (input: unknown): SimulationAnomalyFinding => {
+  const finding = simulationAnomalyFindingSchema.parse(input);
+  const value = { ...finding } as Record<string, unknown>;
+  delete value.findingHash;
+  if (finding.findingHash !== canonicalHash(value))
+    throw new RangeError("Simulation anomaly finding hash mismatch.");
+  return finding;
+};
 
 export const verifySimulationAnomalyRerun = (
   replay: SimulationReplayRecord,

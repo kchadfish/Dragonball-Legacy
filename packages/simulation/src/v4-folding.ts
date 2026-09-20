@@ -4,6 +4,8 @@ import type {
   CombatTransition,
   FightState,
   LegalDecision,
+  DecisionTacticalSetupFact,
+  DecisionEffectFact,
 } from "@dragonball-resurgence/combat-engine";
 import { canonicalDecisionKey } from "@dragonball-resurgence/combat-engine";
 import type { CandidateEvaluation } from "@dragonball-resurgence/ai-engine";
@@ -28,6 +30,28 @@ export const SIMULATION_V4_WILDCARD = "*" as const;
 
 type SimulationV4Side = "a" | "b";
 
+interface SimulationV4SetupOpportunity {
+  readonly dimensions: SimulationStatisticsDimensions;
+  readonly turnNumber: number;
+  readonly setup: DecisionTacticalSetupFact;
+  readonly targetCombatantId?: string;
+  readonly expiresAfterTurns: number;
+}
+
+const setupWindowTurns = (setup: DecisionTacticalSetupFact): number => {
+  switch (setup.window.scope) {
+    case "same-action":
+      return 0;
+    case "next-action":
+    case "next-turn":
+      return 2;
+    case "several-turns":
+      return Math.max(2, (setup.window.duration ?? 2) * 2);
+    case "combat":
+      return Number.MAX_SAFE_INTEGER;
+  }
+};
+
 export const simulationV4WildcardDimensions = (
   input: Partial<SimulationStatisticsDimensions> = {},
 ): SimulationStatisticsDimensions => ({
@@ -47,6 +71,8 @@ export const simulationV4WildcardDimensions = (
   ...(input.moveId === undefined ? {} : { moveId: input.moveId }),
   ...(input.itemId === undefined ? {} : { itemId: input.itemId }),
   ...(input.transformationId === undefined ? {} : { transformationId: input.transformationId }),
+  ...(input.statusId === undefined ? {} : { statusId: input.statusId }),
+  ...(input.restrictedUseId === undefined ? {} : { restrictedUseId: input.restrictedUseId }),
   evidenceRole: input.evidenceRole ?? "natural-balance",
   exposurePopulation: input.exposurePopulation ?? "natural",
 });
@@ -67,6 +93,21 @@ export interface SimulationV4FightAccumulator {
   readonly moveUseCounts: Readonly<Record<string, number>>;
   readonly firstUseTurns: Readonly<Record<string, number>>;
   readonly actionHistory: readonly string[];
+  readonly activeStatusExposures: Readonly<
+    Record<
+      string,
+      Readonly<{
+        readonly statusId: string;
+        readonly side: SimulationV4Side;
+        readonly startedTurn: number;
+        readonly lastSeenTurn: number;
+      }>
+    >
+  >;
+  readonly pendingSetupOpportunities: Readonly<{
+    readonly a?: SimulationV4SetupOpportunity;
+    readonly b?: SimulationV4SetupOpportunity;
+  }>;
   readonly transformationActivationTurns: Readonly<Record<string, number>>;
   readonly equippedMoveIdsBySide: Readonly<{
     readonly a: readonly string[];
@@ -80,6 +121,7 @@ export interface SimulationV4FightAccumulator {
     readonly a: readonly string[];
     readonly b: readonly string[];
   }>;
+  readonly startingHitPointsBySide: Readonly<{ readonly a: number; readonly b: number }>;
   readonly startingKiBySide: Readonly<{ readonly a: number; readonly b: number }>;
   readonly blockMoveIdsBySide: Readonly<{
     readonly a: readonly string[];
@@ -95,7 +137,12 @@ const unitFor = (metricId: string): SimulationMetricAggregateV2["unit"] => {
   if (metricId.includes("rate") || metricId.includes("probability")) return "proportion";
   if (metricId.includes("turn")) return "turns";
   if (metricId.includes("ki")) return "ki";
-  if (metricId.includes("damage") || metricId.includes("hp") || metricId.includes("overkill"))
+  if (
+    metricId.includes("damage") ||
+    metricId.includes("healing") ||
+    metricId.includes("hp") ||
+    metricId.includes("overkill")
+  )
     return "hit-points";
   if (metricId.includes("score") || metricId.includes("effect")) return "score";
   return "count";
@@ -138,6 +185,7 @@ export const createSimulationV4FightAccumulator = (input: {
     readonly a: readonly string[];
     readonly b: readonly string[];
   }>;
+  readonly startingHitPointsBySide?: Readonly<{ readonly a: number; readonly b: number }>;
   readonly startingKiBySide?: Readonly<{ readonly a: number; readonly b: number }>;
   readonly blockMoveIdsBySide?: Readonly<{
     readonly a: readonly string[];
@@ -146,6 +194,11 @@ export const createSimulationV4FightAccumulator = (input: {
   readonly itemPricesBySide?: Readonly<{
     readonly a: Readonly<Record<string, number | undefined>>;
     readonly b: Readonly<Record<string, number | undefined>>;
+  }>;
+  readonly activeStatusExposures?: SimulationV4FightAccumulator["activeStatusExposures"];
+  readonly pendingSetupOpportunities?: Readonly<{
+    readonly a?: SimulationV4SetupOpportunity;
+    readonly b?: SimulationV4SetupOpportunity;
   }>;
 }): SimulationV4FightAccumulator => {
   const dimensionsBySide = {
@@ -174,10 +227,13 @@ export const createSimulationV4FightAccumulator = (input: {
     moveUseCounts: {},
     firstUseTurns: {},
     actionHistory: [],
+    activeStatusExposures: input.activeStatusExposures ?? {},
+    pendingSetupOpportunities: input.pendingSetupOpportunities ?? {},
     transformationActivationTurns: {},
     equippedMoveIdsBySide: input.equippedMoveIdsBySide ?? { a: [], b: [] },
     equippedItemIdsBySide: input.equippedItemIdsBySide ?? { a: [], b: [] },
     availableTransformationIdsBySide: input.availableTransformationIdsBySide ?? { a: [], b: [] },
+    startingHitPointsBySide: input.startingHitPointsBySide ?? { a: 0, b: 0 },
     startingKiBySide: input.startingKiBySide ?? { a: 0, b: 0 },
     blockMoveIdsBySide: input.blockMoveIdsBySide ?? { a: [], b: [] },
     itemPricesBySide: input.itemPricesBySide ?? { a: {}, b: {} },
@@ -318,6 +374,26 @@ const sourceDimensionsFor = (
   });
 };
 
+const statusDimensionsFor = (
+  accumulator: SimulationV4FightAccumulator,
+  side: SimulationV4Side | undefined,
+  statusId: string,
+): SimulationStatisticsDimensions =>
+  simulationV4WildcardDimensions({
+    ...dimensionsForSide(accumulator, side),
+    statusId,
+  });
+
+const restrictedUseDimensionsFor = (
+  accumulator: SimulationV4FightAccumulator,
+  side: SimulationV4Side | undefined,
+  sourceDefinitionId: string,
+): SimulationStatisticsDimensions =>
+  simulationV4WildcardDimensions({
+    ...sourceDimensionsFor(accumulator, side, sourceDefinitionId),
+    restrictedUseId: sourceDefinitionId,
+  });
+
 const addEnsured = (
   metrics: Readonly<Record<string, SimulationMetricAggregateV2>>,
   metricId: string,
@@ -379,6 +455,8 @@ export const foldSimulationV4Transition = (
     readonly selectedDecision?: LegalDecision;
     readonly availability?: CombatActionAvailabilityReport;
     readonly evaluations?: readonly CandidateEvaluation[];
+    readonly tacticalSetup?: DecisionTacticalSetupFact;
+    readonly selectedEffects?: readonly DecisionEffectFact[];
   },
 ): SimulationV4FightAccumulator => {
   const observations = input.transition.calculationObservations ?? [];
@@ -387,6 +465,8 @@ export const foldSimulationV4Transition = (
   const moveUseCounts = { ...accumulator.moveUseCounts };
   const firstUseTurns = { ...accumulator.firstUseTurns };
   const actionHistory = [...accumulator.actionHistory];
+  const activeStatusExposures = { ...accumulator.activeStatusExposures };
+  const pendingSetupOpportunities = { ...accumulator.pendingSetupOpportunities };
   const transformationActivationTurns = { ...accumulator.transformationActivationTurns };
   const trailing = { ...accumulator.maximumTrailingGap };
   const gap = stateHealthGapFor(
@@ -406,6 +486,35 @@ export const foldSimulationV4Transition = (
   const diagnosticEvidence = selectedDimensions.evidenceRole === "diagnostic";
   if (input.availability !== undefined) {
     for (const entry of input.availability.entries) {
+      const sourceDefinitionId = definitionIdForDecision(entry.decision);
+      const hasFiniteRestriction = entry.scarcity.some(
+        (scarcity) => scarcity.limit !== undefined && scarcity.remaining !== undefined,
+      );
+      if (sourceDefinitionId !== undefined && hasFiniteRestriction) {
+        const dimensions = restrictedUseDimensionsFor(
+          accumulator,
+          selectedSide,
+          sourceDefinitionId,
+        );
+        const selected =
+          input.selectedDecision !== undefined &&
+          canonicalDecisionKey(input.selectedDecision) === canonicalDecisionKey(entry.decision);
+        metrics = addEnsured(metrics, "simulation:restricted-use-availability", dimensions, {
+          value: 1,
+          eligible: true,
+          completed: true,
+        });
+        metrics = addEnsured(metrics, "simulation:restricted-use-consumption-rate", dimensions, {
+          eligible: true,
+          completed: true,
+          success: selected,
+        });
+        metrics = addEnsured(metrics, "simulation:restricted-use-denial-rate", dimensions, {
+          eligible: true,
+          completed: true,
+          success: entry.restricted && !selected,
+        });
+      }
       if (entry.decision.type === "use-move") {
         const dimensions = sourceDimensionsFor(accumulator, selectedSide, entry.decision.moveId);
         metrics = addEnsured(metrics, "simulation:move-opportunity-funnel", dimensions, {
@@ -462,6 +571,25 @@ export const foldSimulationV4Transition = (
       success: starved && fallback,
     });
   }
+  for (const side of ["a", "b"] as const) {
+    const pending = pendingSetupOpportunities[side];
+    if (
+      pending === undefined ||
+      input.transition.state.turnNumber <= pending.turnNumber + pending.expiresAfterTurns
+    )
+      continue;
+    metrics = addEnsured(metrics, "simulation:windowed-setup-conversion", pending.dimensions, {
+      eligible: true,
+      completed: true,
+      success: false,
+    });
+    metrics = addEnsured(metrics, "simulation:compatible-follow-up-rate", pending.dimensions, {
+      eligible: true,
+      completed: true,
+      success: false,
+    });
+    delete pendingSetupOpportunities[side];
+  }
   if (input.selectedDecision !== undefined) {
     const selectedKey =
       definitionIdForDecision(input.selectedDecision) ?? input.selectedDecision.type;
@@ -473,17 +601,85 @@ export const foldSimulationV4Transition = (
       completed: true,
     });
     metrics = addEnsured(metrics, "simulation:utility-action-economy", selectedDimensions, {
-      value: 1,
+      value: input.transition.events.some((event) => event.type === "action-skipped") ? 0 : 1,
       eligible: true,
       completed: true,
     });
-    if (input.selectedDecision.type === "use-move" && actionHistory.length > 1) {
-      metrics = addEnsured(metrics, "simulation:setup-conversion", selectedDimensions, {
+    if (!input.transition.events.some((event) => event.type === "action-skipped"))
+      metrics = addEnsured(metrics, "simulation:action-skip-rate", selectedDimensions, {
         eligible: true,
         completed: true,
-        success: actionHistory.at(-2) !== selectedKey,
+        success: false,
+      });
+    for (const effect of input.selectedEffects ?? []) {
+      if (effect.category !== "status" || effect.statusId === undefined) continue;
+      const dimensions = statusDimensionsFor(accumulator, selectedSide, effect.statusId);
+      const applied = input.transition.events.some(
+        (event) => event.type === "status-applied" && event.statusId === effect.statusId,
+      );
+      metrics = addEnsured(metrics, "simulation:status-application-rate", dimensions, {
+        eligible: true,
+        completed: true,
+        success: applied,
       });
     }
+    const pending =
+      selectedSide === undefined ? undefined : pendingSetupOpportunities[selectedSide];
+    const resolvedAction = input.transition.events.some(
+      (event) =>
+        event.type === "attack-resolved" ||
+        event.type === "deferred-move-performed" ||
+        event.type === "item-used",
+    );
+    const followUpCategory =
+      input.selectedDecision.type === "use-move"
+        ? "move"
+        : input.selectedDecision.type === "basic-attack"
+          ? "basic-attack"
+          : input.selectedDecision.type === "activate-transformation" ||
+              input.selectedDecision.type === "deactivate-transformation"
+            ? "transformation"
+            : input.selectedDecision.type;
+    const followUpId = definitionIdForDecision(input.selectedDecision);
+    const compatibleFollowUp =
+      pending !== undefined &&
+      pending.setup.eligibleFollowUpCategories.includes(followUpCategory) &&
+      (pending.setup.eligibleFollowUpIds === undefined ||
+        (followUpId !== undefined && pending.setup.eligibleFollowUpIds.includes(followUpId))) &&
+      (pending.setup.targetRelation === "both" ||
+        pending.targetCombatantId === undefined ||
+        !("targetCombatantId" in input.selectedDecision) ||
+        String(input.selectedDecision.targetCombatantId) === pending.targetCombatantId);
+    if (
+      pending !== undefined &&
+      input.transition.state.turnNumber - pending.turnNumber <= pending.expiresAfterTurns
+    ) {
+      metrics = addEnsured(metrics, "simulation:windowed-setup-conversion", pending.dimensions, {
+        eligible: true,
+        completed: true,
+        success: compatibleFollowUp && resolvedAction,
+      });
+      metrics = addEnsured(metrics, "simulation:compatible-follow-up-rate", pending.dimensions, {
+        eligible: true,
+        completed: true,
+        success: compatibleFollowUp,
+      });
+      if (selectedSide !== undefined) delete pendingSetupOpportunities[selectedSide];
+    }
+    if (
+      selectedSide !== undefined &&
+      input.tacticalSetup !== undefined &&
+      input.tacticalSetup.available
+    )
+      pendingSetupOpportunities[selectedSide] = {
+        dimensions: selectedDimensions,
+        turnNumber: input.transition.state.turnNumber,
+        setup: input.tacticalSetup,
+        expiresAfterTurns: setupWindowTurns(input.tacticalSetup),
+        ...("targetCombatantId" in input.selectedDecision
+          ? { targetCombatantId: String(input.selectedDecision.targetCombatantId) }
+          : {}),
+      };
     if (diagnosticEvidence) {
       metrics = addEnsured(metrics, "simulation:ai-action-distribution", selectedDimensions, {
         value: 1,
@@ -533,11 +729,6 @@ export const foldSimulationV4Transition = (
       value: repeated ? 1 : 0,
       eligible: actionHistory.length > 1,
       completed: true,
-    });
-    metrics = addEnsured(metrics, "simulation:follow-up-rate", selectedDimensions, {
-      eligible: actionHistory.length > 1,
-      completed: true,
-      success: actionHistory.length > 1,
     });
     if (input.selectedDecision.type === "power-up")
       metrics = addEnsured(metrics, "simulation:ki-power-up-turns", selectedDimensions, {
@@ -741,7 +932,19 @@ export const foldSimulationV4Transition = (
       // HP damage is already represented by the authoritative damage
       // observation. Folding the matching hp-changed event here would count
       // the same damage a second time.
-      if (observation.resource === "hp" && observation.operation === "damage") continue;
+      if (observation.resource === "hp" && observation.operation === "damage") {
+        if (
+          observation.actorId !== undefined &&
+          observation.targetCombatantId !== undefined &&
+          observation.actorId === observation.targetCombatantId
+        )
+          metrics = addEnsured(metrics, "simulation:self-damage", actorDimensions, {
+            value: observation.applied,
+            eligible: true,
+            completed: true,
+          });
+        continue;
+      }
       const metricId =
         observation.resource === "ki"
           ? observation.operation === "gain"
@@ -828,6 +1031,12 @@ export const foldSimulationV4Transition = (
         eligible: true,
         completed: true,
       });
+      if (observation.resource === "hp" && observation.operation === "healing")
+        metrics = addEnsured(metrics, "simulation:healing", actorDimensions, {
+          value: observation.applied,
+          eligible: true,
+          completed: true,
+        });
     }
     if (observation.kind === "die") {
       metrics = addEnsured(metrics, "simulation:critical-rate", actorDimensions, {
@@ -1005,26 +1214,82 @@ export const foldSimulationV4Transition = (
     }
     if (event.type === "status-applied") {
       const side = sideFor(event.sourceCombatantId, accumulator.fighterAId, accumulator.fighterBId);
-      metrics = addEnsured(
-        metrics,
-        "simulation:status-rate",
-        dimensionsForSide(accumulator, side),
-        {
+      const statusDimensions = statusDimensionsFor(accumulator, side, event.statusId);
+      metrics = addEnsured(metrics, "simulation:status-rate", statusDimensions, {
+        eligible: true,
+        completed: true,
+        success: true,
+      });
+      metrics = addEnsured(metrics, "simulation:utility-status-control", statusDimensions, {
+        value: event.stacks,
+        eligible: true,
+        completed: true,
+      });
+      const targetSide = sideFor(
+        event.targetCombatantId,
+        accumulator.fighterAId,
+        accumulator.fighterBId,
+      );
+      if (targetSide !== undefined) {
+        const exposureKey = `${event.targetCombatantId}:${event.statusId}`;
+        metrics = ensureMetric(metrics, "simulation:status-uptime", statusDimensions);
+        activeStatusExposures[exposureKey] ??= {
+          statusId: event.statusId,
+          side: targetSide,
+          startedTurn: input.transition.state.turnNumber,
+          lastSeenTurn: input.transition.state.turnNumber,
+        };
+      }
+    }
+    if (event.type === "status-removed") {
+      const side = sideFor(event.targetCombatantId, accumulator.fighterAId, accumulator.fighterBId);
+      const statusDimensions = statusDimensionsFor(accumulator, side, event.statusId);
+      metrics = addEnsured(metrics, "simulation:status-removal-rate", statusDimensions, {
+        eligible: true,
+        completed: true,
+        success: true,
+      });
+      const exposureKey = `${event.targetCombatantId}:${event.statusId}`;
+      const exposure = activeStatusExposures[exposureKey];
+      if (exposure !== undefined) {
+        metrics = addEnsured(metrics, "simulation:status-uptime", statusDimensions, {
+          value: Math.max(1, input.transition.state.turnNumber - exposure.startedTurn + 1),
           eligible: true,
           completed: true,
-          success: true,
-        },
-      );
+        });
+        delete activeStatusExposures[exposureKey];
+      }
+    }
+    if (event.type === "action-skipped") {
+      const side = sideFor(event.combatantId, accumulator.fighterAId, accumulator.fighterBId);
       metrics = addEnsured(
         metrics,
-        "simulation:utility-status-control",
+        "simulation:action-skip-rate",
         dimensionsForSide(accumulator, side),
-        {
-          value: event.stacks,
-          eligible: true,
-          completed: true,
-        },
+        { eligible: true, completed: true, success: true },
       );
+      const priorCombatant = input.previousState?.combatants[event.combatantId];
+      for (const status of priorCombatant?.activeStatuses ?? [])
+        metrics = addEnsured(
+          metrics,
+          "simulation:status-lockout-rate",
+          statusDimensionsFor(accumulator, side, status.statusId),
+          { eligible: true, completed: true, success: true },
+        );
+    }
+    for (const combatant of Object.values(input.transition.state.combatants)) {
+      const side = sideFor(combatant.id, accumulator.fighterAId, accumulator.fighterBId);
+      for (const status of combatant.activeStatuses) {
+        if (side === undefined) continue;
+        const key = `${combatant.id}:${status.statusId}`;
+        const prior = activeStatusExposures[key];
+        activeStatusExposures[key] = {
+          statusId: status.statusId,
+          side,
+          startedTurn: prior?.startedTurn ?? input.transition.state.turnNumber,
+          lastSeenTurn: input.transition.state.turnNumber,
+        };
+      }
     }
     if (event.type === "item-used") {
       const side = sideFor(event.combatantId, accumulator.fighterAId, accumulator.fighterBId);
@@ -1073,6 +1338,8 @@ export const foldSimulationV4Transition = (
     moveUseCounts,
     firstUseTurns,
     actionHistory,
+    activeStatusExposures,
+    pendingSetupOpportunities,
     transformationActivationTurns,
   };
 };
@@ -1088,6 +1355,39 @@ export const finalizeSimulationV4FightAccumulator = (
   const winner = sideFor(winnerId, accumulator.fighterAId, accumulator.fighterBId);
   const completed = result.terminationReason === "engine-completed";
   let metrics = accumulator.metrics;
+  for (const exposure of Object.values(accumulator.activeStatusExposures)) {
+    const dimensions = statusDimensionsFor(accumulator, exposure.side, exposure.statusId);
+    metrics = addEnsured(metrics, "simulation:status-removal-rate", dimensions, {
+      eligible: true,
+      completed,
+      incomplete: !completed,
+      success: false,
+    });
+    metrics = addEnsured(metrics, "simulation:status-uptime", dimensions, {
+      eligible: true,
+      completed: false,
+      incomplete: true,
+      error: result.failure !== undefined,
+    });
+  }
+  for (const side of ["a", "b"] as const) {
+    const pending = accumulator.pendingSetupOpportunities[side];
+    if (pending === undefined) continue;
+    metrics = addEnsured(metrics, "simulation:windowed-setup-conversion", pending.dimensions, {
+      eligible: true,
+      completed,
+      incomplete: !completed,
+      error: result.failure !== undefined,
+      success: false,
+    });
+    metrics = addEnsured(metrics, "simulation:compatible-follow-up-rate", pending.dimensions, {
+      eligible: true,
+      completed,
+      incomplete: !completed,
+      error: result.failure !== undefined,
+      success: false,
+    });
+  }
   const addFinal = (metricId: string, side: "a" | "b", value: number, success?: boolean): void => {
     metrics = addEnsured(metrics, metricId, dimensionsForSide(accumulator, side), {
       value,
@@ -1104,6 +1404,19 @@ export const finalizeSimulationV4FightAccumulator = (
     const won = winner === side;
     const fighter =
       result.finalState.combatants[fighterId as keyof typeof result.finalState.combatants];
+    addFinal(
+      "simulation:stalemate-rate",
+      side,
+      completed && winner === undefined ? 1 : 0,
+      completed && winner === undefined,
+    );
+    addFinal(
+      "simulation:error-rate",
+      side,
+      result.failure === undefined ? 0 : 1,
+      result.failure !== undefined,
+    );
+    addFinal("simulation:incomplete-fight-rate", side, completed ? 0 : 1, !completed);
     addFinal("simulation:raw-win-rate", side, won ? 1 : 0, won);
     addFinal("simulation:mean-turns", side, result.finalState.turnNumber ?? 0);
     addFinal("simulation:median-turns", side, result.finalState.turnNumber ?? 0);
@@ -1153,6 +1466,11 @@ export const finalizeSimulationV4FightAccumulator = (
     if (fighter !== undefined) {
       addFinal("simulation:ki-starting", side, accumulator.startingKiBySide[side]);
       addFinal("simulation:ki-ending", side, fighter.ki.current);
+      addFinal(
+        "simulation:net-hp-swing",
+        side,
+        fighter.hitPoints.current - accumulator.startingHitPointsBySide[side],
+      );
       if (won) {
         addFinal("simulation:winner-remaining-hp", side, fighter.hitPoints.current);
         addFinal("simulation:winner-remaining-ki", side, fighter.ki.current);

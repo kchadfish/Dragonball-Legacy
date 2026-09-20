@@ -16,6 +16,7 @@ import {
   seededBootstrapPairedDifference,
   simulationQuantile,
   simulationStandardDeviation,
+  simulationMeanInterval,
   simulationVariance,
   summarizeSimulationRate,
   twoSidedSimulationRatePValue,
@@ -109,5 +110,14 @@ describe("simulation mergeable statistics", () => {
       { identity: "a", pValue: 0.01, adjustedPValue: 0.02, exploratoryFlag: true },
       { identity: "b", pValue: 0.04, adjustedPValue: 0.04, exploratoryFlag: true },
     ]);
+  });
+
+  it("returns a deterministic confidence interval for bounded mean statistics", () => {
+    const aggregate = [1, 2, 3, 4].reduce(addSimulationValue, createSimulationMeanVariance());
+    const interval = simulationMeanInterval(aggregate);
+    expect(interval.confidence).toBe(0.95);
+    expect(interval.lower).toBeLessThan(aggregate.mean);
+    expect(interval.upper).toBeGreaterThan(aggregate.mean);
+    expect(simulationMeanInterval(aggregate)).toEqual(interval);
   });
 });

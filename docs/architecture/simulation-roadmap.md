@@ -58,10 +58,12 @@ As of 2026-08-30:
 - `balance-testing/` contains 36 TF1 character sheets, one for each mastery
   across Akaikaru, Aoyosumu, Haokiru, Kiihakai, Kurokonwaku, and Midorikatai.
   These are useful source fixtures but are not yet typed simulation templates.
-- There is no simulation scenario schema, seed manifest, batch runner,
-  statistical aggregator, move-balance matrix, immutable variant mechanism,
-  custom-move checker, or staff-facing report. Those remain later roadmap
-  scope after the immutable mechanics-view prerequisite.
+- The simulation package now owns versioned scenario and seed contracts,
+  bounded mirrored batch execution, mergeable statistics, move-balance and
+  staff-facing reports, immutable variants, custom-move checks, replay, and
+  resumable catalog checkpoints. Analytics semantics and production evidence
+  generation remain active roadmap work; checked-in screening data does not
+  certify the production catalog.
 - Combat creation, transitions, invariants, descriptors, and trigger resolution
   still contain many direct reads from canonical module-level registries. An
   immutable variant cannot yet flow through one fight without an owning-package
