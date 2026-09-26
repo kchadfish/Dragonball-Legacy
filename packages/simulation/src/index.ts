@@ -4,6 +4,7 @@ export * from "./artifacts.js";
 export * from "./anomalies.js";
 export * from "./batches.js";
 export * from "./canonical.js";
+export * from "./capabilities.js";
 export * from "./calibration.js";
 export * from "./comparisons.js";
 export * from "./completion.js";

@@ -3,14 +3,17 @@ import { CANONICAL_COMBAT_MECHANICS_VIEW } from "@dragonball-resurgence/combat-e
 
 import {
   createSimulationStatisticsArtifactV4,
+  createSimulationStatisticsBundleV2,
   createSyntheticArchetypes,
   canonicalHash,
   migrateSimulationStatisticsArtifactV4ToV5,
   planSimulationStatisticsBackfill,
   readSimulationStatisticsArtifactV5,
+  readSimulationStatisticsBundleV2,
   readSimulationStatisticsBackfillCheckpointV1,
   runSimulationStatisticsCatalogV4,
   runSimulationStatisticsBackfill,
+  selectSimulationCapabilityRecipes,
   validateSimulationStatisticsArtifactV5Closure,
 } from "./index.js";
 
@@ -78,5 +81,56 @@ describe("simulation statistics v5 selective backfill", () => {
     expect(Object.values(migrated.metricLineage)).toEqual([]);
     expect(migrated.limitations).toContain("Unavailable historical provenance is unknown.");
     expect(readSimulationStatisticsArtifactV5(migrated)).toEqual(migrated);
+    const bundle = createSimulationStatisticsBundleV2({
+      natural: migrated,
+      checkpointHashes: { natural: "checkpoint:fixture" },
+    });
+    expect(readSimulationStatisticsBundleV2(bundle)).toEqual(bundle);
   });
+
+  it("runs capability recipes with branch-safe controlled evidence identities", () => {
+    const templates = createSyntheticArchetypes(CANONICAL_COMBAT_MECHANICS_VIEW).filter(
+      (template) =>
+        [
+          "simulation-template:synthetic-defensive",
+          "simulation-template:synthetic-glass-cannon",
+        ].includes(template.id),
+    );
+    const selection = selectSimulationCapabilityRecipes({
+      view: CANONICAL_COMBAT_MECHANICS_VIEW,
+      templates,
+      capabilityIds: ["status-control"],
+    });
+    const recipe = selection.recipes[0];
+    expect(recipe).toBeDefined();
+    if (recipe === undefined) return;
+    const source = runSimulationStatisticsCatalogV4({ templates, targetPairs: 1, batchSize: 1 });
+    const baseline = {
+      ...source.checkpoint,
+      cells: source.checkpoint.cells.map((cell) => ({
+        ...cell,
+        sparseStatus: "sufficient" as const,
+      })),
+      canonicalResultOrderHash: canonicalHash(
+        source.checkpoint.cells.map((cell) => ({ ...cell, sparseStatus: "sufficient" as const })),
+      ),
+    };
+    const withoutHash = Object.fromEntries(
+      Object.entries(baseline).filter(([key]) => key !== "checkpointHash"),
+    );
+    const planned = planSimulationStatisticsBackfill(
+      { ...baseline, checkpointHash: canonicalHash(withoutHash) },
+      { targetPairs: 1, evidenceRole: "controlled", capabilitySelection: selection },
+    );
+    const completed = runSimulationStatisticsBackfill({
+      baseline: { ...baseline, checkpointHash: canonicalHash(withoutHash) },
+      checkpoint: planned,
+      workers: 1,
+    });
+    expect(completed.checkpoint.cells).toHaveLength(1);
+    expect(completed.checkpoint.cells[0]?.pairIdentities).toHaveLength(4);
+    expect(
+      validateSimulationStatisticsArtifactV5Closure(completed.artifact, completed.checkpoint),
+    ).toEqual([]);
+  }, 180_000);
 });

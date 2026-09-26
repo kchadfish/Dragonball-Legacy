@@ -14,6 +14,8 @@ import {
   simulationV4MoveRemovalArmTemplateFor,
   simulationV4ControlDefinitionIdsFor,
   materializeSimulationTemplate,
+  TF1_SIMULATION_TEMPLATES,
+  validateSimulationTemplate,
 } from "./index.js";
 import { SIMULATION_DEFAULT_LIMITS } from "./policy.js";
 
@@ -161,6 +163,9 @@ describe("v4 statistics catalog runner", () => {
     expect(itemArm.template.itemIds).toEqual(["item-second", "item-third"]);
     const moveArm = simulationV4MoveRemovalArmTemplateFor(source, "move-first");
     expect(moveArm.moveIds).toEqual(["move-second"]);
+    const tf1 = TF1_SIMULATION_TEMPLATES[0]!;
+    const tf1Arm = simulationV4MoveRemovalArmTemplateFor(tf1, tf1.moveIds[0]!);
+    expect(validateSimulationTemplate(tf1Arm).ok).toBe(true);
   });
 
   it("uses matched legal control targets for each controlled arm", () => {

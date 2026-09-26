@@ -40,6 +40,10 @@ import {
   createSimulationStatisticsBundleV1,
   readSimulationStatisticsBundleV1,
   readSimulationStatisticsArtifactV4,
+  readSimulationStatisticsArtifactV5,
+  selectSimulationCapabilityRecipes,
+  simulationCapabilityIdSchema,
+  SIMULATION_CAPABILITY_RECIPE_LIMIT,
   renderSimulationDashboardCsv,
   renderSimulationDashboardJson,
   renderSimulationDashboardMarkdown,
@@ -59,8 +63,14 @@ import {
   renderSimulationStatisticsArtifactV5Markdown,
   createSimulationStatisticsV5SourceDossiers,
   validateSimulationStatisticsArtifactV5Closure,
+  createSimulationStatisticsBundleV2,
+  readSimulationStatisticsBundleV2,
 } from "../packages/simulation/src/index.js";
-import type { SimulationStatisticsBackfillCheckpointV1 } from "../packages/simulation/src/index.js";
+import type {
+  SimulationCapabilityId,
+  SimulationStatisticsBackfillCheckpointV1,
+} from "../packages/simulation/src/index.js";
+import { CANONICAL_COMBAT_MECHANICS_VIEW } from "@dragonball-resurgence/combat-engine";
 import type {
   SimulationFightRequest,
   SimulationMatrixRequest,
@@ -72,8 +82,9 @@ import type {
 
 const usage = `Usage: npm run simulate -- <command> [--format json|csv|markdown]
 
-Commands: fight, series, matrix, catalog, catalog-run, analytics-backfill, resume, replay, report, dashboard, bundle, dry-run, move-report, dossiers, closure, freshness, custom-review, custom-run, benchmark
+Commands: fight, series, matrix, catalog, catalog-run, analytics-backfill, analytics-bundle, resume, replay, report, dashboard, bundle, dry-run, move-report, dossiers, closure, freshness, custom-review, custom-run, benchmark
 v4 catalog: --schedule natural|controlled|diagnostic (catalog defaults to natural)
+Analytics backfill: --role natural|controlled|diagnostic --capabilities restricted-use,status-control,transformation,anomaly --natural-artifact <v5 artifact> --checkpoint-fights <count>
 Coverage selectors: --population, --populations, --natural-profile, --exposure-contexts, --moves, --target-pairs, --output, --retry-failed
 Closure purpose: --purpose=screening|production (production is the default)
 Deprecated compatibility alias: --target-fights (do not provide both)`;
@@ -210,6 +221,19 @@ const targetPairsOption = (args: readonly string[], fallback: number): number =>
     : positiveOption(args, "--target-fights", fallback);
 };
 
+const capabilityIdsOption = (args: readonly string[]): readonly SimulationCapabilityId[] => {
+  const value = optionFor(args, "--capabilities");
+  if (value === undefined || value.trim() === "") return [];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ].map((entry) => simulationCapabilityIdSchema.parse(entry));
+};
+
 const unsignedOption = (args: readonly string[], name: string, fallback: number): number => {
   const value = optionFor(args, name);
   if (value === undefined) return fallback;
@@ -323,6 +347,7 @@ const main = async (): Promise<void> => {
       "catalog",
       "catalog-run",
       "analytics-backfill",
+      "analytics-bundle",
       "resume",
       "replay",
       "report",
@@ -365,6 +390,25 @@ const main = async (): Promise<void> => {
       optionFor(args, "--artifact") ?? "artifacts/simulation/catalog-v4-natural-100.json";
     const raw = JSON.parse(await readFile(artifactPath, "utf8")) as unknown;
     const format = formatFor(args);
+    if (
+      (raw as { schemaVersion?: unknown }).schemaVersion === "simulation-statistics-artifact:v5"
+    ) {
+      const artifact = readSimulationStatisticsArtifactV5(raw);
+      const content =
+        format === "csv"
+          ? renderSimulationStatisticsArtifactV5Csv(artifact)
+          : format === "markdown"
+            ? renderSimulationStatisticsArtifactV5Markdown(artifact)
+            : `${canonicalJson(artifact)}\n`;
+      const paths = dashboardPathsFor(artifactPath);
+      const outputPath =
+        optionFor(args, "--output") ??
+        (format === "markdown" ? paths.markdown : format === "csv" ? paths.csv : paths.json);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await atomicWrite(outputPath, content);
+      console.log(outputPath);
+      return;
+    }
     const dashboard =
       (raw as { schemaVersion?: unknown }).schemaVersion === "simulation-statistics-bundle:v1"
         ? createSimulationDashboardFromBundle(readSimulationStatisticsBundleV1(raw))
@@ -434,6 +478,51 @@ const main = async (): Promise<void> => {
       atomicWrite(dashboardPaths.csv, renderSimulationDashboardCsv(dashboard)),
       atomicWrite(dashboardPaths.markdown, renderSimulationDashboardMarkdown(dashboard)),
     ]);
+    console.log(outputPath);
+    return;
+  }
+  if (command === "analytics-bundle") {
+    const artifactForOption = async (name: string, fallback: string) => {
+      const path = optionFor(args, name) ?? fallback;
+      return readSimulationStatisticsArtifactV5(JSON.parse(await readFile(path, "utf8")));
+    };
+    const checkpointHashFor = async (name: string, artifactPath: string): Promise<string> => {
+      const path = optionFor(args, name) ?? `${artifactPath}.checkpoint.json`;
+      return readSimulationStatisticsBackfillCheckpointV1(JSON.parse(await readFile(path, "utf8")))
+        .checkpointHash;
+    };
+    const naturalPath =
+      optionFor(args, "--natural") ?? "artifacts/simulation/catalog-v5-natural-100.json";
+    const controlledPath = optionFor(args, "--controlled");
+    const diagnosticPath = optionFor(args, "--diagnostic");
+    const natural = await artifactForOption("--natural", naturalPath);
+    const controlled =
+      controlledPath === undefined
+        ? undefined
+        : await artifactForOption("--controlled", controlledPath);
+    const diagnostic =
+      diagnosticPath === undefined
+        ? undefined
+        : await artifactForOption("--diagnostic", diagnosticPath);
+    const bundle = createSimulationStatisticsBundleV2({
+      natural,
+      ...(controlled === undefined ? {} : { controlled }),
+      ...(diagnostic === undefined ? {} : { diagnostic }),
+      checkpointHashes: {
+        natural: await checkpointHashFor("--natural-checkpoint", naturalPath),
+        ...(controlledPath === undefined
+          ? {}
+          : { controlled: await checkpointHashFor("--controlled-checkpoint", controlledPath) }),
+        ...(diagnosticPath === undefined
+          ? {}
+          : { diagnostic: await checkpointHashFor("--diagnostic-checkpoint", diagnosticPath) }),
+      },
+    });
+    const outputPath =
+      optionFor(args, "--output") ?? "artifacts/simulation/catalog-v5-bundle-100.json";
+    await mkdir(dirname(outputPath), { recursive: true });
+    await atomicWrite(outputPath, `${canonicalJson(bundle)}\n`);
+    readSimulationStatisticsBundleV2(bundle);
     console.log(outputPath);
     return;
   }
@@ -647,15 +736,51 @@ const main = async (): Promise<void> => {
     return;
   }
   if (command === "analytics-backfill") {
+    const role = (optionFor(args, "--role") ?? "natural") as
+      "natural" | "controlled" | "diagnostic";
+    if (!["natural", "controlled", "diagnostic"].includes(role))
+      throw new RangeError("--role must be natural, controlled, or diagnostic.");
+    const capabilityIds = capabilityIdsOption(args);
+    if (role === "natural" && capabilityIds.length > 0)
+      throw new RangeError(
+        "Capability recipes are reserved for controlled or diagnostic backfills.",
+      );
+    if (role !== "natural" && capabilityIds.length === 0)
+      throw new RangeError("Controlled and diagnostic backfills require --capabilities.");
     const baselinePath =
       optionFor(args, "--baseline") ??
       join("artifacts", "simulation", "catalog-v4-natural-100.json.checkpoint.json");
     const outputPath =
-      optionFor(args, "--output") ?? join("artifacts", "simulation", "catalog-v5-natural-100.json");
+      optionFor(args, "--output") ?? join("artifacts", "simulation", `catalog-v5-${role}-100.json`);
     const targetPairs = targetPairsOption(args, 100);
     const workers = hasOption(args, "--workers") ? positiveOption(args, "--workers", 4) : 4;
+    const checkpointEveryFights = positiveOption(args, "--checkpoint-fights", 900);
     const baselineText = await readFile(baselinePath, "utf8");
     const baseline = simulationV4CatalogCheckpointSchema.parse(JSON.parse(baselineText) as unknown);
+    const naturalArtifactPath =
+      optionFor(args, "--natural-artifact") ??
+      join("artifacts", "simulation", "catalog-v5-natural-100.json");
+    const naturalArtifact = capabilityIds.includes("anomaly")
+      ? readSimulationStatisticsArtifactV5(
+          JSON.parse(await readFile(naturalArtifactPath, "utf8")) as unknown,
+        )
+      : undefined;
+    const capabilitySelection =
+      capabilityIds.length === 0
+        ? undefined
+        : selectSimulationCapabilityRecipes({
+            view: CANONICAL_COMBAT_MECHANICS_VIEW,
+            templates: ALL_SIMULATION_TEMPLATES(),
+            capabilityIds,
+            maxRecipesPerCapability: positiveOption(
+              args,
+              "--max-recipes",
+              SIMULATION_CAPABILITY_RECIPE_LIMIT,
+            ),
+            anomalyFindings: naturalArtifact?.anomalies,
+          });
+    if (capabilitySelection !== undefined && capabilitySelection.recipes.length === 0)
+      throw new RangeError("Capability selection produced no eligible recipes.");
     const checkpointPath = `${outputPath}.checkpoint.json`;
     const priorCheckpoint = await readFile(checkpointPath, "utf8")
       .then((text) => readSimulationStatisticsBackfillCheckpointV1(JSON.parse(text) as unknown))
@@ -690,6 +815,9 @@ const main = async (): Promise<void> => {
       planSimulationStatisticsBackfill(baseline, {
         targetPairs,
         workers,
+        checkpointEveryFights,
+        evidenceRole: role === "natural" ? "natural-balance" : role,
+        ...(capabilitySelection === undefined ? {} : { capabilitySelection }),
         baselineSha256: sha256(baselineText),
         ...(quarantineText === undefined
           ? {}
@@ -714,6 +842,7 @@ const main = async (): Promise<void> => {
       baseline,
       checkpoint: planned,
       workers,
+      checkpointEveryFights,
       onCheckpoint: (checkpoint) => {
         latestCheckpoint = checkpoint;
         atomicWriteSync(checkpointPath, `${canonicalJson(checkpoint)}\n`);
@@ -724,6 +853,18 @@ const main = async (): Promise<void> => {
         const throughput = completed / elapsedSeconds;
         const remaining = Math.max(0, progress.total - completed);
         const memoryMb = Math.round(process.memoryUsage().rss / 1_048_576);
+        if (!progress.result.ok)
+          console.error(
+            `simulation-worker-error=${JSON.stringify(progress.result.error, Object.getOwnPropertyNames(progress.result.error))}`,
+          );
+        else if (progress.result.value.failure !== undefined)
+          console.error(
+            `simulation-fight-error=${JSON.stringify({
+              runId: progress.result.value.runId,
+              failure: progress.result.value.failure,
+              terminationReason: progress.result.value.terminationReason,
+            })}`,
+          );
         console.error(
           `collectors=metrics,sequences,anomalies fights=${completed}/${progress.total} throughput=${throughput.toFixed(2)}/s eta=${Math.ceil(remaining / Math.max(throughput, 0.001))}s memory=${memoryMb}MB failures=${progress.result.ok ? 0 : 1} cells=${planned.cells.length}`,
         );
@@ -1053,4 +1194,16 @@ const main = async (): Promise<void> => {
   await writeBundle("custom-review.json", JSON.stringify(reviewCustomMove(await inputFor(args))));
 };
 
-await main();
+const heartbeat = setInterval(
+  () => {
+    console.log("[sim] still running...");
+  },
+  20 * 60 * 1000,
+);
+heartbeat.unref();
+
+try {
+  await main();
+} finally {
+  clearInterval(heartbeat);
+}

@@ -19,6 +19,8 @@ type CompactSimulationFightRequest = Omit<
 export interface SimulationCoordinatorExecutionOptions {
   /** Stream progress without retaining the completed result array. */
   readonly retainResults?: boolean;
+  /** Preserve non-error incomplete fights as valid evidence. */
+  readonly acceptIncomplete?: boolean;
 }
 
 type CoordinatorRequest = SimulationCoordinatorRequest & SimulationCoordinatorExecutionOptions;
@@ -66,8 +68,13 @@ const failureForResult = (
 const normalizeResult = (
   fightRequest: SimulationCoordinatorRequest["requests"][number],
   result: SimulationFightExecutionResult,
+  acceptIncomplete = false,
 ): CoordinatorResult => {
-  if (isSuccessfulTermination(result.terminationReason)) return { ok: true, value: result };
+  if (
+    isSuccessfulTermination(result.terminationReason) ||
+    (acceptIncomplete && result.failure === undefined)
+  )
+    return { ok: true, value: result };
   return { ok: false, error: failureForResult(fightRequest, result) };
 };
 
@@ -91,7 +98,11 @@ export const runSimulationRequests = (request: CoordinatorRequest): SimulationCo
       const index = nextIndex;
       nextIndex += 1;
       const fightRequest = request.requests[index];
-      const normalized = normalizeResult(fightRequest, runSimulationFight(fightRequest, control));
+      const normalized = normalizeResult(
+        fightRequest,
+        runSimulationFight(fightRequest, control),
+        request.acceptIncomplete,
+      );
       if (retainResults) results[index] = normalized;
       completed += 1;
       request.onProgress?.({
@@ -133,6 +144,7 @@ interface WorkerBatchState {
   readonly active: ActiveWorker[];
   readonly resultSlots: Array<CoordinatorResult | undefined>;
   readonly retainResults: boolean;
+  readonly acceptIncomplete: boolean;
   completed: number;
   nextIndex: number;
   stoppedEarly: boolean;
@@ -194,9 +206,10 @@ const terminateWorkers = (workers: readonly ActiveWorker[]): void => {
 const normalizedWorkerReply = (
   request: SimulationCoordinatorRequest["requests"][number],
   reply: WorkerReply,
+  acceptIncomplete: boolean,
 ): CoordinatorResult =>
   reply.type === "result" && reply.result !== undefined
-    ? normalizeResult(request, reply.result)
+    ? normalizeResult(request, reply.result, acceptIncomplete)
     : {
         ok: false,
         error: {
@@ -236,6 +249,7 @@ const consumeWorkerReply = (
   stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
   onProgress: SimulationCoordinatorRequest["onProgress"],
   onMetrics: SimulationCoordinatorRequest["onMetrics"],
+  acceptIncomplete: boolean,
 ): boolean => {
   const activeWorker = state.active[activeIndex];
   const reply = receiveMessageOnPort(activeWorker.pooled.port)?.message as WorkerReply | undefined;
@@ -244,7 +258,7 @@ const consumeWorkerReply = (
   if (reply.fatal === true) discardWorker(activeWorker.pooled);
   else releaseWorker(activeWorker.pooled);
   const request = requests[activeWorker.index];
-  const normalized = normalizedWorkerReply(request, reply);
+  const normalized = normalizedWorkerReply(request, reply, acceptIncomplete);
   if (reply.metrics !== undefined) onMetrics?.(reply.metrics);
   if (state.retainResults) state.resultSlots[activeWorker.index] = normalized;
   state.completed += 1;
@@ -268,10 +282,21 @@ const consumeAvailableWorkerReplies = (
   stoppingPolicy: SimulationCoordinatorRequest["stoppingPolicy"],
   onProgress: SimulationCoordinatorRequest["onProgress"],
   onMetrics: SimulationCoordinatorRequest["onMetrics"],
+  acceptIncomplete: boolean,
 ): boolean => {
   let progressed = false;
   for (let activeIndex = state.active.length - 1; activeIndex >= 0; activeIndex -= 1) {
-    if (consumeWorkerReply(state, activeIndex, requests, stoppingPolicy, onProgress, onMetrics))
+    if (
+      consumeWorkerReply(
+        state,
+        activeIndex,
+        requests,
+        stoppingPolicy,
+        onProgress,
+        onMetrics,
+        acceptIncomplete,
+      )
+    )
       progressed = true;
     if (state.stoppedEarly) break;
   }
@@ -285,12 +310,14 @@ const runWorkerBatch = (
   retainResults: boolean,
   onProgress?: SimulationCoordinatorRequest["onProgress"],
   onMetrics?: SimulationCoordinatorRequest["onMetrics"],
+  acceptIncomplete = false,
 ): SimulationCoordinatorResult => {
   if (requests.length === 0) return { results: [], stoppedEarly: false };
   const state: WorkerBatchState = {
     active: [],
     resultSlots: [],
     retainResults,
+    acceptIncomplete,
     completed: 0,
     nextIndex: 0,
     stoppedEarly: false,
@@ -298,7 +325,16 @@ const runWorkerBatch = (
   const waitBuffer = new Int32Array(new SharedArrayBuffer(4));
   while (state.active.length < Math.min(workers, requests.length)) launchWorker(state, requests);
   while (state.active.length > 0) {
-    if (!consumeAvailableWorkerReplies(state, requests, stoppingPolicy, onProgress, onMetrics))
+    if (
+      !consumeAvailableWorkerReplies(
+        state,
+        requests,
+        stoppingPolicy,
+        onProgress,
+        onMetrics,
+        state.acceptIncomplete,
+      )
+    )
       Atomics.wait(waitBuffer, 0, 0, 1);
   }
   return {
@@ -327,5 +363,6 @@ export const runSimulationRequestsWithWorkers = (
     request.retainResults !== false,
     request.onProgress,
     request.onMetrics,
+    request.acceptIncomplete,
   );
 };

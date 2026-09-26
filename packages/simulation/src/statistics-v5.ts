@@ -26,6 +26,12 @@ import {
   type SimulationStatisticsEvidenceRole,
   type SimulationStatisticsArtifactV4,
 } from "./statistics-v4.js";
+import {
+  type SimulationCapabilityId,
+  type SimulationCapabilitySelection,
+  readSimulationCapabilitySelection,
+} from "./capabilities.js";
+import type { SimulationDiagnostics, SimulationReplayRecord } from "./contracts.js";
 
 export const SIMULATION_STATISTICS_BACKFILL_CHECKPOINT_VERSION =
   "simulation-statistics-backfill-checkpoint:v1" as const;
@@ -69,8 +75,11 @@ export interface SimulationStatisticsBackfillManifestV1 {
   readonly workers: number;
   readonly maximumInFlight: number;
   readonly checkpointEveryPairs: number;
+  readonly checkpointEveryFights?: number;
   readonly metricDefinitionIds: readonly string[];
   readonly collectors: readonly SimulationStatisticsCollectorName[];
+  readonly capabilitySelection?: SimulationCapabilitySelection;
+  readonly diagnosticReplayLimit?: number;
 }
 
 export interface SimulationStatisticsBackfillCellV1 {
@@ -111,8 +120,19 @@ export interface SimulationStatisticsBackfillCheckpointV1 {
   readonly partialMetrics: Readonly<Record<string, SimulationMetricAggregateV2>>;
   readonly sequences: readonly SimulationSequenceAggregateV1[];
   readonly anomalyFindings: readonly SimulationAnomalyFinding[];
+  readonly diagnosticReplays?: readonly SimulationDiagnosticReplayV1[];
   readonly executionCheckpoint?: SimulationV4CatalogCheckpoint;
   readonly checkpointHash: string;
+}
+
+export interface SimulationDiagnosticReplayV1 {
+  readonly runId: string;
+  readonly capabilityId?: SimulationCapabilityId;
+  readonly recipeId?: string;
+  readonly findingHashes: readonly string[];
+  readonly replay: SimulationReplayRecord;
+  readonly diagnostics?: SimulationDiagnostics;
+  readonly replayHash: string;
 }
 
 export interface SimulationMetricLineageV1 {
@@ -137,8 +157,26 @@ export interface SimulationStatisticsArtifactV5 {
   readonly metricLineage: Readonly<Record<string, SimulationMetricLineageV1>>;
   readonly sequences: readonly SimulationSequenceAggregateV1[];
   readonly anomalies: readonly SimulationAnomalyFinding[];
+  readonly diagnosticReplays?: readonly SimulationDiagnosticReplayV1[];
   readonly limitations: readonly string[];
   readonly artifactHash: string;
+}
+
+export const SIMULATION_STATISTICS_BUNDLE_V2_VERSION = "simulation-statistics-bundle:v2" as const;
+
+export interface SimulationStatisticsBundleV2 {
+  readonly schemaVersion: typeof SIMULATION_STATISTICS_BUNDLE_V2_VERSION;
+  readonly artifacts: Readonly<{
+    readonly natural: SimulationStatisticsArtifactV5;
+    readonly controlled?: SimulationStatisticsArtifactV5;
+    readonly diagnostic?: SimulationStatisticsArtifactV5;
+  }>;
+  readonly checkpointHashes: Readonly<{
+    readonly natural: string;
+    readonly controlled?: string;
+    readonly diagnostic?: string;
+  }>;
+  readonly bundleHash: string;
 }
 
 const collectorSchema = z.enum(["metrics", "sequences", "anomalies"]);
@@ -158,8 +196,11 @@ const manifestSchema = z
     workers: z.number().int().positive(),
     maximumInFlight: z.number().int().positive().max(8),
     checkpointEveryPairs: z.number().int().positive(),
+    checkpointEveryFights: z.number().int().positive().optional(),
     metricDefinitionIds: stringArray,
     collectors: z.array(collectorSchema).min(1),
+    capabilitySelection: z.custom<SimulationCapabilitySelection>().optional(),
+    diagnosticReplayLimit: z.number().int().nonnegative().max(100).optional(),
   })
   .strict();
 const cellSchema = z
@@ -205,6 +246,7 @@ export const simulationStatisticsBackfillCheckpointV1Schema = z
     partialMetrics: z.record(z.string().min(1), simulationMetricAggregateV2Schema),
     sequences: z.array(sequenceSchema),
     anomalyFindings: z.array(anomalySchema),
+    diagnosticReplays: z.array(z.custom<SimulationDiagnosticReplayV1>()).optional(),
     executionCheckpoint: z
       .custom<SimulationV4CatalogCheckpoint>(
         (value) =>
@@ -247,8 +289,30 @@ export const simulationStatisticsArtifactV5Schema = z
     metricLineage: z.record(z.string().min(1), lineageSchema),
     sequences: z.array(sequenceSchema),
     anomalies: z.array(anomalySchema),
+    diagnosticReplays: z.array(z.custom<SimulationDiagnosticReplayV1>()).optional(),
     limitations: stringArray,
     artifactHash: z.string().min(1),
+  })
+  .strict();
+
+const simulationStatisticsBundleV2Schema = z
+  .object({
+    schemaVersion: z.literal(SIMULATION_STATISTICS_BUNDLE_V2_VERSION),
+    artifacts: z
+      .object({
+        natural: z.custom<SimulationStatisticsArtifactV5>(),
+        controlled: z.custom<SimulationStatisticsArtifactV5>().optional(),
+        diagnostic: z.custom<SimulationStatisticsArtifactV5>().optional(),
+      })
+      .strict(),
+    checkpointHashes: z
+      .object({
+        natural: z.string().min(1),
+        controlled: z.string().min(1).optional(),
+        diagnostic: z.string().min(1).optional(),
+      })
+      .strict(),
+    bundleHash: z.string().min(1),
   })
   .strict();
 
@@ -266,8 +330,24 @@ const withoutHash = <
 const sortedUnique = (values: readonly string[]): readonly string[] =>
   [...new Set(values)].sort((left, right) => left.localeCompare(right));
 
-const pairIdentity = (cellId: string, iteration: number, mirror: "original" | "mirrored"): string =>
-  `${cellId}:${iteration}:${mirror}`;
+const SIMULATION_SEQUENCE_RESERVOIR_LIMIT = 512;
+
+const pairIdentity = (
+  cellId: string,
+  iteration: number,
+  mirror: "original" | "mirrored",
+  branch = "baseline",
+): string => `${cellId}:${iteration}:${mirror}:${branch}`;
+
+const replayHashFor = (replay: SimulationDiagnosticReplayV1): string =>
+  canonicalHash({
+    runId: replay.runId,
+    capabilityId: replay.capabilityId,
+    recipeId: replay.recipeId,
+    findingHashes: replay.findingHashes,
+    replay: replay.replay,
+    diagnostics: replay.diagnostics,
+  });
 
 const createBackfillCheckpoint = (
   input: Omit<
@@ -294,6 +374,8 @@ export const readSimulationStatisticsBackfillCheckpointV1 = (
     throw new RangeError("Simulation statistics backfill manifest hash mismatch.");
   if (checkpoint.checkpointHash !== canonicalHash(withoutHash(checkpoint)))
     throw new RangeError("Simulation statistics backfill checkpoint hash mismatch.");
+  if (checkpoint.manifest.capabilitySelection !== undefined)
+    readSimulationCapabilitySelection(checkpoint.manifest.capabilitySelection);
   for (const [key, metric] of Object.entries(checkpoint.partialMetrics)) {
     const value = { ...metric } as Record<string, unknown>;
     delete value.metricHash;
@@ -301,6 +383,9 @@ export const readSimulationStatisticsBackfillCheckpointV1 = (
       throw new RangeError(`Simulation backfill metric hash mismatch: ${key}.`);
   }
   for (const finding of checkpoint.anomalyFindings) readSimulationAnomalyFinding(finding);
+  for (const replay of checkpoint.diagnosticReplays ?? [])
+    if (replay.replayHash !== replayHashFor(replay))
+      throw new RangeError(`Simulation diagnostic replay hash mismatch: ${replay.runId}.`);
   return checkpoint;
 };
 
@@ -309,19 +394,42 @@ export const planSimulationStatisticsBackfill = (
   options: Readonly<{
     readonly targetPairs?: number;
     readonly workers?: number;
+    readonly checkpointEveryFights?: number;
+    readonly evidenceRole?: SimulationStatisticsEvidenceRole;
+    readonly capabilitySelection?: SimulationCapabilitySelection;
     readonly baselineSha256?: string;
     readonly quarantinedCheckpoint?: Readonly<{
       readonly checkpointHash: string;
       readonly sha256?: string;
     }>;
   }> = {},
+  // eslint-disable-next-line sonarjs/cognitive-complexity, complexity
 ): SimulationStatisticsBackfillCheckpointV1 => {
   const issues = validateSimulationV4CatalogCheckpoint(baseline);
   if (issues.length > 0) throw new RangeError(`Invalid baseline checkpoint: ${issues.join(", ")}.`);
   const targetPairs = options.targetPairs ?? 100;
+  const checkpointEveryFights = options.checkpointEveryFights ?? 900;
+  if (!Number.isInteger(checkpointEveryFights) || checkpointEveryFights < 1)
+    throw new RangeError("checkpointEveryFights must be a positive integer.");
   const selected = baseline.cells.filter((cell) => cell.sparseStatus === "sufficient");
-  if (selected.length === 0) throw new RangeError("Baseline contains no evidence-bearing cells.");
-  const evidenceRole = baseline.manifest.evidenceRoles[0] ?? "natural-balance";
+  const capabilityRecipes = options.capabilitySelection?.recipes ?? [];
+  if (selected.length === 0 && capabilityRecipes.length === 0)
+    throw new RangeError("Baseline contains no evidence-bearing cells.");
+  if (capabilityRecipes.length > 0 && options.evidenceRole === undefined)
+    throw new RangeError("Capability backfills require an explicit evidence role.");
+  if (options.capabilitySelection !== undefined) {
+    readSimulationCapabilitySelection(options.capabilitySelection);
+    const baselinePairs = new Set(
+      baseline.cells.map((cell) => `${cell.templateAId}:${cell.templateBId}`),
+    );
+    for (const recipe of capabilityRecipes)
+      if (!baselinePairs.has(`${recipe.templateAId}:${recipe.templateBId}`))
+        throw new RangeError(
+          `Capability recipe references an unknown baseline pair: ${recipe.recipeId}.`,
+        );
+  }
+  const evidenceRole =
+    options.evidenceRole ?? baseline.manifest.evidenceRoles[0] ?? "natural-balance";
   const manifest: SimulationStatisticsBackfillManifestV1 = {
     mechanicsIdentity: baseline.manifest.mechanics.identity,
     mechanicsVersion: baseline.manifest.mechanics.version,
@@ -336,8 +444,13 @@ export const planSimulationStatisticsBackfill = (
     workers: options.workers ?? 4,
     maximumInFlight: 8,
     checkpointEveryPairs: 5,
+    checkpointEveryFights: options.checkpointEveryFights ?? 900,
     metricDefinitionIds: [...SIMULATION_EXPANDED_METRIC_IDS],
     collectors: ["metrics", "sequences", "anomalies"],
+    ...(options.capabilitySelection === undefined
+      ? {}
+      : { capabilitySelection: options.capabilitySelection }),
+    diagnosticReplayLimit: evidenceRole === "diagnostic" ? 100 : 0,
   };
   return createBackfillCheckpoint({
     baseline: {
@@ -350,20 +463,30 @@ export const planSimulationStatisticsBackfill = (
         ? []
         : [{ ...options.quarantinedCheckpoint, role: "noncanonical-seed-compatibility" }],
     manifest,
-    cells: selected
-      .map((cell) => ({
-        cellId: cell.cellId,
-        templateAId: cell.templateAId,
-        templateBId: cell.templateBId,
-        pairIdentities: [],
-        collectorCompletion: { metrics: [], sequences: [], anomalies: [] },
-        failures: [],
-        disposition: "selected" as const,
-      }))
-      .sort((left, right) => left.cellId.localeCompare(right.cellId)),
+    cells: (capabilityRecipes.length > 0
+      ? capabilityRecipes.map((recipe) => ({
+          cellId: recipe.cellId,
+          templateAId: recipe.templateAId,
+          templateBId: recipe.templateBId,
+          pairIdentities: [],
+          collectorCompletion: { metrics: [], sequences: [], anomalies: [] },
+          failures: [],
+          disposition: "selected" as const,
+        }))
+      : selected.map((cell) => ({
+          cellId: cell.cellId,
+          templateAId: cell.templateAId,
+          templateBId: cell.templateBId,
+          pairIdentities: [],
+          collectorCompletion: { metrics: [], sequences: [], anomalies: [] },
+          failures: [],
+          disposition: "selected" as const,
+        }))
+    ).sort((left, right) => left.cellId.localeCompare(right.cellId)),
     partialMetrics: {},
     sequences: [],
     anomalyFindings: [],
+    diagnosticReplays: [],
   });
 };
 
@@ -381,9 +504,39 @@ export const composeSimulationStatisticsArtifactV5 = (input: {
   if (
     baseline.generatedFrom.mechanicsIdentity !== backfill.manifest.mechanicsIdentity ||
     baseline.generatedFrom.rootSeed !== backfill.manifest.rootSeed ||
-    baseline.generatedFrom.evidenceRole !== backfill.manifest.evidenceRole
+    (backfill.manifest.evidenceRole === "natural-balance" &&
+      baseline.generatedFrom.evidenceRole !== "natural-balance")
   )
     throw new RangeError("Baseline and backfill evidence identities are incompatible.");
+  const baselineProvenance = baseline.generatedFrom.provenance;
+  if (baselineProvenance !== undefined) {
+    const compatibility: ReadonlyArray<readonly [string, unknown, unknown]> = [
+      [
+        "mechanicsVersion",
+        baselineProvenance.combatEngineVersion,
+        backfill.manifest.mechanicsVersion,
+      ],
+      ["fixedTime", baselineProvenance.fixedTime, backfill.manifest.fixedTime],
+      [
+        "templateCatalogIdentity",
+        baselineProvenance.templateCatalogIdentity,
+        backfill.manifest.templateCatalogIdentity,
+      ],
+      [
+        "scenarioCatalogIdentity",
+        baselineProvenance.scenarioCatalogIdentity,
+        backfill.manifest.scenarioCatalogIdentity,
+      ],
+      [
+        "seedScheduleIdentity",
+        baselineProvenance.seedScheduleIdentity,
+        backfill.manifest.seedScheduleIdentity,
+      ],
+    ];
+    for (const [key, baselineValue, backfillValue] of compatibility)
+      if (baselineValue !== backfillValue)
+        throw new RangeError(`Baseline and backfill ${key} mismatch.`);
+  }
   const metrics: Record<string, SimulationMetricAggregateV2> = { ...baseline.metrics };
   const expandedKeys = new Set<string>();
   const optionalMetrics = metrics as Partial<Record<string, SimulationMetricAggregateV2>>;
@@ -442,6 +595,7 @@ export const composeSimulationStatisticsArtifactV5 = (input: {
     metricLineage,
     sequences: backfill.sequences,
     anomalies: backfill.anomalyFindings,
+    diagnosticReplays: backfill.diagnosticReplays ?? [],
     limitations: sortedUnique([
       ...baseline.generatedFrom.sourceLimitations,
       "Historical v4 metric provenance unavailable from the compact checkpoint is marked unknown.",
@@ -467,7 +621,78 @@ export const readSimulationStatisticsArtifactV5 = (
       throw new RangeError(`Simulation metric hash mismatch: ${key}.`);
   }
   for (const finding of artifact.anomalies) readSimulationAnomalyFinding(finding);
+  for (const replay of artifact.diagnosticReplays ?? [])
+    if (replay.replayHash !== replayHashFor(replay))
+      throw new RangeError(`Simulation diagnostic replay hash mismatch: ${replay.runId}.`);
   return artifact;
+};
+
+const compatibleBundleManifest = (
+  natural: SimulationStatisticsArtifactV5,
+  candidate: SimulationStatisticsArtifactV5,
+): boolean =>
+  natural.generatedFrom.mechanicsIdentity === candidate.generatedFrom.mechanicsIdentity &&
+  natural.generatedFrom.mechanicsVersion === candidate.generatedFrom.mechanicsVersion &&
+  natural.generatedFrom.rootSeed === candidate.generatedFrom.rootSeed &&
+  natural.generatedFrom.fixedTime === candidate.generatedFrom.fixedTime &&
+  natural.generatedFrom.templateCatalogIdentity ===
+    candidate.generatedFrom.templateCatalogIdentity &&
+  natural.generatedFrom.scenarioCatalogIdentity ===
+    candidate.generatedFrom.scenarioCatalogIdentity &&
+  natural.generatedFrom.seedScheduleIdentity === candidate.generatedFrom.seedScheduleIdentity;
+
+export const createSimulationStatisticsBundleV2 = (input: {
+  readonly natural: SimulationStatisticsArtifactV5;
+  readonly controlled?: SimulationStatisticsArtifactV5;
+  readonly diagnostic?: SimulationStatisticsArtifactV5;
+  readonly checkpointHashes: Readonly<{
+    readonly natural: string;
+    readonly controlled?: string;
+    readonly diagnostic?: string;
+  }>;
+}): SimulationStatisticsBundleV2 => {
+  const natural = readSimulationStatisticsArtifactV5(input.natural);
+  const artifacts = {
+    natural,
+    ...(input.controlled === undefined
+      ? {}
+      : { controlled: readSimulationStatisticsArtifactV5(input.controlled) }),
+    ...(input.diagnostic === undefined
+      ? {}
+      : { diagnostic: readSimulationStatisticsArtifactV5(input.diagnostic) }),
+  };
+  for (const [role, artifact] of Object.entries(artifacts)) {
+    if (role === "natural") continue;
+    if (artifact.generatedFrom.evidenceRole !== role)
+      throw new RangeError(`Bundle artifact role mismatch: ${role}.`);
+    if (!compatibleBundleManifest(natural, artifact))
+      throw new RangeError(`Bundle artifact manifest mismatch: ${role}.`);
+  }
+  const value = {
+    schemaVersion: SIMULATION_STATISTICS_BUNDLE_V2_VERSION,
+    artifacts,
+    checkpointHashes: input.checkpointHashes,
+  };
+  return simulationStatisticsBundleV2Schema.parse({
+    ...value,
+    bundleHash: canonicalHash(value),
+  });
+};
+
+export const readSimulationStatisticsBundleV2 = (input: unknown): SimulationStatisticsBundleV2 => {
+  const bundle = simulationStatisticsBundleV2Schema.parse(input);
+  const natural = readSimulationStatisticsArtifactV5(bundle.artifacts.natural);
+  for (const [role, artifact] of Object.entries(bundle.artifacts)) {
+    if (role === "natural") continue;
+    const parsed = readSimulationStatisticsArtifactV5(artifact);
+    if (parsed.generatedFrom.evidenceRole !== role || !compatibleBundleManifest(natural, parsed))
+      throw new RangeError(`Bundle artifact manifest mismatch: ${role}.`);
+  }
+  const withoutHash = { ...bundle } as Record<string, unknown>;
+  delete withoutHash.bundleHash;
+  if (bundle.bundleHash !== canonicalHash(withoutHash))
+    throw new RangeError("Simulation statistics v5 bundle hash mismatch.");
+  return bundle;
 };
 
 export const mergeSimulationStatisticsArtifactsV5 = (
@@ -487,6 +712,7 @@ export const mergeSimulationStatisticsArtifactsV5 = (
     "scenarioCatalogIdentity",
     "seedScheduleIdentity",
     "evidenceRole",
+    "capabilitySelection",
   ] as const)
     if (canonicalHash(left.generatedFrom[key]) !== canonicalHash(right.generatedFrom[key]))
       throw new RangeError(`Statistics v5 manifest mismatch: ${key}.`);
@@ -565,6 +791,14 @@ export const mergeSimulationStatisticsArtifactsV5 = (
         [...left.anomalies, ...right.anomalies].map((finding) => [finding.findingHash, finding]),
       ).values(),
     ].sort((a, b) => a.findingHash.localeCompare(b.findingHash)),
+    diagnosticReplays: [
+      ...new Map(
+        [...(left.diagnosticReplays ?? []), ...(right.diagnosticReplays ?? [])].map((replay) => [
+          replay.replayHash,
+          replay,
+        ]),
+      ).values(),
+    ].sort((a, b) => a.replayHash.localeCompare(b.replayHash)),
     limitations: sortedUnique([...left.limitations, ...right.limitations]),
   };
   return simulationStatisticsArtifactV5Schema.parse({
@@ -598,6 +832,7 @@ export const migrateSimulationStatisticsArtifactV4ToV5 = (
     checkpointEveryPairs: 1,
     metricDefinitionIds: [],
     collectors: ["metrics"],
+    diagnosticReplayLimit: 0,
   };
   const metricLineage = Object.fromEntries(
     Object.entries(artifact.metrics).map(([key, metric]) => [
@@ -627,6 +862,7 @@ export const migrateSimulationStatisticsArtifactV4ToV5 = (
     metricLineage,
     sequences: [],
     anomalies: [],
+    diagnosticReplays: [],
     limitations: sortedUnique([
       ...artifact.generatedFrom.sourceLimitations,
       "Expanded metrics, sequences, and anomalies were unavailable in the v4 source.",
@@ -654,11 +890,26 @@ export const validateSimulationStatisticsArtifactV5Closure = (
   for (const cell of checkpoint.cells) {
     if (cell.disposition !== "selected") continue;
     if (cell.failures.length > 0) issues.push(`${cell.cellId} has unresolved failures`);
-    const expected = checkpoint.manifest.targetPairs * 2;
+    const branchCount = checkpoint.manifest.evidenceRole === "controlled" ? 2 : 1;
+    const expected = checkpoint.manifest.targetPairs * 2 * branchCount;
     for (const collector of checkpoint.manifest.collectors)
       if (cell.collectorCompletion[collector].length !== expected)
         issues.push(`${cell.cellId} has incomplete ${collector} collection`);
   }
+  if (checkpoint.manifest.capabilitySelection !== undefined) {
+    const selectedIds = new Set(
+      checkpoint.manifest.capabilitySelection.recipes.map((recipe) => recipe.cellId),
+    );
+    for (const cell of checkpoint.cells)
+      if (!selectedIds.has(cell.cellId)) issues.push(`unexpected capability cell: ${cell.cellId}`);
+    if (checkpoint.manifest.evidenceRole === "natural-balance")
+      issues.push("capability backfill must use controlled or diagnostic evidence role");
+  }
+  if (
+    checkpoint.manifest.evidenceRole === "diagnostic" &&
+    (checkpoint.diagnosticReplays?.length ?? 0) > (checkpoint.manifest.diagnosticReplayLimit ?? 0)
+  )
+    issues.push("diagnostic replay limit exceeded");
   for (const definitionId of checkpoint.manifest.metricDefinitionIds) {
     const matching = Object.entries(artifact.metricLineage).filter(
       ([, lineage]) => lineage.metricId === definitionId,
@@ -672,6 +923,7 @@ export const runSimulationStatisticsBackfill = (input: {
   readonly baseline: SimulationV4CatalogCheckpoint;
   readonly checkpoint?: SimulationStatisticsBackfillCheckpointV1;
   readonly workers?: number;
+  readonly checkpointEveryFights?: number;
   readonly onCheckpoint?: (checkpoint: SimulationStatisticsBackfillCheckpointV1) => void;
   readonly onProgress?: NonNullable<SimulationV4CatalogRunnerOptions["onProgress"]>;
 }): Readonly<{
@@ -687,7 +939,9 @@ export const runSimulationStatisticsBackfill = (input: {
     throw new RangeError("Backfill resume baseline identity mismatch.");
   const sequences = [] as NonNullable<ReturnType<typeof simulationSequenceForResult>>[];
   const findings: SimulationAnomalyFinding[] = [];
+  const diagnosticReplays = [...(checkpoint.diagnosticReplays ?? [])];
   const observationsByCell = new Map<string, Set<string>>();
+  let fightsSinceCheckpoint = 0;
   for (const cell of checkpoint.cells)
     observationsByCell.set(cell.cellId, new Set(cell.pairIdentities));
   const checkpointFromExecution = (
@@ -742,6 +996,7 @@ export const runSimulationStatisticsBackfill = (input: {
       ]
         .sort((left, right) => left.findingHash.localeCompare(right.findingHash))
         .slice(0, 100),
+      diagnosticReplays,
       executionCheckpoint,
     });
   };
@@ -758,31 +1013,89 @@ export const runSimulationStatisticsBackfill = (input: {
     selectedCellIds: checkpoint.cells.map((cell) => cell.cellId),
     metricDefinitionIds: checkpoint.manifest.metricDefinitionIds,
     collectors: checkpoint.manifest.collectors,
+    capabilityRecipes: checkpoint.manifest.capabilitySelection?.recipes,
     resumeFrom: checkpoint.executionCheckpoint,
     onProgress: input.onProgress,
     onCheckpoint: (executionCheckpoint) => {
+      if (
+        fightsSinceCheckpoint <
+        (input.checkpointEveryFights ?? checkpoint.manifest.checkpointEveryFights ?? 900)
+      )
+        return;
       checkpoint = checkpointFromExecution(executionCheckpoint);
+      fightsSinceCheckpoint = 0;
       input.onCheckpoint?.(checkpoint);
     },
+    // eslint-disable-next-line sonarjs/cognitive-complexity, complexity
     onFightResult: (request, fightResult) => {
-      const cell = checkpoint.cells.find(
-        (candidate) =>
-          candidate.templateAId === request.scenario.templateAId &&
-          candidate.templateBId === request.scenario.templateBId,
-      );
+      const cell = checkpoint.cells.find((candidate) => {
+        const arm =
+          request.statistics !== undefined && "arm" in request.statistics
+            ? request.statistics.arm
+            : undefined;
+        if (arm?.recipeId !== undefined) {
+          return checkpoint.manifest.capabilitySelection?.recipes.some(
+            (recipe) => recipe.cellId === candidate.cellId && recipe.recipeId === arm.recipeId,
+          );
+        }
+        return arm === undefined
+          ? candidate.templateAId === request.scenario.templateAId &&
+              candidate.templateBId === request.scenario.templateBId
+          : candidate.templateAId === arm.baselineTemplateId &&
+              candidate.templateBId === arm.opponentTemplateId;
+      });
       if (cell === undefined) return;
+      fightsSinceCheckpoint += 1;
       const identity = pairIdentity(
         cell.cellId,
         request.iteration ?? 0,
         request.mirror ?? "original",
+        request.statistics !== undefined && "arm" in request.statistics
+          ? (request.statistics.arm.branch ?? "baseline")
+          : "baseline",
       );
       const seen = observationsByCell.get(cell.cellId) ?? new Set<string>();
       if (seen.has(identity)) return;
       seen.add(identity);
       observationsByCell.set(cell.cellId, seen);
       const sequence = simulationSequenceForResult(fightResult);
-      if (sequence !== undefined) sequences.push(sequence);
-      findings.push(...detectSimulationAnomalies([fightResult]));
+      if (sequence !== undefined) {
+        sequences.push(sequence);
+        if (sequences.length > SIMULATION_SEQUENCE_RESERVOIR_LIMIT) {
+          sequences.sort((left, right) => left.sequenceId.localeCompare(right.sequenceId));
+          sequences.length = SIMULATION_SEQUENCE_RESERVOIR_LIMIT;
+        }
+      }
+      const resultFindings = detectSimulationAnomalies([fightResult]);
+      findings.push(...resultFindings);
+      if (findings.length > 100) findings.splice(0, findings.length - 100);
+      if (
+        checkpoint.manifest.evidenceRole === "diagnostic" &&
+        fightResult.diagnostics !== undefined
+      ) {
+        const arm =
+          request.statistics !== undefined && "arm" in request.statistics
+            ? request.statistics.arm
+            : undefined;
+        const replay: SimulationDiagnosticReplayV1 = {
+          runId: request.runId,
+          ...(arm?.capabilityId === undefined
+            ? {}
+            : { capabilityId: arm.capabilityId as SimulationCapabilityId }),
+          ...(arm?.recipeId === undefined ? {} : { recipeId: arm.recipeId }),
+          findingHashes: resultFindings
+            .map((finding) => finding.findingHash)
+            .sort((left, right) => left.localeCompare(right)),
+          replay: fightResult.replay,
+          diagnostics: fightResult.diagnostics,
+          replayHash: "",
+        };
+        const withHash = { ...replay, replayHash: replayHashFor(replay) };
+        if (!diagnosticReplays.some((candidate) => candidate.replayHash === withHash.replayHash)) {
+          diagnosticReplays.push(withHash);
+          diagnosticReplays.splice(checkpoint.manifest.diagnosticReplayLimit ?? 100);
+        }
+      }
     },
   });
   checkpoint = checkpointFromExecution(result.checkpoint);

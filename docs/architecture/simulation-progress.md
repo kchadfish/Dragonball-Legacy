@@ -529,3 +529,20 @@ through the declared precision looks, resolve every runtime failure, regenerate
 the canonical JSON/CSV/Markdown/dossiers, and run the closure, freshness, and
 final quality gates. The worker-backed executor preserves sequential hashes and
 merge order; forced evidence remains exposure-only.
+
+## 2026-09-22 - Controlled and diagnostic v5 backfill orchestration
+
+Controlled and diagnostic analytics now use deterministic capability recipes for
+restricted-use, status/control, transformation, and anomaly evidence. Recipe
+cells carry explicit capability and recipe identities into every arm, retain
+baseline and variant observations separately, and cap selection to a bounded
+representative set per capability. Diagnostic runs retain bounded replay and
+diagnostics records with validated hashes; no automatic balance verdict is
+produced.
+
+The `analytics-backfill` command accepts `--role`, `--capabilities`,
+`--max-recipes`, and `--natural-artifact`. Natural, controlled, and diagnostic
+v5 artifacts remain separate and can be combined with `analytics-bundle` into a
+role-aware v5 evidence bundle. Existing v5 Natural artifacts and checkpoints
+without the new optional replay fields remain readable with their original
+hashes and provenance semantics.

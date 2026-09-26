@@ -48,6 +48,7 @@ import {
 } from "./v4-folding.js";
 import { ALL_SIMULATION_TEMPLATES, TF1_SIMULATION_TEMPLATES } from "./templates.js";
 import { simulationScenarioIdSchema, simulationVariantIdSchema } from "./ids.js";
+import type { SimulationCapabilityRecipe } from "./capabilities.js";
 
 export const SIMULATION_V4_SEED_SCHEDULE_VERSION = "simulation-v4-seed-schedule:v1" as const;
 
@@ -211,6 +212,7 @@ export type SimulationV4CatalogRunnerOptions = {
   readonly sourceCommit?: string;
   readonly rulesVersion?: string;
   readonly selectedCellIds?: readonly string[];
+  readonly capabilityRecipes?: readonly SimulationCapabilityRecipe[];
   readonly metricDefinitionIds?: readonly string[];
   readonly collectors?: readonly SimulationStatisticsCollector[];
   readonly onFightResult?: (
@@ -347,12 +349,28 @@ export const simulationV4ItemArmTemplateFor = (
 export const simulationV4MoveRemovalArmTemplateFor = (
   template: SimulationTemplate,
   moveId: string,
-): SimulationTemplate => ({
-  ...template,
-  id: `${template.id}-arm-remove-${moveId}` as SimulationTemplate["id"],
-  label: `${template.label} (remove ${moveId})`,
-  moveIds: template.moveIds.filter((candidate) => candidate !== moveId),
-});
+): SimulationTemplate => {
+  const moveIds = template.moveIds.filter((candidate) => candidate !== moveId);
+  const loadoutOverlay =
+    template.loadoutOverlay === undefined
+      ? undefined
+      : {
+          ...template.loadoutOverlay,
+          moveIds,
+          overlayHash: canonicalHash({
+            generatedFrom: template.loadoutOverlay.generatedFrom,
+            slotLimits: template.loadoutOverlay.slotLimits,
+            moveIds,
+          }),
+        };
+  return {
+    ...template,
+    id: `${template.id}-arm-remove-${moveId}` as SimulationTemplate["id"],
+    label: `${template.label} (remove ${moveId})`,
+    moveIds,
+    ...(loadoutOverlay === undefined ? {} : { loadoutOverlay }),
+  };
+};
 
 type SimulationV4ControlDefinitionInput = {
   readonly schedule: "natural" | "controlled" | "diagnostic";
@@ -446,6 +464,7 @@ const requestFor = (input: {
   readonly branch?: "baseline" | "variant";
   readonly metricDefinitionIds?: readonly string[];
   readonly collectors?: readonly SimulationStatisticsCollector[];
+  readonly capabilityRecipe?: SimulationCapabilityRecipe;
 }): SimulationFightRequest => {
   const mirrored = input.mirror === "mirrored";
   const baselineA = mirrored ? input.b : input.a;
@@ -455,8 +474,24 @@ const requestFor = (input: {
     input.schedule === "controlled" && input.iteration % 6 < 3
       ? SIMULATION_V4_STAT_TARGET_ORDER[input.iteration % SIMULATION_V4_STAT_TARGET_ORDER.length]
       : undefined;
+  const recipeTarget = input.capabilityRecipe?.targetDefinitionId;
+  const recipeItemTarget =
+    recipeTarget !== undefined && baselineA.itemIds.includes(recipeTarget)
+      ? recipeTarget
+      : undefined;
+  const recipeMoveTarget =
+    recipeTarget !== undefined && baselineA.moveIds.includes(recipeTarget)
+      ? recipeTarget
+      : undefined;
+  const recipeTransformationTarget =
+    recipeTarget !== undefined &&
+    baselineA.transformationProfiles.some((profile) => profile.transformationId === recipeTarget)
+      ? recipeTarget
+      : undefined;
   const itemTarget =
-    input.schedule === "controlled" && input.iteration % 6 === 3 ? baselineA.itemIds[0] : undefined;
+    input.schedule === "controlled"
+      ? (recipeItemTarget ?? (input.iteration % 6 === 3 ? baselineA.itemIds[0] : undefined))
+      : undefined;
   const replacementItemId =
     itemTarget === undefined
       ? undefined
@@ -473,10 +508,15 @@ const requestFor = (input: {
               left.id.localeCompare(right.id),
           )[0]?.id;
   const moveTarget =
-    input.schedule === "controlled" && input.iteration % 6 === 4 ? baselineA.moveIds[0] : undefined;
+    input.schedule === "controlled"
+      ? (recipeMoveTarget ?? (input.iteration % 6 === 4 ? baselineA.moveIds[0] : undefined))
+      : undefined;
   const transformationTarget =
-    input.schedule === "controlled" && input.iteration % 6 === 5
-      ? baselineA.transformationProfiles[0]?.transformationId
+    input.schedule === "controlled"
+      ? (recipeTransformationTarget ??
+        (input.iteration % 6 === 5
+          ? baselineA.transformationProfiles[0]?.transformationId
+          : undefined))
       : undefined;
   const sourceDefinitionId =
     branch === "baseline"
@@ -531,6 +571,12 @@ const requestFor = (input: {
     opponentTemplateId: input.b.id,
     iteration: input.iteration,
     orientation: input.mirror,
+    ...(input.capabilityRecipe === undefined
+      ? {}
+      : {
+          capabilityId: input.capabilityRecipe.capabilityId,
+          recipeId: input.capabilityRecipe.recipeId,
+        }),
   };
   const controlledDefinitionIds = simulationV4ControlDefinitionIdsFor({
     schedule: input.schedule,
@@ -570,24 +616,26 @@ const requestFor = (input: {
             metricDefinitionIds: input.metricDefinitionIds ?? [],
             collectors: input.collectors ?? ["metrics"],
           },
-    ...(input.schedule === "controlled" && controlledDefinitionIds.length > 0
-      ? {
-          decisionPolicy: {
-            type: "controlled-legal-preference" as const,
-            preferredDefinitionIds: [...controlledDefinitionIds],
-            baselineDefinitionId: "basic-attack",
-            fallback: "first-legal" as const,
-          },
-        }
-      : input.schedule === "diagnostic" && controlledDefinitionIds.length > 0
+    ...(input.capabilityRecipe !== undefined
+      ? { decisionPolicy: input.capabilityRecipe.decisionPolicy }
+      : input.schedule === "controlled" && controlledDefinitionIds.length > 0
         ? {
             decisionPolicy: {
-              type: "forced-target-first" as const,
-              targetDefinitionId: controlledDefinitionIds[0]!,
+              type: "controlled-legal-preference" as const,
+              preferredDefinitionIds: [...controlledDefinitionIds],
+              baselineDefinitionId: "basic-attack",
               fallback: "first-legal" as const,
             },
           }
-        : {}),
+        : input.schedule === "diagnostic" && controlledDefinitionIds.length > 0
+          ? {
+              decisionPolicy: {
+                type: "forced-target-first" as const,
+                targetDefinitionId: controlledDefinitionIds[0]!,
+                fallback: "first-legal" as const,
+              },
+            }
+          : {}),
   };
 };
 
@@ -678,8 +726,9 @@ const cellFor = (
   a: SimulationTemplate,
   b: SimulationTemplate,
   prior: SimulationV4CatalogCheckpoint["cells"][number] | undefined,
+  cellId = `simulation-cell:v4-${pairIdentityFor(a, b).slice(-8)}`,
 ): SimulationV4CatalogCheckpoint["cells"][number] => ({
-  cellId: `simulation-cell:v4-${pairIdentityFor(a, b).slice(-8)}`,
+  cellId,
   templateAId: a.id,
   templateBId: b.id,
   completedBasePairs: prior?.completedBasePairs ?? 0,
@@ -1104,15 +1153,36 @@ export const runSimulationStatisticsCatalogV4 = (
     if (issues.length > 0) throw new RangeError(`Invalid v4 checkpoint: ${issues.join(", ")}.`);
   }
   const pairs = templates.flatMap((a, i) => templates.slice(i + 1).map((b) => ({ a, b })));
-  let cells = pairs.map(({ a, b }) =>
-    cellFor(
-      a,
-      b,
-      options.resumeFrom?.cells.find(
-        (cell) => cell.templateAId === a.id && cell.templateBId === b.id,
-      ),
-    ),
+  const capabilityRecipes = options.capabilityRecipes ?? [];
+  const capabilityRecipeByCellId = new Map(
+    capabilityRecipes.map((recipe) => [recipe.cellId, recipe] as const),
   );
+  let cells =
+    capabilityRecipes.length === 0
+      ? pairs.map(({ a, b }) =>
+          cellFor(
+            a,
+            b,
+            options.resumeFrom?.cells.find(
+              (cell) => cell.templateAId === a.id && cell.templateBId === b.id,
+            ),
+          ),
+        )
+      : capabilityRecipes.map((recipe) => {
+          const pair = pairs.find(
+            ({ a, b }) => a.id === recipe.templateAId && b.id === recipe.templateBId,
+          );
+          if (pair === undefined)
+            throw new RangeError(
+              `Capability recipe references unknown template pair: ${recipe.recipeId}.`,
+            );
+          return cellFor(
+            pair.a,
+            pair.b,
+            options.resumeFrom?.cells.find((cell) => cell.cellId === recipe.cellId),
+            recipe.cellId,
+          );
+        });
   if (options.selectedCellIds !== undefined) {
     const selected = new Set(options.selectedCellIds);
     cells = cells.filter((cell) => selected.has(cell.cellId));
@@ -1180,40 +1250,42 @@ export const runSimulationStatisticsCatalogV4 = (
   const requests: SimulationFightRequest[] = [];
   const branches =
     schedule === "controlled" ? (["baseline", "variant"] as const) : (["baseline"] as const);
-  for (const cell of cells)
-    for (const pair of pairs.filter(
-      ({ a, b }) => `simulation-cell:v4-${pairIdentityFor(a, b).slice(-8)}` === cell.cellId,
-    ))
-      for (let iteration = 0; iteration < targetPairs; iteration++)
-        if (!cell.completedIterations.includes(iteration))
-          for (const mirror of ["original", "mirrored"] as const)
-            for (const branch of branches) {
-              const resultKey = `${iteration}:${mirror}:${branch}`;
-              if (
-                cell.completedMirrors.some(
-                  (entry) => entry.iteration === iteration && entry.mirrors.includes(mirror),
-                ) ||
-                Object.hasOwn(cell.acceptedMirrorResults, resultKey)
-              )
-                continue;
-              requests.push(
-                requestFor({
-                  a: pair.a,
-                  b: pair.b,
-                  pairId: pairIdentityFor(pair.a, pair.b),
-                  iteration,
-                  mirror,
-                  rootSeed,
-                  fixedTime,
-                  profile,
-                  view,
-                  schedule,
-                  branch,
-                  metricDefinitionIds: options.metricDefinitionIds,
-                  collectors: options.collectors,
-                }),
-              );
-            }
+  for (const cell of cells) {
+    const pair = pairs.find(({ a, b }) => a.id === cell.templateAId && b.id === cell.templateBId);
+    if (pair === undefined) continue;
+    const capabilityRecipe = capabilityRecipeByCellId.get(cell.cellId);
+    for (let iteration = 0; iteration < targetPairs; iteration++)
+      if (!cell.completedIterations.includes(iteration))
+        for (const mirror of ["original", "mirrored"] as const)
+          for (const branch of branches) {
+            const resultKey = `${iteration}:${mirror}:${branch}`;
+            if (
+              cell.completedMirrors.some(
+                (entry) => entry.iteration === iteration && entry.mirrors.includes(mirror),
+              ) ||
+              Object.hasOwn(cell.acceptedMirrorResults, resultKey)
+            )
+              continue;
+            requests.push(
+              requestFor({
+                a: pair.a,
+                b: pair.b,
+                pairId: pairIdentityFor(pair.a, pair.b),
+                iteration,
+                mirror,
+                rootSeed,
+                fixedTime,
+                profile,
+                view,
+                schedule,
+                branch,
+                capabilityRecipe,
+                metricDefinitionIds: options.metricDefinitionIds,
+                collectors: options.collectors,
+              }),
+            );
+          }
+  }
   const orderedRequests = requests.slice();
   orderedRequests.sort(
     (a, b) =>
@@ -1260,6 +1332,7 @@ export const runSimulationStatisticsCatalogV4 = (
         view,
         schedule,
         branch: branch === "variant" ? "variant" : "baseline",
+        capabilityRecipe: capabilityRecipeByCellId.get(cell.cellId),
       });
       const iterationKey = `${cell.cellId}:${iteration}:${branch}`;
       const pending = pendingPairs.get(iterationKey) ?? {};
@@ -1278,19 +1351,41 @@ export const runSimulationStatisticsCatalogV4 = (
             requests: batch,
             stoppingPolicy: "continue",
             workers: options.workers,
+            acceptIncomplete: true,
           })
-        : runSimulationRequests({ requests: batch, stoppingPolicy: "continue", concurrency: 1 });
+        : runSimulationRequests({
+            requests: batch,
+            stoppingPolicy: "continue",
+            concurrency: 1,
+            acceptIncomplete: true,
+          });
     for (const [entryIndex, entry] of coordinated.results.entries()) {
       const request = batch.at(entryIndex);
       if (request === undefined) {
         failedFights += 1;
         continue;
       }
-      let cell = cells.find(
-        (candidate) =>
+      const requestRecipeId =
+        request.statistics !== undefined && "arm" in request.statistics
+          ? request.statistics.arm.recipeId
+          : undefined;
+      let cell = cells.find((candidate) => {
+        const candidateRecipe = capabilityRecipeByCellId.get(candidate.cellId);
+        if (requestRecipeId !== undefined) return candidateRecipe?.recipeId === requestRecipeId;
+        const requestArm =
+          request.statistics !== undefined && "arm" in request.statistics
+            ? request.statistics.arm
+            : undefined;
+        if (requestArm !== undefined)
+          return (
+            candidate.templateAId === requestArm.baselineTemplateId &&
+            candidate.templateBId === requestArm.opponentTemplateId
+          );
+        return (
           candidate.templateAId === request.scenario.templateAId &&
-          candidate.templateBId === request.scenario.templateBId,
-      );
+          candidate.templateBId === request.scenario.templateBId
+        );
+      });
       if (cell === undefined) continue;
       const cellId = cell.cellId;
       if (!entry.ok) {
@@ -1304,8 +1399,10 @@ export const runSimulationStatisticsCatalogV4 = (
         cells = cells.map((candidate) => (candidate.cellId === cellId ? next : candidate));
         continue;
       }
-      const runFailed =
-        entry.value.failure !== undefined || entry.value.terminationReason !== "engine-completed";
+      // Incomplete and stalemated fights are valid evidence for the expanded
+      // error/incomplete-rate metrics. Only an execution-level failure makes a
+      // request unresolved and eligible for retry.
+      const runFailed = entry.value.failure !== undefined;
       if (runFailed) {
         failedFights += 1;
         const next = {
@@ -1484,6 +1581,7 @@ export const runSimulationStatisticsCatalogV4 = (
           ({ a, b }) => a.id === cell.templateAId && b.id === cell.templateBId,
         );
         if (pair === undefined) continue;
+        const capabilityRecipe = capabilityRecipeByCellId.get(cell.cellId);
         const nextThrough = Math.min(through + 25, SIMULATION_V4_CONTINUATION_CEILING);
         for (let iteration = through; iteration < nextThrough; iteration++)
           if (!cell.completedIterations.includes(iteration))
@@ -1502,6 +1600,7 @@ export const runSimulationStatisticsCatalogV4 = (
                     view,
                     schedule,
                     branch,
+                    capabilityRecipe,
                     metricDefinitionIds: options.metricDefinitionIds,
                     collectors: options.collectors,
                   }),

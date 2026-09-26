@@ -47,6 +47,8 @@ export const simulationStatisticsArmIdentitySchema = z
     armId: z.string().min(1),
     branch: z.enum(["baseline", "variant"]).optional(),
     sourceDefinitionId: z.string().min(1).optional(),
+    capabilityId: z.string().min(1).optional(),
+    recipeId: z.string().min(1).optional(),
     baselineTemplateId: simulationTemplateIdSchema,
     opponentTemplateId: simulationTemplateIdSchema,
     iteration: nonNegativeInteger,
