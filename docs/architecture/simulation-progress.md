@@ -1,5 +1,73 @@
 # Simulation-engine implementation progress
 
+## 2026-09-27 - Three-machine study revision; production paused
+
+User instruction: do not start production fights. Revise the 8,000-attempt study
+for independent shards A, B and C, each on its own machine and Git branch, with
+separate progress/results documents and a validated final data merge.
+
+The user approved one pooled pilot merge followed by independent confirmation.
+Implemented deterministic whole-block ownership, local caps 2,667/2,667/2,666,
+branch enforcement, separate documents, checksummed bundles, shared confirmation
+allocation and final observation-level recomputation. The common runbook contains
+future commands; do not execute production commands until the user resumes them.
+
+Focused shard, bundle and storage tests passed (3 files, 10 tests); simulation
+package build passed; focused lint has no errors. Preparation-only preflight passed
+with pilot counts A=1,806, B=1,806, C=1,808 and no dispatched fights.
+
+Verification stopped at the user's request on 2026-09-27. Both active processes
+(`npm run check` and `npm run test:coverage`) were interrupted with exit code 130.
+Do not restart them automatically. The final complete gate and coverage remain
+unverified; no production execution was started.
+
+Earlier coverage had 1,269 passing tests and a heartbeat-fixture timeout, now fixed
+with a small schema-validated fixture and a passing focused rerun. An earlier
+repository test run mixed cached pre-edit storage code with an updated resume test;
+the focused current-version test passes. Fresh unchanged-file runs were then
+started, passed formatting, lint and validators, and were stopped during tests.
+Their logs are `artifacts/simulation/study-8000/verification/check.log` and
+`coverage-final.log`; neither log represents a completed pass.
+
+Additional fixes: diagnostics have one attempt, including after failure/interruption,
+so retries cannot exceed the 100-attempt diagnostic allowance. Generated shard
+RESUME.md commands use the independent heartbeat supervisor. Focused recovery,
+bundle and real-worker integration tests passed (3 files, 9 tests); the latest
+recovery/bundle rerun passed (2 files, 8 tests). Focused lint has no errors.
+
+Self-contained handoffs are now in [A](simulation-study-shards/A.md),
+[B](simulation-study-shards/B.md) and [C](simulation-study-shards/C.md). They include
+setup, pilot export, the shared-plan import, independent confirmation, final export,
+branch ownership and recovery. The handoff sections survive automatic document
+updates because they are below the `Operator notes` marker.
+
+Implementation is uncommitted; production manifests, common commit and worker
+branches have not been created. Next action is coordinator handoff preparation:
+record one common implementation commit, prepare the production manifest once and
+transfer each complete runtime directory. Verification remains outstanding:
+`npm run check` and `npm run test:coverage` on unchanged files, when the user requests
+resuming checks. Production execution remains paused until separately instructed.
+
+## 2026-09-26 - Budgeted study implementation
+
+Status: implementation written; verification in progress; no production study launched. See
+[the study design and recovery runbook](simulation-budgeted-study.md).
+Approved: 8,000-attempt cap, eight workers, move-balance priority, ±10 percentage
+point practical threshold. Implemented: measurement corrections, domain contracts, durable CLI/supervisor.
+Focused sampling, sequence and recovery tests pass; an isolated real-worker study
+passed natural, screening, diagnostics, confirmation and restart recovery.
+All 143 interventions materialize in both orientations with matched branch seeds.
+Full-size prepare/verify/report preflight passed without production fights.
+Simulation typechecks and focused lint pass (warnings remain).
+The coverage command was started with output in /tmp/study-coverage.log; its
+completion is unverified after the environment change. Production launch is now
+paused by the 2026-09-27 instruction above. The optional scripts-wide tsc command is
+not a repository gate and reports existing missing Node declarations and unrelated
+script errors; executable CLI and recovery paths are covered by integration tests.
+The former next step to launch a single-machine study is superseded by the
+three-shard revision above.
+Existing working-tree changes and historical artifacts are preserved.
+
 ## 2026-09-12 - Selective v5 analytics backfill
 
 The simulation package now accepts `simulation-statistics-request:v3` with an

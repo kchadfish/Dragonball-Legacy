@@ -1,6 +1,12 @@
 import type { CombatEvent, LegalDecision } from "@dragonball-resurgence/combat-engine";
 
 import { canonicalHash } from "./canonical.js";
+import {
+  addSimulationSequenceCounts,
+  renderSimulationSequenceCounts,
+  simulationSequenceOccurrences,
+  type SequenceCount,
+} from "./sequence-counts.js";
 import type { SimulationFightExecutionResult } from "./contracts.js";
 
 export interface SimulationSequenceToken {
@@ -152,68 +158,18 @@ export const normalizeSimulationSequence = (
   tokens: tokensForFrames([...decisions.map((decision) => ({ decision, events: [] })), { events }]),
 });
 
-const patternsFor = (
-  tokens: readonly SimulationSequenceToken[],
-  order: 2 | 3,
-): readonly string[][] =>
-  Array.from({ length: Math.max(0, tokens.length - order + 1) }, (_, index) =>
-    tokens.slice(index, index + order).map((token) => token.token),
-  );
-
+/** Descriptive P(full contiguous pattern in fight | prefix in fight), not causal conversion. */
 export const analyzeSimulationSequences = (
   sequences: readonly SimulationSequence[],
   order: 2 | 3 = 2,
 ): readonly SimulationSequenceEdge[] => {
-  const counts = new Map<
-    string,
-    {
-      pattern: readonly string[];
-      sequences: Set<string>;
-      outcomes: number;
-      occurrences: number;
-      turnDistances: number[];
-    }
-  >();
-  for (const sequence of sequences) {
-    const seen = new Set<string>();
-    for (const pattern of patternsFor(sequence.tokens, order)) {
-      const key = canonicalHash(pattern);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const entry = counts.get(key) ?? {
-        pattern,
-        sequences: new Set<string>(),
-        outcomes: 0,
-        occurrences: 0,
-        turnDistances: [],
-      };
-      entry.sequences.add(sequence.sequenceId);
-      entry.occurrences += 1;
-      const firstTurn = sequence.tokens.find((token) => token.token === pattern[0])?.turnNumber;
-      const lastTurn = sequence.tokens.find((token) => token.token === pattern.at(-1))?.turnNumber;
-      if (firstTurn !== undefined && lastTurn !== undefined)
-        entry.turnDistances.push(Math.max(0, lastTurn - firstTurn));
-      if (sequence.outcome === "win") entry.outcomes += 1;
-      counts.set(key, entry);
-    }
-  }
-  const sequenceCount = new Set(sequences.map((sequence) => sequence.sequenceId)).size;
-  return [...counts.values()]
-    .map((entry) => ({
-      pattern: entry.pattern,
-      order,
-      support: sequenceCount === 0 ? 0 : entry.sequences.size / sequenceCount,
-      sequenceCount: entry.sequences.size,
-      conversionRate: entry.occurrences === 0 ? 0 : entry.sequences.size / entry.occurrences,
-      outcomeAssociation: entry.sequences.size === 0 ? 0 : entry.outcomes / entry.sequences.size,
-      minTurnDistance: entry.turnDistances.length === 0 ? 0 : Math.min(...entry.turnDistances),
-      maxTurnDistance: entry.turnDistances.length === 0 ? 0 : Math.max(...entry.turnDistances),
-    }))
-    .sort(
-      (left, right) =>
-        right.support - left.support ||
-        right.sequenceCount - left.sequenceCount ||
-        canonicalHash(left.pattern).localeCompare(canonicalHash(right.pattern)),
-    )
-    .slice(0, 10);
+  const counts = new Map<string, SequenceCount>();
+  const unique = new Map(sequences.map((sequence) => [sequence.sequenceId, sequence]));
+  for (const sequence of unique.values())
+    addSimulationSequenceCounts(
+      counts,
+      simulationSequenceOccurrences(sequence),
+      sequence.outcome === "win",
+    );
+  return renderSimulationSequenceCounts(counts, unique.size, order).slice(0, 10);
 };

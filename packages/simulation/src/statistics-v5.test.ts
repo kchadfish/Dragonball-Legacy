@@ -15,6 +15,7 @@ import {
   runSimulationStatisticsBackfill,
   selectSimulationCapabilityRecipes,
   validateSimulationStatisticsArtifactV5Closure,
+  type SimulationStatisticsBackfillCheckpointV1,
 } from "./index.js";
 
 describe("simulation statistics v5 selective backfill", () => {
@@ -62,6 +63,57 @@ describe("simulation statistics v5 selective backfill", () => {
     const completed = runSimulationStatisticsBackfill({ baseline, checkpoint: plan, workers: 1 });
     expect(completed.checkpoint.cells[0]?.pairIdentities).toHaveLength(2);
     expect(completed.checkpoint.sequences.length).toBeGreaterThan(0);
+    let interrupted: SimulationStatisticsBackfillCheckpointV1 | undefined;
+    const longer = planSimulationStatisticsBackfill(baseline, {
+      targetPairs: 5,
+      checkpointEveryFights: 2,
+    });
+    expect(() =>
+      runSimulationStatisticsBackfill({
+        baseline,
+        checkpoint: longer,
+        workers: 1,
+        onCheckpoint: (checkpoint) => {
+          interrupted = checkpoint;
+          if (checkpoint.cells[0]!.pairIdentities.length > 0) throw new Error("interrupted");
+        },
+      }),
+    ).toThrow("interrupted");
+    expect(interrupted!.cells[0]!.pairIdentities).toHaveLength(8);
+    let invocation = 0;
+    const resumed = runSimulationStatisticsBackfill({
+      baseline,
+      checkpoint: interrupted,
+      workers: 1,
+      onProgress: () => {
+        invocation += 1;
+      },
+    });
+    expect(invocation).toBe(2);
+    expect(resumed.checkpoint.cells[0]!.pairIdentities).toHaveLength(10);
+    expect(resumed.checkpoint.sequenceSamples!.map((sample) => sample.sequenceId)).toEqual(
+      expect.arrayContaining(interrupted!.sequenceSamples!.map((sample) => sample.sequenceId)),
+    );
+    expect(
+      validateSimulationStatisticsArtifactV5Closure(resumed.artifact, resumed.checkpoint),
+    ).toEqual([]);
+    runSimulationStatisticsBackfill({
+      baseline,
+      checkpoint: resumed.checkpoint,
+      workers: 1,
+      onProgress: () => {
+        invocation += 1;
+      },
+    });
+    expect(invocation).toBe(2);
+    const cell = resumed.checkpoint.cells[0]!;
+    expect(() =>
+      readSimulationStatisticsBackfillCheckpointV1({
+        ...resumed.checkpoint,
+        cells: [{ ...cell, pairIdentities: [...cell.pairIdentities, cell.pairIdentities[0]] }],
+      }),
+    ).toThrow(/Duplicate observation identity/);
+
     expect(
       validateSimulationStatisticsArtifactV5Closure(completed.artifact, completed.checkpoint),
     ).toEqual([]);

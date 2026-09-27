@@ -17,6 +17,7 @@ import {
   analyzeSimulationSequences,
   simulationSequenceForResult,
   type SimulationSequenceEdge,
+  type SimulationSequence,
 } from "./sequences.js";
 import {
   readSimulationStatisticsArtifactV4,
@@ -72,6 +73,7 @@ export interface SimulationStatisticsBackfillManifestV1 {
   readonly seedScheduleIdentity: string;
   readonly evidenceRole: SimulationStatisticsEvidenceRole;
   readonly targetPairs: number;
+  readonly cellScope?: "sufficient" | "all";
   readonly workers: number;
   readonly maximumInFlight: number;
   readonly checkpointEveryPairs: number;
@@ -119,6 +121,7 @@ export interface SimulationStatisticsBackfillCheckpointV1 {
   readonly cells: readonly SimulationStatisticsBackfillCellV1[];
   readonly partialMetrics: Readonly<Record<string, SimulationMetricAggregateV2>>;
   readonly sequences: readonly SimulationSequenceAggregateV1[];
+  readonly sequenceSamples?: readonly SimulationSequence[];
   readonly anomalyFindings: readonly SimulationAnomalyFinding[];
   readonly diagnosticReplays?: readonly SimulationDiagnosticReplayV1[];
   readonly executionCheckpoint?: SimulationV4CatalogCheckpoint;
@@ -193,6 +196,7 @@ const manifestSchema = z
     seedScheduleIdentity: z.string().min(1),
     evidenceRole: z.enum(["natural-balance", "controlled", "diagnostic"]),
     targetPairs: z.number().int().positive().max(400),
+    cellScope: z.enum(["sufficient", "all"]).optional(),
     workers: z.number().int().positive(),
     maximumInFlight: z.number().int().positive().max(8),
     checkpointEveryPairs: z.number().int().positive(),
@@ -203,14 +207,22 @@ const manifestSchema = z
     diagnosticReplayLimit: z.number().int().nonnegative().max(100).optional(),
   })
   .strict();
+const observationIdentitiesSchema = stringArray.refine(
+  (values) => new Set(values).size === values.length,
+  "Duplicate observation identity",
+);
 const cellSchema = z
   .object({
     cellId: z.string().min(1),
     templateAId: z.string().min(1),
     templateBId: z.string().min(1),
-    pairIdentities: stringArray,
+    pairIdentities: observationIdentitiesSchema,
     collectorCompletion: z
-      .object({ metrics: stringArray, sequences: stringArray, anomalies: stringArray })
+      .object({
+        metrics: observationIdentitiesSchema,
+        sequences: observationIdentitiesSchema,
+        anomalies: observationIdentitiesSchema,
+      })
       .strict(),
     failures: stringArray,
     disposition: z.enum(["selected", "never-eligible", "not-applicable"]),
@@ -245,6 +257,7 @@ export const simulationStatisticsBackfillCheckpointV1Schema = z
     cells: z.array(cellSchema),
     partialMetrics: z.record(z.string().min(1), simulationMetricAggregateV2Schema),
     sequences: z.array(sequenceSchema),
+    sequenceSamples: z.array(z.custom<SimulationSequence>()).optional(),
     anomalyFindings: z.array(anomalySchema),
     diagnosticReplays: z.array(z.custom<SimulationDiagnosticReplayV1>()).optional(),
     executionCheckpoint: z
@@ -393,6 +406,7 @@ export const planSimulationStatisticsBackfill = (
   baseline: SimulationV4CatalogCheckpoint,
   options: Readonly<{
     readonly targetPairs?: number;
+    readonly cellScope?: "sufficient" | "all";
     readonly workers?: number;
     readonly checkpointEveryFights?: number;
     readonly evidenceRole?: SimulationStatisticsEvidenceRole;
@@ -411,7 +425,9 @@ export const planSimulationStatisticsBackfill = (
   const checkpointEveryFights = options.checkpointEveryFights ?? 900;
   if (!Number.isInteger(checkpointEveryFights) || checkpointEveryFights < 1)
     throw new RangeError("checkpointEveryFights must be a positive integer.");
-  const selected = baseline.cells.filter((cell) => cell.sparseStatus === "sufficient");
+  const selected = baseline.cells.filter(
+    (cell) => options.cellScope === "all" || cell.sparseStatus === "sufficient",
+  );
   const capabilityRecipes = options.capabilitySelection?.recipes ?? [];
   if (selected.length === 0 && capabilityRecipes.length === 0)
     throw new RangeError("Baseline contains no evidence-bearing cells.");
@@ -441,6 +457,7 @@ export const planSimulationStatisticsBackfill = (
     seedScheduleIdentity: baseline.manifest.seedScheduleIdentity,
     evidenceRole,
     targetPairs,
+    ...(options.cellScope === undefined ? {} : { cellScope: options.cellScope }),
     workers: options.workers ?? 4,
     maximumInFlight: 8,
     checkpointEveryPairs: 5,
@@ -488,6 +505,36 @@ export const planSimulationStatisticsBackfill = (
     anomalyFindings: [],
     diagnosticReplays: [],
   });
+};
+
+/** Compare requested identities, not operational worker/checkpoint settings. */
+export const assertSimulationStatisticsBackfillResume = (
+  saved: SimulationStatisticsBackfillCheckpointV1,
+  requested: SimulationStatisticsBackfillCheckpointV1,
+): void => {
+  readSimulationStatisticsBackfillCheckpointV1(saved);
+  const identity = (checkpoint: SimulationStatisticsBackfillCheckpointV1) => ({
+    baseline: {
+      checkpointHash: checkpoint.baseline.checkpointHash,
+      artifactHash: checkpoint.baseline.artifactHash,
+    },
+    targetPairs: checkpoint.manifest.targetPairs,
+    evidenceRole: checkpoint.manifest.evidenceRole,
+    cellScope: checkpoint.manifest.cellScope ?? "sufficient",
+    selection: checkpoint.manifest.capabilitySelection?.selectionHash,
+    cells: checkpoint.cells.map(({ cellId, templateAId, templateBId }) => ({
+      cellId,
+      templateAId,
+      templateBId,
+    })),
+  });
+  if (
+    (saved.baseline.sha256 !== undefined && saved.baseline.sha256 !== requested.baseline.sha256) ||
+    canonicalHash(identity(saved)) !== canonicalHash(identity(requested))
+  )
+    throw new RangeError(
+      "Backfill resume baseline, target, role, or selected cells/recipes mismatch.",
+    );
 };
 
 const actualSampleSize = (metric: SimulationMetricAggregateV2): number =>
@@ -937,7 +984,8 @@ export const runSimulationStatisticsBackfill = (input: {
     checkpoint.baseline.artifactHash !== input.baseline.artifact.artifactHash
   )
     throw new RangeError("Backfill resume baseline identity mismatch.");
-  const sequences = [] as NonNullable<ReturnType<typeof simulationSequenceForResult>>[];
+  input.onCheckpoint?.(checkpoint);
+  const sequences: SimulationSequence[] = [...(checkpoint.sequenceSamples ?? [])];
   const findings: SimulationAnomalyFinding[] = [];
   const diagnosticReplays = [...(checkpoint.diagnosticReplays ?? [])];
   const observationsByCell = new Map<string, Set<string>>();
@@ -986,6 +1034,7 @@ export const runSimulationStatisticsBackfill = (input: {
         ),
       ),
       sequences: sequenceEdges.length === 0 ? checkpoint.sequences : sequenceEdges,
+      sequenceSamples: sequences,
       anomalyFindings: [
         ...new Map(
           [...checkpoint.anomalyFindings, ...findings].map((finding) => [

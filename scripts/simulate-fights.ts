@@ -1,3 +1,8 @@
+import {
+  createSimulationCheckpointReporter,
+  SIMULATION_HEARTBEAT_INTERVAL_MS,
+  simulationSavedFights,
+} from "./simulation-run-support.js";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { renameSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -42,6 +47,7 @@ import {
   readSimulationStatisticsArtifactV4,
   readSimulationStatisticsArtifactV5,
   selectSimulationCapabilityRecipes,
+  readSimulationCapabilitySelection,
   simulationCapabilityIdSchema,
   SIMULATION_CAPABILITY_RECIPE_LIMIT,
   renderSimulationDashboardCsv,
@@ -57,6 +63,7 @@ import {
   validateSimulationStatisticsBundleV1Closure,
   ALL_SIMULATION_TEMPLATES,
   planSimulationStatisticsBackfill,
+  assertSimulationStatisticsBackfillResume,
   runSimulationStatisticsBackfill,
   readSimulationStatisticsBackfillCheckpointV1,
   renderSimulationStatisticsArtifactV5Csv,
@@ -84,7 +91,7 @@ const usage = `Usage: npm run simulate -- <command> [--format json|csv|markdown]
 
 Commands: fight, series, matrix, catalog, catalog-run, analytics-backfill, analytics-bundle, resume, replay, report, dashboard, bundle, dry-run, move-report, dossiers, closure, freshness, custom-review, custom-run, benchmark
 v4 catalog: --schedule natural|controlled|diagnostic (catalog defaults to natural)
-Analytics backfill: --role natural|controlled|diagnostic --capabilities restricted-use,status-control,transformation,anomaly --natural-artifact <v5 artifact> --checkpoint-fights <count>
+Analytics backfill: --role natural|controlled|diagnostic --capabilities restricted-use,status-control,transformation,anomaly --natural-artifact <v5 artifact> --checkpoint-fights <count> --cell-scope sufficient|all --max-recipes <count>|all
 Coverage selectors: --population, --populations, --natural-profile, --exposure-contexts, --moves, --target-pairs, --output, --retry-failed
 Closure purpose: --purpose=screening|production (production is the default)
 Deprecated compatibility alias: --target-fights (do not provide both)`;
@@ -765,20 +772,31 @@ const main = async (): Promise<void> => {
           JSON.parse(await readFile(naturalArtifactPath, "utf8")) as unknown,
         )
       : undefined;
+    const selectionPath = optionFor(args, "--recipe-selection");
     const capabilitySelection =
-      capabilityIds.length === 0
-        ? undefined
-        : selectSimulationCapabilityRecipes({
-            view: CANONICAL_COMBAT_MECHANICS_VIEW,
-            templates: ALL_SIMULATION_TEMPLATES(),
-            capabilityIds,
-            maxRecipesPerCapability: positiveOption(
-              args,
-              "--max-recipes",
-              SIMULATION_CAPABILITY_RECIPE_LIMIT,
-            ),
-            anomalyFindings: naturalArtifact?.anomalies,
-          });
+      selectionPath !== undefined
+        ? readSimulationCapabilitySelection(JSON.parse(await readFile(selectionPath, "utf8")))
+        : capabilityIds.length === 0
+          ? undefined
+          : selectSimulationCapabilityRecipes({
+              view: CANONICAL_COMBAT_MECHANICS_VIEW,
+              templates: ALL_SIMULATION_TEMPLATES(),
+              capabilityIds,
+              maxRecipesPerCapability:
+                optionFor(args, "--max-recipes") === "all"
+                  ? "all"
+                  : positiveOption(args, "--max-recipes", SIMULATION_CAPABILITY_RECIPE_LIMIT),
+              anomalyFindings: naturalArtifact?.anomalies,
+            });
+    if (
+      capabilitySelection !== undefined &&
+      (role === "natural" ||
+        canonicalHash([...capabilityIds].sort()) !==
+          canonicalHash([...capabilitySelection.capabilityIds].sort()))
+    )
+      throw new RangeError(
+        "Frozen recipe selection does not match the requested capabilities or role.",
+      );
     if (capabilitySelection !== undefined && capabilitySelection.recipes.length === 0)
       throw new RangeError("Capability selection produced no eligible recipes.");
     const checkpointPath = `${outputPath}.checkpoint.json`;
@@ -810,74 +828,89 @@ const main = async (): Promise<void> => {
         quarantine.manifest.seedScheduleIdentity !== baseline.manifest.seedScheduleIdentity)
     )
       throw new RangeError("Quarantined checkpoint is not seed-compatible with the baseline.");
-    const planned =
-      priorCheckpoint ??
-      planSimulationStatisticsBackfill(baseline, {
-        targetPairs,
-        workers,
-        checkpointEveryFights,
-        evidenceRole: role === "natural" ? "natural-balance" : role,
-        ...(capabilitySelection === undefined ? {} : { capabilitySelection }),
-        baselineSha256: sha256(baselineText),
-        ...(quarantineText === undefined
-          ? {}
-          : {
-              quarantinedCheckpoint: {
-                checkpointHash: quarantine!.checkpointHash,
-                sha256: sha256(quarantineText),
-              },
-            }),
-      });
-    let latestCheckpoint: SimulationStatisticsBackfillCheckpointV1 = planned;
-    let interrupted = false;
-    const requestStop = (): void => {
-      interrupted = true;
-      atomicWriteSync(checkpointPath, `${canonicalJson(latestCheckpoint)}\n`);
-    };
-    process.once("SIGINT", requestStop);
-    process.once("SIGTERM", requestStop);
-    const startedAt = Date.now();
-    let completed = 0;
-    const result = runSimulationStatisticsBackfill({
-      baseline,
-      checkpoint: planned,
+    const cellScope = optionFor(args, "--cell-scope") ?? "sufficient";
+    if (cellScope !== "sufficient" && cellScope !== "all")
+      throw new RangeError("--cell-scope must be sufficient or all.");
+    const requested = planSimulationStatisticsBackfill(baseline, {
+      cellScope,
+      targetPairs,
       workers,
       checkpointEveryFights,
-      onCheckpoint: (checkpoint) => {
-        latestCheckpoint = checkpoint;
-        atomicWriteSync(checkpointPath, `${canonicalJson(checkpoint)}\n`);
-      },
-      onProgress: (progress) => {
-        completed += 1;
-        const elapsedSeconds = Math.max(0.001, (Date.now() - startedAt) / 1_000);
-        const throughput = completed / elapsedSeconds;
-        const remaining = Math.max(0, progress.total - completed);
-        const memoryMb = Math.round(process.memoryUsage().rss / 1_048_576);
-        if (!progress.result.ok)
-          console.error(
-            `simulation-worker-error=${JSON.stringify(progress.result.error, Object.getOwnPropertyNames(progress.result.error))}`,
-          );
-        else if (progress.result.value.failure !== undefined)
-          console.error(
-            `simulation-fight-error=${JSON.stringify({
-              runId: progress.result.value.runId,
-              failure: progress.result.value.failure,
-              terminationReason: progress.result.value.terminationReason,
-            })}`,
-          );
-        console.error(
-          `collectors=metrics,sequences,anomalies fights=${completed}/${progress.total} throughput=${throughput.toFixed(2)}/s eta=${Math.ceil(remaining / Math.max(throughput, 0.001))}s memory=${memoryMb}MB failures=${progress.result.ok ? 0 : 1} cells=${planned.cells.length}`,
-        );
-      },
+      evidenceRole: role === "natural" ? "natural-balance" : role,
+      ...(capabilitySelection === undefined ? {} : { capabilitySelection }),
+      baselineSha256: sha256(baselineText),
+      ...(quarantineText === undefined
+        ? {}
+        : {
+            quarantinedCheckpoint: {
+              checkpointHash: quarantine!.checkpointHash,
+              sha256: sha256(quarantineText),
+            },
+          }),
     });
-    process.removeListener("SIGINT", requestStop);
-    process.removeListener("SIGTERM", requestStop);
+    if (priorCheckpoint !== undefined)
+      assertSimulationStatisticsBackfillResume(priorCheckpoint, requested);
+    const planned = priorCheckpoint ?? requested;
+    await mkdir(dirname(checkpointPath), { recursive: true });
+    let latestCheckpoint: SimulationStatisticsBackfillCheckpointV1 = planned;
+    let lastDurableCheckpoint = "none";
+    const reportCheckpoint = createSimulationCheckpointReporter(
+      checkpointPath,
+      simulationSavedFights(planned),
+    );
+    const startedAt = Date.now();
+    let completed = 0;
+    const initialSaved = simulationSavedFights(planned);
+    const liveFightsSinceCheckpoint = (): number =>
+      Math.max(0, completed - (simulationSavedFights(latestCheckpoint) - initialSaved));
+    const heartbeatTimer = setInterval(
+      () => reportCheckpoint.heartbeat(latestCheckpoint, liveFightsSinceCheckpoint(), true),
+      SIMULATION_HEARTBEAT_INTERVAL_MS,
+    );
+    heartbeatTimer.unref();
+    let result: ReturnType<typeof runSimulationStatisticsBackfill>;
+    try {
+      result = runSimulationStatisticsBackfill({
+        baseline,
+        checkpoint: planned,
+        workers,
+        checkpointEveryFights,
+        onCheckpoint: (checkpoint) => {
+          latestCheckpoint = checkpoint;
+          reportCheckpoint(checkpoint);
+          lastDurableCheckpoint = new Date().toISOString();
+        },
+        onProgress: (progress) => {
+          completed += 1;
+          reportCheckpoint.heartbeat(latestCheckpoint, liveFightsSinceCheckpoint());
+          const elapsedSeconds = Math.max(0.001, (Date.now() - startedAt) / 1_000);
+          const throughput = completed / elapsedSeconds;
+          const remaining = Math.max(0, progress.total - completed);
+          const memoryMb = Math.round(process.memoryUsage().rss / 1_048_576);
+          if (!progress.result.ok)
+            console.error(
+              `simulation-worker-error=${JSON.stringify(progress.result.error, Object.getOwnPropertyNames(progress.result.error))}`,
+            );
+          else if (progress.result.value.failure !== undefined)
+            console.error(
+              `simulation-fight-error=${JSON.stringify({
+                runId: progress.result.value.runId,
+                failure: progress.result.value.failure,
+                terminationReason: progress.result.value.terminationReason,
+              })}`,
+            );
+          console.error(
+            `collectors=metrics,sequences,anomalies invocation=${completed}/${progress.total} saved=${latestCheckpoint.cells.reduce((sum, cell) => sum + cell.pairIdentities.length, 0)} remaining=${remaining} lastCheckpoint=${lastDurableCheckpoint} throughput=${throughput.toFixed(2)}/s eta=${Math.ceil(remaining / Math.max(throughput, 0.001))}s memory=${memoryMb}MB failures=${progress.result.ok ? 0 : 1} cells=${planned.cells.length}`,
+          );
+        },
+      });
+    } finally {
+      clearInterval(heartbeatTimer);
+    }
     const closureIssues = validateSimulationStatisticsArtifactV5Closure(
       result.artifact,
       result.checkpoint,
     );
-    if (interrupted)
-      throw new Error(`Backfill interrupted after atomic checkpoint write: ${checkpointPath}`);
     if (closureIssues.length > 0)
       throw new Error(`Backfill closure failed: ${closureIssues.join(", ")}`);
     const base = outputPath.endsWith(".json") ? outputPath.slice(0, -5) : outputPath;
@@ -907,6 +940,7 @@ const main = async (): Promise<void> => {
         optionFor(args, "--output") ??
         join("artifacts", "simulation", `catalog-v4-${schedule}-${targetPairs}.json`);
       const checkpointPath = `${outputPath}.checkpoint.json`;
+      await mkdir(dirname(checkpointPath), { recursive: true });
       const result = runSimulationStatisticsCatalogV4({
         targetPairs,
         workers,
@@ -1037,14 +1071,17 @@ const main = async (): Promise<void> => {
         const outputPath =
           optionFor(args, "--output") ??
           join("artifacts", "simulation", `catalog-v4-${schedule}-${targetPairs}.json`);
+        const reportCheckpoint = createSimulationCheckpointReporter(
+          `${outputPath}.checkpoint.json`,
+          simulationSavedFights(checkpoint),
+        );
         const result = resumeSimulationStatisticsCatalogV4(checkpoint, {
           targetPairs,
           workers: hasOption(args, "--workers")
             ? positiveOption(args, "--workers", defaultSimulationWorkers)
             : defaultSimulationWorkers,
           sourceCommit: sourceCommitFor(),
-          onCheckpoint: (nextCheckpoint) =>
-            atomicWriteSync(`${outputPath}.checkpoint.json`, `${canonicalJson(nextCheckpoint)}\n`),
+          onCheckpoint: reportCheckpoint,
         });
         await mkdir(dirname(outputPath), { recursive: true });
         await atomicWrite(outputPath, `${canonicalJson(result.artifact)}\n`);

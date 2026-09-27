@@ -146,7 +146,7 @@ export const selectSimulationCapabilityRecipes = (input: {
   readonly templates: readonly SimulationTemplate[];
   readonly capabilityIds: readonly SimulationCapabilityId[];
   readonly anomalyFindings?: readonly SimulationAnomalyFinding[];
-  readonly maxRecipesPerCapability?: number;
+  readonly maxRecipesPerCapability?: number | "all";
 }): SimulationCapabilitySelection => {
   const anomalyTargets = new Set(
     (input.anomalyFindings ?? []).flatMap((finding) => finding.contributingActions),
@@ -175,20 +175,23 @@ export const selectSimulationCapabilityRecipes = (input: {
     }
   const maxRecipesPerCapability =
     input.maxRecipesPerCapability ?? SIMULATION_CAPABILITY_RECIPE_LIMIT;
-  if (!Number.isInteger(maxRecipesPerCapability) || maxRecipesPerCapability < 1)
-    throw new RangeError("maxRecipesPerCapability must be a positive integer.");
+  if (
+    maxRecipesPerCapability !== "all" &&
+    (!Number.isInteger(maxRecipesPerCapability) || maxRecipesPerCapability < 1)
+  )
+    throw new RangeError("maxRecipesPerCapability must be a positive integer or all.");
   const sortedRecipes = [...recipes].sort((left, right) =>
     left.recipeId.localeCompare(right.recipeId),
   );
-  const orderedRecipes = sortedRecipes.filter((recipe, index, values) => {
-    const priorTargets = new Set(
-      values
-        .slice(0, index)
-        .filter((candidate) => candidate.capabilityId === recipe.capabilityId)
-        .map((candidate) => candidate.targetDefinitionId),
-    );
+  const seenTargets = new Map<SimulationCapabilityId, Set<string>>();
+  const orderedRecipes = sortedRecipes.filter((recipe) => {
+    const priorTargets = seenTargets.get(recipe.capabilityId) ?? new Set<string>();
     if (priorTargets.has(recipe.targetDefinitionId)) return false;
-    return priorTargets.size < maxRecipesPerCapability;
+    const selected =
+      maxRecipesPerCapability === "all" || priorTargets.size < maxRecipesPerCapability;
+    priorTargets.add(recipe.targetDefinitionId);
+    seenTargets.set(recipe.capabilityId, priorTargets);
+    return selected;
   });
   const value = {
     schemaVersion: SIMULATION_CAPABILITY_SELECTION_VERSION,

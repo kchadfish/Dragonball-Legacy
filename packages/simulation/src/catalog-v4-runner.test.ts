@@ -16,6 +16,7 @@ import {
   materializeSimulationTemplate,
   TF1_SIMULATION_TEMPLATES,
   validateSimulationTemplate,
+  type SimulationV4CatalogCheckpoint,
 } from "./index.js";
 import { SIMULATION_DEFAULT_LIMITS } from "./policy.js";
 
@@ -75,6 +76,47 @@ describe("v4 statistics catalog runner", () => {
       sourceCommit: "commit:test",
     });
     expect(workerRun.artifact.artifactHash).toBe(oneShot.artifact.artifactHash);
+  }, 180_000);
+
+  it("resumes a durable partial controlled pair without replaying accepted branches", () => {
+    let saved: SimulationV4CatalogCheckpoint | undefined;
+    expect(() =>
+      runSimulationStatisticsCatalogV4({
+        templates,
+        targetPairs: 1,
+        batchSize: 1,
+        schedule: "controlled",
+        onCheckpoint: (checkpoint) => {
+          saved = checkpoint;
+          if (Object.keys(checkpoint.cells[0]!.acceptedMirrorResults).length > 0)
+            throw new Error("simulated interruption");
+        },
+      }),
+    ).toThrow("simulated interruption");
+    expect(saved).toBeDefined();
+    expect(Object.keys(saved!.cells[0]!.acceptedMirrorResults)).toHaveLength(2);
+    let executed = 0;
+    const resumed = resumeSimulationStatisticsCatalogV4(saved!, {
+      templates,
+      targetPairs: 1,
+      batchSize: 1,
+      schedule: "controlled",
+      onFightResult: () => {
+        executed += 1;
+      },
+    });
+    expect(executed).toBe(2);
+    expect(resumed.cells[0]!.completedBasePairs).toBe(1);
+    const again = resumeSimulationStatisticsCatalogV4(resumed.checkpoint, {
+      templates,
+      targetPairs: 1,
+      schedule: "controlled",
+      onFightResult: () => {
+        executed += 1;
+      },
+    });
+    expect(executed).toBe(2);
+    expect(again.artifact.artifactHash).toBe(resumed.artifact.artifactHash);
   }, 180_000);
 
   it("rejects a lowered target and reports incomplete closure explicitly", () => {

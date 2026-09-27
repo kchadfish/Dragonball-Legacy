@@ -1646,3 +1646,7 @@ variant support: the verified canonical module-level registry reads must be
 replaced or routed through public immutable owning-package inputs in SIM-080,
 before the runner architecture freezes, rather than bypassed or duplicated in
 simulation.
+
+## Current execution plan
+
+Use [the budgeted 8,000-attempt study](simulation-budgeted-study.md) for the current balance investigation. Execution progress is recorded in simulation-progress.md.

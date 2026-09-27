@@ -1247,6 +1247,9 @@ export const runSimulationStatisticsCatalogV4 = (
   const batchSize = options.batchSize ?? 25;
   if (!Number.isInteger(batchSize) || batchSize < 1)
     throw new RangeError("v4 batch size must be positive.");
+  options.onCheckpoint?.(
+    checkpointFor({ manifest, cells, batchCount: options.resumeFrom?.batchCount ?? 0, artifact }),
+  );
   const requests: SimulationFightRequest[] = [];
   const branches =
     schedule === "controlled" ? (["baseline", "variant"] as const) : (["baseline"] as const);
@@ -1657,6 +1660,7 @@ export const runSimulationStatisticsCatalogV4 = (
     batchCount,
     artifact,
   });
+  options.onCheckpoint?.(checkpoint);
   return {
     artifact,
     checkpoint,
@@ -1721,3 +1725,6 @@ export const simulationV4CatalogProfileFor = (id: string): AiProfile => {
   if (id === SIMULATION_QUALITY_PROFILE.identity.id) return SIMULATION_QUALITY_PROFILE;
   throw new RangeError(`Unknown v4 AI profile: ${id}.`);
 };
+
+/** Pure catalog request construction, shared by explicitly versioned study schedules. */
+export const createSimulationCatalogFightRequest = requestFor;
