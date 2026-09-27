@@ -1,20 +1,28 @@
 # Simulation study shard A
 
-Status: handoff prepared; production not started. Checks were stopped at the user's
-request on 2026-09-27. Do not restart checks or start fights without a new instruction.
+Status: runtime prepared; 0 attempts; production is paused. Checks were stopped at
+the user's request on 2026-09-27.
 
-| Field                                 | Value                                                 |
-| ------------------------------------- | ----------------------------------------------------- |
-| Branch                                | `study/8000-a` (not created yet)                      |
-| Attempt cap                           | 2,667, including failures and interrupted attempts    |
-| Planned pilot fights                  | 1,806 before retries                                  |
-| Workers                               | 8 on this machine                                     |
-| Runtime directory                     | `artifacts/simulation/study-8000/balance-20260927/A`  |
-| Common implementation commit          | Not frozen; implementation is uncommitted             |
-| Production manifest / shard plan hash | Not generated                                         |
-| Production attempts / durable results | 0 / 0                                                 |
-| Pilot / final bundle                  | Not exported                                          |
-| Verification                          | Focused tests pass; full gate and coverage incomplete |
+| Identity                   | Value                                                                                    |
+| -------------------------- | ---------------------------------------------------------------------------------------- |
+| Worker branch              | `study/8000-a` (not created; current branch is `master`)                                 |
+| Common source commit       | `56c384d58b62a846a7d201056d50ba02f0eacfe2`                                               |
+| Source identity SHA-256    | `518ffa66d36d9e7721b528388c18d1ff3da50f35c3a63e64809933141dee9075`                       |
+| Study ID                   | `balance-20260927`                                                                       |
+| Common manifest hash       | `fnv1a-32:ef36253b`                                                                      |
+| Global shard-plan hash     | `fnv1a-32:0d810ed1`                                                                      |
+| Baseline SHA-256           | `cf5766224446540320438c98b98faaef34bc81fa38f1ca1fd8f3d7a4aa58aae1`                       |
+| Source archive SHA-256     | `344ef2b12d714fcb7a2ad40e4d8c9a8c92a173b4d68f9692c55b96eedbc7ddaa`                       |
+| Attempt cap                | 2,667, including failures and interrupted attempts                                       |
+| Planned pilot fights       | 1,806 before retries                                                                     |
+| Workers                    | 8 per machine                                                                            |
+| Runtime directory          | `artifacts/simulation/study-8000/balance-20260927/A/`                                    |
+| `shard.json` owner         | `A`                                                                                      |
+| Attempts / durable results | 0 / 0                                                                                    |
+| Journal                    | Empty; checkpoint sequence 0, hash `genesis`                                             |
+| Results / bundle           | Empty / not exported                                                                     |
+| tmux                       | Version 3.4 installed on coordinator; check the worker machine                           |
+| Verification               | Focused checks passed; full repository check and coverage were stopped before completion |
 
 ## Operator notes
 
@@ -55,12 +63,13 @@ The remaining verification action, when requested, is `npm run check` plus
 Before a later authorized launch, the coordinator must:
 
 1. Record one common implementation commit containing the intended study code.
-   The current HEAD alone does not contain the uncommitted implementation. Preserve
-   unrelated working-tree changes when preparing that commit.
+   Use common source commit `56c384d58b62a846a7d201056d50ba02f0eacfe2` and retain the recorded source identity on
+   every machine. Do not modify its source files before launch.
 2. Prepare the production study **once**, using the common runbook, and distribute
    the complete `A/` runtime directory. Do not independently prepare a study
    on this machine. The earlier `/tmp` preparation was only a preflight.
-3. Supply the exact common commit, manifest hash and shard-plan hash. All machines
+3. Supply the exact common commit, source SHA-256, manifest hash, shard-plan hash, baseline SHA-256
+   and source archive SHA-256 from the identity table above. All machines
    must use the same source files, dependencies, mechanics and metric definitions.
 
 On this machine, use that commit to create the branch (replace the placeholder):

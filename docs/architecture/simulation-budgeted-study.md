@@ -1,6 +1,6 @@
 # Budgeted simulation study
 
-Status: three-shard handoffs prepared; verification stopped at user request. **Production execution is
+Status: A/B/C runtimes prepared at `artifacts/simulation/study-8000/balance-20260927`; verification stopped at user request. **Production execution is
 paused by user instruction.** The user approved one pooled pilot merge followed
 by independent confirmation on three machines. No production fights have started.
 
@@ -82,9 +82,16 @@ to 8,000. Retries and unknown interrupted attempts consume local caps. A few slo
 may remain unused because complete blocks must fit. Do not move tasks between
 machines or independently select confirmation recipes.
 
+The production runtime was prepared once without dispatching fights. Study ID:
+`balance-20260927`; manifest `fnv1a-32:ef36253b`; shard plan
+`fnv1a-32:0d810ed1`; source commit `56c384d58b62a846a7d201056d50ba02f0eacfe2`.
+Each shard handoff records the source, baseline and archive checksums. Journals are
+empty and checkpoints record zero attempts. Branches are not yet created.
+
 The following commands are a **future execution runbook**, not authorization to
-start now. First pass verification, record the common implementation commit, and
-create the three worker branches from that commit. Prepare once on the coordinator:
+start now. Verification is incomplete. After it resumes and passes, use the frozen
+source commit above for worker branches. Do not prepare independently on workers;
+copy the already prepared shard directory.
 
 ```sh
 node --import tsx scripts/simulation-study-shards.ts prepare-shards --dir artifacts/simulation/study-8000/balance-20260927

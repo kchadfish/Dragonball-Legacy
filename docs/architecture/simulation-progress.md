@@ -13,8 +13,13 @@ allocation and final observation-level recomputation. The common runbook contain
 future commands; do not execute production commands until the user resumes them.
 
 Focused shard, bundle and storage tests passed (3 files, 10 tests); simulation
-package build passed; focused lint has no errors. Preparation-only preflight passed
-with pilot counts A=1,806, B=1,806, C=1,808 and no dispatched fights.
+package build passed; focused lint has no errors. Runtime directories were prepared
+at `artifacts/simulation/study-8000/balance-20260927/{A,B,C}` with no fights.
+Manifest `fnv1a-32:ef36253b`; plan `fnv1a-32:0d810ed1`; source commit
+`56c384d58b62a846a7d201056d50ba02f0eacfe2`. Pilot assignments A/B/C contain
+1,806 / 1,806 / 1,808 scheduled fights. Caps are 2,667 / 2,667 / 2,666. Journals
+are empty, checkpoints record 0 attempts/results and all `shard.json` owners match.
+tmux 3.4 is installed on this coordinator.
 
 Verification stopped at the user's request on 2026-09-27. Both active processes
 (`npm run check` and `npm run test:coverage`) were interrupted with exit code 130.
@@ -41,10 +46,10 @@ setup, pilot export, the shared-plan import, independent confirmation, final exp
 branch ownership and recovery. The handoff sections survive automatic document
 updates because they are below the `Operator notes` marker.
 
-Implementation is uncommitted; production manifests, common commit and worker
-branches have not been created. Next action is coordinator handoff preparation:
-record one common implementation commit, prepare the production manifest once and
-transfer each complete runtime directory. Verification remains outstanding:
+The implementation and prepared runtime are frozen against the common commit
+above; worker and coordinator branches have not been created. Transfer each complete
+runtime to its assigned machine and use the recorded identity hashes. Verification
+remains outstanding and production execution is paused. Verification remains outstanding:
 `npm run check` and `npm run test:coverage` on unchanged files, when the user requests
 resuming checks. Production execution remains paused until separately instructed.
 
